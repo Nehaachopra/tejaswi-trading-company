@@ -33,8 +33,7 @@ export const salesTable = pgTable(
       .references(() => transactionsTable.id, { onDelete: "restrict" }),
 
     partyId: uuid("party_id")
-      .notNull()
-      .references(() => partiesTable.id, { onDelete: "no action" }),
+      .references(() => partiesTable.id, { onDelete: "set null" }),
 
     partyNameSnapshot: varchar("party_name_snapshot", {
       length: 150,

@@ -7,6 +7,7 @@ import { money, timestamps } from "../../../utils/common/column-type";
 import { productsTable } from "../../product/product";
 import { purchaseOrdersTable } from "./purchase-order";
 import { partyAddressesTable } from "../../party/party-address";
+import { productGodownsTable } from "../../godown/product-godown";
 
 export const purchaseOrderProductsTable = pgTable(
   "purchase_order_products",
@@ -19,9 +20,9 @@ export const purchaseOrderProductsTable = pgTable(
         onDelete: "restrict",
       }),
 
-    productId: uuid("product_id")
+    productGodownId: uuid("product_id")
       .notNull()
-      .references(() => productsTable.id, {
+      .references(() => productGodownsTable.id, {
         onDelete: "restrict",
       }),
 
@@ -46,7 +47,7 @@ export const purchaseOrderProductsTable = pgTable(
   (table) => [
     index("purchase_order_products_order_id_idx").on(table.purchaseOrderId),
 
-    index("purchase_order_products_product_id_idx").on(table.productId),
+    index("purchase_order_product_godown_id_idx").on(table.productGodownId),
 
     check(
       "purchase_order_products_quantity_ordered_positive",
@@ -59,7 +60,7 @@ export const purchaseOrderProductsTable = pgTable(
     ),
 
     check(
-      "purchase_order_products_purchase_price_non_negative",
+      "purchase_order_products_discount_amount_valid",
       sql`${table.discountAmount} <= ${table.grossProductPrice}`,
     ),
 

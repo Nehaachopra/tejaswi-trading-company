@@ -39,14 +39,14 @@ export const withdrawalsTable = pgTable("withdrawals", {
   ...timestamps,
 },
 (table) => [
-  uniqueIndex("deposits_assigned_id_unique").on(table.assignedId),
+  uniqueIndex("withdrawal_assigned_id_unique").on(table.assignedId),
 
-  uniqueIndex("deposits_transaction_id_unique").on(table.transactionId),
+  uniqueIndex("withdrawal_transaction_id_unique").on(table.transactionId),
 
-  index("deposits_bank_details_id_idx").on(table.bankDetailsId),
+  index("withdrawal_bank_details_id_idx").on(table.bankDetailsId),
 
   check(
-    "deposits_amount_non_negative",
+    "withdrawal_amount_non_negative",
     sql`${table.amount} >= 0`,
   ),
 ]);

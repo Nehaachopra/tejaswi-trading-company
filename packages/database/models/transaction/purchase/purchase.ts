@@ -33,7 +33,6 @@ export const purchasesTable = pgTable(
       .references(() => transactionsTable.id, { onDelete: "restrict" }),
 
     partyId: uuid("party_id")
-      .notNull()
       .references(() => partiesTable.id, { onDelete: "set null" }),
 
     partyNameSnapshot: varchar("party_name_snapshot", {
@@ -74,6 +73,7 @@ export const purchasesTable = pgTable(
   },
   (table) => [
     index("purchases_transaction_id_index").on(table.transactionId),
+
     index("purchases_party_id_idx").on(table.partyId),
 
     check(

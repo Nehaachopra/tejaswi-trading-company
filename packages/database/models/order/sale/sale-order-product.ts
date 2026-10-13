@@ -59,7 +59,7 @@ export const saleOrderProductsTable = pgTable(
     ),
 
     check(
-      "sale_order_products_sale_price_non_negative",
+      "sale_order_products_discount_amount_valid",
       sql`${table.discountAmount} <= ${table.grossProductPrice}`,
     ),
 

@@ -14,7 +14,7 @@ export const transactionTypeEnum = pgEnum("transaction_type", [
   "receipt",
   "drawing",
   "deposit",
-  "withdrawl",
+  "withdrawal",
   "other",
 ]);
 

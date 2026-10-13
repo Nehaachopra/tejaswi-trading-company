@@ -9,6 +9,7 @@ import { user } from "../../auth";
 import { date } from "drizzle-orm/pg-core";import { index } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
+import { uniqueIndex } from "drizzle-orm/pg-core";
 
 export const saleOrdersTable = pgTable(
   "sale_orders",
@@ -46,6 +47,7 @@ export const saleOrdersTable = pgTable(
     ...timestamps,
   },
   (table) => [
+    uniqueIndex("sale_orders_order_id_unique_idx").on(table.orderId),
     index("sale_orders_party_id_idx").on(table.partyId),
 
     check(
