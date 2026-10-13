@@ -1,0 +1,6 @@
+- In sale, we have order and transaction!
+- Order is something taken mostly on phone!
+- Order becomes a transaction once all goods in order are dispatched.
+- Order impact reserved quantity
+- Transaction deals only with unreserved quantity (unless it is the transaction from order)
+- Not all transaction are from order!
