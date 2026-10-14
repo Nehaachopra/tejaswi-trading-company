@@ -1,11 +1,14 @@
 import http from "node:http";
 import { logger } from "@repo/logger";
+import { userService } from "@repo/trpc/server";
 import { app as expressApplication } from "./server";
 
 import { env } from "./env";
 
 async function init() {
   try {
+    await userService.ensureFirstAdmin(env.PHONE_NUMBER);
+
     const server = http.createServer(expressApplication);
     const PORT: number = env.PORT ? +env.PORT : 8000;
     server.listen(PORT, () => {

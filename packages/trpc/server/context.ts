@@ -1,19 +1,38 @@
 import type { CreateExpressContextOptions } from "@trpc/server/adapters/express";
-import { IncomingHttpHeaders } from 'node:http';
+import type { Request, Response } from "express";
+import type { AuthSessionModel, ClientInfo } from "@repo/services/auth/model";
 
-export interface TRPCContext {
-  userId? : string,
-  operatorId? : string,
-  trustedDeviceId?: string,
-  headers: IncomingHttpHeaders,
-  authHeaders: Record<string, string>;
+import { authService } from "./services";
+
+export interface Context {
+  req: Request;
+  res: Response;
+  session: AuthSessionModel | null;
+  client: ClientInfo;
 }
 
-export async function createContext({req, res}: CreateExpressContextOptions) {
-  const ctx = {
+export const SESSION_COOKIE = "ttc_session";
+
+function readCookie(header: string | undefined, name: string) {
+  if (!header) return undefined;
+  for (const part of header.split(";")) {
+    const [key, ...value] = part.trim().split("=");
+    if (key === name) return decodeURIComponent(value.join("="));
   }
-
-  return ctx
+  return undefined;
 }
 
-export type Context = Awaited<ReturnType<typeof createContext>>;
+export async function createContext({ req, res }: CreateExpressContextOptions): Promise<Context> {
+  const token = readCookie(req.headers.cookie, SESSION_COOKIE);
+  const session = token ? await authService.getSession(token) : null;
+
+  return {
+    req,
+    res,
+    session,
+    client: {
+      ipAddress: req.ip,
+      userAgent: req.headers["user-agent"],
+    },
+  };
+}

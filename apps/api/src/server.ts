@@ -11,6 +11,13 @@ import { serverRouter, createContext } from "@repo/trpc/server";
 import { env } from "./env";
 
 export const app = express();
+
+// expected errors (wrong OTP, forbidden, ...) are part of the flow; only log the unexpected ones
+const onError = ({ error, path }: { error: { code: string }; path?: string }) => {
+  if (error.code === "INTERNAL_SERVER_ERROR") {
+    logger.error(`Unexpected error in ${path ?? "unknown procedure"}`, { error });
+  }
+};
 const openApiDocument = generateOpenApiDocument(serverRouter, {
   title: "Tejaswi trading company OpenAPI",
   version: "1.0.0",
@@ -29,11 +36,11 @@ if (env.NODE_ENV !== "prod") {
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  return res.json({ message: "Streamyst is up and running..." });
+  return res.json({ message: "Tejaswi Trading Company API is up and running" });
 });
 
 app.get("/health", (req, res) => {
-  return res.json({ message: "Streamyst server is healthy", healthy: true });
+  return res.json({ message: "Tejaswi Trading Company API is healthy", healthy: true });
 });
 
 logger.debug(`openapi.json: ${env.BASE_URL}/openapi.json`);
@@ -49,6 +56,7 @@ app.use(
   createOpenApiExpressMiddleware({
     router: serverRouter,
     createContext,
+    onError,
   }),
 );
 
@@ -57,6 +65,7 @@ app.use(
   trpcExpress.createExpressMiddleware({
     router: serverRouter,
     createContext,
+    onError,
   }),
 );
 
