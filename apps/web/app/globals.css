@@ -43,8 +43,13 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --font-heading: var(--font-heading);
-  --font-sans: var(--font-sans);
+  --color-brand-surface: var(--brand-surface);
+  --color-brand-ink: var(--brand-ink);
+  --color-hero-via: var(--hero-via);
+  --color-hero-to: var(--hero-to);
+  /* Latin fonts have no Kannada or Devanagari letters; the Noto fallbacks render them */
+  --font-heading: var(--font-heading), var(--font-kannada), var(--font-devanagari), sans-serif;
+  --font-sans: var(--font-sans), var(--font-kannada), var(--font-devanagari), sans-serif;
 }
 
 :root {
@@ -80,6 +85,11 @@
   --sidebar-ring: oklch(0.737 0.021 106.9);
   --background: oklch(1 0 0);
   --foreground: oklch(0.153 0.006 107.1);
+  /* brand: the cream and ink of the printed logo; hero: warm warehouse gradient */
+  --brand-surface: oklch(0.963 0.014 88);
+  --brand-ink: oklch(0.235 0 0);
+  --hero-via: oklch(0.917 0.047 86);
+  --hero-to: oklch(0.917 0.045 128);
 }
 
 .dark {
@@ -114,6 +124,10 @@
   --sidebar-accent-foreground: oklch(0.988 0.003 106.5);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.58 0.031 107.3);
+  --brand-surface: oklch(0.286 0.016 88);
+  --brand-ink: oklch(0.963 0.014 88);
+  --hero-via: oklch(0.32 0.04 86);
+  --hero-to: oklch(0.32 0.04 128);
 }
 
 @layer base {
@@ -128,5 +142,16 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -1,0 +1,61 @@
+{
+  "shell": {
+    "search": "खोजें",
+    "notifications": "सूचनाएँ",
+    "profile": "प्रोफ़ाइल",
+    "language": "भाषा",
+    "nav": {
+      "home": "होम",
+      "products": "उत्पाद",
+      "orders": "ऑर्डर",
+      "accounts": "खाते",
+      "inventory": "स्टॉक"
+    },
+    "logout": "लॉग आउट",
+    "roles": {
+      "admin": "एडमिन",
+      "accountant": "अकाउंटेंट",
+      "staff": "स्टाफ"
+    }
+  },
+  "home": {
+    "title": "क्या दर्ज करना है?",
+    "add": "{transaction} जोड़ें",
+    "comingSoon": "{transaction} की एंट्री जल्द आ रही है।",
+    "transactions": {
+      "sale": "बिक्री",
+      "purchase": "खरीद",
+      "receipt": "प्राप्ति",
+      "payment": "भुगतान",
+      "deposit": "जमा",
+      "withdrawal": "निकासी",
+      "drawings": "निजी आहरण",
+      "returns": "वापसी",
+      "other": "अन्य"
+    }
+  },
+  "placeholder": {
+    "title": "{page} जल्द आ रहा है",
+    "description": "ऐप का यह हिस्सा अभी बना नहीं है।"
+  },
+  "login": {
+    "title": "लॉग इन",
+    "subtitle": "वह मोबाइल नंबर डालें जो आपके एडमिन ने रजिस्टर किया है।",
+    "phoneLabel": "मोबाइल नंबर",
+    "phoneHint": "हम SMS से 6 अंकों का कोड भेजेंगे।",
+    "continue": "कोड भेजें",
+    "otpTitle": "कोड डालें",
+    "otpSubtitle": "{phone} पर भेजा गया",
+    "change": "नंबर बदलें",
+    "verify": "पुष्टि करें",
+    "resendIn": "{seconds} सेकंड में दोबारा भेजें",
+    "resend": "कोड दोबारा भेजें",
+    "errors": {
+      "invalidPhone": "10 अंकों का मोबाइल नंबर डालें।",
+      "notRegistered": "यह नंबर रजिस्टर नहीं है या निष्क्रिय है। अपने एडमिन से पूछें।",
+      "tooMany": "बहुत अधिक प्रयास। थोड़ा रुककर फिर कोशिश करें।",
+      "wrongCode": "कोड गलत है या उसकी समय-सीमा खत्म हो गई है।",
+      "network": "सर्वर से कनेक्ट नहीं हो पा रहा। अपना कनेक्शन जाँचें।"
+    }
+  }
+}

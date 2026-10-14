@@ -1,0 +1,61 @@
+{
+  "shell": {
+    "search": "Search",
+    "notifications": "Notifications",
+    "profile": "Profile",
+    "language": "Language",
+    "nav": {
+      "home": "Home",
+      "products": "Products",
+      "orders": "Orders",
+      "accounts": "Accounts",
+      "inventory": "Inventory"
+    },
+    "logout": "Log out",
+    "roles": {
+      "admin": "Admin",
+      "accountant": "Accountant",
+      "staff": "Staff"
+    }
+  },
+  "home": {
+    "title": "What do you want to record?",
+    "add": "Add {transaction}",
+    "comingSoon": "{transaction} entry is coming soon.",
+    "transactions": {
+      "sale": "Sale",
+      "purchase": "Purchase",
+      "receipt": "Receipt",
+      "payment": "Payment",
+      "deposit": "Deposit",
+      "withdrawal": "Withdrawal",
+      "drawings": "Drawings",
+      "returns": "Returns",
+      "other": "Other"
+    }
+  },
+  "placeholder": {
+    "title": "{page} is coming soon",
+    "description": "This part of the app hasn't been built yet."
+  },
+  "login": {
+    "title": "Log in",
+    "subtitle": "Enter the mobile number your admin registered.",
+    "phoneLabel": "Mobile number",
+    "phoneHint": "We'll send a 6-digit code by SMS.",
+    "continue": "Send code",
+    "otpTitle": "Enter the code",
+    "otpSubtitle": "Sent to {phone}",
+    "change": "Change number",
+    "verify": "Verify",
+    "resendIn": "Resend code in {seconds}s",
+    "resend": "Resend code",
+    "errors": {
+      "invalidPhone": "Enter a 10-digit mobile number.",
+      "notRegistered": "This number isn't registered or is inactive. Ask your admin.",
+      "tooMany": "Too many attempts. Please wait and try again.",
+      "wrongCode": "That code is wrong or has expired.",
+      "network": "Can't reach the server. Check your connection."
+    }
+  }
+}
