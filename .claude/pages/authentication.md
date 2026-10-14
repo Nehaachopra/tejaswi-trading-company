@@ -33,6 +33,6 @@
 
 1. Phone number → SMS OTP → authenticated session.
 2. Normal routes → session + role authorization.
-3. `/admin/*` → admin role check → passkey verification → 5-minute elevated access.
+3. `/admin/*` → admin role check → passkey verification → 15-minute elevated access.
 4. Expired elevation → passkey verification again.
 5. Unknown or inactive account → access denied.

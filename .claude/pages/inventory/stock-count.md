@@ -20,7 +20,7 @@ each card shall contain
       - Category.
       - Sub-category.
       - Brand.
-      - Unit quantity.
+      - Pack size.
       - Total quantity.
       - Actual quantity. (Hidden and visible in stock count mode)
       - Difference. (Hidden and visible in stock count mode)

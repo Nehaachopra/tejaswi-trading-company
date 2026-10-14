@@ -28,9 +28,9 @@ The project uses TypeScript, Drizzle ORM, PostgreSQL, and shadcn components.
 
 The system should support the following operations:
 
-- **Products:** Manage products, categories, subcategories, brands, unit sizes, prices, and GST rates.
-- **Sales:** Refer .claude/pages/sale.
-- **Purchases:** Refer .claude/pages/purchase.md.
+- **Products:** Manage products, categories, subcategories, brands, pack sizes, prices, and GST rates. Hierarchy is category → sub-category → brand (e.g. rice → sona masoori → aishwarya); pack size (25 kg, 50 kg) is the variant under the brand. "Pack size" is the term everywhere (not "unit quantity" / "unit size"). Brand is a column on products, not a table. Product name is residual: used only when category, sub-category and brand don't fully describe the product. All product data (category, sub-category, brand, name) is stored in lowercase.
+- **Sales:** Refer .claude/pages/create-transaction/sale/sale.md.
+- **Purchases:** Refer .claude/pages/create-transaction/purchase.md.
 - **Sale Returns:** Record goods returned by customers and link returns to their original sale wherever applicable.
 - **Purchase Returns:** Record goods returned to suppliers and link returns to their original purchase wherever applicable.
 - **Receipts:** Record money received from customers and other sources.
@@ -44,12 +44,56 @@ The system should support the following operations:
 
 Basically from accounting point of view, transaction is journal entry. After each transaction, entry needs to be posted in ledger!
 
+- Every transaction and its ledger entries are written in the same database transaction — all or nothing.
+- Receipts and payments reduce the party's running balance. No bill-wise matching.
+
+# Modules
+
+Routers and services are named by these five modules:
+
+1. **Transactions** — all home-page pills (sale, purchase, receipt, payment, deposit, withdrawal, drawings, returns, other) plus sale and purchase orders.
+2. **Accounts** — ledgers, receivables and payables, parties, bank and cash, statements, GST.
+3. **Analytics** — read-only insight.
+4. **Inventory** — product master, godowns, stock, stock count.
+5. **Admin** — staff and roles, behind passkey elevation.
+
+# Ledger structure
+
+Ledger group → ledger master (optional) → ledger → ledger entries.
+
+- Example: asset → debtors → Suresh (ledger references the party). A party that is also a creditor gets a second ledger under liability → creditors.
+- Not every ledger needs a master (e.g. sale).
+- Balances can be debit or credit.
+- Contra entries are deposits and withdrawals only: cash in hand ↔ cash at bank, both sides are business assets.
+
+The app creates this accounting structure itself:
+
+| Group | Masters | Fixed ledgers |
+|---|---|---|
+| Asset | Debtors, Bank (one ledger per bank account) | Cash, Input CGST, Input SGST, Input IGST |
+| Liability | Creditors | Output CGST, Output SGST, Output IGST, TDS, TCS, Drawings |
+| Income | — | Sale, Sale return, Discount received |
+| Expense | Salary | Purchase, Purchase return, Discount given, Rent, Electricity, Wifi expense |
+| Profit / Loss | — | none, calculated |
+
+# Data
+
+- No seed or sample data, ever. If a feature needs data (products, parties, stock), build its entry screen first so real data can be typed in. The only exception is the accounting structure above.
+
 # roles
 
 There are just 3 roles - 
 1. admin - full access
 2. accountant - wider access
 3. staff - limited access
+
+- Permissions for each role are fixed in code; there is no editable permission matrix.
+- Assigning staff means assigning a role only (no godown or task assignment).
+
+# Services
+
+- OTP SMS via MSG91. It needs a DLT number, which we don't have yet; until then use a temporary delivery workaround that keeps the login flow identical. The first admin's phone number is `PHONE_NUMBER` in `.env`.
+- File storage on Cloudflare R2.
 
 # Things to keep in mind 
 

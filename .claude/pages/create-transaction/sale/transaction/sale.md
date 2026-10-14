@@ -5,7 +5,7 @@
 ### Header
 
 - Product name on the left.
-- Unit quantity options selection buttons on the right (e.g., 100 kg, 50 kg, 25 kg, 20 kg).
+- Pack size options selection buttons on the right (e.g., 100 kg, 50 kg, 25 kg, 20 kg).
 - Changing the pack size updates the relevant product details.
 
 ### Main Section
@@ -37,7 +37,7 @@ reference (for structure)
 
 For desktop - 
 left side 
-- filter (category, sub category, unit quantity, price) and sort on top
+- filter (category, sub category, brand, pack size, price) and sort on top
 - carousel of product cards with Centered active product card and Adjacent cards partially visible and carousel contols below it.
 
 Remember - 

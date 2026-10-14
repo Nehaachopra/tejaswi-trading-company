@@ -42,6 +42,8 @@ For SR26000001:
 - 26 — Financial year 2026–27
 - 000001 — First sale return of that type in that financial year
 
+The assigned ID lives on `transactions.assigned_id`, unique per transaction type.
+
 # git commits
 - Frequency - Do not wait too long to commit. After a logical change that can be grouped, commit. Again double edged sword! Do not create commits after every code change.  
 - Every commit message must follow this format: <type>(<scope>): <description>. Examples:

@@ -4,8 +4,8 @@
 
 - A collection of product entries.
 - Each product entry contains:
-  - Product name (including category and sub category).
-  - Unit quantity
+  - Product name (including category, sub category and brand).
+  - Pack size
   - Price.
   - Quantity.
   - Total price.

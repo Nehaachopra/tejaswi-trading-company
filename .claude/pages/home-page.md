@@ -11,7 +11,7 @@ Display the following nine transaction actions:
 3. Receipt
 4. Payment
 5. Deposit
-6. Withdrawl
+6. Withdrawal
 7. Drawings
 8. Returns
 9. Other
