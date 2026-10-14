@@ -16,8 +16,6 @@ export const drawingType = pgEnum("drawing_type_enum", ["cash", "product"]);
 export const drawingsTable = pgTable("drawings", {
   id: uuid("id").primaryKey().defaultRandom(),
 
-  assignedId: varchar("assigned_id", { length: 30 }).notNull(),
-
   transactionId: uuid("transaction_id")
     .notNull()
     .references(() => transactionsTable.id, {
@@ -39,7 +37,6 @@ export const drawingsTable = pgTable("drawings", {
   ...timestamps,
 },
 (table) => [
-    uniqueIndex("drawings_assigned_id_unique").on(table.assignedId),
 
     uniqueIndex("drawings_transaction_id_unique").on(table.transactionId),
 

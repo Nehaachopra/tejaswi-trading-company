@@ -1,53 +1,60 @@
-﻿// ledger.ts
+// ledger.ts
 
-import { pgEnum, pgTable, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { money, timestamps } from "../../utils/common/column-type";
+import { ledgerTransactionTypeEnum } from "../../utils/common/enum";
 
+import { ledgerGroupsTable } from "./ledger-group";
 import { ledgerMastersTable } from "./ledger-master";
-import { transactionsTable } from "../transaction/transaction";
 import { index } from "drizzle-orm/pg-core";
+import { uniqueIndex } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-
-export const ledgerTransactionTypeEnum = pgEnum("ledger_transaction_type", ["debit", "credit"]);
 
 export const ledgersTable = pgTable(
   "ledgers",
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
-    transactionId: uuid("transaction_id")
+    name: varchar("name", { length: 150 }).notNull(),
+
+    ledgerGroupId: uuid("ledger_group_id")
       .notNull()
-      .references(() => transactionsTable.id, {
+      .references(() => ledgerGroupsTable.id, {
         onDelete: "restrict",
       }),
 
     ledgerMasterId: uuid("ledger_master_id")
-      .notNull()
       .references(() => ledgerMastersTable.id, {
         onDelete: "restrict",
       }),
 
-    dateTime: timestamp("date_time", {
-      withTimezone: true,
-    })
-      .defaultNow()
-      .notNull(),
+    referenceTable: varchar("reference_table", { length: 30 }),
 
-    amount: money("amount").notNull(),
-
-    transactionType: ledgerTransactionTypeEnum("transaction_type"),
+    referenceId: uuid("reference_id"),
 
     balance: money("balance").notNull(),
+
+    balanceType: ledgerTransactionTypeEnum("balance_type").notNull().default("debit"),
+
     ...timestamps,
   },
   (table) => [
-    index("ledger_table_ledger_id_idx").on(table.ledgerMasterId),
-    index("ledgers_ledger_master_datetime_idx").on(table.ledgerMasterId, table.dateTime),
+    index("ledgers_ledger_group_id_idx").on(table.ledgerGroupId),
+    index("ledgers_ledger_master_id_idx").on(table.ledgerMasterId),
+    // one ledger per party under a master (e.g. one debtor ledger and one creditor ledger)
+    uniqueIndex("ledgers_master_reference_unique")
+      .on(table.ledgerMasterId, table.referenceTable, table.referenceId)
+      .where(sql`${table.referenceId} IS NOT NULL`),
+    // fixed ledgers (sale, cash, cgst ...) are unique by name within a group
+    uniqueIndex("ledgers_group_name_unique")
+      .on(table.ledgerGroupId, table.name)
+      .where(sql`${table.referenceId} IS NULL`),
+    check("ledgers_balance_non_negative", sql`${table.balance} >= 0`),
     check(
-      "ledger_amount_and_balance_non_negative",
-      sql`${table.amount} >= 0 AND ${table.balance} >= 0`,
+      "ledgers_reference_both_or_neither",
+      sql`(${table.referenceTable} IS NULL) = (${table.referenceId} IS NULL)`,
     ),
   ],
 );

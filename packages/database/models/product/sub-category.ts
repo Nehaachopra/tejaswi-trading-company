@@ -6,6 +6,7 @@ import { categoriesTable } from "./category";
 import { timestamps } from "../../utils/common/column-type";
 import { boolean } from "drizzle-orm/pg-core";
 import { uniqueIndex } from "drizzle-orm/pg-core";
+import { check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const subCategoriesTable = pgTable(
@@ -27,6 +28,7 @@ export const subCategoriesTable = pgTable(
   },
   (table) => [
     uniqueIndex("sub_categories_name_unique").on(table.categoryId, sql`lower(${table.name})`),
+    check("sub_categories_name_lowercase", sql`${table.name} = lower(${table.name})`),
   ],
 );
 

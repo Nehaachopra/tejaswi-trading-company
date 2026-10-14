@@ -2,7 +2,6 @@ import { relations } from "drizzle-orm";
 
 import { categoriesTable } from "./category";
 import { subCategoriesTable } from "./sub-category";
-import { subCategoryTypesTable } from "./sub-category-type";
 import { productsTable } from "./product";
 import { productPricesTable } from "./product-price";
 import { stockCountProductsTable } from "../stock-count/stock-count-product";
@@ -24,15 +23,7 @@ export const subCategoriesRelations = relations(subCategoriesTable, ({ one, many
     references: [categoriesTable.id],
   }),
 
-  subCategoryTypes: many(subCategoryTypesTable),
   products: many(productsTable),
-}));
-
-export const subCategoryTypesRelations = relations(subCategoryTypesTable, ({ one }) => ({
-  subCategory: one(subCategoriesTable, {
-    fields: [subCategoryTypesTable.subCategoryId],
-    references: [subCategoriesTable.id],
-  }),
 }));
 
 export const productsRelations = relations(productsTable, ({ one, many }) => ({

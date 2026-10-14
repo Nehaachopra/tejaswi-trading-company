@@ -18,8 +18,6 @@ export const receiptsTable = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
-    assignedId: varchar("assigned_id", { length: 30 }).notNull(),
-
     transactionId: uuid("transaction_id")
       .notNull()
       .references(() => transactionsTable.id, {
@@ -67,8 +65,6 @@ export const receiptsTable = pgTable(
     ...timestamps,
   },
   (table) => [
-    uniqueIndex("receipts_assigned_id_unique").on(table.assignedId),
-
     uniqueIndex("receipts_transaction_id_unique").on(table.transactionId),
 
     index("receipts_party_id_idx").on(table.partyId),

@@ -3,6 +3,7 @@
 import { pgEnum, pgTable, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { money, timestamps } from "../../utils/common/column-type";
+import { ledgerTransactionTypeEnum } from "../../utils/common/enum";
 import { uniqueIndex } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -24,6 +25,8 @@ export const ledgerGroupsTable = pgTable("ledger_groups", {
   name: varchar("name", { length: 30 }).notNull(),
 
   balance: money("balance").notNull(),
+
+  balanceType: ledgerTransactionTypeEnum("balance_type").notNull().default("debit"),
 
   ...timestamps,
 },

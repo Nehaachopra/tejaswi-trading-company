@@ -3,8 +3,9 @@
 import { pgEnum, pgTable, timestamp, uuid, varchar, index } from "drizzle-orm/pg-core";
 
 import { timestamps } from "../../utils/common/column-type";
-import { user } from "../auth";
+import { usersTable } from "../auth/user";
 import { text } from "drizzle-orm/pg-core";
+import { uniqueIndex } from "drizzle-orm/pg-core";
 export const transactionTypeEnum = pgEnum("transaction_type", [
   "sale",
   "purchase",
@@ -31,18 +32,24 @@ export const transactionsTable = pgTable(
       withTimezone: true,
     }),
 
+    assignedId: varchar("assigned_id", { length: 30 }).notNull(),
+
     remarks: varchar("remarks", { length: 100 }),
 
-    createdBy: text("created_by")
+    createdById: uuid("created_by_id")
       .notNull()
-      .references(() => user.id, {
+      .references(() => usersTable.id, {
         onDelete: "no action"
       }),
+
+    createdByName: varchar("created_by_name", {length: 30})
+      .notNull(),
 
     ...timestamps,
   },
   (table) => [
-  index("transaction_type_idx").on(table.type)
+  index("transaction_type_idx").on(table.type),
+  uniqueIndex("transaction_type_assigned_id_unique").on(table.type, table.assignedId)
   ],
 );
 

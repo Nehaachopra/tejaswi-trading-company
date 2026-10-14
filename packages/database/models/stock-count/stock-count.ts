@@ -4,7 +4,7 @@ import { pgEnum, pgTable, uuid } from "drizzle-orm/pg-core";
 
 import { timestamps } from "../../utils/common/column-type";
 
-import { user } from "../auth";
+import { usersTable } from "../auth/user";
 import { text } from "drizzle-orm/pg-core";
 
 export const stockCountStatusEnum = pgEnum("stock_count_status", [
@@ -18,7 +18,7 @@ export const stockCountsTable = pgTable("stock_counts", {
 
   status: stockCountStatusEnum("status").default("in_progress").notNull(),
 
-  countedBy: text("counted_by").references(() => user.id, {
+  countedBy: uuid("counted_by").references(() => usersTable.id, {
     onDelete: "no action"
   }),
 

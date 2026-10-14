@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, varchar, uuid, boolean, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, varchar, uuid, boolean, uniqueIndex, check } from "drizzle-orm/pg-core";
 
 import { timestamps } from "../../utils/common/column-type";
 
@@ -14,7 +14,10 @@ export const categoriesTable = pgTable(
 
     ...timestamps,
   },
-  (table) => [uniqueIndex("categories_name_unique").on(sql`lower(${table.name})`)],
+  (table) => [
+    uniqueIndex("categories_name_unique").on(sql`lower(${table.name})`),
+    check("categories_name_lowercase", sql`${table.name} = lower(${table.name})`),
+  ],
 );
 
 export type CategoriesType = typeof categoriesTable.$inferSelect;

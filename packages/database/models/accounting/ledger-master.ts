@@ -3,6 +3,7 @@
 import { pgTable, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { money, timestamps } from "../../utils/common/column-type";
+import { ledgerTransactionTypeEnum } from "../../utils/common/enum";
 
 import { ledgerGroupsTable } from "./ledger-group";
 import { index } from "drizzle-orm/pg-core";
@@ -22,11 +23,9 @@ export const ledgerMastersTable = pgTable(
         onDelete: "restrict",
       }),
 
-    referenceTable: varchar("reference_table", { length: 30 }),
-
-    referenceId: uuid("reference_id"),
-
     balance: money("balance").notNull(),
+
+    balanceType: ledgerTransactionTypeEnum("balance_type").notNull().default("debit"),
 
     ...timestamps,
   },

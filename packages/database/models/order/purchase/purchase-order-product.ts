@@ -20,9 +20,9 @@ export const purchaseOrderProductsTable = pgTable(
         onDelete: "restrict",
       }),
 
-    productGodownId: uuid("product_id")
+    productId: uuid("product_id")
       .notNull()
-      .references(() => productGodownsTable.id, {
+      .references(() => productsTable.id, {
         onDelete: "restrict",
       }),
 
@@ -47,7 +47,7 @@ export const purchaseOrderProductsTable = pgTable(
   (table) => [
     index("purchase_order_products_order_id_idx").on(table.purchaseOrderId),
 
-    index("purchase_order_product_godown_id_idx").on(table.productGodownId),
+    index("purchase_order_product_id_idx").on(table.productId),
 
     check(
       "purchase_order_products_quantity_ordered_positive",

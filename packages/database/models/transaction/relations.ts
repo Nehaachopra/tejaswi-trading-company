@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 
-import { user } from "../auth";
+import { usersTable } from "../auth/user";
+import { ledgerEntriesTable } from "../accounting/ledger-entry";
 import { depositsTable } from "./deposit";
 import { drawingsTable } from "./drawing/drawing";
 import { drawingProductsTable } from "./drawing/drawing-product";
@@ -16,9 +17,9 @@ import { transactionsTable } from "./transaction";
 import { withdrawalsTable } from "./withdrawal";
 
 export const transactionsRelations = relations(transactionsTable, ({ one, many }) => ({
-  createdByUser: one(user, {
-    fields: [transactionsTable.createdBy],
-    references: [user.id],
+  createdByIdUser: one(usersTable, {
+    fields: [transactionsTable.createdById],
+    references: [usersTable.id],
   }),
 
   purchases: many(purchasesTable),
@@ -33,4 +34,5 @@ export const transactionsRelations = relations(transactionsTable, ({ one, many }
   others: many(othersTable),
   saleCreditDetails: many(saleCreditDetailsTable),
   drawingProducts: many(drawingProductsTable),
+  ledgerEntries: many(ledgerEntriesTable),
 }));

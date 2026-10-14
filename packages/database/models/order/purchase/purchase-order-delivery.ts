@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 
 import { timestamps } from "../../../utils/common/column-type";
 import { purchaseOrderProductsTable } from "./purchase-order-product";
-import { user } from "../../auth";
+import { usersTable } from "../../auth/user";
 import { integer } from "drizzle-orm/pg-core";
 
 export const purchaseOrderDeliveriesTable = pgTable(
@@ -23,7 +23,7 @@ export const purchaseOrderDeliveriesTable = pgTable(
 
     deliveryDate: date("delivery_date").notNull().defaultNow(),
 
-    orderedById: varchar("ordered_by_id").references(() => user.id, {
+    orderedById: uuid("ordered_by_id").references(() => usersTable.id, {
       onDelete: "set null",
     }),
 

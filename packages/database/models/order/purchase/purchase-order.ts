@@ -5,7 +5,7 @@ import { pgTable, text, uuid, varchar } from "drizzle-orm/pg-core";
 import { money, timestamps } from "../../../utils/common/column-type";
 
 import { partiesTable } from "../../party/party";
-import { user } from "../../auth";
+import { usersTable } from "../../auth/user";
 import { date } from "drizzle-orm/pg-core";import { index } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -24,7 +24,7 @@ export const purchaseOrdersTable = pgTable(
         onDelete: "no action",
       }),
 
-    orderedById: text("ordered_by_id").references(() => user.id, {
+    orderedById: uuid("ordered_by_id").references(() => usersTable.id, {
       onDelete: "set null",
     }),
 

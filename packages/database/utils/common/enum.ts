@@ -115,3 +115,5 @@ export const orderStatusEnum = pgEnum("order_status", [
 export const transactedInEnum = pgEnum("transacted_in", ["cash", "credit", "both"]);
 
 export const settledInEnum = pgEnum("settled_in", ["cash", "bank"]);
+
+export const ledgerTransactionTypeEnum = pgEnum("ledger_transaction_type", ["debit", "credit"]);

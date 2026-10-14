@@ -1,0 +1,15 @@
+export * as accountingRelations from "./models/accounting/relations";
+export * as authRelations from "./models/auth/relations";
+export * as godownRelations from "./models/godown/relations";
+export * as orderRelations from "./models/order/relations";
+export * as purchaseOrderRelations from "./models/order/purchase/relations";
+export * as saleOrderRelations from "./models/order/sale/relations";
+export * as partyRelations from "./models/party/relations";
+export * as productRelations from "./models/product/relations";
+export * as stockCountRelations from "./models/stock-count/relations";
+export * as transactionRelations from "./models/transaction/relations";
+export * as drawingRelations from "./models/transaction/drawing/relations";
+export * as purchaseRelations from "./models/transaction/purchase/relations";
+export * as purchaseReturnRelations from "./models/transaction/purchase-return/relations";
+export * as saleRelations from "./models/transaction/sale/relations";
+export * as saleReturnRelations from "./models/transaction/sale-return/relations";

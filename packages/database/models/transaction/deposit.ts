@@ -14,8 +14,6 @@ import { sql } from "drizzle-orm";
 export const depositsTable = pgTable("deposits", {
   id: uuid("id").primaryKey().defaultRandom(),
 
-  assignedId: varchar("assigned_id", { length: 30 }).notNull(),
-
   transactionId: uuid("transaction_id")
     .notNull()
     .references(() => transactionsTable.id, {
@@ -39,8 +37,6 @@ export const depositsTable = pgTable("deposits", {
   ...timestamps,
 },
 (table) => [
-  uniqueIndex("deposits_assigned_id_unique").on(table.assignedId),
-
   uniqueIndex("deposits_transaction_id_unique").on(table.transactionId),
 
   index("deposits_bank_details_id_idx").on(table.bankDetailsId),

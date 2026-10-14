@@ -21,8 +21,6 @@ export const purchasesTable = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
-    assignedId: varchar("assigned_id", { length: 30 }).notNull(),
-
     orderId: varchar("order_id", { length: 30 }).references(
       () => purchaseOrdersTable.orderId,
       { onDelete: "set null" },

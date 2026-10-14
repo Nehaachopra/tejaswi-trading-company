@@ -1,6 +1,6 @@
 import { relations } from "drizzle-orm";
 
-import { user } from "../../auth";
+import { usersTable } from "../../auth/user";
 import { partiesTable } from "../../party/party";
 import { partyAddressesTable } from "../../party/party-address";
 import { productGodownsTable } from "../../godown/product-godown";
@@ -44,8 +44,8 @@ export const purchaseProductsRelations = relations(purchaseProductsTable, ({ one
     references: [partyAddressesTable.id],
   }),
 
-  orderedByUser: one(user, {
+  orderedByUser: one(usersTable, {
     fields: [purchaseProductsTable.godownName],
-    references: [user.id],
+    references: [usersTable.id],
   }),
 }));

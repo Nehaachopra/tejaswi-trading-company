@@ -11,8 +11,6 @@ export const saleReturnsTable = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
-    assignedId: varchar("assigned_id", { length: 30 }).notNull(),
-
     transactionId: uuid("transaction_id").references(() => transactionsTable.id, {
       onDelete: "restrict"
     }).notNull(),
@@ -43,9 +41,6 @@ export const saleReturnsTable = pgTable(
     index("sale_returns_original_transaction_idx").on(
       table.saleId,
     ),
-
-    uniqueIndex("sale_returns_type_assigned_id_unique")
-  .on(table.assignedId),
 
     check(
       "sale_returns_amounts_non_negative",

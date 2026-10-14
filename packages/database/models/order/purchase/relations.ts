@@ -1,6 +1,6 @@
 import { relations } from "drizzle-orm";
 
-import { user } from "../../auth";
+import { usersTable } from "../../auth/user";
 import { partiesTable } from "../../party/party";
 import { partyAddressesTable } from "../../party/party-address";
 import { productsTable } from "../../product/product";
@@ -8,6 +8,7 @@ import { purchasesTable } from "../../transaction/purchase/purchase";
 import { purchaseOrderDeliveriesTable } from "./purchase-order-delivery";
 import { purchaseOrderProductsTable } from "./purchase-order-product";
 import { purchaseOrdersTable } from "./purchase-order";
+import { productGodownsTable } from "../../godown/product-godown";
 
 export const purchaseOrdersRelations = relations(purchaseOrdersTable, ({ one, many }) => ({
   party: one(partiesTable, {
@@ -15,9 +16,9 @@ export const purchaseOrdersRelations = relations(purchaseOrdersTable, ({ one, ma
     references: [partiesTable.id],
   }),
 
-  orderedByUser: one(user, {
+  orderedByUser: one(usersTable, {
     fields: [purchaseOrdersTable.orderedById],
-    references: [user.id],
+    references: [usersTable.id],
   }),
 
   purchaseOrderProducts: many(purchaseOrderProductsTable),
@@ -50,8 +51,8 @@ export const purchaseOrderDeliveriesRelations = relations(purchaseOrderDeliverie
     references: [purchaseOrderProductsTable.id],
   }),
 
-  orderedByUser: one(user, {
+  orderedByUser: one(usersTable, {
     fields: [purchaseOrderDeliveriesTable.orderedById],
-    references: [user.id],
+    references: [usersTable.id],
   }),
 }));

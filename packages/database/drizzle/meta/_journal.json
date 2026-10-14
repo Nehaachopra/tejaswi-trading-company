@@ -8,6 +8,48 @@
       "when": 1791911150978,
       "tag": "0000_eager_robbie_robertson",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791949815492,
+      "tag": "0001_safe_the_fury",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791950982242,
+      "tag": "0002_slow_prism",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791951555128,
+      "tag": "0003_outgoing_silvermane",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791951598764,
+      "tag": "0004_rapid_purifiers",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791955467042,
+      "tag": "0005_chunky_nicolaos",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791955515894,
+      "tag": "0006_thick_polaris",
+      "breakpoints": true
     }
   ]
 }
