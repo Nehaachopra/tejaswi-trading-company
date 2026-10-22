@@ -26,23 +26,28 @@ packages/services/
 # Assigned Id pattern 
  
 Transaction type	Prefix	Example
-Sale	SA	SA26000001
-Purchase	PU	PU26000001
-Sale Return	SR	SR26000001
-Purchase Return	PR	PR26000001
-Receipt	RE	RE26000001
-Payment	PA	PA26000001
-Deposit	DE	DE26000001
-Withdrawal	WD	WD26000001
-Drawings	DR	DR26000001
-Other	OT	OT26000001
+Sale	SA	SA26100001
+Purchase	PU	PU26100001
+Sale Return	SR	SR26100001
+Purchase Return	PR	PR26100001
+Receipt	RE	RE26100001
+Payment	PA	PA26100001
+Deposit	DE	DE26100001
+Withdrawal	WD	WD26100001
+Transfer	TR	TR26100001
+Drawings	DR	DR26100001
+Other	OT	OT26100001
+Salary	SL	SL26100001
+Sale Order	SO	SO26100001
+Purchase Order	PO	PO26100001
+Opening Balance	OB	OB26100001
 
-For SR26000001:
+For SR26100001:
 - SR — Sale Return
-- 26 — Financial year 2026–27
-- 000001 — First sale return of that type in that financial year
+- 2610 — year and month of the invoice date (October 2026), not the save date
+- 0001 — First sale return in that month (4 digits, up to 9,999 per prefix per month)
 
-The assigned ID lives on `transactions.assigned_id`, unique per transaction type.
+The assigned ID lives on `transactions.assigned_id`, unique per transaction type (orders carry their own). Numbers come from `assigned_id_counters` (one row per prefix, year, month), incremented inside the same database transaction that saves the transaction, so numbers are never skipped or duplicated.
 
 # git commits
 - Frequency - Do not wait too long to commit. After a logical change that can be grouped, commit. Again double edged sword! Do not create commits after every code change.  

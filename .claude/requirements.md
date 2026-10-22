@@ -64,17 +64,20 @@ Ledger group → ledger master (optional) → ledger → ledger entries.
 - Example: asset → debtors → Suresh (ledger references the party). A party that is also a creditor gets a second ledger under liability → creditors.
 - Not every ledger needs a master (e.g. sale).
 - Balances can be debit or credit.
-- Contra entries are deposits and withdrawals only: cash in hand ↔ cash at bank, both sides are business assets.
+- Ledger entries store no running balance: entries can be pre- or post-dated, so a statement adds the balance up in date order when it is read. `ledgers.balance` is the total of all entries, post-dated ones included; lists show the balance as of today with a "+ ₹X post-dated" note when any exist.
+- Contra entries are business money moving from one form to another, both sides business assets: cash in hand → bank (deposit), bank → cash in hand (withdrawal), and one bank account → another (transfer).
 
 The app creates this accounting structure itself:
 
 | Group | Masters | Fixed ledgers |
 |---|---|---|
-| Asset | Debtors, Bank (one ledger per bank account) | Cash, Input CGST, Input SGST, Input IGST |
-| Liability | Creditors | Output CGST, Output SGST, Output IGST, TDS, TCS, Drawings |
+| Asset | Debtors, Bank (one ledger per bank account) | Cash, Input CGST, Input SGST, Input IGST, TDS receivable (TDS customers deduct from us) |
+| Liability | Creditors, Employees (one ledger per employee: salary owed to them; an advance shows as what they owe us) | Output CGST, Output SGST, Output IGST, Output CGST (RCM), Output SGST (RCM), Output IGST (RCM), TDS payable (TDS we deduct from others), TCS, Drawings |
 | Income | — | Sale, Sale return, Discount received |
-| Expense | Salary | Purchase, Purchase return, Discount given, Rent, Electricity, Wifi expense |
+| Expense | — | Salary, Purchase, Purchase return, Discount given, Rent, Electricity, Wifi expense |
 | Profit / Loss | — | none, calculated |
+
+Reverse-charge GST (e.g. rent from an unregistered landlord) is kept in its own RCM output ledgers, never mixed with the normal output GST ledgers, so it is easy to report in GSTR-3B.
 
 # Data
 
@@ -82,10 +85,9 @@ The app creates this accounting structure itself:
 
 # roles
 
-There are just 3 roles - 
-1. admin - full access
-2. accountant - wider access
-3. staff - limited access
+There are just 2 roles (there is no accountant role) - 
+1. admin - full access; the only role that sees balances and Accounts
+2. staff - limited access
 
 - Permissions for each role are fixed in code; there is no editable permission matrix.
 - Assigning staff means assigning a role only (no godown or task assignment).
