@@ -6,7 +6,10 @@ export const env = createEnv({
    * Specify your server-side environment variables schema here. This way you can ensure the app
    * isn't built with invalid env vars.
    */
-  server: {},
+  server: {
+    // where the API runs; /trpc is forwarded there and server components call it directly
+    API_URL: z.string().url().default("http://localhost:8000"),
+  },
 
   /**
    * Specify your client-side environment variables schema here. This way you can ensure the app
@@ -23,6 +26,7 @@ export const env = createEnv({
    * middlewares) or client-side so we need to destruct manually.
    */
   runtimeEnv: {
+    API_URL: process.env.API_URL,
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
   },

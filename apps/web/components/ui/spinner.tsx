@@ -1,10 +1,8 @@
-import { cn } from "cn"
-import { Loader2Icon } from "lucide-react"
+import { LoaderCircle } from "lucide-react";
 
-function Spinner({ className, ...props }: React.ComponentProps<"svg">) {
-  return (
-    <Loader2Icon data-slot="spinner" role="status" aria-label="Loading" className={cn("size-4 animate-spin", className)} {...props} />
-  )
+import { cn } from "~/lib/utils";
+
+// shown inside a button while its request runs; the button's label stays beside it
+export function Spinner({ className }: { className?: string }) {
+  return <LoaderCircle className={cn("size-4 shrink-0 animate-spin", className)} aria-hidden />;
 }
-
-export { Spinner }

@@ -1,37 +1,21 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
-import "./globals.css";
-import { GlobalProviders } from "~/providers/global";
-import { Inter, Figtree, Manrope, Outfit, Public_Sans, Montserrat, Noto_Serif, Noto_Sans, JetBrains_Mono, Geist, Noto_Sans_Kannada, Noto_Sans_Devanagari } from "next/font/google";
-import { cn } from "~/lib/utils";
-import { TooltipProvider } from "~/components/ui/tooltip";
+import { Baloo_2, Baloo_Tamma_2, Inter, Noto_Sans_Devanagari, Noto_Sans_Kannada } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
 
-const geistHeading = Geist({subsets:['latin'],variable:'--font-heading'});
+import "./globals.css";
+import { cn } from "~/lib/utils";
+import { GlobalProviders } from "~/providers/global";
 
-const montserratHeading = Montserrat({subsets:['latin'],variable:'--font-heading'});
-
-const notoSerifHeading = Noto_Serif({subsets:['latin'],variable:'--font-heading'})
-
-const notoSansHeading = Noto_Sans({subsets:['latin'],variable:'--font-heading'})
-
-const jetBrainsMonoHeading = JetBrains_Mono({subsets:['latin'],variable:'--font-heading'})
-
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
+// headings: round letters that read like food packaging, and they draw Kannada too
+const baloo = Baloo_Tamma_2({ subsets: ["latin", "kannada"], weight: ["600", "700"], variable: "--font-baloo" });
+// the same family drawn for Hindi; fetched only when Devanagari letters appear
+const balooDeva = Baloo_2({ subsets: ["devanagari"], weight: ["600", "700"], variable: "--font-baloo-deva", preload: false });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 // fallbacks for Kannada and Hindi text; not preloaded, the browser fetches them only when those letters appear
 const notoKannada = Noto_Sans_Kannada({ subsets: ["kannada"], variable: "--font-kannada", preload: false });
 const notoDevanagari = Noto_Sans_Devanagari({ subsets: ["devanagari"], variable: "--font-devanagari", preload: false });
-
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-});
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-});
 
 export const metadata: Metadata = {
   title: "Tejaswi trading company",
@@ -50,11 +34,11 @@ export default async function RootLayout({
     <html
       lang={locale}
       suppressHydrationWarning
-      className={cn("light", montserratHeading.variable, "font-sans", inter.variable, geistHeading.variable, notoKannada.variable, notoDevanagari.variable)}
+      className={cn(baloo.variable, balooDeva.variable, inter.variable, notoKannada.variable, notoDevanagari.variable)}
     >
-      <body className={`${geistSans.variable} ${geistMono.variable} bg-muted`}>
+      <body>
         <NextIntlClientProvider>
-          <GlobalProviders><TooltipProvider>{children}</TooltipProvider></GlobalProviders>
+          <GlobalProviders>{children}</GlobalProviders>
         </NextIntlClientProvider>
       </body>
     </html>

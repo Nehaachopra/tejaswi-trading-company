@@ -1,42 +1,42 @@
 {
   "shell": {
-    "search": "Search",
-    "notifications": "Notifications",
     "profile": "Profile",
     "language": "Language",
-    "nav": {
-      "home": "Home",
-      "products": "Products",
-      "orders": "Orders",
-      "accounts": "Accounts",
-      "inventory": "Inventory"
-    },
     "logout": "Log out",
     "roles": {
       "admin": "Admin",
-      "accountant": "Accountant",
       "staff": "Staff"
+    },
+    "home": "Home",
+    "logoutFailed": "Couldn't log out. Check your connection and try again.",
+    "nav": {
+      "label": "Main menu",
+      "home": "Home",
+      "history": "History",
+      "newTransaction": "New transaction",
+      "orders": "Orders",
+      "more": "More",
+      "close": "Close",
+      "stock": "Stock",
+      "products": "Products",
+      "accounts": "Accounts",
+      "gst": "GST",
+      "jobs": "Jobs"
     }
   },
   "home": {
-    "title": "What do you want to record?",
-    "add": "Add {transaction}",
-    "comingSoon": "{transaction} entry is coming soon.",
-    "transactions": {
-      "sale": "Sale",
-      "purchase": "Purchase",
-      "receipt": "Receipt",
-      "payment": "Payment",
-      "deposit": "Deposit",
-      "withdrawal": "Withdrawal",
-      "drawings": "Drawings",
-      "returns": "Returns",
-      "other": "Other"
-    }
+    "greeting": {
+      "morning": "Good morning, {name}",
+      "afternoon": "Good afternoon, {name}",
+      "evening": "Good evening, {name}"
+    },
+    "newTransaction": "New transaction",
+    "comingSoon": "Transaction entry is coming soon."
   },
   "placeholder": {
     "title": "{page} is coming soon",
-    "description": "This part of the app hasn't been built yet."
+    "description": "This part of the app hasn't been built yet.",
+    "back": "Back to home"
   },
   "login": {
     "title": "Log in",
@@ -57,5 +57,304 @@
       "wrongCode": "That code is wrong or has expired.",
       "network": "Can't reach the server. Check your connection."
     }
+  },
+  "modules": {
+    "transactions": {
+      "title": "Transactions",
+      "description": "Sales, purchases, receipts, payments, orders",
+      "sections": {
+        "sales": "Sales",
+        "purchases": "Purchases",
+        "receiptsPayments": "Receipts & payments",
+        "orders": "Orders"
+      }
+    },
+    "accounts": {
+      "title": "Accounts",
+      "description": "Parties, ledgers, dues, bank & cash, GST",
+      "sections": {
+        "parties": "Parties",
+        "ledgers": "Ledgers",
+        "dues": "Dues",
+        "bankCash": "Bank & cash",
+        "gst": "GST"
+      }
+    },
+    "inventory": {
+      "title": "Inventory",
+      "description": "Products, godowns, stock, stock count",
+      "sections": {
+        "products": "Products",
+        "godowns": "Godowns",
+        "stock": "Stock",
+        "stockCount": "Stock count"
+      }
+    },
+    "analytics": {
+      "title": "Analytics",
+      "description": "Sales, purchases, stock and dues trends",
+      "sections": {
+        "sales": "Sales",
+        "purchases": "Purchases",
+        "stock": "Stock",
+        "dues": "Dues"
+      }
+    },
+    "admin": {
+      "title": "Admin",
+      "description": "Staff, passkeys, company profile, audit log",
+      "sections": {
+        "staff": "Staff",
+        "passkeys": "Passkeys",
+        "company": "Company profile",
+        "auditLog": "Audit log"
+      }
+    },
+    "more": "+{count} more"
+  },
+  "products": {
+    "adminOnly": "Products are for the admin only.",
+    "tabs": {
+      "label": "Products area",
+      "categories": "Categories",
+      "products": "Products"
+    },
+    "categories": {
+      "title": "Categories",
+      "cardCounts": "{subCategories, plural, one {# sub-category} other {# sub-categories}} · {products, plural, one {# product} other {# products}}",
+      "add": "Add category",
+      "addTitle": "Add category",
+      "close": "Close",
+      "nameLabel": "Name",
+      "namePlaceholder": "Rice",
+      "save": "Save name",
+      "cancel": "Cancel",
+      "rename": "Rename",
+      "deactivate": "Deactivate",
+      "reactivate": "Reactivate",
+      "inactive": "Inactive",
+      "showInactive": "Show inactive",
+      "loading": "Loading categories",
+      "loadError": "Couldn't load the categories. Check your connection and try again.",
+      "empty": "No categories yet. Add the first one.",
+      "toast": {
+        "added": "{name} added",
+        "renamed": "Renamed to {name}",
+        "deactivated": "{name} deactivated",
+        "reactivated": "{name} reactivated",
+        "deleted": "{name} deleted"
+      },
+      "errors": {
+        "taken": "A category with this name already exists.",
+        "invalidName": "Enter a name of up to 50 letters.",
+        "hasProducts": "This category still has active products. Make them inactive first.",
+        "gone": "This category no longer exists. Refresh the page.",
+        "network": "Can't reach the server. Check your connection.",
+        "failed": "Something went wrong. Try again.",
+        "notEmpty": "Only an empty category can be deleted. Deactivate it instead.",
+        "takenInactive": "{name} already exists but is inactive."
+      },
+      "delete": "Delete",
+      "deleteTitle": "Delete {name}?",
+      "deleteBody": "This can't be undone.",
+      "reactivateName": "Reactivate {name}"
+    },
+    "subCategories": {
+      "add": "Add sub-category",
+      "close": "Close",
+      "namePlaceholder": "Sona Masoori",
+      "save": "Save name",
+      "cancel": "Cancel",
+      "rename": "Rename",
+      "deactivate": "Deactivate",
+      "reactivate": "Reactivate",
+      "delete": "Delete",
+      "deleteTitle": "Delete {name}?",
+      "deleteBody": "This can't be undone.",
+      "reactivateName": "Reactivate {name}",
+      "inactive": "Inactive",
+      "empty": "No sub-categories yet. Add the first one.",
+      "toast": {
+        "added": "{name} added",
+        "renamed": "Renamed to {name}",
+        "deactivated": "{name} deactivated",
+        "reactivated": "{name} reactivated",
+        "deleted": "{name} deleted"
+      },
+      "errors": {
+        "taken": "This category already has a sub-category with this name.",
+        "takenInactive": "{name} already exists in this category but is inactive.",
+        "invalidName": "Enter a name of up to 50 letters.",
+        "hasProducts": "This sub-category still has active products. Make them inactive first.",
+        "notEmpty": "Only a sub-category without products can be deleted. Deactivate it instead.",
+        "categoryInactive": "That category is inactive. Reactivate it first.",
+        "gone": "This sub-category no longer exists. Refresh the page.",
+        "network": "Can't reach the server. Check your connection.",
+        "failed": "Something went wrong. Try again."
+      },
+      "productCount": "{products, plural, one {# product} other {# products}}",
+      "nameLabel": "Name"
+    },
+    "items": {
+      "title": "Products",
+      "add": "Add product",
+      "category": "Category",
+      "subCategory": "Sub-category",
+      "allCategories": "All categories",
+      "allSubCategories": "All sub-categories",
+      "showInactive": "Show inactive",
+      "loading": "Loading products",
+      "loadError": "Couldn't load the products. Check your connection and try again.",
+      "empty": "No products yet. Add the first one.",
+      "noMatch": "No products match. Try another filter.",
+      "brand": "Brand",
+      "productDetails": "Product details",
+      "name": "Name",
+      "hsn": "HSN",
+      "priceDetails": "Price details",
+      "priceBeforeGst": "Price before GST",
+      "gst": "GST",
+      "gstAmount": "GST ({gst}%)",
+      "priceWithGst": "Price with GST",
+      "packSizes": "Pack sizes",
+      "details": "Details",
+      "close": "Close",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "priceLabel": "Price (GST included)",
+      "gstLabel": "GST %",
+      "savePrice": "Save price",
+      "editPrice": "Edit price",
+      "cost": "Cost",
+      "margin": "Margin",
+      "quantitySold": "Quantity sold",
+      "inStock": "In stock",
+      "reserved": "Reserved",
+      "editDetails": "Edit details",
+      "addPack": "Add pack size",
+      "deactivatePack": "Deactivate {pack}",
+      "reactivatePack": "Reactivate {pack}",
+      "deletePack": "Delete {pack}",
+      "deleteTitle": "Delete {name} {pack}?",
+      "deleteBody": "This can't be undone.",
+      "toast": {
+        "priceSaved": "{pack} now {price}",
+        "deactivated": "{pack} deactivated",
+        "reactivated": "{pack} reactivated",
+        "deleted": "{pack} deleted"
+      },
+      "errors": {
+        "taken": "That sub-category already has this product with one of these pack sizes.",
+        "inactive": "That category or sub-category is inactive.",
+        "check": "Check the highlighted fields.",
+        "fill": "Fill in the highlighted fields.",
+        "used": "This pack size has been used (stock, orders, purchases or sales). Deactivate it instead.",
+        "priceInvalid": "Enter a price (up to 2 decimals) and a GST % from 0 to 100.",
+        "gone": "This product no longer exists. Refresh the page.",
+        "network": "Can't reach the server. Check your connection.",
+        "failed": "Something went wrong. Try again.",
+        "duplicate": "Duplicate pack size: {packs}."
+      },
+      "chart": {
+        "title": "Price history",
+        "range": "Range",
+        "ranges": {
+          "3m": "3 months",
+          "fy": "This FY",
+          "all": "All"
+        },
+        "price": "Price",
+        "summary": "Price now {price}",
+        "empty": "No price history yet"
+      },
+      "form": {
+        "addTitle": "Add product",
+        "addPackTitle": "Add pack size to {name}",
+        "detailsTitle": "Edit details",
+        "close": "Close",
+        "photo": "Photo",
+        "addPhoto": "Add photo",
+        "changePhoto": "Change photo",
+        "removePhoto": "Remove photo",
+        "category": "Category",
+        "subCategory": "Sub-category",
+        "noSubCategories": "This category has no sub-categories yet. Add one on Categories.",
+        "brand": "Brand",
+        "brandPlaceholder": "India Gate",
+        "name": "Name (optional)",
+        "hsn": "HSN (optional)",
+        "packs": "Pack sizes",
+        "packSize": "Pack size",
+        "unit": "Unit",
+        "units": {
+          "KGS": "kg",
+          "ML": "ml",
+          "BOX": "box",
+          "PCS": "pcs"
+        },
+        "gst": "GST %",
+        "price": "Price (GST incl.)",
+        "removePack": "Remove pack size {n}",
+        "anotherPack": "Another pack size",
+        "save": "Save product",
+        "saveDetails": "Save details",
+        "toast": {
+          "added": "{name} added",
+          "packsAdded": "Pack sizes added to {name}",
+          "saved": "{name} saved"
+        },
+        "errors": {
+          "upload": "Couldn't upload the photo. Try again.",
+          "taken": "That sub-category already has this product with one of these pack sizes.",
+          "inactive": "That category or sub-category is inactive.",
+          "check": "Check the highlighted fields.",
+          "fill": "Fill in the highlighted fields.",
+          "used": "This pack size has been used (stock, orders, purchases or sales). Deactivate it instead.",
+          "priceInvalid": "Enter a price (up to 2 decimals) and a GST % from 0 to 100.",
+          "gone": "This product no longer exists. Refresh the page.",
+          "network": "Can't reach the server. Check your connection.",
+          "failed": "Something went wrong. Try again.",
+          "duplicate": "Duplicate pack size: {packs}."
+        },
+        "rate": "Rate / {unit}"
+      },
+      "rateLabel": "Rate / {unit}"
+    }
+  },
+  "jobs": {
+    "adminOnly": "Jobs are for the admin only.",
+    "eyebrow": "System",
+    "title": "Jobs",
+    "subtitle": "Work the app does in the background, like sending OTP codes.",
+    "refresh": "Refresh",
+    "loading": "Loading jobs",
+    "loadError": "Couldn't load the jobs. Check your connection and try Refresh.",
+    "filters": {
+      "failed": "Failed",
+      "retry": "Retrying",
+      "created": "Waiting",
+      "active": "Running",
+      "completed": "Done"
+    },
+    "empty": {
+      "failed": "No failed jobs. Everything has run.",
+      "retry": "Nothing is waiting to be retried.",
+      "created": "Nothing is waiting to run.",
+      "active": "Nothing is running right now.",
+      "completed": "No finished jobs in the last 7 days.",
+      "cancelled": "No cancelled jobs."
+    },
+    "attempt": "Attempt {attempt} of {max}",
+    "ended": "ended {time}",
+    "runAgain": "Run again",
+    "queued": "Job queued to run again",
+    "queues": {
+      "send-otp": "Send OTP by SMS"
+    }
+  },
+  "notFound": {
+    "title": "This page doesn't exist",
+    "body": "The address may be mistyped, or the page isn't built yet.",
+    "home": "Go to home"
   }
 }
