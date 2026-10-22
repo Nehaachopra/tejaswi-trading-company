@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { money, timestamps } from "../../../utils/common/column-type";
 import { purchasesTable } from "../purchase/purchase";
 import { transactionsTable } from "../transaction";
+import { transactedInEnum } from "../../../utils/common/enum";
 import { uniqueIndex } from "drizzle-orm/pg-core";
 
 export const purchaseReturnsTable = pgTable(
@@ -22,6 +23,15 @@ export const purchaseReturnsTable = pgTable(
       }),
 
     returnDate: date("return_date").notNull(),
+
+    // cash: refunded by the supplier now (rows in transaction_payments); credit: taken
+    // off what we owe; both: part refunded, the rest off the balance
+    transactedIn: transactedInEnum("transacted_in").notNull(),
+
+    // the supplier's credit note; note_url holds its photo or PDF
+    supplierCreditNoteNumber: varchar("supplier_credit_note_number", { length: 16 }).notNull(),
+
+    supplierCreditNoteDate: date("supplier_credit_note_date").notNull(),
 
     subtotal: money("subtotal").notNull().default("0.00"),
 

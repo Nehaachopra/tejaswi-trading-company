@@ -6,7 +6,6 @@ import { productGodownsTable } from "../../godown/product-godown";
 import { productsTable } from "../../product/product";
 import { saleOrdersTable } from "../../order/sale/sale-order";
 import { transactionsTable } from "../transaction";
-import { saleCreditDetailsTable } from "./sale-credit-detail";
 import { saleProductsTable } from "./sale-product";
 import { salesTable } from "./sale";
 
@@ -21,13 +20,24 @@ export const salesRelations = relations(salesTable, ({ one, many }) => ({
     references: [partiesTable.id],
   }),
 
+  billToAddress: one(partyAddressesTable, {
+    fields: [salesTable.billToAddressId],
+    references: [partyAddressesTable.id],
+    relationName: "sale_bill_to_address",
+  }),
+
+  shipToAddress: one(partyAddressesTable, {
+    fields: [salesTable.shipToAddressId],
+    references: [partyAddressesTable.id],
+    relationName: "sale_ship_to_address",
+  }),
+
   order: one(saleOrdersTable, {
     fields: [salesTable.orderId],
-    references: [saleOrdersTable.orderId],
+    references: [saleOrdersTable.id],
   }),
 
   saleProducts: many(saleProductsTable),
-  saleCreditDetails: many(saleCreditDetailsTable),
 }));
 
 export const saleProductsRelations = relations(saleProductsTable, ({ one }) => ({
@@ -41,20 +51,8 @@ export const saleProductsRelations = relations(saleProductsTable, ({ one }) => (
     references: [productsTable.id],
   }),
 
-  partyAddress: one(partyAddressesTable, {
-    fields: [saleProductsTable.partyAddressId],
-    references: [partyAddressesTable.id],
-  }),
-
   productGodown: one(productGodownsTable, {
     fields: [saleProductsTable.productGodownId],
     references: [productGodownsTable.id],
-  }),
-}));
-
-export const saleCreditDetailsRelations = relations(saleCreditDetailsTable, ({ one }) => ({
-  transaction: one(transactionsTable, {
-    fields: [saleCreditDetailsTable.transactionId],
-    references: [transactionsTable.id],
   }),
 }));

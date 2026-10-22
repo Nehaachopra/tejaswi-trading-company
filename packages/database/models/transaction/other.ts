@@ -1,10 +1,13 @@
 import { pgTable, uuid, varchar } from "drizzle-orm/pg-core";
 import { money, timestamps } from "../../utils/common/column-type";
+import { ledgersTable } from "../accounting/ledger";
 import { transactionsTable } from "./transaction";
 import { index } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
+// a journal entry for anything no other page covers: one debit and one credit of the
+// same amount (multi-line journals later). Never cash or bank ledgers; the service checks that.
 export const othersTable = pgTable("others", {
   id: uuid("id").primaryKey().defaultRandom(),
 
@@ -14,21 +17,38 @@ export const othersTable = pgTable("others", {
     })
     .notNull(),
 
-  drLedgerName: varchar("dr_ledger_name", { length: 30 }).notNull(),
-  crLedgerName: varchar("cr_ledger_name", { length: 30 }).notNull(),
+  debitLedgerId: uuid("debit_ledger_id")
+    .notNull()
+    .references(() => ledgersTable.id, {
+      onDelete: "restrict"
+    }),
+
+  debitLedgerNameSnapshot: varchar("debit_ledger_name_snapshot", { length: 150 }).notNull(),
+
+  creditLedgerId: uuid("credit_ledger_id")
+    .notNull()
+    .references(() => ledgersTable.id, {
+      onDelete: "restrict"
+    }),
+
+  creditLedgerNameSnapshot: varchar("credit_ledger_name_snapshot", { length: 150 }).notNull(),
 
   remark: varchar("remark", { length: 100 }),
-  total: money("total"),
+  total: money("total").notNull(),
   ...timestamps,
 },
   (table) => [
     index("others_transaction_id_idx").on(table.transactionId),
 
-    check("others_total_non_negative", sql`${table.total} >= 0`),
+    index("others_debit_ledger_id_idx").on(table.debitLedgerId),
+
+    index("others_credit_ledger_id_idx").on(table.creditLedgerId),
+
+    check("others_total_positive", sql`${table.total} > 0`),
 
     check(
       "others_distinct_debit_credit_ledgers",
-      sql`${table.drLedgerName} <> ${table.crLedgerName}`,
+      sql`${table.debitLedgerId} <> ${table.creditLedgerId}`,
     ),
   ],);
 

@@ -28,7 +28,8 @@ export const drawingsTable = pgTable("drawings", {
     onDelete: "restrict"
   }),
 
-  total: money("total"),
+  // money drawn, or for goods their weighted average cost plus the reversed input GST
+  total: money("total").notNull(),
 
   remarks: varchar("remarks", { length: 100 }),
 
@@ -43,8 +44,8 @@ export const drawingsTable = pgTable("drawings", {
     index("drawings_bank_details_id_idx").on(table.bankDetailsId),
 
     check(
-      "drawings_total_non_negative",
-      sql`${table.total} >= 0`,
+      "drawings_total_positive",
+      sql`${table.total} > 0`,
     ),
 
     check(

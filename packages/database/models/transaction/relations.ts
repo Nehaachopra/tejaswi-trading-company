@@ -2,7 +2,8 @@ import { relations } from "drizzle-orm";
 
 import { usersTable } from "../auth/user";
 import { ledgerEntriesTable } from "../accounting/ledger-entry";
-import { depositsTable } from "./deposit";
+import { contrasTable } from "./contra";
+import { salariesTable } from "./salary/salary";
 import { drawingsTable } from "./drawing/drawing";
 import { drawingProductsTable } from "./drawing/drawing-product";
 import { othersTable } from "./other";
@@ -10,17 +11,28 @@ import { paymentsTable } from "./payment";
 import { purchasesTable } from "./purchase/purchase";
 import { purchaseReturnsTable } from "./purchase-return/purchase-return";
 import { receiptsTable } from "./receipt";
-import { saleCreditDetailsTable } from "./sale/sale-credit-detail";
+import { bankDetailsTable } from "../bank-detail";
+import { salePurchaseCreditDetailsTable } from "./sale-purchase-credit-detail";
+import { transactionPaymentsTable } from "./transaction-payment";
+import { transactionEditLogsTable } from "./transaction-edit-log";
 import { salesTable } from "./sale/sale";
 import { saleReturnsTable } from "./sale-return/sale-return";
 import { transactionsTable } from "./transaction";
-import { withdrawalsTable } from "./withdrawal";
 
 export const transactionsRelations = relations(transactionsTable, ({ one, many }) => ({
   createdByIdUser: one(usersTable, {
     fields: [transactionsTable.createdById],
     references: [usersTable.id],
+    relationName: "transaction_created_by",
   }),
+
+  cancelledByUser: one(usersTable, {
+    fields: [transactionsTable.cancelledById],
+    references: [usersTable.id],
+    relationName: "transaction_cancelled_by",
+  }),
+
+  editLogs: many(transactionEditLogsTable),
 
   purchases: many(purchasesTable),
   sales: many(salesTable),
@@ -29,10 +41,42 @@ export const transactionsRelations = relations(transactionsTable, ({ one, many }
   payments: many(paymentsTable),
   receipts: many(receiptsTable),
   drawings: many(drawingsTable),
-  deposits: many(depositsTable),
-  withdrawals: many(withdrawalsTable),
+  contras: many(contrasTable),
+  salaries: many(salariesTable),
   others: many(othersTable),
-  saleCreditDetails: many(saleCreditDetailsTable),
+  creditDetails: one(salePurchaseCreditDetailsTable),
+  transactionPayments: many(transactionPaymentsTable),
   drawingProducts: many(drawingProductsTable),
   ledgerEntries: many(ledgerEntriesTable),
+}));
+
+export const transactionEditLogsRelations = relations(transactionEditLogsTable, ({ one }) => ({
+  transaction: one(transactionsTable, {
+    fields: [transactionEditLogsTable.transactionId],
+    references: [transactionsTable.id],
+  }),
+
+  editedByUser: one(usersTable, {
+    fields: [transactionEditLogsTable.editedById],
+    references: [usersTable.id],
+  }),
+}));
+
+export const transactionPaymentsRelations = relations(transactionPaymentsTable, ({ one }) => ({
+  transaction: one(transactionsTable, {
+    fields: [transactionPaymentsTable.transactionId],
+    references: [transactionsTable.id],
+  }),
+
+  bankDetails: one(bankDetailsTable, {
+    fields: [transactionPaymentsTable.bankDetailsId],
+    references: [bankDetailsTable.id],
+  }),
+}));
+
+export const salePurchaseCreditDetailsRelations = relations(salePurchaseCreditDetailsTable, ({ one }) => ({
+  transaction: one(transactionsTable, {
+    fields: [salePurchaseCreditDetailsTable.transactionId],
+    references: [transactionsTable.id],
+  }),
 }));

@@ -22,7 +22,9 @@ export const money = (name: string) =>
     scale: 2,
   });
 
-  export const percent = (name: string) => numeric(name, {
-    precision: 3,
-    scale: 2
-  })
+// up to 999.99, so GST rates such as 18 or 28 and TDS rates such as 10 fit
+export const percent = (name: string) =>
+  numeric(name, {
+    precision: 5,
+    scale: 2,
+  });

@@ -7,12 +7,6 @@ import { purchaseOrdersTable } from "../order/purchase/purchase-order";
 import { saleOrdersTable } from "../order/sale/sale-order";
 import { purchasesTable } from "../transaction/purchase/purchase";
 import { salesTable } from "../transaction/sale/sale";
-import { paymentsTable } from "../transaction/payment";
-import { receiptsTable } from "../transaction/receipt";
-import { purchaseOrderProductsTable } from "../order/purchase/purchase-order-product";
-import { saleOrderProductsTable } from "../order/sale/sale-order-product";
-import { purchaseProductsTable } from "../transaction/purchase/purchase-product";
-import { saleProductsTable } from "../transaction/sale/sale-product";
 
 export const partiesRelations = relations(partiesTable, ({ many }) => ({
   partyAddresses: many(partyAddressesTable),
@@ -21,8 +15,6 @@ export const partiesRelations = relations(partiesTable, ({ many }) => ({
   saleOrders: many(saleOrdersTable),
   purchases: many(purchasesTable),
   sales: many(salesTable),
-  payments: many(paymentsTable),
-  receipts: many(receiptsTable),
 }));
 
 export const partyAddressesRelations = relations(partyAddressesTable, ({ one, many }) => ({
@@ -31,8 +23,7 @@ export const partyAddressesRelations = relations(partyAddressesTable, ({ one, ma
     references: [partiesTable.id],
   }),
 
-  purchaseOrderProducts: many(purchaseOrderProductsTable),
-  saleOrderProducts: many(saleOrderProductsTable),
-  purchaseProducts: many(purchaseProductsTable),
-  saleProducts: many(saleProductsTable),
+  billedPurchases: many(purchasesTable),
+  billedSales: many(salesTable, { relationName: "sale_bill_to_address" }),
+  shippedSales: many(salesTable, { relationName: "sale_ship_to_address" }),
 }));

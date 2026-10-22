@@ -1,4 +1,4 @@
-﻿// product_godown.ts
+// product_godown.ts
 
 import { pgTable, uuid } from "drizzle-orm/pg-core";
 
@@ -30,10 +30,6 @@ export const productGodownsTable = pgTable(
 
     quantity: money("quantity").default("0.00").notNull(),
 
-    reservedQuantity: money("reserved_quantity").default("0.00").notNull(),
-
-    unreservedQuantity: money("unreserved_quantity").default("0.00").notNull(),
-
     ...timestamps,
   },
   (table) => [
@@ -43,15 +39,8 @@ export const productGodownsTable = pgTable(
     ),
 
     check(
-      "product_godowns_quantities_non_negative",
-      sql`${table.quantity} >= 0
-        AND ${table.reservedQuantity} >= 0
-        AND ${table.unreservedQuantity} >= 0`,
-    ),
-
-    check(
-      "product_godowns_quantity_consistency",
-      sql`${table.quantity} = ${table.reservedQuantity} + ${table.unreservedQuantity}`,
+      "product_godowns_quantity_non_negative",
+      sql`${table.quantity} >= 0`,
     ),
 
     index("product_godowns_product_id_idx").on(table.productId),

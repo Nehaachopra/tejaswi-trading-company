@@ -5,7 +5,6 @@ import { saleProductsTable } from "../sale/sale-product";
 import { salesTable } from "../sale/sale";
 import { saleReturnsTable } from "./sale-return";
 import { saleReturnProductsTable } from "./sale-return-product";
-import { saleReturnReplacementsTable } from "./sale-return-replacement";
 import { transactionsTable } from "../transaction";
 
 export const saleReturnsRelations = relations(saleReturnsTable, ({ one, many }) => ({
@@ -20,7 +19,6 @@ export const saleReturnsRelations = relations(saleReturnsTable, ({ one, many }) 
   }),
 
   saleReturnProducts: many(saleReturnProductsTable),
-  saleReturnReplacements: many(saleReturnReplacementsTable),
 }));
 
 export const saleReturnProductsRelations = relations(saleReturnProductsTable, ({ one }) => ({
@@ -33,16 +31,9 @@ export const saleReturnProductsRelations = relations(saleReturnProductsTable, ({
     fields: [saleReturnProductsTable.saleProductId],
     references: [saleProductsTable.id],
   }),
-}));
-
-export const saleReturnReplacementsRelations = relations(saleReturnReplacementsTable, ({ one }) => ({
-  saleReturn: one(saleReturnsTable, {
-    fields: [saleReturnReplacementsTable.returnId],
-    references: [saleReturnsTable.id],
-  }),
 
   productGodown: one(productGodownsTable, {
-    fields: [saleReturnReplacementsTable.productGodownId],
+    fields: [saleReturnProductsTable.productGodownId],
     references: [productGodownsTable.id],
   }),
 }));

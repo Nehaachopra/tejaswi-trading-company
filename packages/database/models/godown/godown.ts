@@ -1,8 +1,10 @@
 // godown.ts
 
 import {
+  boolean,
   pgEnum,
   pgTable,
+  text,
   check,
   uuid,
   integer,
@@ -21,6 +23,11 @@ export const godownsTable = pgTable("godowns", {
 
   godownName: varchar("godown_name", { length: 20 }).notNull(),
 
+  address: text("address"),
+
+  // a godown can be made inactive only once it holds no stock; the service checks that
+  isActive: boolean("is_active").default(true).notNull(),
+
   ownership: godownOwnershipEnum("ownership").notNull().default("rented"),
 
   rent: money("rent"),
@@ -35,7 +42,7 @@ export const godownsTable = pgTable("godowns", {
     onDelete: "set null"
   }),
 
- landlordName: varchar("landlord_name", {length: 255}).notNull(), 
+ landlordName: varchar("landlord_name", {length: 255}),
 
  landlordCountryCode: varchar("landlord_country_code", { length: 5 }),
 landlordNumber: varchar("landlord_number", { length: 20 }),
@@ -46,7 +53,7 @@ landlordNumber: varchar("landlord_number", { length: 20 }),
   check(
     "godowns_rented_requires_rent",
     sql`${table.ownership} <> 'rented'
-      OR (${table.rent} IS NOT NULL AND ${table.rent} > 0)`,
+      OR (${table.rent} IS NOT NULL AND ${table.rent} > 0 AND ${table.landlordName} IS NOT NULL)`,
   ),
 
   check(
@@ -56,6 +63,7 @@ landlordNumber: varchar("landlord_number", { length: 20 }),
         ${table.rent} IS NULL
         AND ${table.rentTimingInMonths} IS NULL
         AND ${table.landlordId} IS NULL
+        AND ${table.landlordName} IS NULL
       )`,
   ),
 

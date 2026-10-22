@@ -12,7 +12,13 @@ import { sql } from "drizzle-orm";
 
 import { money, timestamps } from "../../../utils/common/column-type";
 import { partiesTable } from "../../party/party";
-import { invoiceTypeEnum, transactedInEnum } from "../../../utils/common/enum";
+import {
+  gstPlaceOfSupplyEnum,
+  invoiceTypeEnum,
+  supplyTypeEnum,
+  transactedInEnum,
+} from "../../../utils/common/enum";
+import { partyAddressesTable } from "../../party/party-address";
 import { transactionsTable } from "../transaction";
 import { purchaseOrdersTable } from "../../order//purchase/purchase-order";
 
@@ -21,9 +27,9 @@ export const purchasesTable = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
-    orderId: varchar("order_id", { length: 30 }).references(
-      () => purchaseOrdersTable.orderId,
-      { onDelete: "set null" },
+    orderId: uuid("order_id").references(
+      () => purchaseOrdersTable.id,
+      { onDelete: "no action" },
     ),
 
     transactionId: uuid("transaction_id")
@@ -45,16 +51,64 @@ export const purchasesTable = pgTable(
 
     partyEmailSnapshot: varchar("party_email_snapshot", { length: 254 }),
 
+    // bill from: the supplier's address on its invoice; its state decides the supply type
+    billFromAddressId: uuid("bill_from_address_id").references(
+      () => partyAddressesTable.id,
+      { onDelete: "set null" },
+    ),
+
+    billFromGstinSnapshot: varchar("bill_from_gstin_snapshot", { length: 15 }),
+
+    billFromAddressLine1Snapshot: varchar("bill_from_address_line_1_snapshot", {
+      length: 200,
+    }).notNull(),
+
+    billFromAddressLine2Snapshot: varchar("bill_from_address_line_2_snapshot", {
+      length: 200,
+    }),
+
+    billFromCitySnapshot: varchar("bill_from_city_snapshot", {
+      length: 100,
+    }).notNull(),
+
+    billFromDistrictSnapshot: varchar("bill_from_district_snapshot", {
+      length: 100,
+    }).notNull(),
+
+    billFromStateSnapshot: varchar("bill_from_state_snapshot", {
+      length: 100,
+    }).notNull(),
+
+    billFromStateCodeSnapshot: gstPlaceOfSupplyEnum(
+      "bill_from_state_code_snapshot",
+    ).notNull(),
+
+    billFromPostalCodeSnapshot: varchar("bill_from_postal_code_snapshot", {
+      length: 10,
+    }).notNull(),
+
+    supplyType: supplyTypeEnum("supply_type").notNull(),
+
+    vehicleNumber: varchar("vehicle_number", { length: 15 }),
+
+    // charges all go into the products' weighted average cost
     subtotal: money("subtotal").notNull().default("0"),
     discountAmount: money("discount_amount").notNull().default("0.00"),
     gstAmount: money("gst_amount").notNull().default("0.00"),
-    shippingAmount: money("shipping_amount").notNull().default("0.00"),
+    packagingAmount: money("packaging_amount").notNull().default("0.00"),
+    freightAmount: money("freight_amount").notNull().default("0.00"),
+    handlingAmount: money("handling_amount").notNull().default("0.00"),
     otherAmount: money("other_amount").notNull().default("0.00"),
-    
+
+    // money paid now is in transaction_payments, credit terms in sale_purchase_credit_details
     transactedIn: transactedInEnum("transacted_in").notNull(),
 
     remarks: varchar("remarks", { length: 1000 }),
 
+    // the supplier's own bill number, matched against GSTR-2B
+    supplierInvoiceNumber: varchar("supplier_invoice_number", { length: 16 }).notNull(),
+
+    // the supplier's invoice date; dates the purchase and is checked against the GSTR-3B lock
     invoiceDate: date("invoice_date").notNull().defaultNow(),
 
     invoiceType: invoiceTypeEnum("invoice_type")
@@ -80,7 +134,9 @@ export const purchasesTable = pgTable(
         ${table.subtotal} >= 0
         AND ${table.discountAmount} >= 0
         AND ${table.gstAmount} >= 0
-        AND ${table.shippingAmount} >= 0
+        AND ${table.packagingAmount} >= 0
+        AND ${table.freightAmount} >= 0
+        AND ${table.handlingAmount} >= 0
         AND ${table.otherAmount} >= 0
       `,
     ),

@@ -34,6 +34,8 @@ export const ledgersTable = pgTable(
 
     referenceId: uuid("reference_id"),
 
+    // total of every entry, post-dated ones included, kept in step with each entry in the
+    // same database transaction; "as of today" leaves out entries dated after today
     balance: money("balance").notNull(),
 
     balanceType: ledgerTransactionTypeEnum("balance_type").notNull().default("debit"),

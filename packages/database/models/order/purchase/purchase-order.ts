@@ -6,6 +6,7 @@ import { money, timestamps } from "../../../utils/common/column-type";
 
 import { partiesTable } from "../../party/party";
 import { usersTable } from "../../auth/user";
+import { orderStatusEnum } from "../../../utils/common/enum";
 import { date } from "drizzle-orm/pg-core";import { index } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -32,6 +33,8 @@ export const purchaseOrdersTable = pgTable(
 
     expectedDeliveryDate: date("expected_delivery_date"),
 
+    status: orderStatusEnum("status").default("pending").notNull(),
+
     subtotal: money("subtotal").notNull().default("0"),
 
     discountAmount: money("discount_amount").notNull().default("0.00"),
@@ -49,6 +52,7 @@ export const purchaseOrdersTable = pgTable(
   (table) => [
     uniqueIndex("purchase_orders_order_id_unique_idx").on(table.orderId),
     index("purchase_orders_party_id_idx").on(table.partyId),
+    index("purchase_orders_status_idx").on(table.status),
 
     check(
       "purchase_orders_amounts_non_negative",

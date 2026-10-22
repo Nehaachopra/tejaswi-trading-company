@@ -1,11 +1,16 @@
 // transaction.ts
 
-import { pgEnum, pgTable, timestamp, uuid, varchar, index } from "drizzle-orm/pg-core";
+import { check, pgEnum, pgTable, timestamp, uuid, varchar, index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 import { timestamps } from "../../utils/common/column-type";
 import { usersTable } from "../auth/user";
 import { text } from "drizzle-orm/pg-core";
 import { uniqueIndex } from "drizzle-orm/pg-core";
+
+// a cancelled transaction is kept with its number; its effect is reversed by entries dated on the cancel day
+export const transactionStatusEnum = pgEnum("transaction_status", ["active", "cancelled"]);
+
 export const transactionTypeEnum = pgEnum("transaction_type", [
   "sale",
   "purchase",
@@ -16,7 +21,11 @@ export const transactionTypeEnum = pgEnum("transaction_type", [
   "drawing",
   "deposit",
   "withdrawal",
+  "transfer",
+  "salary",
   "other",
+  // created automatically when a bank account, party or other ledger is added with an opening balance
+  "opening_balance",
 ]);
 
 export const transactionsTable = pgTable(
@@ -45,10 +54,39 @@ export const transactionsTable = pgTable(
     createdByName: varchar("created_by_name", {length: 30})
       .notNull(),
 
+    status: transactionStatusEnum("status").default("active").notNull(),
+
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+
+    cancelledById: uuid("cancelled_by_id").references(() => usersTable.id, {
+      onDelete: "no action"
+    }),
+
+    cancelledByName: varchar("cancelled_by_name", { length: 30 }),
+
+    cancelReason: varchar("cancel_reason", { length: 200 }),
+
     ...timestamps,
   },
   (table) => [
   index("transaction_type_idx").on(table.type),
+  index("transaction_status_idx").on(table.status),
+  check(
+    "transactions_cancel_fields_by_status",
+    sql`(
+      ${table.status} = 'active'
+      AND ${table.cancelledAt} IS NULL
+      AND ${table.cancelledById} IS NULL
+      AND ${table.cancelledByName} IS NULL
+      AND ${table.cancelReason} IS NULL
+    ) OR (
+      ${table.status} = 'cancelled'
+      AND ${table.cancelledAt} IS NOT NULL
+      AND ${table.cancelledById} IS NOT NULL
+      AND ${table.cancelledByName} IS NOT NULL
+      AND ${table.cancelReason} IS NOT NULL
+    )`,
+  ),
   uniqueIndex("transaction_type_assigned_id_unique").on(table.type, table.assignedId)
   ],
 );

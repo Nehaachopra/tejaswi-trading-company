@@ -1,12 +1,11 @@
 // purchase-order-products.ts
 
 import { sql } from "drizzle-orm";
-import { integer, pgTable, uuid, text, check, index } from "drizzle-orm/pg-core";
+import { integer, pgTable, uuid, text, check, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { money, timestamps } from "../../../utils/common/column-type";
 import { productsTable } from "../../product/product";
 import { purchaseOrdersTable } from "./purchase-order";
-import { partyAddressesTable } from "../../party/party-address";
 import { productGodownsTable } from "../../godown/product-godown";
 
 export const purchaseOrderProductsTable = pgTable(
@@ -26,10 +25,6 @@ export const purchaseOrderProductsTable = pgTable(
         onDelete: "restrict",
       }),
 
-    partyAddressId: uuid("party_address_id").references(() => partyAddressesTable.id, {
-      onDelete: "set null",
-    }),
-
     quantityOrdered: integer("quantity_ordered").notNull(),
 
     grossProductPrice: money("gross_product_price").notNull(),
@@ -45,6 +40,12 @@ export const purchaseOrderProductsTable = pgTable(
     ...timestamps,
   },
   (table) => [
+    // an order lists each product once
+    uniqueIndex("purchase_order_products_order_product_unique").on(
+      table.purchaseOrderId,
+      table.productId,
+    ),
+
     index("purchase_order_products_order_id_idx").on(table.purchaseOrderId),
 
     index("purchase_order_product_id_idx").on(table.productId),

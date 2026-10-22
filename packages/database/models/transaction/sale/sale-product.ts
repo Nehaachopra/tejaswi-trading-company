@@ -12,11 +12,6 @@ import {
 import { money, timestamps } from "../../../utils/common/column-type";
 import { productsTable } from "../../product/product";
 import { salesTable } from "./sale";
-import {
-  gstPlaceOfSupplyEnum,
-  supplyTypeEnum,
-} from "../../../utils/common/enum";
-import { partyAddressesTable } from "../../party/party-address";
 import { productGodownsTable } from "../../godown/product-godown";
 
 export const saleProductsTable = pgTable(
@@ -32,40 +27,8 @@ export const saleProductsTable = pgTable(
       .notNull()
       .references(() => productsTable.id, { onDelete: "restrict" }),
 
-    partyAddressId: uuid("party_address_id").references(
-      () => partyAddressesTable.id,
-      { onDelete: "set null" },
-    ),
-
-    partyGstinSnapshot: varchar("party_gstin_snapshot", { length: 15 }),
-
-    partyAddressLine1Snapshot: varchar("party_address_line_1_snapshot", {
-      length: 200,
-    }).notNull(),
-
-    partyAddressLine2Snapshot: varchar("party_address_line_2_snapshot", {
-      length: 200,
-    }),
-
-    partyCitySnapshot: varchar("party_city_snapshot", {
-      length: 100,
-    }).notNull(),
-
-    partyDistrictSnapshot: varchar("party_district_snapshot", {
-      length: 100,
-    }).notNull(),
-
-    partyStateSnapshot: varchar("party_state_snapshot", {
-      length: 100,
-    }).notNull(),
-
-    partyStateCodeSnapshot: gstPlaceOfSupplyEnum(
-      "party_state_code_snapshot",
-    ).notNull(),
-
-    partyPostalCodeSnapshot: varchar("party_postal_code_snapshot", {
-      length: 10,
-    }).notNull(),
+    // category + sub-category + brand + pack quantity, as it read when sold
+    productNameSnapshot: varchar("product_name_snapshot", { length: 200 }).notNull(),
 
     quantity: integer("quantity").notNull().default(0),
 
@@ -80,13 +43,9 @@ export const saleProductsTable = pgTable(
 
     discountAmount: money("discount_amount").notNull().default("0.00"),
 
-    supplyType: supplyTypeEnum("supply_type").notNull(),
-
     gstRate: integer("gst_rate").notNull(),
 
     gstAmount: money("gst_amount").notNull().default("0.00"),
-
-    vehicleNumber: varchar("vehicle_number", { length: 15 }),
 
     remarks: text("remarks"),
 

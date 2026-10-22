@@ -41,10 +41,11 @@ export const ledgerEntriesTable = pgTable(
 
     isContra: boolean("is_contra").default(false).notNull(),
 
-    // the ledger's running balance after this entry
-    balance: money("balance").notNull(),
+    // undoes an earlier entry of the same transaction, on a cancel or an edit
+    isReversal: boolean("is_reversal").default(false).notNull(),
 
-    balanceType: ledgerTransactionTypeEnum("balance_type").notNull(),
+    // no running balance is stored: entries can be pre- or post-dated, so a statement adds
+    // the balance up in (date_time, created_at) order when it is read
 
     ...timestamps,
   },
@@ -52,8 +53,8 @@ export const ledgerEntriesTable = pgTable(
     index("ledger_entries_transaction_id_idx").on(table.transactionId),
     index("ledger_entries_ledger_datetime_idx").on(table.ledgerId, table.dateTime),
     check(
-      "ledger_entries_amount_and_balance_non_negative",
-      sql`${table.amount} >= 0 AND ${table.balance} >= 0`,
+      "ledger_entries_amount_non_negative",
+      sql`${table.amount} >= 0`,
     ),
   ],
 );

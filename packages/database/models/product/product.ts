@@ -2,7 +2,7 @@
 
 import { boolean, integer, pgEnum, pgTable, text, uuid, varchar } from "drizzle-orm/pg-core";
 
-import { timestamps } from "../../utils/common/column-type";
+import { money, timestamps } from "../../utils/common/column-type";
 
 import { categoriesTable } from "./category";
 import { subCategoriesTable } from "./sub-category";
@@ -56,6 +56,13 @@ export const productsTable = pgTable(
 
     unreservedQuantity: integer("unreserved_quantity").notNull().default(0),
 
+    // running total of units sold, less sale returns: a sale adds its quantity, a return or a
+    // cancelled sale takes it back off
+    quantitySold: integer("quantity_sold").notNull().default(0),
+
+    // landed cost per pack before GST; empty until the first purchase
+    weightedAverageCost: money("weighted_average_cost"),
+
     isActive: boolean("is_active").default(true).notNull(),
 
     ...timestamps,
@@ -76,7 +83,14 @@ export const productsTable = pgTable(
 
     check("products_quantity_non_negative", sql`${table.quantity} >= 0`),
 
+    check(
+      "products_weighted_average_cost_non_negative",
+      sql`${table.weightedAverageCost} IS NULL OR ${table.weightedAverageCost} >= 0`,
+    ),
+
     check("products_reserved_quantity_non_negative", sql`${table.reservedQuantity} >= 0`),
+
+    check("products_quantity_sold_non_negative", sql`${table.quantitySold} >= 0`),
 
     check("products_quantity_consistent", sql`${table.quantity} = ${table.reservedQuantity} + ${table.unreservedQuantity}`),
   ],

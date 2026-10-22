@@ -2,6 +2,7 @@ import { relations } from "drizzle-orm";
 
 import { bankDetailsTable } from "../../bank-detail";
 import { productGodownsTable } from "../../godown/product-godown";
+import { productsTable } from "../../product/product";
 import { transactionsTable } from "../transaction";
 import { drawingProductsTable } from "./drawing-product";
 import { drawingsTable } from "./drawing";
@@ -24,6 +25,11 @@ export const drawingProductsRelations = relations(drawingProductsTable, ({ one }
   drawing: one(drawingsTable, {
     fields: [drawingProductsTable.drawingId],
     references: [drawingsTable.id],
+  }),
+
+  product: one(productsTable, {
+    fields: [drawingProductsTable.productId],
+    references: [productsTable.id],
   }),
 
   productGodown: one(productGodownsTable, {

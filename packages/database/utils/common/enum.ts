@@ -97,7 +97,6 @@ export const supplyTypeEnum =
     [
       "admin",
       "staff",
-      "accountant",
     ],
   );
 
@@ -108,7 +107,7 @@ export const supplyTypeEnum =
 
 export const orderStatusEnum = pgEnum("order_status", [
   "pending",
-  "fulfilled",
+  "completed",
   "cancelled",
 ]);
 
@@ -116,4 +115,10 @@ export const transactedInEnum = pgEnum("transacted_in", ["cash", "credit", "both
 
 export const settledInEnum = pgEnum("settled_in", ["cash", "bank"]);
 
+export const paymentModeEnum = pgEnum("payment_mode", ["cash", "upi", "net_banking", "card"]);
+
 export const ledgerTransactionTypeEnum = pgEnum("ledger_transaction_type", ["debit", "credit"]);
+
+export const gstReturnTypeEnum = pgEnum("gst_return_type", ["gstr1", "gstr3b"]);
+
+export const salaryKindEnum = pgEnum("salary_kind", ["salary", "advance"]);

@@ -5,7 +5,7 @@ import { boolean, pgTable, text, uuid, varchar } from "drizzle-orm/pg-core";
 import { money, percent, timestamps } from "../../utils/common/column-type";
 
 import { bankDetailsTable } from "../bank-detail";
-import { partiesTable } from "../party/party";
+import { ledgersTable } from "../accounting/ledger";
 import { transactionsTable } from "./transaction";
 import { uniqueIndex } from "drizzle-orm/pg-core";
 import { index } from "drizzle-orm/pg-core";
@@ -24,19 +24,20 @@ export const receiptsTable = pgTable(
         onDelete: "restrict",
       }),
 
-    towards: varchar("towards", { length: 100 }).notNull(),
-
-    partyId: uuid("party_id")
+    // where the money came from: a party, a loan, an income head or any other ledger;
+    // a party is reached through its ledger
+    receivedFromLedgerId: uuid("received_from_ledger_id")
       .notNull()
-      .references(() => partiesTable.id, {
-        onDelete: "no action",
+      .references(() => ledgersTable.id, {
+        onDelete: "restrict",
       }),
 
-    partyNameSnapshot: varchar("party_name_snapshot", {
+    receivedFromNameSnapshot: varchar("received_from_name_snapshot", {
       length: 150,
     }).notNull(),
 
-    partyCountryCodeSnapshot: varchar("party_country_code_snapshot", { length: 5 }).default("+91"),
+    // filled only when the money came from a party
+    partyCountryCodeSnapshot: varchar("party_country_code_snapshot", { length: 5 }),
 
     partyPhoneSnapshot: varchar("party_phone_snapshot", { length: 20 }),
 
@@ -67,14 +68,19 @@ export const receiptsTable = pgTable(
   (table) => [
     uniqueIndex("receipts_transaction_id_unique").on(table.transactionId),
 
-    index("receipts_party_id_idx").on(table.partyId),
+    index("receipts_received_from_ledger_id_idx").on(table.receivedFromLedgerId),
 
     index("receipts_bank_details_id_idx").on(table.bankDetailsId),
 
     check(
-      "receipts_amounts_non_negative",
-      sql`(${table.amount} IS NULL OR ${table.amount} >= 0)
+      "receipts_amounts_valid",
+      sql`${table.amount} > 0
         AND (${table.tdsAmount} IS NULL OR ${table.tdsAmount} >= 0)`,
+    ),
+
+    check(
+      "receipts_bank_account_for_bank",
+      sql`${table.settledIn} = 'cash' OR ${table.bankDetailsId} IS NOT NULL`,
     ),
 
     check(

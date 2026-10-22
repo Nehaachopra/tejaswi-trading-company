@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { money, timestamps } from "../../../utils/common/column-type";
 import { salesTable } from "../sale/sale";
 import { transactionsTable } from "../transaction";
+import { transactedInEnum } from "../../../utils/common/enum";
 import { uniqueIndex } from "drizzle-orm/pg-core";
 
 export const saleReturnsTable = pgTable(
@@ -22,6 +23,10 @@ export const saleReturnsTable = pgTable(
       }),
 
     returnDate: date("return_date").notNull(),
+
+    // cash: refunded now (rows in transaction_payments); credit: taken off what the
+    // customer owes; both: part refunded, the rest off the balance
+    transactedIn: transactedInEnum("transacted_in").notNull(),
 
     subtotal: money("subtotal").notNull().default("0.00"),
 

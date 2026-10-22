@@ -1,8 +1,9 @@
-import { pgTable, uuid, index, check } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, index, check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 import { money, timestamps} from "../../../utils/common/column-type";
 import { purchaseReturnsTable } from "./purchase-return";import { integer } from "drizzle-orm/pg-core";import { purchaseProductsTable } from "../purchase/purchase-product";
+import { productGodownsTable } from "../../godown/product-godown";
 
 export const purchaseReturnProductsTable = pgTable(
   "purchase_return_products",
@@ -20,6 +21,13 @@ export const purchaseReturnProductsTable = pgTable(
       .references(() => purchaseProductsTable.id, {
         onDelete: "restrict",
       }),
+
+    // godown the returned goods leave from; one row per godown
+    productGodownId: uuid("product_godown_id").references(() => productGodownsTable.id, {
+      onDelete: "no action",
+    }),
+
+    godownName: varchar("godown_name", { length: 20 }).notNull(),
 
     quantity: integer("quantity").notNull(),
 
