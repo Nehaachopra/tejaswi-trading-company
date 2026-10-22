@@ -2,16 +2,16 @@ import { router } from "./trpc";
 
 import { authRouter } from "./routes/auth/route";
 import { healthRouter } from "./routes/health/route";
-import { passkeyRouter } from "./routes/passkey/route";
-import { staffRouter } from "./routes/staff/route";
+import { inventoryRouter } from "./routes/inventory/route";
+import { jobsRouter } from "./routes/jobs/route";
 
 export const serverRouter = router({
   health: healthRouter,
   auth: authRouter,
-  passkey: passkeyRouter,
-  staff: staffRouter,
+  inventory: inventoryRouter,
+  jobs: jobsRouter,
 });
 
-export { createContext } from "./context";
-export { userService } from "./services";
+export { createContext, sessionFromRequest } from "./context";
+export { authService } from "./services";
 export type ServerRouter = typeof serverRouter;

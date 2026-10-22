@@ -9,6 +9,8 @@ import { apiReference } from "@scalar/express-api-reference";
 import { serverRouter, createContext } from "@repo/trpc/server";
 
 import { env } from "./env";
+import { apiLimiter, signInLimiter } from "./rate-limit";
+import { uploadsRouter, uploadsStatic } from "./uploads";
 
 export const app = express();
 
@@ -32,6 +34,15 @@ if (env.NODE_ENV !== "prod") {
     }),
   );
 }
+
+// the web app forwards /trpc from its own server, so the visitor's IP is in X-Forwarded-For;
+// trust only that hop (loopback by default) so a visitor can't fake an IP to dodge the limits
+app.set("trust proxy", env.TRUST_PROXY);
+
+app.use(["/trpc", "/api", "/uploads"], signInLimiter, apiLimiter);
+
+// photo uploads take the raw image, so they come before the JSON body parser; then the stored photos
+app.use("/uploads", uploadsRouter, uploadsStatic);
 
 app.use(express.json());
 

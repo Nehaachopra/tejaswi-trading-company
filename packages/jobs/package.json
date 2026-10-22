@@ -1,0 +1,17 @@
+{
+  "name": "@repo/jobs",
+  "version": "1.0.0",
+  "private": true,
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@repo/logger": "workspace:*",
+    "@repo/services": "workspace:*",
+    "@trpc/server": "^11.8.1",
+    "pg-boss": "^12.38.0",
+    "zod": "^4.3.5"
+  }
+}

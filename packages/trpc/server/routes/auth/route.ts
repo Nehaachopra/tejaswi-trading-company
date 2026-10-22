@@ -6,14 +6,14 @@ import {
 } from "@repo/services/auth/model";
 import { SESSION_TTL_SECONDS } from "@repo/services/auth";
 
-import { z, zodUndefinedModel } from "../../schema";
-import { protectedProcedure, publicProcedure, router } from "../../trpc";
 import { SESSION_COOKIE } from "../../context";
+import { z, zodNoInputMutationModel, zodUndefinedModel } from "../../schema";
+import { protectedProcedure, publicProcedure, router } from "../../trpc";
 import { authService } from "../../services";
 
+// the session token only ever travels in this cookie; scripts on the page can't read it
 const cookieOptions = {
   httpOnly: true,
-  // the app uses "prod", which Node's NODE_ENV typing doesn't know about
   secure: (process.env.NODE_ENV as string) === "prod",
   sameSite: "lax" as const,
   path: "/",
@@ -21,7 +21,7 @@ const cookieOptions = {
 
 export const authRouter = router({
   requestOtp: publicProcedure
-    .meta({ openapi: { method: "POST", path: "/auth/otp/request", tags: ["auth"] } })
+    .meta({ openapi: { method: "POST", path: "/auth/otp", tags: ["auth"] } })
     .input(requestOtpInputModel)
     .output(requestOtpOutputModel)
     .mutation(({ input }) => authService.requestOtp(input)),
@@ -30,7 +30,7 @@ export const authRouter = router({
     .meta({ openapi: { method: "POST", path: "/auth/otp/verify", tags: ["auth"] } })
     .input(verifyOtpInputModel)
     .output(authSessionModel)
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ ctx, input }) => {
       const { token, session } = await authService.verifyOtp(input, ctx.client);
       ctx.res.cookie(SESSION_COOKIE, token, { ...cookieOptions, maxAge: SESSION_TTL_SECONDS * 1000 });
       return session;
@@ -44,7 +44,7 @@ export const authRouter = router({
 
   logout: protectedProcedure
     .meta({ openapi: { method: "POST", path: "/auth/logout", tags: ["auth"] } })
-    .input(zodUndefinedModel)
+    .input(zodNoInputMutationModel)
     .output(z.object({ success: z.literal(true) }))
     .mutation(async ({ ctx }) => {
       await authService.logout(ctx.session.sessionId);

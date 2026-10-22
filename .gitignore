@@ -33,6 +33,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Uploaded photos (kept on disk until a CDN takes over)
+apps/api/uploads/
+
 # Misc
 .DS_Store
 *.pem

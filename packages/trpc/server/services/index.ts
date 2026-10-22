@@ -1,9 +1,12 @@
+import { JobsService, QueuedOtpSender } from "@repo/jobs";
 import AuthService from "@repo/services/auth";
-import PasskeyService from "@repo/services/passkey";
-import UserService from "@repo/services/user";
+import CategoryService from "@repo/services/category";
+import ProductService from "@repo/services/product";
 
-export const authService = new AuthService();
+export const authService = new AuthService(new QueuedOtpSender());
 
-export const passkeyService = new PasskeyService();
+export const categoryService = new CategoryService();
 
-export const userService = new UserService();
+export const productService = new ProductService();
+
+export const jobsService = new JobsService();

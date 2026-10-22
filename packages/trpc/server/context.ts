@@ -22,17 +22,19 @@ function readCookie(header: string | undefined, name: string) {
   return undefined;
 }
 
-export async function createContext({ req, res }: CreateExpressContextOptions): Promise<Context> {
+// the signed-in session behind a request, if any; also used by plain Express routes (uploads)
+export async function sessionFromRequest(req: Request) {
   const token = readCookie(req.headers.cookie, SESSION_COOKIE);
-  const session = token ? await authService.getSession(token) : null;
+  return token ? await authService.getSession(token) : null;
+}
+
+export async function createContext({ req, res }: CreateExpressContextOptions): Promise<Context> {
+  const session = await sessionFromRequest(req);
 
   return {
     req,
     res,
     session,
-    client: {
-      ipAddress: req.ip,
-      userAgent: req.headers["user-agent"],
-    },
+    client: { ipAddress: req.ip, userAgent: req.headers["user-agent"] },
   };
 }
