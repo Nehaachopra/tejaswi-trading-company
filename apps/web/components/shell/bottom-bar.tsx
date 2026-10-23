@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu as MenuIcon, Plus } from "lucide-react";
+import { ChevronDown, Menu as MenuIcon, Plus } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -20,6 +20,9 @@ export function BottomBar({ role }: { role: Role }) {
   const t = useTranslations("shell.nav");
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  // items with pages under them (Accounts) that were tapped open or shut in the More sheet; the one you're
+  // in starts open, the rest shut
+  const [toggled, setToggled] = useState<string[]>([]);
 
   const items = navFor(role);
   const [history, stock, orders] = items.filter((i) => i.place === "bar") as [NavItem, NavItem, NavItem];
@@ -82,21 +85,28 @@ export function BottomBar({ role }: { role: Role }) {
         <ul className="flex flex-col gap-1 overflow-y-auto p-3">
           {more.map((item) => {
             const current = isCurrent(item.href, pathname);
+            const rowClass = cn("flex min-h-12 w-full items-center gap-3 rounded-control px-3 text-left text-base", current ? "bg-chestnut font-medium text-ivory" : "hover:bg-chestnut/[0.06]");
+            const groupOpen = current !== toggled.includes(item.href);
             return (
               <li key={item.href}>
-                <Link
-                  href={item.href}
-                  onClick={() => setMoreOpen(false)}
-                  aria-current={current ? "page" : undefined}
-                  className={cn(
-                    "flex min-h-12 items-center gap-3 rounded-control px-3 text-base",
-                    current ? "bg-chestnut font-medium text-ivory" : "hover:bg-chestnut/[0.06]",
-                  )}
-                >
-                  <item.icon className="size-5" aria-hidden /> {t(item.label)}
-                </Link>
+                {item.children ? (
+                  // Accounts only opens and closes its list; a page opens when one is picked
+                  <button
+                    type="button"
+                    aria-expanded={groupOpen}
+                    onClick={() => setToggled((g) => (g.includes(item.href) ? g.filter((h) => h !== item.href) : [...g, item.href]))}
+                    className={rowClass}
+                  >
+                    <item.icon className="size-5" aria-hidden /> <span className="flex-1">{t(item.label)}</span>
+                    <ChevronDown className={cn("size-4 transition-transform", groupOpen && "rotate-180")} aria-hidden />
+                  </button>
+                ) : (
+                  <Link href={item.href} onClick={() => setMoreOpen(false)} aria-current={current ? "page" : undefined} className={rowClass}>
+                    <item.icon className="size-5" aria-hidden /> {t(item.label)}
+                  </Link>
+                )}
                 {/* its pages, indented (Accounts: the six heads) */}
-                {item.children && (
+                {item.children && groupOpen && (
                   <ul className="mt-1 flex flex-col gap-0.5 pl-8">
                     {item.children.map((child) => {
                       const here = isSubCurrent(child, pathname);

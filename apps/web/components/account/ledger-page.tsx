@@ -17,9 +17,9 @@ export function LedgerPage({ ledgerId }: { ledgerId: string }) {
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 sm:px-6">
-      {/* back to all accounts */}
-      <Link href="/account" className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
-        <ArrowLeft className="size-4" aria-hidden /> {t("title")}
+      {/* back to the ledger's head */}
+      <Link href={ledger.data ? `/account/${ledger.data.head}` : "/account"} className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
+        <ArrowLeft className="size-4" aria-hidden /> {ledger.data ? t(`heads.${ledger.data.head}`) : t("title")}
       </Link>
 
       {ledger.isPending ? (

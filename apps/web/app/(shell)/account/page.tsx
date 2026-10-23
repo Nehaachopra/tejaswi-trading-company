@@ -1,10 +1,6 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { AccountsBoard } from "~/components/account/accounts-board";
-
-export const metadata: Metadata = { title: "Accounts · Tejaswi trading company" };
-
-// every ledger account under its head; the layout already checked for an admin session
+// Accounts opens on its first head, Asset; each head has its own page
 export default function AccountPage() {
-  return <AccountsBoard />;
+  redirect("/account/asset");
 }

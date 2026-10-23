@@ -25,8 +25,8 @@ export function BanksBoard() {
     <main className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6">
       <h1 className="sr-only">{t("title")}</h1>
 
-      {/* back to all accounts */}
-      <Link href="/account" className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
+      {/* back to Asset, where Bank sits */}
+      <Link href="/account/asset" className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
         <ArrowLeft className="size-4" aria-hidden /> {t("toAccounts")}
       </Link>
 

@@ -599,7 +599,7 @@
           "failed": "Something went wrong. Try again."
         }
       },
-      "toAccounts": "Accounts"
+      "toAccounts": "Asset"
     },
     "overview": {
       "title": "Accounts",
