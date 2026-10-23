@@ -10,6 +10,7 @@ import { trpc } from "~/trpc/client";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { balanceText, postDatedText } from "./balance";
+import { useLedgerName } from "./ledger-name";
 
 type Head = RouterOutputs["accounts"]["overview"]["heads"][number];
 
@@ -27,6 +28,7 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
   const overview = trpc.accounts.overview.useQuery();
   const heads = (overview.data?.heads ?? []).filter((h) => !only || h.head === only);
   const soon = () => toast.info(t("comingSoon"));
+  const nameOf = useLedgerName();
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 sm:px-6">
@@ -91,11 +93,12 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
               {/* the ledgers directly under it */}
               {h.ledgers.length > 0 && (
                 <ul className="on-ivory divide-y divide-chestnut/10 overflow-hidden rounded-control bg-ivory text-chestnut">
-                  {h.ledgers.map((l) => (
+                  {/* sorted by the name as it reads in this language */}
+                  {[...h.ledgers].sort((a, b) => nameOf(a).localeCompare(nameOf(b))).map((l) => (
                     <li key={l.id}>
                       <Link href={`/account/ledgers/${l.id}`} className="flex min-h-12 items-center gap-3 px-4 py-2.5 hover:bg-chestnut/5">
-                        <span className="min-w-0 flex-1 truncate font-medium" title={l.name}>
-                          {l.name}
+                        <span className="min-w-0 flex-1 truncate font-medium" title={nameOf(l)}>
+                          {nameOf(l)}
                         </span>
                         <span className="flex shrink-0 flex-col items-end">
                           <span className="tabular font-medium">{balanceText(l.balance.today)}</span>

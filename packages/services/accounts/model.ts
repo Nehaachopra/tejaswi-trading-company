@@ -90,6 +90,9 @@ export const ledgerSummaryModel = z.object({
   head: headModel,
   // the sub-group it belongs to (Bank, Debtors ...), if any
   masterKey: z.string().nullable(),
+  // a built-in ledger's key (cash, sale ...), so screens can show its name in the reader's language;
+  // null for ledgers people name themselves
+  key: z.string().nullable(),
   // the bank account, party or employee it belongs to, if any
   referenceId: idModel.nullable(),
   isActive: z.boolean(),

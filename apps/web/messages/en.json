@@ -624,6 +624,33 @@
       "postDated": "{amount} post-dated",
       "worked": "Worked out from income and expense.",
       "comingSoon": "Coming soon."
+    },
+    "fixed": {
+      "cash": "Cash",
+      "inputCgst": "Input CGST",
+      "inputSgst": "Input SGST",
+      "inputIgst": "Input IGST",
+      "tdsReceivable": "TDS receivable",
+      "outputCgst": "Output CGST",
+      "outputSgst": "Output SGST",
+      "outputIgst": "Output IGST",
+      "outputCgstRcm": "Output CGST (RCM)",
+      "outputSgstRcm": "Output SGST (RCM)",
+      "outputIgstRcm": "Output IGST (RCM)",
+      "tdsPayable": "TDS payable",
+      "tcs": "TCS",
+      "drawings": "Drawings",
+      "capital": "Capital",
+      "sale": "Sale",
+      "saleReturn": "Sale return",
+      "discountReceived": "Discount received",
+      "salary": "Salary",
+      "purchase": "Purchase",
+      "purchaseReturn": "Purchase return",
+      "discountGiven": "Discount given",
+      "rent": "Rent",
+      "electricity": "Electricity",
+      "wifi": "Wifi expense"
     }
   }
 }

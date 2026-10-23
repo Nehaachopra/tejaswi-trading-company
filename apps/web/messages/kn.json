@@ -624,6 +624,33 @@
       "postDated": "{amount} ಮುಂದಿನ ದಿನಾಂಕದ್ದು",
       "worked": "ಆದಾಯ ಮತ್ತು ಖರ್ಚಿನಿಂದ ಲೆಕ್ಕ ಹಾಕಲಾಗಿದೆ.",
       "comingSoon": "ಶೀಘ್ರದಲ್ಲೇ ಬರಲಿದೆ."
+    },
+    "fixed": {
+      "cash": "ನಗದು",
+      "inputCgst": "ಇನ್‌ಪುಟ್ CGST",
+      "inputSgst": "ಇನ್‌ಪುಟ್ SGST",
+      "inputIgst": "ಇನ್‌ಪುಟ್ IGST",
+      "tdsReceivable": "ಸ್ವೀಕರಿಸಬೇಕಾದ TDS",
+      "outputCgst": "ಔಟ್‌ಪುಟ್ CGST",
+      "outputSgst": "ಔಟ್‌ಪುಟ್ SGST",
+      "outputIgst": "ಔಟ್‌ಪುಟ್ IGST",
+      "outputCgstRcm": "ಔಟ್‌ಪುಟ್ CGST (RCM)",
+      "outputSgstRcm": "ಔಟ್‌ಪುಟ್ SGST (RCM)",
+      "outputIgstRcm": "ಔಟ್‌ಪುಟ್ IGST (RCM)",
+      "tdsPayable": "ಪಾವತಿಸಬೇಕಾದ TDS",
+      "tcs": "TCS",
+      "drawings": "ಮಾಲೀಕರ ಹಿಂಪಡೆತ",
+      "capital": "ಬಂಡವಾಳ",
+      "sale": "ಮಾರಾಟ",
+      "saleReturn": "ಮಾರಾಟ ವಾಪಸಾತಿ",
+      "discountReceived": "ಪಡೆದ ರಿಯಾಯಿತಿ",
+      "salary": "ಸಂಬಳ",
+      "purchase": "ಖರೀದಿ",
+      "purchaseReturn": "ಖರೀದಿ ವಾಪಸಾತಿ",
+      "discountGiven": "ನೀಡಿದ ರಿಯಾಯಿತಿ",
+      "rent": "ಬಾಡಿಗೆ",
+      "electricity": "ವಿದ್ಯುತ್",
+      "wifi": "ವೈ-ಫೈ ಖರ್ಚು"
     }
   }
 }

@@ -624,6 +624,33 @@
       "postDated": "{amount} आगे की तारीख का",
       "worked": "आय और खर्च से निकाला गया।",
       "comingSoon": "जल्द आ रहा है।"
+    },
+    "fixed": {
+      "cash": "नकद",
+      "inputCgst": "इनपुट CGST",
+      "inputSgst": "इनपुट SGST",
+      "inputIgst": "इनपुट IGST",
+      "tdsReceivable": "TDS प्राप्य",
+      "outputCgst": "आउटपुट CGST",
+      "outputSgst": "आउटपुट SGST",
+      "outputIgst": "आउटपुट IGST",
+      "outputCgstRcm": "आउटपुट CGST (RCM)",
+      "outputSgstRcm": "आउटपुट SGST (RCM)",
+      "outputIgstRcm": "आउटपुट IGST (RCM)",
+      "tdsPayable": "TDS देय",
+      "tcs": "TCS",
+      "drawings": "मालिक की निकासी",
+      "capital": "पूंजी",
+      "sale": "बिक्री",
+      "saleReturn": "बिक्री वापसी",
+      "discountReceived": "प्राप्त छूट",
+      "salary": "वेतन",
+      "purchase": "खरीद",
+      "purchaseReturn": "खरीद वापसी",
+      "discountGiven": "दी गई छूट",
+      "rent": "किराया",
+      "electricity": "बिजली",
+      "wifi": "वाई-फाई खर्च"
     }
   }
 }

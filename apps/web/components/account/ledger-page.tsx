@@ -8,12 +8,14 @@ import { Spinner } from "~/components/ui/spinner";
 import { trpc } from "~/trpc/client";
 
 import { balanceText, postDatedText } from "./balance";
+import { useLedgerName } from "./ledger-name";
 import { LedgerStatement } from "./ledger-statement";
 
 // /account/ledgers/[id], admin only: one ledger's name, head and balance on top, its statement below
 export function LedgerPage({ ledgerId }: { ledgerId: string }) {
   const t = useTranslations("accounts.overview");
   const ledger = trpc.accounts.ledger.get.useQuery({ id: ledgerId });
+  const nameOf = useLedgerName();
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 sm:px-6">
@@ -34,8 +36,8 @@ export function LedgerPage({ ledgerId }: { ledgerId: string }) {
         <div className="mt-2 flex flex-col gap-4">
           {/* the ledger: name, its head, today's balance */}
           <section className="on-ivory rounded-control bg-ivory p-4 text-chestnut">
-            <h1 className="truncate font-heading text-2xl font-bold" title={ledger.data.name}>
-              {ledger.data.name}
+            <h1 className="truncate font-heading text-2xl font-bold" title={nameOf(ledger.data)}>
+              {nameOf(ledger.data)}
             </h1>
             <p className="text-sm text-chestnut/70">{t(`heads.${ledger.data.head}`)}</p>
             <p className="tabular mt-2 font-heading text-3xl font-bold">{balanceText(ledger.data.balance.today)}</p>

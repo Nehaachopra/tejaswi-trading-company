@@ -23,6 +23,7 @@ import {
 import { GROUPS, type GroupType, LEDGERS, type LedgerKey, MASTERS, type MasterKey } from "./structure";
 
 const MASTER_KEY = new Map(Object.entries(MASTERS).map(([key, m]) => [`${m.group}|${m.name}`, key]));
+const LEDGER_KEY = new Map(Object.entries(LEDGERS).map(([key, l]) => [`${l.group}|${l.name}`, key]));
 
 // a signed amount in paise (debit plus, credit minus) as an amount and its side
 const asBalance = (paise: number): BalanceModel => ({ amount: Number(fromPaise(Math.abs(paise))), side: paise < 0 ? "credit" : "debit" });
@@ -269,6 +270,7 @@ export default class AccountsService {
       name: l.name,
       head,
       masterKey: masterName ? (MASTER_KEY.get(`${head}|${masterName}`) ?? null) : null,
+      key: l.referenceId === null && !masterName ? (LEDGER_KEY.get(`${head}|${l.name}`) ?? null) : null,
       referenceId: l.referenceId,
       isActive: l.isActive,
       balance: balances.get(l.id)!,
