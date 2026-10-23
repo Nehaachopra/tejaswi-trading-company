@@ -1,5 +1,6 @@
 import { router } from "./trpc";
 
+import { accountsRouter } from "./routes/accounts/route";
 import { authRouter } from "./routes/auth/route";
 import { healthRouter } from "./routes/health/route";
 import { inventoryRouter } from "./routes/inventory/route";
@@ -10,6 +11,7 @@ export const serverRouter = router({
   health: healthRouter,
   auth: authRouter,
   inventory: inventoryRouter,
+  accounts: accountsRouter,
   jobs: jobsRouter,
   live: liveRouter,
 });

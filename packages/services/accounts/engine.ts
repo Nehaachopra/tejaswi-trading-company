@@ -40,6 +40,24 @@ export default class LedgerEngine {
     await this.write(tx, reversal.transactionId, reversal.dateTime, lines, { isContra: entries[0]!.isContra, isReversal: true });
   }
 
+  // takes a transaction's entries out entirely, putting the balances back. Only for an opening balance being
+  // changed or removed while it is the ledger's only entry, so no statement ever showed anything else
+  async erase(tx: Tx, transactionId: string) {
+    const entries = await tx.select().from(ledgerEntriesTable).where(eq(ledgerEntriesTable.transactionId, transactionId));
+    if (entries.length === 0) return;
+    const ids = [...new Set(entries.map((e) => e.ledgerId))].sort();
+    const ledgers = await tx.select().from(ledgersTable).where(inArray(ledgersTable.id, ids)).orderBy(asc(ledgersTable.id)).for("update");
+    const signed = new Map(ledgers.map((l) => [l.id, (l.balanceType === "debit" ? 1 : -1) * toPaise(l.balance)]));
+    for (const e of entries) signed.set(e.ledgerId, signed.get(e.ledgerId)! - (e.transactionType === "debit" ? 1 : -1) * toPaise(e.amount));
+    await tx.delete(ledgerEntriesTable).where(eq(ledgerEntriesTable.transactionId, transactionId));
+    for (const [ledgerId, balance] of signed) {
+      await tx
+        .update(ledgersTable)
+        .set({ balance: fromPaise(Math.abs(balance)), balanceType: balance < 0 ? "credit" : "debit" })
+        .where(eq(ledgersTable.id, ledgerId));
+    }
+  }
+
   private async write(tx: Tx, transactionId: string, dateTime: Date, lines: Line[], flags: { isContra: boolean; isReversal: boolean }) {
     // lock the ledgers, always in the same order, so two saves touching the same ledgers queue up instead
     // of deadlocking, and the second one adds to what the first left

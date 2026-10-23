@@ -28,5 +28,54 @@ export const openingBalanceModel = z.object({
 
 export type OpeningBalanceModel = z.infer<typeof openingBalanceModel>;
 
+// an amount and its side, as lists and details show a balance
+export const balanceModel = z.object({ amount: z.number(), side: sideModel });
+
+export type BalanceModel = z.infer<typeof balanceModel>;
+
+// a ledger's balance as of today, and what post-dated entries will add (null when there are none)
+export const ledgerBalanceModel = z.object({ today: balanceModel, postDated: balanceModel.nullable() });
+
+export type LedgerBalanceModel = z.infer<typeof ledgerBalanceModel>;
+
+// the opening balance as saved, with its OB number
+export const savedOpeningBalanceModel = openingBalanceModel.extend({ assignedId: z.string() });
+
+export type SavedOpeningBalanceModel = z.infer<typeof savedOpeningBalanceModel>;
+
+export const statementInputModel = z.object({
+  ledgerId: idModel,
+  from: z.coerce.date().nullable().default(null),
+  to: z.coerce.date().nullable().default(null),
+});
+
+export type StatementInputModel = z.infer<typeof statementInputModel>;
+
+// one line of a ledger statement, with the balance after it
+export const statementLineModel = z.object({
+  id: idModel,
+  transactionId: idModel,
+  type: z.string(),
+  assignedId: z.string(),
+  remarks: z.string().nullable(),
+  dateTime: z.date(),
+  side: sideModel,
+  amount: z.number(),
+  isReversal: z.boolean(),
+  balance: balanceModel,
+});
+
+// a ledger's statement in date order (same date: in the order saved): the balance brought forward from
+// before the range, each line with the balance after it, and the balance at the end of the range
+export const statementModel = z.object({
+  ledgerId: idModel,
+  name: z.string(),
+  broughtForward: balanceModel,
+  lines: z.array(statementLineModel),
+  closing: balanceModel,
+});
+
+export type StatementModel = z.infer<typeof statementModel>;
+
 // who is saving
 export type ActorModel = { id: string; name: string };
