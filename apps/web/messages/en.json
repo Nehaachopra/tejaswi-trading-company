@@ -474,5 +474,148 @@
       "vehicle": "Vehicle {number}",
       "loadError": "Couldn't load the moves."
     }
+  },
+  "accounts": {
+    "adminOnly": "Only the admin can see accounts.",
+    "types": {
+      "sale": "Sale",
+      "purchase": "Purchase",
+      "sale_return": "Sale return",
+      "purchase_return": "Purchase return",
+      "payment": "Payment",
+      "receipt": "Receipt",
+      "drawing": "Drawing",
+      "deposit": "Deposit",
+      "withdrawal": "Withdrawal",
+      "transfer": "Transfer",
+      "salary": "Salary",
+      "other": "Others",
+      "opening_balance": "Opening balance"
+    },
+    "ledger": {
+      "title": "Ledger",
+      "ranges": {
+        "month": "This month",
+        "year": "This year",
+        "all": "All"
+      },
+      "broughtForward": "Brought forward",
+      "closing": "Closing balance",
+      "empty": "No entries in this period.",
+      "loadError": "Couldn't load the ledger. Check your connection and try again.",
+      "date": "Date",
+      "particulars": "Particulars",
+      "number": "Number",
+      "debit": "Debit",
+      "credit": "Credit",
+      "balance": "Balance",
+      "dr": "Dr",
+      "cr": "Cr",
+      "reversal": "reversed",
+      "comingSoon": "Opening a transaction is coming soon, with History."
+    },
+    "bank": {
+      "title": "Bank accounts",
+      "add": "Add bank account",
+      "showInactive": "Show inactive",
+      "loading": "Loading bank accounts",
+      "loadError": "Couldn't load the bank accounts. Check your connection and try again.",
+      "empty": "No bank accounts yet. Add the first one.",
+      "inactive": "Inactive",
+      "postDated": "{amount} post-dated",
+      "back": "Bank accounts",
+      "menu": "Bank account options",
+      "edit": "Edit details",
+      "deactivate": "Mark inactive",
+      "reactivate": "Mark active",
+      "hasBalance": "Bring its balance to zero first",
+      "details": {
+        "accountNumber": "Account number",
+        "ifsc": "IFSC",
+        "branch": "Branch",
+        "type": "Type",
+        "holder": "Account holder",
+        "upi": "UPI ID",
+        "opening": "Opening balance"
+      },
+      "toast": {
+        "deactivated": "{name} marked inactive",
+        "reactivated": "{name} marked active"
+      },
+      "errors": {
+        "hasBalance": "This account still has a balance. Bring it to zero first.",
+        "network": "Can't reach the server. Check your connection.",
+        "failed": "Something went wrong. Try again.",
+        "gone": "This bank account no longer exists."
+      },
+      "form": {
+        "addTitle": "Add bank account",
+        "editTitle": "Edit bank account",
+        "close": "Close",
+        "save": "Save bank account",
+        "saveDetails": "Save details",
+        "ifsc": "IFSC",
+        "lookingUp": "Looking up the IFSC…",
+        "found": "{bank}, {branch}",
+        "notFound": "IFSC not found in the directory. Type the bank and branch.",
+        "bankName": "Bank name",
+        "branch": "Branch",
+        "accountNumber": "Account number",
+        "holder": "Account holder's name",
+        "type": "Account type",
+        "pick": "Pick",
+        "types": {
+          "savings": "Savings",
+          "current": "Current",
+          "cash_credit": "Cash credit",
+          "overdraft": "Overdraft"
+        },
+        "upi": "UPI ID (optional)",
+        "opening": "Opening balance (optional)",
+        "amount": "Amount (₹)",
+        "asOn": "As on",
+        "inBank": "In the bank",
+        "weOwe": "We owe the bank",
+        "openingFixed": "Fixed: money has already moved through this account.",
+        "toast": {
+          "added": "{name} added",
+          "saved": "{name} saved"
+        },
+        "errors": {
+          "fill": "Fill in the highlighted fields.",
+          "taken": "This account number and IFSC are already added.",
+          "openingFixed": "The opening balance can't change once money has moved.",
+          "check": "Check the highlighted fields.",
+          "gone": "This bank account no longer exists.",
+          "network": "Can't reach the server. Check your connection.",
+          "failed": "Something went wrong. Try again."
+        }
+      },
+      "toAccounts": "Accounts"
+    },
+    "overview": {
+      "title": "Accounts",
+      "loading": "Loading accounts",
+      "loadError": "Couldn't load the accounts. Check your connection and try again.",
+      "heads": {
+        "asset": "Asset",
+        "liability": "Liability",
+        "income": "Income",
+        "expense": "Expense",
+        "profit": "Profit",
+        "loss": "Loss"
+      },
+      "masters": {
+        "debtors": "Debtors",
+        "debtorCreditors": "Debtor-creditors",
+        "bank": "Bank",
+        "creditors": "Creditors",
+        "employees": "Employees"
+      },
+      "ledgers": "{count, plural, =0 {No accounts yet} one {# account} other {# accounts}}",
+      "postDated": "{amount} post-dated",
+      "worked": "Worked out from income and expense.",
+      "comingSoon": "Coming soon."
+    }
   }
 }

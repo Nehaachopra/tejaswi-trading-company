@@ -1,23 +1,24 @@
 "use client";
 
-import { CircleAlert, CircleCheck, X } from "lucide-react";
+import { CircleAlert, CircleCheck, Info, X } from "lucide-react";
 import { toast as sonner, Toaster as SonnerToaster } from "sonner";
 
 import { cn } from "~/lib/utils";
 
-type Tone = "success" | "error";
+type Tone = "success" | "error" | "info";
 
 // success leaves on its own; an error stays until it's dismissed, so nobody misses it
 const SUCCESS_MS = 4000;
 
-// solid green or red with ivory words and an icon, so the message never rests on colour alone
+// solid green or red with ivory words and an icon, so the message never rests on colour alone; a plain note
+// (nothing went right or wrong, e.g. "Coming soon") is chestnut with an ivory edge
 function Toast({ id, tone, message }: { id: string | number; tone: Tone; message: string }) {
-  const Icon = tone === "success" ? CircleCheck : CircleAlert;
+  const Icon = tone === "success" ? CircleCheck : tone === "info" ? Info : CircleAlert;
   return (
     <div
       className={cn(
         "flex min-h-13 w-full items-center gap-2.5 rounded-control pl-4 pr-1 text-sm font-semibold text-ivory",
-        tone === "success" ? "bg-success" : "bg-danger",
+        tone === "success" ? "bg-success" : tone === "info" ? "border border-ivory/60 bg-chestnut" : "bg-danger",
       )}
     >
       <Icon className="size-5 shrink-0" aria-hidden />
@@ -39,6 +40,8 @@ function Toast({ id, tone, message }: { id: string | number; tone: Tone; message
 export const toast = {
   success: (message: string) =>
     sonner.custom((id) => <Toast id={id} tone="success" message={message} />, { duration: SUCCESS_MS }),
+  info: (message: string) =>
+    sonner.custom((id) => <Toast id={id} tone="info" message={message} />, { duration: SUCCESS_MS }),
   error: (message: string) =>
     sonner.custom((id) => <Toast id={id} tone="error" message={message} />, { duration: Infinity }),
 };
