@@ -104,6 +104,8 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
                           <span className="tabular font-medium">{balanceText(l.balance.today)}</span>
                           {l.balance.postDated && <span className="tabular text-xs text-chestnut/70">{t("postDated", { amount: postDatedText(l.balance.postDated, usual(h.head)) })}</span>}
                         </span>
+                        {/* the same arrow as the sub-group cards: this opens its ledger */}
+                        <ChevronRight className="size-5 shrink-0 text-chestnut/60" aria-hidden />
                       </Link>
                     </li>
                   ))}
