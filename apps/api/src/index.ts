@@ -1,7 +1,7 @@
 import http from "node:http";
 import { startJobs, stopJobs } from "@repo/jobs";
 import { logger } from "@repo/logger";
-import { authService } from "@repo/trpc/server";
+import { accountsService, authService } from "@repo/trpc/server";
 import { app as expressApplication } from "./server";
 
 import { env } from "./env";
@@ -9,6 +9,8 @@ import { env } from "./env";
 async function init() {
   try {
     await authService.ensureFirstAdmin(env.PHONE_NUMBER);
+    // the ledger groups, masters and fixed ledgers every transaction posts to
+    await accountsService.ensureStructure();
     // before listening: sending an OTP queues a job, so the queue must be up first
     await startJobs();
 

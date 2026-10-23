@@ -15,5 +15,5 @@ export const serverRouter = router({
 });
 
 export { createContext, sessionFromRequest } from "./context";
-export { authService } from "./services";
+export { accountsService, authService } from "./services";
 export type ServerRouter = typeof serverRouter;
