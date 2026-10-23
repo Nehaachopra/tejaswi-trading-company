@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, db, eq, gte, inArray, isNull, lt, lte, ne, sql } from "@repo/database";
+import { and, asc, count, db, eq, gte, inArray, isNull, lt, lte, ne, sql } from "@repo/database";
 import { ledgerEntriesTable, ledgerGroupsTable, ledgerMastersTable, ledgersTable, transactionsTable } from "@repo/database/schema";
 
 import type { Tx } from "../stock/engine";
@@ -132,6 +132,18 @@ export default class AccountsService {
         return [r.id, { today: asBalance(total - postDated), postDated: postDated === 0 ? null : asBalance(postDated) }];
       }),
     );
+  }
+
+  // the ledgers that have entries from anything besides their opening balance (then it can't change)
+  async withEntries(ledgerIds: string[]): Promise<Set<string>> {
+    if (ledgerIds.length === 0) return new Set();
+    const rows = await db
+      .select({ ledgerId: ledgerEntriesTable.ledgerId, n: count() })
+      .from(ledgerEntriesTable)
+      .innerJoin(transactionsTable, eq(transactionsTable.id, ledgerEntriesTable.transactionId))
+      .where(and(inArray(ledgerEntriesTable.ledgerId, ledgerIds), ne(transactionsTable.type, "opening_balance")))
+      .groupBy(ledgerEntriesTable.ledgerId);
+    return new Set(rows.filter((r) => r.n > 0).map((r) => r.ledgerId));
   }
 
   // the OB transaction that opened a ledger, if any

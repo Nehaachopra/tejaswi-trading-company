@@ -9,8 +9,17 @@ import {
   setBankAccountActiveInputModel,
   updateBankAccountInputModel,
 } from "@repo/services/bank/model";
+import {
+  createPartyInputModel,
+  listPartiesInputModel,
+  partyIdInputModel,
+  partyModel,
+  partySummaryModel,
+  setPartyActiveInputModel,
+  updatePartyInputModel,
+} from "@repo/services/party/model";
 
-import { accountsService, bankService } from "../../services";
+import { accountsService, bankService, partyService } from "../../services";
 import { adminProcedure, router } from "../../trpc";
 
 // bank accounts: only the admin sees or changes them (and their balances)
@@ -47,6 +56,40 @@ const bankRouter = router({
     .mutation(({ input }) => bankService.setActive(input)),
 });
 
+// customers, suppliers and parties who are both, for the admin (sales and purchases will pick from them)
+const partyRouter = router({
+  list: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/accounts/parties", tags: ["accounts"] } })
+    .input(listPartiesInputModel)
+    .output(z.array(partySummaryModel))
+    .query(({ input }) => partyService.list(input)),
+
+  get: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/accounts/parties/{id}", tags: ["accounts"] } })
+    .input(partyIdInputModel)
+    .output(partyModel)
+    .query(({ input }) => partyService.get(input)),
+
+  create: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/accounts/parties", tags: ["accounts"] } })
+    .input(createPartyInputModel)
+    .output(partyModel)
+    .mutation(({ ctx, input }) => partyService.create(input, ctx.session.user)),
+
+  update: adminProcedure
+    .meta({ openapi: { method: "PATCH", path: "/accounts/parties/{id}", tags: ["accounts"] } })
+    .input(updatePartyInputModel)
+    .output(partyModel)
+    .mutation(({ ctx, input }) => partyService.update(input, ctx.session.user)),
+
+  // inactive only at a zero balance with no pending orders
+  setActive: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/accounts/parties/{id}/active", tags: ["accounts"] } })
+    .input(setPartyActiveInputModel)
+    .output(partyModel)
+    .mutation(({ input }) => partyService.setActive(input)),
+});
+
 // any ledger and its statement, for the admin
 const ledgerRouter = router({
   get: adminProcedure
@@ -71,5 +114,6 @@ export const accountsRouter = router({
     .query(() => accountsService.overview()),
 
   bank: bankRouter,
+  party: partyRouter,
   ledger: ledgerRouter,
 });

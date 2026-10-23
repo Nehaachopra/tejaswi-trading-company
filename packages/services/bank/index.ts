@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, count, db, eq, inArray, ne } from "@repo/database";
-import { bankDetailsTable, ledgerEntriesTable, ledgersTable, transactionsTable } from "@repo/database/schema";
+import { and, asc, db, eq } from "@repo/database";
+import { bankDetailsTable, ledgersTable } from "@repo/database/schema";
 
 import AccountsService from "../accounts";
 import type { ActorModel } from "../accounts/model";
@@ -43,19 +43,8 @@ export default class BankService {
       .orderBy(asc(bankDetailsTable.bankName), asc(bankDetailsTable.createdAt));
     const ledgerIds = rows.map((r) => r.ledgerId);
 
-    // balances, and how many entries came from anything but the opening balance
-    const [balances, others] = await Promise.all([
-      this.accounts.balances(ledgerIds),
-      ledgerIds.length === 0
-        ? []
-        : db
-            .select({ ledgerId: ledgerEntriesTable.ledgerId, n: count() })
-            .from(ledgerEntriesTable)
-            .innerJoin(transactionsTable, eq(transactionsTable.id, ledgerEntriesTable.transactionId))
-            .where(and(inArray(ledgerEntriesTable.ledgerId, ledgerIds), ne(transactionsTable.type, "opening_balance")))
-            .groupBy(ledgerEntriesTable.ledgerId),
-    ]);
-    const hasEntries = new Set(others.filter((o) => o.n > 0).map((o) => o.ledgerId));
+    // balances, and which ones have entries besides the opening balance
+    const [balances, hasEntries] = await Promise.all([this.accounts.balances(ledgerIds), this.accounts.withEntries(ledgerIds)]);
 
     return Promise.all(
       rows.map(async ({ bank: b, ledgerId }) => ({
