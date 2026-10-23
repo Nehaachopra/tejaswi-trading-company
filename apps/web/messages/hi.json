@@ -501,17 +501,14 @@
       "opening_balance": "प्रारंभिक शेष"
     },
     "ledger": {
-      "title": "खाता बही",
       "ranges": {
         "month": "इस महीने",
         "year": "इस साल",
         "all": "सभी"
       },
-      "broughtForward": "पिछला शेष",
       "closing": "अंतिम शेष",
       "empty": "इस अवधि में कोई प्रविष्टि नहीं।",
       "loadError": "खाता बही लोड नहीं हुई। कनेक्शन जाँचें और फिर से कोशिश करें।",
-      "date": "तारीख",
       "particulars": "विवरण",
       "number": "नंबर",
       "debit": "नामे",
@@ -520,7 +517,14 @@
       "dr": "Dr",
       "cr": "Cr",
       "reversal": "रद्द",
-      "comingSoon": "लेन-देन खोलना जल्द आ रहा है, हिस्ट्री के साथ।"
+      "comingSoon": "लेन-देन खोलना जल्द आ रहा है, हिस्ट्री के साथ।",
+      "titleOf": "{name} खाता बही",
+      "postDated": "{amount} आगे की तारीख का",
+      "balanceCd": "शेष c/d",
+      "amount": "राशि",
+      "total": "कुल",
+      "day": "दिन",
+      "balanceBf": "शेष b/f"
     },
     "bank": {
       "title": "बैंक खाते",

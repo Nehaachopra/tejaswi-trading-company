@@ -128,7 +128,7 @@ export function BankPage({ bankId }: { bankId: string }) {
               </section>
 
               {/* its ledger */}
-              <LedgerStatement ledgerId={b.ledgerId} />
+              <LedgerStatement ledgerId={b.ledgerId} name={name} balance={b.balance} />
 
               <BankSheet bankId={editing ? b.id : null} onClose={() => setEditing(false)} />
             </div>

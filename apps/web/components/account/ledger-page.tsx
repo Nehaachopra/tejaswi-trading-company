@@ -7,18 +7,18 @@ import { useTranslations } from "next-intl";
 import { Spinner } from "~/components/ui/spinner";
 import { trpc } from "~/trpc/client";
 
-import { balanceText, postDatedText } from "./balance";
 import { useLedgerName } from "./ledger-name";
 import { LedgerStatement } from "./ledger-statement";
 
-// /account/ledgers/[id], admin only: one ledger's name, head and balance on top, its statement below
+// /account/ledgers/[id], admin only: one ledger's statement, under its name and today's balance
 export function LedgerPage({ ledgerId }: { ledgerId: string }) {
   const t = useTranslations("accounts.overview");
   const ledger = trpc.accounts.ledger.get.useQuery({ id: ledgerId });
   const nameOf = useLedgerName();
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 sm:px-6">
+    // little room below: the statement fills the screen and scrolls inside itself
+    <main className="mx-auto max-w-5xl px-4 pb-6 pt-6 sm:px-6">
       {/* back to the ledger's head */}
       <Link href={ledger.data ? `/account/${ledger.data.head}` : "/account"} className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
         <ArrowLeft className="size-4" aria-hidden /> {ledger.data ? t(`heads.${ledger.data.head}`) : t("title")}
@@ -33,24 +33,9 @@ export function LedgerPage({ ledgerId }: { ledgerId: string }) {
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
       ) : (
-        <div className="mt-2 flex flex-col gap-4">
-          {/* the ledger: name, its head, today's balance */}
-          <section className="on-ivory rounded-control bg-ivory p-4 text-chestnut">
-            <h1 className="truncate font-heading text-2xl font-bold" title={nameOf(ledger.data)}>
-              {nameOf(ledger.data)}
-            </h1>
-            <p className="text-sm text-chestnut/70">{t(`heads.${ledger.data.head}`)}</p>
-            <p className="tabular mt-2 font-heading text-3xl font-bold">{balanceText(ledger.data.balance.today)}</p>
-            {ledger.data.balance.postDated && (
-              <p className="tabular text-sm text-chestnut/70">
-                {t("postDated", {
-                  amount: postDatedText(ledger.data.balance.postDated, ledger.data.head === "asset" || ledger.data.head === "expense" ? "debit" : "credit"),
-                })}
-              </p>
-            )}
-          </section>
-
-          <LedgerStatement ledgerId={ledgerId} />
+        <div className="mt-2">
+          <h1 className="sr-only">{nameOf(ledger.data)}</h1>
+          <LedgerStatement ledgerId={ledgerId} name={nameOf(ledger.data)} balance={ledger.data.balance} />
         </div>
       )}
     </main>

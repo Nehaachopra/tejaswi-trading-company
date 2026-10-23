@@ -501,17 +501,14 @@
       "opening_balance": "Opening balance"
     },
     "ledger": {
-      "title": "Ledger",
       "ranges": {
         "month": "This month",
         "year": "This year",
         "all": "All"
       },
-      "broughtForward": "Brought forward",
       "closing": "Closing balance",
       "empty": "No entries in this period.",
       "loadError": "Couldn't load the ledger. Check your connection and try again.",
-      "date": "Date",
       "particulars": "Particulars",
       "number": "Number",
       "debit": "Debit",
@@ -520,7 +517,14 @@
       "dr": "Dr",
       "cr": "Cr",
       "reversal": "reversed",
-      "comingSoon": "Opening a transaction is coming soon, with History."
+      "comingSoon": "Opening a transaction is coming soon, with History.",
+      "titleOf": "{name} ledger",
+      "postDated": "{amount} post-dated",
+      "balanceCd": "Balance c/d",
+      "amount": "Amount",
+      "total": "Total",
+      "day": "Day",
+      "balanceBf": "Balance b/f"
     },
     "bank": {
       "title": "Bank accounts",
