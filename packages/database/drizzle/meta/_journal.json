@@ -15,6 +15,13 @@
       "when": 1792679964419,
       "tag": "0001_wakeful_kitty_pryde",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792686423956,
+      "tag": "0002_warm_sue_storm",
+      "breakpoints": true
     }
   ]
 }

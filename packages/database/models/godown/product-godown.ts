@@ -1,8 +1,8 @@
 // product_godown.ts
 
-import { pgTable, uuid } from "drizzle-orm/pg-core";
+import { integer, pgTable, uuid } from "drizzle-orm/pg-core";
 
-import { money, timestamps } from "../../utils/common/column-type";
+import { timestamps } from "../../utils/common/column-type";
 
 import { godownsTable } from "./godown";
 import { productsTable } from "../product/product";
@@ -28,7 +28,8 @@ export const productGodownsTable = pgTable(
         onDelete: "restrict"
       }),
 
-    quantity: money("quantity").default("0.00").notNull(),
+    // whole packs of this pack size held in this godown
+    quantity: integer("quantity").default(0).notNull(),
 
     ...timestamps,
   },

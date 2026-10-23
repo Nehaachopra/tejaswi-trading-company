@@ -10,6 +10,7 @@ import {
   integer,
   timestamp,
   varchar,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 import { money, timestamps } from "../../utils/common/column-type";
@@ -50,6 +51,9 @@ landlordNumber: varchar("landlord_number", { length: 20 }),
   ...timestamps,
 }, 
 (table) => [
+  // two godowns can't share a name, whatever the case
+  uniqueIndex("godowns_name_unique").on(sql`lower(${table.godownName})`),
+
   check(
     "godowns_rented_requires_rent",
     sql`${table.ownership} <> 'rented'
