@@ -316,7 +316,8 @@
           "failed": "Something went wrong. Try again.",
           "duplicate": "Duplicate pack size: {packs}."
         },
-        "rate": "Rate / {unit}"
+        "rate": "Rate / {unit}",
+        "newPack": "New"
       },
       "rateLabel": "Rate / {unit}"
     }
@@ -356,5 +357,121 @@
     "title": "This page doesn't exist",
     "body": "The address may be mistyped, or the page isn't built yet.",
     "home": "Go to home"
+  },
+  "stock": {
+    "tabs": {
+      "label": "Stock",
+      "godowns": "Godowns",
+      "count": "Stock count"
+    },
+    "godowns": {
+      "title": "Godowns",
+      "add": "Add godown",
+      "moves": "Moves",
+      "showInactive": "Show inactive",
+      "loading": "Loading godowns",
+      "loadError": "Couldn't load the godowns. Check your connection and try again.",
+      "empty": "No godowns yet.",
+      "emptyAdmin": "No godowns yet. Add the first one.",
+      "emptyGodown": "Nothing in this godown yet.",
+      "products": "{count, plural, one {# pack size} other {# pack sizes}}",
+      "beingCounted": "Being counted",
+      "inactive": "Inactive",
+      "menu": "Godown options",
+      "edit": "Edit details",
+      "deactivate": "Mark inactive",
+      "reactivate": "Mark active",
+      "holdsStock": "Move its stock out first",
+      "countingNow": "Wait until its count is submitted",
+      "packSizes": "Pack sizes",
+      "inGodown": "in this godown",
+      "moveThis": "Move",
+      "toast": {
+        "added": "{name} added",
+        "saved": "{name} saved",
+        "deactivated": "{name} marked inactive",
+        "reactivated": "{name} marked active",
+        "moved": "{quantity} × {pack} moved to {to}"
+      }
+    },
+    "form": {
+      "addTitle": "Add godown",
+      "editTitle": "Edit godown",
+      "close": "Close",
+      "next": "Next: opening stock",
+      "back": "Back",
+      "save": "Save godown",
+      "saveDetails": "Save details",
+      "name": "Name",
+      "namePlaceholder": "Main godown",
+      "address": "Address (optional)",
+      "ownership": "Ownership",
+      "owned": "Owned",
+      "rented": "Rented",
+      "rent": "Rent (₹)",
+      "rentEvery": "Paid every (months)",
+      "usedFrom": "In use from",
+      "landlord": "Landlord's name",
+      "landlordPhone": "Landlord's phone (optional)",
+      "openingHint": "Packs already in this godown. Leave blank for none.",
+      "allCategories": "All categories",
+      "allSubCategories": "All sub-categories",
+      "category": "Category",
+      "subCategory": "Sub-category",
+      "noProducts": "No active products yet. Add them on Products first.",
+      "noMatch": "No products here.",
+      "summary": "{packs, plural, =0 {No opening stock} one {# pack size} other {# pack sizes}} · {units, plural, one {# pack} other {# packs}}",
+      "quantity": "Quantity of {pack}",
+      "errors": {
+        "fill": "Fill in the highlighted fields.",
+        "taken": "Another godown already has this name.",
+        "quantity": "Quantities are whole numbers above 0.",
+        "network": "Can't reach the server. Check your connection.",
+        "failed": "Something went wrong. Try again.",
+        "gone": "This godown no longer exists. Refresh the page.",
+        "inactive": "One of these pack sizes is inactive.",
+        "check": "Check the highlighted fields.",
+        "hasProducts": "This godown still holds stock. Move it out first.",
+        "counting": "This godown is being counted. Try again once its count is submitted."
+      }
+    },
+    "move": {
+      "title": "Move stock",
+      "close": "Close",
+      "from": "From",
+      "to": "To",
+      "pick": "Pick",
+      "category": "Category",
+      "subCategory": "Sub-category",
+      "brand": "Brand",
+      "pack": "Pack size",
+      "holds": "Holds {count}",
+      "quantity": "Quantity",
+      "max": "Up to {count}",
+      "vehicle": "Vehicle number (optional)",
+      "remarks": "Remarks (optional)",
+      "save": "Move stock",
+      "noOther": "Add a second godown to move stock between them.",
+      "errors": {
+        "fill": "Fill in the highlighted fields.",
+        "tooMany": "That's more than {from} holds.",
+        "network": "Can't reach the server. Check your connection.",
+        "failed": "Something went wrong. Try again.",
+        "stock": "Not enough stock in the godown any more. Refresh and try again.",
+        "counting": "One of these godowns is being counted. Try again once its count is submitted."
+      },
+      "inGodown": "In godown"
+    },
+    "moves": {
+      "title": "Moves",
+      "close": "Close",
+      "allGodowns": "All godowns",
+      "godown": "Godown",
+      "loading": "Loading moves",
+      "empty": "No moves yet.",
+      "more": "Show older",
+      "vehicle": "Vehicle {number}",
+      "loadError": "Couldn't load the moves."
+    }
   }
 }
