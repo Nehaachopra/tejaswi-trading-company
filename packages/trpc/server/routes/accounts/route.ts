@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { statementInputModel, statementModel } from "@repo/services/accounts/model";
+import { ledgerIdInputModel, ledgerSummaryModel, overviewModel, statementInputModel, statementModel } from "@repo/services/accounts/model";
 import {
   bankAccountIdInputModel,
   bankAccountModel,
@@ -47,8 +47,14 @@ const bankRouter = router({
     .mutation(({ input }) => bankService.setActive(input)),
 });
 
-// any ledger's statement, for the admin
+// any ledger and its statement, for the admin
 const ledgerRouter = router({
+  get: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/accounts/ledgers/{id}", tags: ["accounts"] } })
+    .input(ledgerIdInputModel)
+    .output(ledgerSummaryModel)
+    .query(({ input }) => accountsService.ledger(input)),
+
   statement: adminProcedure
     .meta({ openapi: { method: "GET", path: "/accounts/ledgers/{ledgerId}/statement", tags: ["accounts"] } })
     .input(statementInputModel)
@@ -57,6 +63,13 @@ const ledgerRouter = router({
 });
 
 export const accountsRouter = router({
+  // /account: the six heads with their sub-groups, ledgers and totals
+  overview: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/accounts", tags: ["accounts"] } })
+    .input(z.void())
+    .output(overviewModel)
+    .query(() => accountsService.overview()),
+
   bank: bankRouter,
   ledger: ledgerRouter,
 });

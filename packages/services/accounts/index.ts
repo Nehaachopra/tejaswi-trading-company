@@ -10,7 +10,10 @@ import {
   type ActorModel,
   type BalanceModel,
   type LedgerBalanceModel,
+  type LedgerIdInputModel,
+  type LedgerSummaryModel,
   type OpeningBalanceModel,
+  type OverviewModel,
   openingBalanceModel,
   type SavedOpeningBalanceModel,
   type StatementInputModel,
@@ -18,6 +21,8 @@ import {
   type StatementModel,
 } from "./model";
 import { GROUPS, type GroupType, LEDGERS, type LedgerKey, MASTERS, type MasterKey } from "./structure";
+
+const MASTER_KEY = new Map(Object.entries(MASTERS).map(([key, m]) => [`${m.group}|${m.name}`, key]));
 
 // a signed amount in paise (debit plus, credit minus) as an amount and its side
 const asBalance = (paise: number): BalanceModel => ({ amount: Number(fromPaise(Math.abs(paise))), side: paise < 0 ? "credit" : "debit" });
@@ -247,6 +252,61 @@ export default class AccountsService {
       };
     });
     return { ledgerId: ledger.id, name: ledger.name, broughtForward, lines, closing: asBalance(running) };
+  }
+
+  // every ledger with its head, sub-group and balance as of today (one, when an id is given)
+  private async summaries(id?: string): Promise<LedgerSummaryModel[]> {
+    const rows = await db
+      .select({ ledger: ledgersTable, head: ledgerGroupsTable.type, masterName: ledgerMastersTable.name })
+      .from(ledgersTable)
+      .innerJoin(ledgerGroupsTable, eq(ledgerGroupsTable.id, ledgersTable.ledgerGroupId))
+      .leftJoin(ledgerMastersTable, eq(ledgerMastersTable.id, ledgersTable.ledgerMasterId))
+      .where(id ? eq(ledgersTable.id, id) : undefined)
+      .orderBy(asc(ledgersTable.name));
+    const balances = await this.balances(rows.map((r) => r.ledger.id));
+    return rows.map(({ ledger: l, head, masterName }) => ({
+      id: l.id,
+      name: l.name,
+      head,
+      masterKey: masterName ? (MASTER_KEY.get(`${head}|${masterName}`) ?? null) : null,
+      referenceId: l.referenceId,
+      isActive: l.isActive,
+      balance: balances.get(l.id)!,
+    }));
+  }
+
+  async ledger(input: LedgerIdInputModel): Promise<LedgerSummaryModel> {
+    const [ledger] = await this.summaries(input.id);
+    if (!ledger) throw notFound();
+    return ledger;
+  }
+
+  // the six heads with their totals as of today
+  async overview(): Promise<OverviewModel> {
+    const ledgers = await this.summaries();
+    const signed = (l: LedgerSummaryModel) => (l.balance.today.side === "debit" ? 1 : -1) * toPaise(l.balance.today.amount);
+
+    const heads = (Object.keys(GROUPS) as GroupType[]).map((head) => {
+      const mine = ledgers.filter((l) => l.head === head);
+      // the sub-groups in the order the structure lists them
+      const masters = (Object.entries(MASTERS) as [MasterKey, (typeof MASTERS)[MasterKey]][])
+        .filter(([, m]) => m.group === head)
+        .map(([key, m]) => {
+          const inside = mine.filter((l) => l.masterKey === key);
+          return { key, name: m.name, total: asBalance(inside.reduce((sum, l) => sum + signed(l), 0)), ledgers: inside.length };
+        });
+      return {
+        head,
+        total: asBalance(mine.reduce((sum, l) => sum + signed(l), 0)),
+        masters,
+        ledgers: mine.filter((l) => l.masterKey === null),
+      };
+    });
+
+    // income is a credit and expense a debit: what's left of income is the profit, a shortfall the loss
+    const net = -heads.filter((h) => h.head === "income" || h.head === "expense").reduce((sum, h) => sum + (h.total.side === "debit" ? 1 : -1) * toPaise(h.total.amount), 0);
+    const worked = (head: "profit" | "loss", paise: number) => ({ head, total: asBalance(head === "profit" ? -paise : paise), masters: [], ledgers: [] });
+    return { heads: [...heads, worked("profit", Math.max(net, 0)), worked("loss", Math.max(-net, 0))] };
   }
 
   // a ledger's id from the record it belongs to (a bank account, party or employee)

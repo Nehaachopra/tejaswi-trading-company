@@ -77,5 +77,42 @@ export const statementModel = z.object({
 
 export type StatementModel = z.infer<typeof statementModel>;
 
+export const ledgerIdInputModel = z.object({ id: idModel });
+
+export type LedgerIdInputModel = z.infer<typeof ledgerIdInputModel>;
+
+export const headModel = z.enum(["asset", "liability", "income", "expense", "profit", "loss"]);
+
+// one ledger with where it sits and its balance as of today
+export const ledgerSummaryModel = z.object({
+  id: idModel,
+  name: z.string(),
+  head: headModel,
+  // the sub-group it belongs to (Bank, Debtors ...), if any
+  masterKey: z.string().nullable(),
+  // the bank account, party or employee it belongs to, if any
+  referenceId: idModel.nullable(),
+  isActive: z.boolean(),
+  balance: ledgerBalanceModel,
+});
+
+export type LedgerSummaryModel = z.infer<typeof ledgerSummaryModel>;
+
+// /account: the six heads. Asset, Liability, Income and Expense hold sub-groups (with the total of their
+// ledgers) and the ledgers that sit directly under them; Profit and Loss are worked out from income and
+// expense, so only one of them has an amount
+export const overviewModel = z.object({
+  heads: z.array(
+    z.object({
+      head: headModel,
+      total: balanceModel,
+      masters: z.array(z.object({ key: z.string(), name: z.string(), total: balanceModel, ledgers: z.number().int() })),
+      ledgers: z.array(ledgerSummaryModel),
+    }),
+  ),
+});
+
+export type OverviewModel = z.infer<typeof overviewModel>;
+
 // who is saving
 export type ActorModel = { id: string; name: string };
