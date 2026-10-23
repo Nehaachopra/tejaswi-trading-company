@@ -19,10 +19,27 @@ import {
   updateDetailsInputModel,
   updatePriceInputModel,
 } from "@repo/services/product/model";
+import {
+  createGodownInputModel,
+  godownIdInputModel,
+  godownModel,
+  godownSummaryModel,
+  listGodownsInputModel,
+  setGodownActiveInputModel,
+  updateGodownInputModel,
+} from "@repo/services/godown/model";
+import {
+  godownStockModel,
+  listMovesInputModel,
+  moveStockInputModel,
+  productStockInputModel,
+  productStockModel,
+  stockMoveModel,
+} from "@repo/services/stock/model";
 
 import { z } from "../../schema";
-import { adminProcedure, router } from "../../trpc";
-import { categoryService, productService } from "../../services";
+import { adminProcedure, protectedProcedure, router } from "../../trpc";
+import { categoryService, godownService, productService, stockService } from "../../services";
 
 const categoryRowModel = z.object({ id: z.string().uuid(), name: z.string(), isActive: z.boolean() });
 
@@ -144,8 +161,73 @@ const productRouter = router({
     .mutation(({ input }) => productService.delete(input)),
 });
 
+// godowns: everyone sees the list (names and what they hold); only the admin adds, edits or deactivates
+const godownRouter = router({
+  list: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/inventory/godowns", tags: ["inventory"] } })
+    .input(listGodownsInputModel)
+    .output(z.array(godownSummaryModel))
+    .query(({ input }) => godownService.list(input)),
+
+  // with rent and landlord
+  get: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/inventory/godowns/{id}", tags: ["inventory"] } })
+    .input(godownIdInputModel)
+    .output(godownModel)
+    .query(({ input }) => godownService.get(input)),
+
+  create: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/inventory/godowns", tags: ["inventory"] } })
+    .input(createGodownInputModel)
+    .output(godownModel)
+    .mutation(({ input }) => godownService.create(input)),
+
+  update: adminProcedure
+    .meta({ openapi: { method: "PATCH", path: "/inventory/godowns/{id}", tags: ["inventory"] } })
+    .input(updateGodownInputModel)
+    .output(godownModel)
+    .mutation(({ input }) => godownService.update(input)),
+
+  // inactive only once it holds no stock and isn't being counted
+  setActive: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/inventory/godowns/{id}/active", tags: ["inventory"] } })
+    .input(setGodownActiveInputModel)
+    .output(godownModel)
+    .mutation(({ input }) => godownService.setActive(input)),
+});
+
+// stock: /stock (godown cards) and moving stock are for admin and staff; one pack size's split
+// across godowns (with reserved and free) belongs to the admin's Products page
+const stockRouter = router({
+  byGodown: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/inventory/stock", tags: ["inventory"] } })
+    .input(z.void())
+    .output(z.array(godownStockModel))
+    .query(() => stockService.byGodown()),
+
+  product: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/inventory/stock/products/{productId}", tags: ["inventory"] } })
+    .input(productStockInputModel)
+    .output(productStockModel)
+    .query(({ input }) => stockService.product(input)),
+
+  move: protectedProcedure
+    .meta({ openapi: { method: "POST", path: "/inventory/stock/moves", tags: ["inventory"] } })
+    .input(moveStockInputModel)
+    .output(stockMoveModel)
+    .mutation(({ ctx, input }) => stockService.move(input, ctx.session.user)),
+
+  moves: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/inventory/stock/moves", tags: ["inventory"] } })
+    .input(listMovesInputModel)
+    .output(z.array(stockMoveModel))
+    .query(({ input }) => stockService.moves(input)),
+});
+
 export const inventoryRouter = router({
   category: categoryRouter,
   subCategory: subCategoryRouter,
   product: productRouter,
+  godown: godownRouter,
+  stock: stockRouter,
 });
