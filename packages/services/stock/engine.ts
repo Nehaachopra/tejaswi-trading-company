@@ -22,7 +22,11 @@ export default class StockEngine {
     const productIds = [...new Set(moving.map((c) => c.productId))].sort();
     const godownIds = [...new Set(moving.map((c) => c.godownId))].sort();
 
-    // a godown being counted is locked; stock only comes into an active godown
+    // hold the godowns (shared, in a fixed order) so a count starting or a godown being switched off at the
+    // same moment waits for this save, then check them: a godown being counted is locked, and stock only
+    // comes into an active godown
+    const godowns = await tx.select().from(godownsTable).where(inArray(godownsTable.id, godownIds)).orderBy(asc(godownsTable.id)).for("share");
+    if (godowns.length !== godownIds.length) throw new TRPCError({ code: "NOT_FOUND", message: "Godown not found." });
     const counting = await tx
       .select({ godownName: stockCountGodownsTable.godownName })
       .from(stockCountGodownsTable)
@@ -30,14 +34,13 @@ export default class StockEngine {
     if (counting.length > 0) {
       throw new TRPCError({ code: "CONFLICT", message: `${counting[0]!.godownName} is being counted. Try again once its count is submitted.` });
     }
-    const godowns = await tx.select().from(godownsTable).where(inArray(godownsTable.id, godownIds));
-    if (godowns.length !== godownIds.length) throw new TRPCError({ code: "NOT_FOUND", message: "Godown not found." });
     const inactive = godowns.find((g) => !g.isActive && moving.some((c) => c.godownId === g.id && c.delta > 0));
     if (inactive) throw new TRPCError({ code: "PRECONDITION_FAILED", message: `${inactive.godownName} is inactive.` });
     const godownName = new Map(godowns.map((g) => [g.id, g.godownName]));
 
     // lock the products, always in the same order, so two saves touching the same pack sizes queue up
-    // instead of deadlocking
+    // instead of deadlocking. The second one then reads what the first left behind, so two devices moving
+    // the last bags out of a godown can't both succeed
     const products = await tx
       .select()
       .from(productsTable)

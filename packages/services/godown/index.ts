@@ -147,28 +147,29 @@ export default class GodownService {
     return this.get({ id });
   }
 
-  // inactive only once it holds nothing and no count is under way; reactivating is always allowed
+  // inactive only once it holds nothing and no count is under way; reactivating is always allowed.
+  // The godown row is locked first, so a move into it at the same moment either lands before the
+  // check (and blocks this) or waits and then finds it inactive
   async setActive(input: SetGodownActiveInputModel): Promise<GodownModel> {
-    if (!input.isActive) {
-      const [held] = await db
-        .select({ products: count() })
-        .from(productGodownsTable)
-        .where(and(eq(productGodownsTable.godownId, input.id), gt(productGodownsTable.quantity, 0)));
-      if ((held?.products ?? 0) > 0) {
-        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "This godown still holds stock. Move it out first." });
+    await db.transaction(async (tx) => {
+      const [godown] = await tx.select({ id: godownsTable.id }).from(godownsTable).where(eq(godownsTable.id, input.id)).for("update");
+      if (!godown) throw notFound();
+      if (!input.isActive) {
+        const [held] = await tx
+          .select({ products: count() })
+          .from(productGodownsTable)
+          .where(and(eq(productGodownsTable.godownId, input.id), gt(productGodownsTable.quantity, 0)));
+        if ((held?.products ?? 0) > 0) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "This godown still holds stock. Move it out first." });
+        }
+        const [counting] = await tx
+          .select({ id: stockCountGodownsTable.id })
+          .from(stockCountGodownsTable)
+          .where(and(eq(stockCountGodownsTable.godownId, input.id), eq(stockCountGodownsTable.status, "counting")));
+        if (counting) throw new TRPCError({ code: "CONFLICT", message: "This godown is being counted. Try again once its count is submitted." });
       }
-      const [counting] = await db
-        .select({ id: stockCountGodownsTable.id })
-        .from(stockCountGodownsTable)
-        .where(and(eq(stockCountGodownsTable.godownId, input.id), eq(stockCountGodownsTable.status, "counting")));
-      if (counting) throw new TRPCError({ code: "CONFLICT", message: "This godown is being counted. Try again once its count is submitted." });
-    }
-    const updated = await db
-      .update(godownsTable)
-      .set({ isActive: input.isActive })
-      .where(eq(godownsTable.id, input.id))
-      .returning({ id: godownsTable.id });
-    if (updated.length === 0) throw notFound();
+      await tx.update(godownsTable).set({ isActive: input.isActive }).where(eq(godownsTable.id, input.id));
+    });
     return this.get({ id: input.id });
   }
 }
