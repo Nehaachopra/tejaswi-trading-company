@@ -6,7 +6,7 @@ import React, { useState } from "react";
 
 import { Toaster } from "~/components/ui/toast";
 import { trpc } from "~/trpc/client";
-import { createTRPCHttpBatchClientClient } from "~/trpc/create-client";
+import { createTRPCLinks } from "~/trpc/create-client";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,7 +20,7 @@ const queryClient = new QueryClient({
 export const GlobalProviders: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [trpcClient] = useState(() =>
     trpc.createClient({
-      links: [createTRPCHttpBatchClientClient()],
+      links: [createTRPCLinks()],
     }),
   );
   return (

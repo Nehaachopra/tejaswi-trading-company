@@ -25,12 +25,16 @@ export function EditGodownSheet({ godownId, onClose }: { godownId: string | null
   const [tried, setTried] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // start from the saved details each time it opens
+  // start from the saved details each time it opens, once: a live refresh while it's open doesn't
+  // overwrite what's being typed
+  const loaded = !!godown.data;
   useEffect(() => {
-    if (godown.data) setDraft(draftFrom(godown.data));
+    if (!godownId || !loaded) return;
+    setDraft(draftFrom(godown.data!));
     setTried(false);
     setError(null);
-  }, [godown.data]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when it opens or first loads
+  }, [godownId, loaded]);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
