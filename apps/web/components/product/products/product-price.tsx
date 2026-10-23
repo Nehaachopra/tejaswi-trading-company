@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { fieldClass } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
+import { NumberInput } from "~/components/ui/number-input";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { packLabel, rupees } from "~/lib/format";
@@ -107,14 +108,14 @@ export function ProductPrice({ pack }: { pack: Pack }) {
     {
       label: t("rateLabel", { unit }),
       value: dash(after != null && gstPct != null ? rateFromPackPrice(after, pack.packSize, gstPct) : null),
-      edit: <input aria-label={t("rateLabel", { unit })} value={rate} inputMode="decimal" onChange={(e) => change({ rate: e.target.value })} className={input(false)} />,
+      edit: <NumberInput aria-label={t("rateLabel", { unit })} value={rate} decimals={2} onChange={(v) => change({ rate: v })} className={input(false)} />,
     },
     { label: t("priceBeforeGst"), value: dash(before) },
     ...(editing
       ? [{
           label: t("gstLabel"),
           value: "",
-          edit: <input aria-label={t("gstLabel")} value={gst} inputMode="decimal" onChange={(e) => change({ gst: e.target.value })} className={input(tried && bad.gst)} />,
+          edit: <NumberInput aria-label={t("gstLabel")} value={gst} decimals={2} maxDigits={3} onChange={(v) => change({ gst: v })} className={input(tried && bad.gst)} />,
         }]
       : []),
     {
@@ -125,7 +126,7 @@ export function ProductPrice({ pack }: { pack: Pack }) {
       label: t("priceWithGst"),
       value: dash(after),
       strong: true,
-      edit: <input autoFocus aria-label={t("priceWithGst")} value={price} inputMode="decimal" onChange={(e) => change({ price: e.target.value })} className={cn(input(tried && bad.price), "font-semibold")} />,
+      edit: <NumberInput autoFocus aria-label={t("priceWithGst")} value={price} decimals={2} onChange={(v) => change({ price: v })} className={cn(input(tried && bad.price), "font-semibold")} />,
     },
     { label: t("cost"), value: dash(cost) },
     { label: t("margin"), value: dash(margin, (m) => `${rupees(m)} (${marginPct}%)`) },

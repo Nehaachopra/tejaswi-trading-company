@@ -23,7 +23,56 @@ const iconButton =
   "grid size-11 shrink-0 place-items-center rounded-control border border-chestnut/40 hover:border-chestnut disabled:not-aria-busy:opacity-30 aria-busy:opacity-80";
 const action =
   "flex min-h-9 items-center justify-center gap-1.5 rounded-control border border-chestnut/50 px-3 text-sm font-medium hover:border-chestnut";
-const input = (bad: boolean) => `min-h-10 w-full min-w-0 px-2.5 text-right text-sm ${fieldClass(bad)}`;
+export const rowInput = (bad: boolean) => `min-h-10 w-full min-w-0 px-2.5 text-right text-sm ${fieldClass(bad)}`;
+const input = rowInput;
+
+// a dropdown in a details row (category, sub-category, unit), sized like the row inputs
+export function RowPicker({
+  label,
+  current,
+  items,
+  picked,
+  onPick,
+  invalid,
+  disabled,
+}: {
+  label: string;
+  current: string | undefined;
+  items: { id: string; name: string }[];
+  picked: string | null;
+  onPick: (id: string) => void;
+  invalid: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <Menu
+      label={label}
+      disabled={disabled}
+      triggerClassName={cn("min-h-10 w-full justify-between px-2.5 text-sm", invalid && "border-danger")}
+      trigger={
+        <>
+          <span className="truncate">{current ? titleCase(current) : "–"}</span>
+          <ChevronDown className="size-4 shrink-0" aria-hidden />
+        </>
+      }
+    >
+      {(close) =>
+        items.map((item) => (
+          <MenuItem
+            key={item.id}
+            selected={picked === item.id}
+            onClick={() => {
+              onPick(item.id);
+              close();
+            }}
+          >
+            {titleCase(item.name)}
+          </MenuItem>
+        ))
+      }
+    </Menu>
+  );
+}
 
 // the product's details: the image on the left; category, sub-category, brand (name, HSN) and stock on the right.
 // Edit details turns the editable rows into inputs in place, and the image into a photo picker
@@ -98,49 +147,29 @@ export function ProductDetails({ group, pack }: { group: ProductGroup; pack: Pac
     }
   }
 
-  // a dropdown for category or sub-category, sized like the inputs
-  const picker = (label: string, current: string | undefined, items: { id: string; name: string }[], picked: string | null, onPick: (id: string) => void, invalid: boolean) => (
-    <Menu
-      label={label}
-      triggerClassName={cn("min-h-10 w-full justify-between px-2.5 text-sm", invalid && "border-danger")}
-      trigger={
-        <>
-          <span className="truncate">{current ? titleCase(current) : "–"}</span>
-          <ChevronDown className="size-4 shrink-0" aria-hidden />
-        </>
-      }
-    >
-      {(close) =>
-        items.map((item) => (
-          <MenuItem
-            key={item.id}
-            selected={picked === item.id}
-            onClick={() => {
-              onPick(item.id);
-              close();
-            }}
-          >
-            {titleCase(item.name)}
-          </MenuItem>
-        ))
-      }
-    </Menu>
-  );
-
   // the rows: editable ones become inputs while editing; name and HSN show only when set (or while editing)
   const rows: { label: string; value: string; edit?: React.ReactNode; number?: boolean }[] = [
     {
       label: t("category"),
       value: titleCase(group.categoryName),
-      edit: picker(t("category"), category?.name, categories.data ?? [], categoryId, (id) => {
-        if (id !== categoryId) setSubCategoryId(null);
-        setCategoryId(id);
-      }, false),
+      edit: (
+        <RowPicker
+          label={t("category")}
+          current={category?.name}
+          items={categories.data ?? []}
+          picked={categoryId}
+          onPick={(id) => {
+            if (id !== categoryId) setSubCategoryId(null);
+            setCategoryId(id);
+          }}
+          invalid={false}
+        />
+      ),
     },
     {
       label: t("subCategory"),
       value: titleCase(group.subCategoryName),
-      edit: picker(t("subCategory"), sub?.name, subs, subCategoryId, setSubCategoryId, tried && bad.subCategory),
+      edit: <RowPicker label={t("subCategory")} current={sub?.name} items={subs} picked={subCategoryId} onPick={setSubCategoryId} invalid={tried && bad.subCategory} />,
     },
     {
       label: t("brand"),

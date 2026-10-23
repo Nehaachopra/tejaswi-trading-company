@@ -20,7 +20,7 @@ export const productTitle = (group: Pick<ProductGroup, "brand" | "name">) =>
 export const packImage = (group: ProductGroup, pack: ProductGroup["packs"][number]) => pack.imageUrl ?? group.imageUrl;
 
 // a product photo, or until one is uploaded its brand's initials on a tinted square
-export function ProductImage({ group, imageUrl, className }: { group: ProductGroup; imageUrl: string | null; className?: string }) {
+export function ProductImage({ group, imageUrl, className }: { group: Pick<ProductGroup, "brand">; imageUrl: string | null; className?: string }) {
   return (
     <div
       className={cn(
@@ -40,7 +40,7 @@ export function ProductImage({ group, imageUrl, className }: { group: ProductGro
   );
 }
 
-// one product: its name and sub-category, its pack sizes, then the image and the selected pack's price,
+// one product: its pack sizes on top, its name and sub-category, then the image and the selected pack's price,
 // which together open Details
 export function ProductTile({
   group,
@@ -63,15 +63,7 @@ export function ProductTile({
         active ? "on-ivory bg-ivory text-chestnut" : "text-ivory",
       )}
     >
-      {/* the name, and the sub-category so two brands' packs are told apart */}
-      <div className="min-w-0">
-        <p className="truncate font-heading text-base font-bold leading-6" title={productTitle(group)}>
-          {productTitle(group)}
-        </p>
-        <p className="truncate text-xs opacity-70">{titleCase(group.categoryName)} | {titleCase(group.subCategoryName)}</p>
-      </div>
-
-      {/* pack sizes */}
+      {/* pack sizes, always on top */}
       <PackChips
         packs={group.packs}
         selected={pack.productId}
@@ -79,6 +71,14 @@ export function ProductTile({
         label={t("packSizes")}
         onChestnut={!active}
       />
+
+      {/* the name, and the sub-category so two brands' packs are told apart */}
+      <div className="min-w-0">
+        <p className="truncate font-heading text-base font-bold leading-6" title={productTitle(group)}>
+          {productTitle(group)}
+        </p>
+        <p className="truncate text-xs opacity-70">{titleCase(group.categoryName)} | {titleCase(group.subCategoryName)}</p>
+      </div>
 
       {/* the image and the price (GST included) for the selected pack: one button that opens Details on it */}
       <button

@@ -11,9 +11,10 @@ import { trpc } from "~/trpc/client";
 
 import { ProductTabs } from "../product-tabs";
 import { chip } from "../row-styles";
-import { type FormMode, ProductFormSheet } from "./product-form-sheet";
+import { NewProductSheet } from "./new-product-sheet";
+import { ProductFormSheet } from "./product-form-sheet";
 import { ProductSheet } from "./product-sheet";
-import { ProductTile } from "./product-tile";
+import { type ProductGroup, ProductTile } from "./product-tile";
 
 // every product as a tile, filtered by category and sub-category
 export function ProductsBoard() {
@@ -47,12 +48,14 @@ export function ProductsBoard() {
     if (opened && open && opened.key !== open.key)
       setOpen({ ...open, key: opened.key, packIds: opened.packs.map((p) => p.productId) });
   }, [opened, open]);
-  const [form, setForm] = useState<FormMode | null>(null);
+  // the open forms: a new product, or more pack sizes for one
+  const [adding, setAdding] = useState(false);
+  const [addingPack, setAddingPack] = useState<ProductGroup | null>(null);
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6">
       {/* everything behind an open sheet is inert: no taps, focus or scrolling of tiles and filters */}
-      <div inert={!!opened || !!form} className="contents">
+      <div inert={!!opened || adding || !!addingPack} className="contents">
         {/* the page's name, for screen readers only: the tabs say it visually */}
         <h1 className="sr-only">{t("title")}</h1>
 
@@ -62,7 +65,7 @@ export function ProductsBoard() {
         {/* Add product */}
         <button
           type="button"
-          onClick={() => setForm({ kind: "new" })}
+          onClick={() => setAdding(true)}
           className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-ivory px-5 font-heading text-lg font-bold text-chestnut sm:w-auto"
         >
           <Plus className="size-5" aria-hidden /> {t("add")}
@@ -184,15 +187,16 @@ export function ProductsBoard() {
         )}
       </div>
 
-      {/* the product sheet, and the form for a new product, more pack sizes or its details */}
+      {/* the product sheet, and the forms for a new product or more pack sizes */}
       <ProductSheet
         group={opened}
         packId={open?.packId ?? null}
         onPack={(packId) => setOpen((o) => (o ? { ...o, packId } : o))}
         onClose={() => setOpen(null)}
-        onAddPack={(group) => setForm({ kind: "addPack", group })}
+        onAddPack={setAddingPack}
       />
-      <ProductFormSheet mode={form} onClose={() => setForm(null)} />
+      <NewProductSheet open={adding} onClose={() => setAdding(false)} />
+      <ProductFormSheet group={addingPack} onClose={() => setAddingPack(null)} />
     </main>
   );
 }
