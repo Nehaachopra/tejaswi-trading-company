@@ -1,6 +1,6 @@
-﻿// bank_details.ts
+// bank_details.ts
 
-import { pgEnum, pgTable, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, pgEnum, pgTable, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { timestamps } from "../utils/common/column-type";
 import { uniqueIndex } from "drizzle-orm/pg-core";
@@ -23,6 +23,7 @@ export const bankDetailsTable = pgTable("bank_details", {
   ifscCode: varchar("ifsc_code", { length: 11 }).notNull(),
   accountType: bankAccountTypeEnum("account_type").notNull(),
   upiId: varchar("upi_id", { length: 255 }),
+  isActive: boolean("is_active").default(true).notNull(),
   ...timestamps,
 },
   (table) => [

@@ -1,6 +1,6 @@
 // ledger.ts
 
-import { pgTable, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, pgTable, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { money, timestamps } from "../../utils/common/column-type";
 import { ledgerTransactionTypeEnum } from "../../utils/common/enum";
@@ -39,6 +39,10 @@ export const ledgersTable = pgTable(
     balance: money("balance").notNull(),
 
     balanceType: ledgerTransactionTypeEnum("balance_type").notNull().default("debit"),
+
+    // nothing new posts to an inactive ledger; its past entries stay. For a bank account, party or
+    // employee it follows that record's Active/Inactive
+    isActive: boolean("is_active").default(true).notNull(),
 
     ...timestamps,
   },

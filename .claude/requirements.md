@@ -61,7 +61,7 @@ Routers and services are named by these five modules:
 
 Ledger group → ledger master (optional) → ledger → ledger entries.
 
-- Example: asset → debtors → Suresh (ledger references the party). A party that is also a creditor gets a second ledger under liability → creditors.
+- Example: asset → debtors → Suresh (ledger references the party). Each party has exactly one ledger, by its type: customer → Debtors, supplier → Creditors, both → Debtor-creditors (one net balance).
 - Not every ledger needs a master (e.g. sale).
 - Balances can be debit or credit.
 - Ledger entries store no running balance: entries can be pre- or post-dated, so a statement adds the balance up in date order when it is read. `ledgers.balance` is the total of all entries, post-dated ones included; lists show the balance as of today with a "+ ₹X post-dated" note when any exist.
@@ -71,8 +71,8 @@ The app creates this accounting structure itself:
 
 | Group | Masters | Fixed ledgers |
 |---|---|---|
-| Asset | Debtors, Bank (one ledger per bank account) | Cash, Input CGST, Input SGST, Input IGST, TDS receivable (TDS customers deduct from us) |
-| Liability | Creditors, Employees (one ledger per employee: salary owed to them; an advance shows as what they owe us) | Output CGST, Output SGST, Output IGST, Output CGST (RCM), Output SGST (RCM), Output IGST (RCM), TDS payable (TDS we deduct from others), TCS, Drawings |
+| Asset | Debtors, Debtor-creditors (parties who are both; one net ledger each), Bank (one ledger per bank account) | Cash, Input CGST, Input SGST, Input IGST, TDS receivable (TDS customers deduct from us) |
+| Liability | Creditors, Employees (one ledger per employee: salary owed to them; an advance shows as what they owe us) | Output CGST, Output SGST, Output IGST, Output CGST (RCM), Output SGST (RCM), Output IGST (RCM), TDS payable (TDS we deduct from others), TCS, Drawings, Capital (the other side of every opening balance) |
 | Income | — | Sale, Sale return, Discount received |
 | Expense | — | Salary, Purchase, Purchase return, Discount given, Rent, Electricity, Wifi expense |
 | Profit / Loss | — | none, calculated |

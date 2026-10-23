@@ -1,10 +1,12 @@
 // party.ts
 
-
-// party.ts
-import { pgTable, text, uuid, varchar, boolean } from "drizzle-orm/pg-core";
+import { pgEnum, pgTable, text, uuid, varchar, boolean } from "drizzle-orm/pg-core";
 
 import { timestamps } from "../../utils/common/column-type";
+
+// decides the party's one ledger: customer → Debtors, supplier → Creditors, both → Debtor-creditors
+// (one net balance). Sales are made to customers and both, purchases from suppliers and both
+export const partyTypeEnum = pgEnum("party_type", ["customer", "supplier", "both"]);
 
 export const partiesTable = pgTable(
   "parties",
@@ -15,6 +17,8 @@ export const partiesTable = pgTable(
 
     name: varchar("name", { length: 150 })
       .notNull(),
+
+    type: partyTypeEnum("type").notNull(),
     
     countryCode: varchar("country_code", {
       length: 5

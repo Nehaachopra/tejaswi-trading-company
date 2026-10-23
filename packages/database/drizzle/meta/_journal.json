@@ -22,6 +22,13 @@
       "when": 1792686423956,
       "tag": "0002_warm_sue_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792752363444,
+      "tag": "0003_previous_hellion",
+      "breakpoints": true
     }
   ]
 }
