@@ -21,7 +21,15 @@
       "products": "उत्पाद",
       "accounts": "खाते",
       "gst": "GST",
-      "jobs": "काम"
+      "jobs": "काम",
+      "heads": {
+        "asset": "संपत्ति",
+        "liability": "देनदारी",
+        "income": "आय",
+        "expense": "खर्च",
+        "profit": "लाभ",
+        "loss": "हानि"
+      }
     }
   },
   "home": {

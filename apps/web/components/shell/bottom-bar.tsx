@@ -10,7 +10,7 @@ import { useState } from "react";
 import { Sheet } from "~/components/ui/sheet";
 import { cn } from "~/lib/utils";
 
-import { isCurrent, NEW_TRANSACTION_HREF, type NavItem, navFor, type Role } from "./nav-items";
+import { isCurrent, isSubCurrent, NEW_TRANSACTION_HREF, type NavItem, navFor, type Role } from "./nav-items";
 
 const slot = "flex min-h-16 w-full flex-col items-center justify-center gap-1 px-1 text-xs transition-colors";
 const tone = (current: boolean) => (current ? "font-semibold text-chestnut" : "text-chestnut/80 hover:text-chestnut");
@@ -95,6 +95,26 @@ export function BottomBar({ role }: { role: Role }) {
                 >
                   <item.icon className="size-5" aria-hidden /> {t(item.label)}
                 </Link>
+                {/* its pages, indented (Accounts: the six heads) */}
+                {item.children && (
+                  <ul className="mt-1 flex flex-col gap-0.5 pl-8">
+                    {item.children.map((child) => {
+                      const here = isSubCurrent(child, pathname);
+                      return (
+                        <li key={child.href}>
+                          <Link
+                            href={child.href}
+                            onClick={() => setMoreOpen(false)}
+                            aria-current={here ? "page" : undefined}
+                            className={cn("flex min-h-11 items-center rounded-control px-3 text-base", here ? "bg-chestnut/10 font-semibold" : "hover:bg-chestnut/[0.06]")}
+                          >
+                            {t(`heads.${child.label}`)}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
               </li>
             );
           })}

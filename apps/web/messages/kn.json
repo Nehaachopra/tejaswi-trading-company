@@ -21,7 +21,15 @@
       "products": "ಉತ್ಪನ್ನಗಳು",
       "accounts": "ಖಾತೆಗಳು",
       "gst": "GST",
-      "jobs": "ಕೆಲಸಗಳು"
+      "jobs": "ಕೆಲಸಗಳು",
+      "heads": {
+        "asset": "ಆಸ್ತಿ",
+        "liability": "ಹೊಣೆಗಾರಿಕೆ",
+        "income": "ಆದಾಯ",
+        "expense": "ಖರ್ಚು",
+        "profit": "ಲಾಭ",
+        "loss": "ನಷ್ಟ"
+      }
     }
   },
   "home": {

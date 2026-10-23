@@ -6,9 +6,10 @@ import { useTranslations } from "next-intl";
 
 import { cn } from "~/lib/utils";
 
-import { isCurrent, navFor, type Role } from "./nav-items";
+import { isCurrent, isSubCurrent, navFor, type Role } from "./nav-items";
 
-// from 1024px, ivory with chestnut ink: every page the role may open
+// from 1024px, ivory with chestnut ink: every page the role may open; while one with pages under it is open
+// (Accounts), those are listed beneath it
 export function Sidebar({ role }: { role: Role }) {
   const t = useTranslations("shell.nav");
   const pathname = usePathname();
@@ -34,6 +35,28 @@ export function Sidebar({ role }: { role: Role }) {
               >
                 <item.icon className="size-5" aria-hidden /> {t(item.label)}
               </Link>
+              {/* its pages, indented; the one open is tinted */}
+              {item.children && current && (
+                <ul className="mt-1 flex flex-col gap-0.5 pl-8">
+                  {item.children.map((child) => {
+                    const here = isSubCurrent(child, pathname);
+                    return (
+                      <li key={child.href}>
+                        <Link
+                          href={child.href}
+                          aria-current={here ? "page" : undefined}
+                          className={cn(
+                            "flex min-h-10 items-center rounded-control px-3 text-sm transition-colors",
+                            here ? "bg-chestnut/10 font-semibold text-chestnut" : "text-chestnut/80 hover:bg-chestnut/6 hover:text-chestnut",
+                          )}
+                        >
+                          {t(`heads.${child.label}`)}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </li>
           );
         })}

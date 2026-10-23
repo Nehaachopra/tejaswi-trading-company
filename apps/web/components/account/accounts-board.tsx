@@ -20,16 +20,17 @@ const MASTER_PAGE: Record<string, string | undefined> = { bank: "/account/bank" 
 const usual = (head: Head["head"]) => (head === "asset" || head === "expense" || head === "loss" ? "debit" : "credit");
 
 // /account, admin only: every ledger account under its head (Asset, Liability, Income, Expense, Profit, Loss),
-// each head with its total. Sub-groups (Bank, Debtors ...) are cards with the total of their ledgers; the
+// each head with its total (or one head, on its own page). Sub-groups (Bank, Debtors ...) are cards with the total of their ledgers; the
 // ledgers directly under a head are rows opening their statements; Profit and Loss are worked out
-export function AccountsBoard() {
+export function AccountsBoard({ only }: { only?: Head["head"] }) {
   const t = useTranslations("accounts.overview");
   const overview = trpc.accounts.overview.useQuery();
+  const heads = (overview.data?.heads ?? []).filter((h) => !only || h.head === only);
   const soon = () => toast.info(t("comingSoon"));
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 sm:px-6">
-      <h1 className="sr-only">{t("title")}</h1>
+      <h1 className="sr-only">{only ? t(`heads.${only}`) : t("title")}</h1>
 
       {overview.isPending ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
@@ -41,7 +42,7 @@ export function AccountsBoard() {
         </p>
       ) : (
         <div className="flex flex-col gap-8">
-          {overview.data.heads.map((h) => (
+          {heads.map((h) => (
             <section key={h.head} aria-labelledby={`head-${h.head}`}>
               {/* the head and its total */}
               <header className="mb-3 flex items-baseline justify-between gap-3 border-b border-ivory/20 pb-2">

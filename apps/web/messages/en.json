@@ -21,7 +21,15 @@
       "products": "Products",
       "accounts": "Accounts",
       "gst": "GST",
-      "jobs": "Jobs"
+      "jobs": "Jobs",
+      "heads": {
+        "asset": "Asset",
+        "liability": "Liability",
+        "income": "Income",
+        "expense": "Expense",
+        "profit": "Profit",
+        "loss": "Loss"
+      }
     }
   },
   "home": {
