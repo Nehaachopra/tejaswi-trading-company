@@ -454,11 +454,12 @@
       "noOther": "Add a second godown to move stock between them.",
       "errors": {
         "fill": "Fill in the highlighted fields.",
-        "tooMany": "That's more than {from} holds.",
+        "tooMany": "Only {count} left in {from} now.",
         "network": "Can't reach the server. Check your connection.",
         "failed": "Something went wrong. Try again.",
-        "stock": "Not enough stock in the godown any more. Refresh and try again.",
-        "counting": "One of these godowns is being counted. Try again once its count is submitted."
+        "stock": "Someone else just moved some of it. Check the quantity and try again.",
+        "counting": "One of these godowns is being counted. Try again once its count is submitted.",
+        "none": "{from} has none of this left."
       },
       "inGodown": "In godown"
     },

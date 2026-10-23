@@ -17,6 +17,8 @@ import { ProductImage, productTitle } from "../../product/products/product-tile"
 import { PickMenu } from "../pick-menu";
 
 type GodownCard = RouterOutputs["inventory"]["stock"]["byGodown"][number];
+type Group = GodownCard["products"][number];
+type Pack = Group["packs"][number];
 
 // what the sheet opens on: a pack size in a godown (its card's Move button)
 export type MoveStart = { fromGodownId: string; productId: string };
@@ -39,6 +41,7 @@ export function MoveStockSheet({ start, cards, onClose }: { start: MoveStart | n
   const [remarks, setRemarks] = useState("");
   const [tried, setTried] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [seen, setSeen] = useState<{ group: Group; pack: Pack } | null>(null);
 
   // each time it opens, start empty
   useEffect(() => {
@@ -49,27 +52,36 @@ export function MoveStockSheet({ start, cards, onClose }: { start: MoveStart | n
     setRemarks("");
     setTried(false);
     setError(null);
+    setSeen(null);
   }, [start]);
 
-  // the pack size and where it's moving from, found in the latest stock
+  // the pack size and where it's moving from, found in the latest stock (it updates live)
   const from = cards.find((c) => c.godownId === start?.fromGodownId);
-  const group = from?.products.find((g) => g.packs.some((p) => p.productId === start?.productId));
-  const pack = group?.packs.find((p) => p.productId === start?.productId);
+  const liveGroup = from?.products.find((g) => g.packs.some((p) => p.productId === start?.productId));
+  const livePack = liveGroup?.packs.find((p) => p.productId === start?.productId);
+  useEffect(() => {
+    if (liveGroup && livePack) setSeen({ group: liveGroup, pack: livePack });
+  }, [liveGroup, livePack]);
+  // if another device moves the last of it out, the sheet stays, showing none left
+  const group = liveGroup ?? seen?.group;
+  const pack = livePack ?? (seen ? { ...seen.pack, quantity: 0 } : undefined);
+  const locked = !!from?.beingCounted;
   // where it can go: any other godown not being counted
   const receivers = cards.filter((c) => c.godownId !== from?.godownId && !c.beingCounted);
   const to = receivers.find((c) => c.godownId === toId);
 
   // what's missing or wrong
   const qty = /^\d+$/.test(quantity) ? Number(quantity) : 0;
-  const bad = { to: !to, quantity: qty < 1 || (pack ? qty > pack.quantity : false) };
+  const over = !!pack && qty > pack.quantity;
+  const bad = { to: !to, quantity: qty < 1 || over };
   const show = (field: keyof typeof bad) => tried && bad[field];
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setTried(true);
     setError(null);
-    if (!from || !group || !pack) return;
-    if (bad.to || bad.quantity) return setError(qty > pack.quantity ? t("errors.tooMany", { from: from.godownName }) : t("errors.fill"));
+    if (!from || !group || !pack || locked || pack.quantity === 0) return;
+    if (bad.to || bad.quantity) return setError(over ? null : t("errors.fill"));
     try {
       await move.mutateAsync({
         productId: pack.productId,
@@ -163,10 +175,17 @@ export function MoveStockSheet({ start, cards, onClose }: { start: MoveStart | n
                 maxDigits={7}
                 max={pack.quantity}
                 onChange={setQuantity}
-                aria-invalid={show("quantity") || undefined}
-                className={cn("tabular min-h-11 px-3 text-base", fieldClass(show("quantity")))}
+                aria-invalid={show("quantity") || over || undefined}
+                className={cn("tabular min-h-11 px-3 text-base", fieldClass(show("quantity") || over))}
               />
             </label>
+            {/* someone else moved some out while this was open */}
+            {pack.quantity === 0 ? (
+              <FieldMessage>{t("errors.none", { from: from.godownName })}</FieldMessage>
+            ) : (
+              over && <FieldMessage>{t("errors.tooMany", { from: from.godownName, count: pack.quantity.toLocaleString("en-IN") })}</FieldMessage>
+            )}
+            {locked && <FieldMessage>{t("errors.counting")}</FieldMessage>}
 
             {/* vehicle number and remarks, both optional */}
             <label className="flex flex-col gap-1.5">
@@ -188,7 +207,7 @@ export function MoveStockSheet({ start, cards, onClose }: { start: MoveStart | n
             {error && <FieldMessage>{error}</FieldMessage>}
           </div>
           <footer className="flex shrink-0 flex-col border-t border-chestnut/15 px-5 py-4">
-            <SubmitButton busy={move.isPending} disabled={receivers.length === 0}>
+            <SubmitButton busy={move.isPending} disabled={receivers.length === 0 || locked || pack.quantity === 0}>
               {t("save")}
             </SubmitButton>
           </footer>
