@@ -20,8 +20,8 @@ export type BankAccount = RouterOutputs["accounts"]["bank"]["get"];
 const TYPES = ["savings", "current", "cash_credit", "overdraft"] as const;
 type AccountType = (typeof TYPES)[number];
 
-const PROVIDERS = ["phonepe", "gpay", "paytm", "bhim", "amazon_pay", "other"] as const;
-type Provider = (typeof PROVIDERS)[number];
+const APPS = ["phonepe", "gpay", "paytm", "bhim", "amazon_pay", "other"] as const;
+type Provider = (typeof APPS)[number];
 
 // lengths follow bank_details: holder 255, bank and branch 100, account number 9 to 18 digits, IFSC 11, UPI 255;
 // at most 10 UPI IDs
@@ -316,22 +316,35 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
       {/* the UPI IDs linked to it, each with the app it's in */}
       <section className="flex flex-col gap-2">
         <h3 className="text-sm">{t("upiIds")}</h3>
-        {draft.upiIds.map((u) => {
+        {draft.upiIds.map((u, i) => {
           // what's wrong with it, shown once it's been typed out (or on saving)
           const problem = u.upiId.trim() === "" ? null : u.provider === null ? "app" : upiProblem(u.upiId, u.provider);
           const typedOut = u.upiId.includes("@") && u.upiId.split("@")[1]!.length >= 2;
           const wrong = problem !== null && (tried || (typedOut && problem === "handle"));
           return (
-            <div key={u.key} className="flex flex-wrap items-center gap-2">
-              <div className="w-32 shrink-0">
-                <PickMenu
-                  label={t("provider")}
-                  current={u.provider ? t(`providers.${u.provider}`) : t("pickApp")}
-                  options={PROVIDERS.map((p) => ({ id: p, name: t(`providers.${p}`) }))}
-                  picked={u.provider ?? "phonepe"}
-                  onPick={(provider) => setUpi(u.key, { provider })}
-                  invalid={tried && u.upiId.trim() !== "" && u.provider === null}
-                />
+            // one card per UPI ID: the app it's in and remove on top, the ID below
+            <fieldset key={u.key} className="flex flex-col gap-3 rounded-control border border-chestnut/20 p-3">
+              <legend className="sr-only">{t("upiN", { n: i + 1 })}</legend>
+              <div className="flex items-center gap-2">
+                <div className="w-40 shrink-0">
+                  <PickMenu
+                    label={t("provider")}
+                    current={u.provider ? t(`providers.${u.provider}`) : t("pickApp")}
+                    options={APPS.map((app) => ({ id: app, name: t(`providers.${app}`) }))}
+                    picked={u.provider ?? "phonepe"}
+                    onPick={(provider) => setUpi(u.key, { provider })}
+                    invalid={tried && u.upiId.trim() !== "" && u.provider === null}
+                  />
+                </div>
+                <span className="flex-1" />
+                <button
+                  type="button"
+                  onClick={() => onChange({ upiIds: draft.upiIds.filter((x) => x.key !== u.key) })}
+                  aria-label={t("removeUpi")}
+                  className="grid size-9 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
+                >
+                  <Trash2 className="size-4" aria-hidden />
+                </button>
               </div>
               <input
                 value={u.upiId}
@@ -344,24 +357,16 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
                   const app = appOfUpi(upiId);
                   setUpi(u.key, app ? { upiId, provider: app } : { upiId });
                 }}
-                placeholder="tejaswi@sbi"
+                placeholder="tejaswi@ybl"
                 aria-invalid={wrong || undefined}
                 className={input(wrong)}
               />
-              <button
-                type="button"
-                onClick={() => onChange({ upiIds: draft.upiIds.filter((x) => x.key !== u.key) })}
-                aria-label={t("removeUpi")}
-                className="grid size-11 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
-              >
-                <Trash2 className="size-4" aria-hidden />
-              </button>
               {wrong && (
-                <span className="w-full basis-full text-xs text-danger">
+                <span className="text-xs text-danger">
                   {problem === "handle" ? t("upiWrongHandle", { app: t(`providers.${u.provider!}`) }) : problem === "app" ? t("upiPickApp") : t("upiFormat")}
                 </span>
               )}
-            </div>
+            </fieldset>
           );
         })}
         {show("upiIds") && <span className="text-xs text-danger">{t("upiHint")}</span>}

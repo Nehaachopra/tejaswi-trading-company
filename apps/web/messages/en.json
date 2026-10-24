@@ -621,7 +621,7 @@
         "accountNumberMismatch": "The two account numbers don't match.",
         "upiIds": "UPI IDs (optional)",
         "provider": "App",
-        "pickApp": "App",
+        "pickApp": "Pick the app",
         "providers": {
           "phonepe": "PhonePe",
           "gpay": "Google Pay",
@@ -641,7 +641,8 @@
         "accountNumberBankLength": "{bank} account numbers are {digits} digits.",
         "upiWrongHandle": "This handle isn't a {app} one. Check it, or pick the app it's in.",
         "upiPickApp": "Pick the app this UPI ID is in.",
-        "upiFormat": "A UPI ID looks like name@ybl."
+        "upiFormat": "A UPI ID looks like name@ybl.",
+        "upiN": "UPI ID {n}"
       },
       "toAccounts": "Asset",
       "showDetails": "Show or hide details",

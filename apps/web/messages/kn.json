@@ -621,7 +621,7 @@
         "accountNumberMismatch": "ಎರಡು ಖಾತೆ ಸಂಖ್ಯೆಗಳು ಹೊಂದುತ್ತಿಲ್ಲ.",
         "upiIds": "UPI IDಗಳು (ಐಚ್ಛಿಕ)",
         "provider": "ಆ್ಯಪ್",
-        "pickApp": "ಆ್ಯಪ್",
+        "pickApp": "ಆ್ಯಪ್ ಆಯ್ಕೆಮಾಡಿ",
         "providers": {
           "phonepe": "PhonePe",
           "gpay": "Google Pay",
@@ -641,7 +641,8 @@
         "accountNumberBankLength": "{bank} ಖಾತೆ ಸಂಖ್ಯೆಗಳು {digits} ಅಂಕಿಗಳು.",
         "upiWrongHandle": "ಈ ಹ್ಯಾಂಡಲ್ {app} ನದ್ದಲ್ಲ. ಪರಿಶೀಲಿಸಿ, ಅಥವಾ ಅದು ಇರುವ ಆ್ಯಪ್ ಆಯ್ಕೆಮಾಡಿ.",
         "upiPickApp": "ಈ UPI ID ಇರುವ ಆ್ಯಪ್ ಆಯ್ಕೆಮಾಡಿ.",
-        "upiFormat": "UPI ID name@ybl ರೀತಿ ಇರುತ್ತದೆ."
+        "upiFormat": "UPI ID name@ybl ರೀತಿ ಇರುತ್ತದೆ.",
+        "upiN": "UPI ID {n}"
       },
       "toAccounts": "ಆಸ್ತಿ",
       "showDetails": "ವಿವರ ತೋರಿಸಿ ಅಥವಾ ಮರೆಮಾಡಿ",

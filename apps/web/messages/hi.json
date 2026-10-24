@@ -621,7 +621,7 @@
         "accountNumberMismatch": "दोनों खाता नंबर मेल नहीं खाते।",
         "upiIds": "UPI IDs (वैकल्पिक)",
         "provider": "ऐप",
-        "pickApp": "ऐप",
+        "pickApp": "ऐप चुनें",
         "providers": {
           "phonepe": "PhonePe",
           "gpay": "Google Pay",
@@ -641,7 +641,8 @@
         "accountNumberBankLength": "{bank} के खाता नंबर {digits} अंकों के होते हैं।",
         "upiWrongHandle": "यह हैंडल {app} का नहीं है। जाँचें, या जिस ऐप में है वह चुनें।",
         "upiPickApp": "यह UPI ID जिस ऐप में है वह चुनें।",
-        "upiFormat": "UPI ID name@ybl जैसी होती है।"
+        "upiFormat": "UPI ID name@ybl जैसी होती है।",
+        "upiN": "UPI ID {n}"
       },
       "toAccounts": "संपत्ति",
       "showDetails": "विवरण दिखाएँ या छिपाएँ",
