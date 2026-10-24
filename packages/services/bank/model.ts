@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { ledgerBalanceModel, savedOpeningBalanceModel } from "../accounts/model";
 import { lengthFits, lengthsFor } from "./account-lengths";
+import { UPI_HANDLES, upiProblem } from "./upi-handles";
 
 const idModel = z.string().uuid();
 
@@ -9,16 +10,20 @@ export const bankAccountTypeModel = z.enum(["savings", "current", "cash_credit",
 
 export const upiProviderModel = z.enum(["phonepe", "gpay", "paytm", "bhim", "amazon_pay", "other"]);
 
-// one UPI ID linked to the account, and the app it was made in; stored in lowercase
-export const upiIdModel = z.object({
-  upiId: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .max(255)
-    .regex(/^[\w.-]+@[\w.-]+$/, "A UPI ID looks like name@bank."),
-  provider: upiProviderModel,
-});
+// one UPI ID linked to the account, and the app it was made in; stored in lowercase. Its handle (after @) has to
+// be one that app gives out
+export const upiIdModel = z
+  .object({
+    upiId: z.string().trim().toLowerCase().max(255),
+    provider: upiProviderModel,
+  })
+  .superRefine((u, ctx) => {
+    const problem = upiProblem(u.upiId, u.provider);
+    if (problem === "format") ctx.addIssue({ code: "custom", path: ["upiId"], message: "A UPI ID looks like name@bank." });
+    if (problem === "handle") {
+      ctx.addIssue({ code: "custom", path: ["upiId"], message: `That handle isn't one this app uses (@${UPI_HANDLES[u.provider].slice(0, 4).join(", @")}).` });
+    }
+  });
 
 // lengths follow bank_details: holder 255, bank and branch 100, account number 30, IFSC 11, UPI 255. Names are
 // stored in lowercase (screens start each word with a capital). The IFSC is optional: without it the bank comes

@@ -638,7 +638,10 @@
         "searchBranch": "ಶಾಖೆ ಅಥವಾ ನಗರ ಬರೆಯಿರಿ",
         "noBranch": "ಈ ಹೆಸರಿನ ಶಾಖೆ ಇಲ್ಲ. ಬರೆಯುತ್ತಿರಿ, ಬರೆದಂತೆಯೇ ಉಳಿಸಬಹುದು.",
         "accountNumberBankHint": "{bank} ಖಾತೆ ಸಂಖ್ಯೆಗಳು {digits} ಅಂಕಿಗಳು; ಇದರಲ್ಲಿ {count} ಇವೆ.",
-        "accountNumberBankLength": "{bank} ಖಾತೆ ಸಂಖ್ಯೆಗಳು {digits} ಅಂಕಿಗಳು."
+        "accountNumberBankLength": "{bank} ಖಾತೆ ಸಂಖ್ಯೆಗಳು {digits} ಅಂಕಿಗಳು.",
+        "upiWrongHandle": "ಈ ಹ್ಯಾಂಡಲ್ {app} ನದ್ದಲ್ಲ. ಪರಿಶೀಲಿಸಿ, ಅಥವಾ ಅದು ಇರುವ ಆ್ಯಪ್ ಆಯ್ಕೆಮಾಡಿ.",
+        "upiPickApp": "ಈ UPI ID ಇರುವ ಆ್ಯಪ್ ಆಯ್ಕೆಮಾಡಿ.",
+        "upiFormat": "UPI ID name@ybl ರೀತಿ ಇರುತ್ತದೆ."
       },
       "toAccounts": "ಆಸ್ತಿ",
       "showDetails": "ವಿವರ ತೋರಿಸಿ ಅಥವಾ ಮರೆಮಾಡಿ",

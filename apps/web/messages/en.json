@@ -638,7 +638,10 @@
         "searchBranch": "Type the branch or city",
         "noBranch": "No branch by that name. Keep typing it, it can be saved as typed.",
         "accountNumberBankHint": "{bank} account numbers are {digits} digits; this one has {count}.",
-        "accountNumberBankLength": "{bank} account numbers are {digits} digits."
+        "accountNumberBankLength": "{bank} account numbers are {digits} digits.",
+        "upiWrongHandle": "This handle isn't a {app} one. Check it, or pick the app it's in.",
+        "upiPickApp": "Pick the app this UPI ID is in.",
+        "upiFormat": "A UPI ID looks like name@ybl."
       },
       "toAccounts": "Asset",
       "showDetails": "Show or hide details",

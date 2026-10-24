@@ -638,7 +638,10 @@
         "searchBranch": "शाखा या शहर लिखें",
         "noBranch": "इस नाम की कोई शाखा नहीं। लिखते रहें, जैसा लिखा है वैसे सेव हो सकता है।",
         "accountNumberBankHint": "{bank} के खाता नंबर {digits} अंकों के होते हैं; इसमें {count} हैं।",
-        "accountNumberBankLength": "{bank} के खाता नंबर {digits} अंकों के होते हैं।"
+        "accountNumberBankLength": "{bank} के खाता नंबर {digits} अंकों के होते हैं।",
+        "upiWrongHandle": "यह हैंडल {app} का नहीं है। जाँचें, या जिस ऐप में है वह चुनें।",
+        "upiPickApp": "यह UPI ID जिस ऐप में है वह चुनें।",
+        "upiFormat": "UPI ID name@ybl जैसी होती है।"
       },
       "toAccounts": "संपत्ति",
       "showDetails": "विवरण दिखाएँ या छिपाएँ",

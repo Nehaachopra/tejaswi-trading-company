@@ -9,7 +9,7 @@ import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
-import { lengthFits, lengthsFor, type RouterOutputs } from "@repo/trpc/client";
+import { appOfUpi, lengthFits, lengthsFor, type RouterOutputs, upiProblem } from "@repo/trpc/client";
 
 import { PickMenu } from "../../stock/pick-menu";
 import { BANKS } from "./bank-list";
@@ -31,7 +31,6 @@ const UPI_MAX = 255;
 const UPI_COUNT = 10;
 const IFSC = /^[A-Z]{4}0[A-Z0-9]{6}$/;
 const ACCOUNT = /^\d{9,18}$/;
-const UPI = /^[\w.-]+@[\w.-]+$/;
 // the bank picked as "Other", typed by hand
 const OTHER = "__other";
 
@@ -102,7 +101,8 @@ export function draftProblems(d: BankDraft) {
     accountNumberAgain: needsAgain(d) && d.accountNumberAgain !== d.accountNumber,
     accountHolderName: d.accountHolderName.trim() === "",
     accountType: d.accountType === null,
-    upiIds: upis.some((u) => !UPI.test(u.upiId.trim()) || u.provider === null) || new Set(ids).size !== ids.length,
+    // each one name@handle, with a handle its app gives out, and listed once
+    upiIds: upis.some((u) => u.provider === null || upiProblem(u.upiId, u.provider) !== null) || new Set(ids).size !== ids.length,
   };
 }
 
@@ -317,9 +317,12 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
       <section className="flex flex-col gap-2">
         <h3 className="text-sm">{t("upiIds")}</h3>
         {draft.upiIds.map((u) => {
-          const wrong = tried && u.upiId.trim() !== "" && (!UPI.test(u.upiId.trim()) || u.provider === null);
+          // what's wrong with it, shown once it's been typed out (or on saving)
+          const problem = u.upiId.trim() === "" ? null : u.provider === null ? "app" : upiProblem(u.upiId, u.provider);
+          const typedOut = u.upiId.includes("@") && u.upiId.split("@")[1]!.length >= 2;
+          const wrong = problem !== null && (tried || (typedOut && problem === "handle"));
           return (
-            <div key={u.key} className="flex items-center gap-2">
+            <div key={u.key} className="flex flex-wrap items-center gap-2">
               <div className="w-32 shrink-0">
                 <PickMenu
                   label={t("provider")}
@@ -335,7 +338,12 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
                 maxLength={UPI_MAX}
                 autoCapitalize="none"
                 aria-label={t("upi")}
-                onChange={(e) => setUpi(u.key, { upiId: e.target.value.replace(/\s/g, "").toLowerCase() })}
+                // a known handle picks its app by itself (@ybl → PhonePe)
+                onChange={(e) => {
+                  const upiId = e.target.value.replace(/\s/g, "").toLowerCase();
+                  const app = appOfUpi(upiId);
+                  setUpi(u.key, app ? { upiId, provider: app } : { upiId });
+                }}
                 placeholder="tejaswi@sbi"
                 aria-invalid={wrong || undefined}
                 className={input(wrong)}
@@ -348,6 +356,11 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
               >
                 <Trash2 className="size-4" aria-hidden />
               </button>
+              {wrong && (
+                <span className="w-full basis-full text-xs text-danger">
+                  {problem === "handle" ? t("upiWrongHandle", { app: t(`providers.${u.provider!}`) }) : problem === "app" ? t("upiPickApp") : t("upiFormat")}
+                </span>
+              )}
             </div>
           );
         })}
