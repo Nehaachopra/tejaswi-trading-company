@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 
 import { cn } from "~/lib/utils";
 
-import { isCurrent, isSubCurrent, type NavItem, navFor, type Role } from "./nav-items";
+import { isCurrent, isSubCurrent, type NavItem, navFor, type Role, sideOf, sideTag } from "./nav-items";
 
 const row = (current: boolean) =>
   cn(
@@ -79,7 +79,9 @@ function Group({ item, current, pathname, label }: { item: NavItem; current: boo
                     here ? "bg-chestnut/10 font-semibold text-chestnut" : "text-chestnut/80 hover:bg-chestnut/6 hover:text-chestnut",
                   )}
                 >
-                  {t(`heads.${child.label}`)}
+                  <span className="flex-1">{t(`heads.${child.label}`)}</span>
+                  {/* debit or credit account */}
+                  {child.label !== "opening" && <span className={sideTag(child.label)}>{t(sideOf(child.label))}</span>}
                 </Link>
               </li>
             );

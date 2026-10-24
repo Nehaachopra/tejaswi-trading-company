@@ -82,7 +82,7 @@ export function BankPage({ bankId }: { bankId: string }) {
                 openLabel={t("showDetails")}
                 tags={!b.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
                 menu={
-                  <Menu label={t("menu")} triggerClassName="size-11 shrink-0" trigger={<Ellipsis className="size-5" aria-hidden />}>
+                  <Menu plain label={t("menu")} triggerClassName="size-11 shrink-0" trigger={<Ellipsis className="size-5" aria-hidden />}>
                     {(close) => (
                       <>
                         <MenuItem

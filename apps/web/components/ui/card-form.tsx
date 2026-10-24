@@ -1,10 +1,11 @@
 import { Spinner } from "~/components/ui/spinner";
 import { cn } from "~/lib/utils";
 
-// fields and the primary button on an ivory card or sheet (chestnut ink); a field turns red and thicker while it has an error
+// fields and the primary button on an ivory card or sheet (chestnut ink): a field has no fill, only a chestnut edge,
+// so what's typed reads clearly; it turns red and thicker while it has an error
 export const fieldClass = (invalid: boolean) =>
   cn(
-    "rounded-control border border-chestnut/60 bg-chestnut/[0.06] text-chestnut outline-none transition-colors focus:border-chestnut",
+    "rounded-control border border-chestnut/70 bg-transparent text-chestnut outline-none transition-colors focus:border-chestnut",
     invalid && "border-2 border-danger focus:border-danger focus-within:border-danger",
   );
 

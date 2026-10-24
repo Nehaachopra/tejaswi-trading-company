@@ -107,7 +107,7 @@ export function GodownCard({
           {isActive && <ChevronDown className={cn("ml-auto size-5 shrink-0 transition-transform", open && "rotate-180")} aria-hidden />}
         </button>
         {isAdmin && (
-          <Menu
+          <Menu plain
             label={t("menu")}
             surface={isActive ? "ivory" : "chestnut"}
             triggerClassName="size-11 shrink-0"

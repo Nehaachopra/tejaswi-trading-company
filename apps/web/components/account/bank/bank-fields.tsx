@@ -1,18 +1,15 @@
 "use client";
 
-import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
 import { fieldClass } from "~/components/ui/card-form";
-import { NumberInput } from "~/components/ui/number-input";
 import { titleCase } from "~/lib/format";
 import { Spinner } from "~/components/ui/spinner";
 import { cn } from "~/lib/utils";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { PickMenu } from "../../stock/pick-menu";
-import { indiaDay, startOfIndiaDay } from "../balance";
 
 export type BankAccount = RouterOutputs["accounts"]["bank"]["get"];
 
@@ -35,10 +32,6 @@ export type BankDraft = {
   accountHolderName: string;
   accountType: AccountType | null;
   upiId: string;
-  // the opening balance: blank for none; "we owe the bank" only for cash credit and overdraft
-  opening: string;
-  openingDate: string;
-  owed: boolean;
 };
 
 export const emptyDraft = (): BankDraft => ({
@@ -49,9 +42,6 @@ export const emptyDraft = (): BankDraft => ({
   accountHolderName: "",
   accountType: null,
   upiId: "",
-  opening: "",
-  openingDate: "",
-  owed: false,
 });
 
 export const draftFrom = (b: BankAccount): BankDraft => ({
@@ -62,17 +52,10 @@ export const draftFrom = (b: BankAccount): BankDraft => ({
   accountHolderName: b.accountHolderName,
   accountType: b.accountType,
   upiId: b.upiId ?? "",
-  opening: b.openingBalance ? String(b.openingBalance.amount) : "",
-  openingDate: b.openingBalance ? indiaDay(b.openingBalance.date) : "",
-  owed: b.openingBalance?.side === "credit",
 });
-
-// cash credit and overdraft accounts can start owing the bank
-const canOwe = (type: AccountType | null) => type === "cash_credit" || type === "overdraft";
 
 // what's missing or wrong, field by field
 export function draftProblems(d: BankDraft) {
-  const hasOpening = d.opening.trim() !== "" && Number(d.opening) > 0;
   return {
     ifscCode: !IFSC.test(d.ifscCode),
     bankName: d.bankName.trim() === "",
@@ -81,7 +64,6 @@ export function draftProblems(d: BankDraft) {
     accountHolderName: d.accountHolderName.trim() === "",
     accountType: d.accountType === null,
     upiId: !/^$|^[\w.-]+@[\w.-]+$/.test(d.upiId.trim()),
-    openingDate: hasOpening && d.openingDate === "",
   };
 }
 
@@ -89,7 +71,6 @@ export const draftOk = (d: BankDraft) => Object.values(draftProblems(d)).every((
 
 // the draft as the API takes it
 export function draftInput(d: BankDraft) {
-  const amount = Number(d.opening);
   return {
     details: {
       bankName: d.bankName.trim(),
@@ -100,10 +81,6 @@ export function draftInput(d: BankDraft) {
       accountType: d.accountType!,
       upiId: d.upiId.trim(),
     },
-    openingBalance:
-      d.opening.trim() !== "" && amount > 0
-        ? { amount, side: canOwe(d.accountType) && d.owed ? ("credit" as const) : ("debit" as const), date: startOfIndiaDay(d.openingDate) }
-        : null,
   };
 }
 
@@ -112,18 +89,16 @@ const input = (bad: boolean) => `min-h-11 w-full min-w-0 px-3 text-base placehol
 // the bank and branch behind an IFSC, from Razorpay's free IFSC directory (no key); null when it isn't listed
 type Lookup = { state: "idle" | "looking" | "missing" } | { state: "found"; bank: string; branch: string };
 
-// the fields: IFSC first (it fills in the bank and branch), the account itself, then the opening balance
-// (fixed once anything else has been posted to the account)
+// the fields: IFSC first (it fills in the bank and branch), then the account itself; its opening balance is set
+// on the Opening balances page
 export function BankFields({
   draft,
   onChange,
   tried,
-  openingFixed,
 }: {
   draft: BankDraft;
   onChange: (patch: Partial<BankDraft>) => void;
   tried: boolean;
-  openingFixed: boolean;
 }) {
   const t = useTranslations("accounts.bank.form");
   const bad = draftProblems(draft);
@@ -162,8 +137,6 @@ export function BankFields({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the IFSC changes
   }, [draft.ifscCode]);
 
-  const chip = (on: boolean) =>
-    cn("min-h-11 flex-1 rounded-control border text-sm transition-colors", on ? "border-chestnut bg-chestnut font-medium text-ivory" : "border-chestnut/60 hover:border-chestnut");
 
   return (
     <div className="flex flex-col gap-5">
@@ -228,7 +201,7 @@ export function BankFields({
           current={draft.accountType ? t(`types.${draft.accountType}`) : t("pick")}
           options={TYPES.map((type) => ({ id: type, name: t(`types.${type}`) }))}
           picked={draft.accountType ?? "savings"}
-          onPick={(accountType) => onChange({ accountType, owed: canOwe(accountType) && draft.owed })}
+          onPick={(accountType) => onChange({ accountType })}
           invalid={show("accountType")}
         />
       </label>
@@ -245,40 +218,6 @@ export function BankFields({
         />
       </label>
 
-      {/* the opening balance and its date; fixed once money has moved */}
-      <fieldset className="flex flex-col gap-3 rounded-control border border-chestnut/20 p-3" disabled={openingFixed}>
-        <legend className="px-1 text-sm">{t("opening")}</legend>
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-xs text-chestnut/70">{t("amount")}</span>
-            <NumberInput value={draft.opening} decimals={2} maxDigits={13} onChange={(v) => onChange({ opening: v })} placeholder="0" className={cn(input(false), "tabular disabled:opacity-60")} />
-          </label>
-          <label className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-xs text-chestnut/70">{t("asOn")}</span>
-            <input
-              type="date"
-              value={draft.openingDate}
-              onChange={(e) => onChange({ openingDate: e.target.value })}
-              aria-invalid={show("openingDate") || undefined}
-              className={cn(input(show("openingDate")), "disabled:opacity-60")}
-            />
-          </label>
-        </div>
-        {canOwe(draft.accountType) && (
-          <div className="flex gap-2">
-            {([false, true] as const).map((owed) => (
-              <button key={String(owed)} type="button" aria-pressed={draft.owed === owed} onClick={() => onChange({ owed })} className={cn(chip(draft.owed === owed), "disabled:opacity-60")}>
-                {t(owed ? "weOwe" : "inBank")}
-              </button>
-            ))}
-          </div>
-        )}
-        {openingFixed && (
-          <p className="flex items-start gap-2 text-xs text-chestnut/70">
-            <Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden /> {t("openingFixed")}
-          </p>
-        )}
-      </fieldset>
     </div>
   );
 }

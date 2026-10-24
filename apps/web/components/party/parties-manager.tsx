@@ -158,7 +158,7 @@ export function PartiesManager() {
               </button>
 
               {/* edit, or mark inactive / active */}
-              <Menu label={t("menu")} surface={p.isActive ? "ivory" : "chestnut"} triggerClassName="size-11 shrink-0" trigger={<Ellipsis className="size-5" aria-hidden />}>
+              <Menu plain label={t("menu")} surface={p.isActive ? "ivory" : "chestnut"} triggerClassName="size-11 shrink-0" trigger={<Ellipsis className="size-5" aria-hidden />}>
                 {(close) => (
                   <>
                     <MenuItem

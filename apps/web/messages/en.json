@@ -28,9 +28,12 @@
         "income": "Income",
         "expense": "Expense",
         "profit": "Profit",
-        "loss": "Loss"
+        "loss": "Loss",
+        "opening": "Opening balances"
       },
-      "parties": "Parties"
+      "parties": "Parties",
+      "debit": "Debit",
+      "credit": "Credit"
     }
   },
   "home": {
@@ -525,7 +528,18 @@
       "amount": "Amount",
       "total": "Total",
       "day": "Day",
-      "balanceBf": "Balance b/f"
+      "balanceBf": "Balance b/f",
+      "shownTotal": "Total shown",
+      "filters": {
+        "open": "Filters",
+        "search": "Number or remarks",
+        "from": "From",
+        "to": "To",
+        "min": "Amount from (₹)",
+        "max": "Amount up to (₹)",
+        "types": "Transaction types",
+        "clear": "Clear"
+      }
     },
     "bank": {
       "title": "Bank accounts",
@@ -584,12 +598,6 @@
           "overdraft": "Overdraft"
         },
         "upi": "UPI ID (optional)",
-        "opening": "Opening balance (optional)",
-        "amount": "Amount (₹)",
-        "asOn": "As on",
-        "inBank": "In the bank",
-        "weOwe": "We owe the bank",
-        "openingFixed": "Fixed: money has already moved through this account.",
         "toast": {
           "added": "{name} added",
           "saved": "{name} saved"
@@ -597,7 +605,6 @@
         "errors": {
           "fill": "Fill in the highlighted fields.",
           "taken": "This account number and IFSC are already added.",
-          "openingFixed": "The opening balance can't change once money has moved.",
           "check": "Check the highlighted fields.",
           "gone": "This bank account no longer exists.",
           "network": "Can't reach the server. Check your connection.",
@@ -605,7 +612,9 @@
         }
       },
       "toAccounts": "Asset",
-      "showDetails": "Show or hide details"
+      "showDetails": "Show or hide details",
+      "search": "Bank, branch, IFSC or account number",
+      "noMatch": "No account matches that search."
     },
     "overview": {
       "title": "Accounts",
@@ -629,7 +638,12 @@
       "ledgers": "{count, plural, =0 {No accounts yet} one {# account} other {# accounts}}",
       "postDated": "{amount} post-dated",
       "worked": "Worked out from income and expense.",
-      "comingSoon": "Coming soon."
+      "comingSoon": "Coming soon.",
+      "newLedger": "New ledger",
+      "added": "Added",
+      "inactive": "Inactive",
+      "search": "Ledger or group",
+      "noMatch": "Nothing matches."
     },
     "fixed": {
       "cash": "Cash",
@@ -734,12 +748,6 @@
           "shipping": "Shipping",
           "registered": "Registered office"
         },
-        "opening": "Opening balance (optional)",
-        "amount": "Amount (₹)",
-        "asOn": "As on",
-        "theyOwe": "They owe us",
-        "weOwe": "We owe them",
-        "openingFixed": "Fixed: money has already moved with this party.",
         "toast": {
           "added": "{name} added",
           "saved": "{name} saved"
@@ -747,7 +755,6 @@
         "errors": {
           "fill": "Fill in the highlighted fields.",
           "gstinTaken": "That GSTIN already belongs to another party.",
-          "openingFixed": "The opening balance can't change once money has moved.",
           "check": "Check the highlighted fields.",
           "gone": "This party no longer exists.",
           "network": "Can't reach the server. Check your connection.",
@@ -767,6 +774,65 @@
         "paymentTime": "Average payment time",
         "days": "{count, plural, one {# day} other {# days}}",
         "perMonth": "Transactions a month"
+      }
+    },
+    "ledgerForm": {
+      "addTitle": "New ledger under {head}",
+      "close": "Close",
+      "save": "Save ledger",
+      "name": "Name",
+      "namePlaceholder": {
+        "asset": "Security deposit",
+        "liability": "HDFC term loan",
+        "income": "Interest received",
+        "expense": "Loading charges"
+      },
+      "toast": {
+        "added": "{name} added",
+        "saved": "{name} saved"
+      },
+      "errors": {
+        "fill": "Fill in the highlighted fields.",
+        "taken": "A ledger with this name already exists under this head.",
+        "network": "Can't reach the server. Check your connection.",
+        "failed": "Something went wrong. Try again."
+      },
+      "debitAccount": "Debit account",
+      "creditAccount": "Credit account",
+      "renameTitle": "Rename ledger",
+      "openingLater": "Its opening balance goes on the Opening balances page.",
+      "saveName": "Save name"
+    },
+    "ledgerMenu": {
+      "label": "Ledger options",
+      "deactivate": "Mark inactive",
+      "reactivate": "Mark active",
+      "hasBalance": "Bring its balance to zero first",
+      "toast": {
+        "deactivated": "{name} marked inactive",
+        "reactivated": "{name} marked active"
+      },
+      "errors": {
+        "hasBalance": "This ledger still has a balance. Bring it to zero first.",
+        "network": "Can't reach the server. Check your connection.",
+        "failed": "Something went wrong. Try again."
+      },
+      "rename": "Rename"
+    },
+    "opening": {
+      "title": "Opening balances",
+      "loading": "Loading the opening balances",
+      "loadError": "Couldn't load the opening balances. Check your connection and try again.",
+      "startsOn": "Books start on",
+      "search": "Find a ledger",
+      "locked": "Fixed: entries have already been posted to it",
+      "capital": "Capital comes to",
+      "save": "Save opening balances",
+      "saved": "Opening balances saved",
+      "errors": {
+        "date": "Pick the date the books start on.",
+        "network": "Can't reach the server. Check your connection.",
+        "failed": "Something went wrong. Try again."
       }
     }
   },

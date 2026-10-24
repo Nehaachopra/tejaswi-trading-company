@@ -16,7 +16,19 @@ export type NavItem = {
 };
 
 // keys under shell.nav.heads
-export type SubLabel = "asset" | "liability" | "income" | "expense" | "profit" | "loss";
+export type SubLabel = HeadLabel | "opening";
+
+// the six heads (each tagged Debit or Credit)
+export type HeadLabel = "asset" | "liability" | "income" | "expense" | "profit" | "loss";
+
+// the side a head's accounts sit on, shown beside it: Asset, Expense and Loss are debit accounts, the rest credit
+export const sideOf = (head: HeadLabel) => (head === "asset" || head === "expense" || head === "loss" ? "debit" : "credit");
+
+// the side's tag: Debit filled, Credit outlined, so the two read apart at a glance
+export const sideTag = (head: HeadLabel) =>
+  `shrink-0 rounded-control border px-1.5 py-px text-[0.65rem] font-semibold uppercase tracking-wide ${
+    sideOf(head) === "debit" ? "border-chestnut bg-chestnut text-ivory" : "border-chestnut text-chestnut"
+  }`;
 
 // every page the shell links to, in sidebar order; New transaction (/transaction) has its own button
 export const NAV_ITEMS: NavItem[] = [
@@ -39,6 +51,8 @@ export const NAV_ITEMS: NavItem[] = [
       { href: "/account/expense", label: "expense" },
       { href: "/account/profit", label: "profit" },
       { href: "/account/loss", label: "loss" },
+      // every ledger's opening balance, on one page
+      { href: "/account/opening", label: "opening" },
     ],
   },
   { href: "/gst", label: "gst", icon: Receipt, adminOnly: true, place: "more" },

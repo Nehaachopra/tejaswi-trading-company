@@ -1,18 +1,16 @@
 "use client";
 
-import { Lock, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
 import { fieldClass } from "~/components/ui/card-form";
-import { NumberInput } from "~/components/ui/number-input";
 import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { PickMenu } from "../../stock/pick-menu";
-import { indiaDay, startOfIndiaDay } from "../balance";
 import { GST_STATES, type PartyType, type StateCode, stateCodeOf } from "./party-kinds";
 
 export type Party = RouterOutputs["accounts"]["party"]["get"];
@@ -54,7 +52,7 @@ export type AddressDraft = {
   isDefault: boolean;
 };
 
-// a party as typed; `owedBy` is who owes whom on the opening date: "them" (they owe us, a debit) or "us"
+// a party as typed
 export type PartyDraft = {
   type: PartyType;
   name: string;
@@ -66,9 +64,6 @@ export type PartyDraft = {
   pan: string;
   remarks: string;
   addresses: AddressDraft[];
-  opening: string;
-  openingDate: string;
-  owedBy: "them" | "us";
 };
 
 let keys = 0;
@@ -90,9 +85,6 @@ export const emptyAddress = (isDefault: boolean): AddressDraft => ({
   isDefault,
 });
 
-// who usually owes whom: customers owe us, we owe suppliers
-const usualOwedBy = (type: PartyType) => (type === "supplier" ? "us" : "them");
-
 export const emptyDraft = (type: PartyType): PartyDraft => ({
   type,
   name: "",
@@ -103,9 +95,6 @@ export const emptyDraft = (type: PartyType): PartyDraft => ({
   pan: "",
   remarks: "",
   addresses: [emptyAddress(true)],
-  opening: "",
-  openingDate: "",
-  owedBy: usualOwedBy(type),
 });
 
 export const draftFrom = (p: Party): PartyDraft => ({
@@ -133,9 +122,6 @@ export const draftFrom = (p: Party): PartyDraft => ({
     gstin: a.gstin ?? "",
     isDefault: a.isDefault,
   })),
-  opening: p.openingBalance ? String(p.openingBalance.amount) : "",
-  openingDate: p.openingBalance ? indiaDay(p.openingBalance.date) : "",
-  owedBy: p.openingBalance ? (p.openingBalance.side === "debit" ? "them" : "us") : usualOwedBy(p.type),
 });
 
 // an address with nothing typed in it is simply left out
@@ -155,14 +141,12 @@ function addressProblems(a: AddressDraft) {
 
 // what's missing or wrong: the party's own fields, then each address's (blank addresses don't count)
 export function draftProblems(d: PartyDraft) {
-  const hasOpening = d.opening.trim() !== "" && Number(d.opening) > 0;
   return {
     party: {
       name: d.name.trim() === "",
       shortName: !SHORT_NAME.test(d.shortName.trim()),
       email: d.email.trim() !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim()),
       pan: d.pan.trim() !== "" && !/^[A-Z]{5}\d{4}[A-Z]$/.test(d.pan.trim()),
-      openingDate: hasOpening && d.openingDate === "",
     },
     addresses: d.addresses.map((a) => (blank(a) ? null : addressProblems(a))),
   };
@@ -175,7 +159,6 @@ export const draftOk = (d: PartyDraft) => {
 
 // the draft as the API takes it; the default address is the marked one among those kept, or the first
 export function draftInput(d: PartyDraft) {
-  const amount = Number(d.opening);
   const kept = d.addresses.filter((a) => !blank(a));
   return {
     details: { name: d.name.trim(), shortName: d.shortName.trim(), type: d.type, phone: d.phone, email: d.email.trim(), pan: d.pan.trim(), remarks: d.remarks.trim() },
@@ -194,10 +177,6 @@ export function draftInput(d: PartyDraft) {
       gstin: a.gstin.trim(),
       isDefault: a.isDefault,
     })),
-    openingBalance:
-      d.opening.trim() !== "" && amount > 0
-        ? { amount, side: d.owedBy === "them" ? ("debit" as const) : ("credit" as const), date: startOfIndiaDay(d.openingDate) }
-        : null,
   };
 }
 
@@ -381,18 +360,16 @@ function AddressFields({
   );
 }
 
-// the party's fields: its type, who it is and how to reach them, its addresses, the opening balance (fixed once
-// anything else has been posted to it) and remarks
+// the party's fields: its type, who it is and how to reach them, its addresses and remarks; its opening balance is
+// set on the Opening balances page
 export function PartyFields({
   draft,
   onChange,
   tried,
-  openingFixed,
 }: {
   draft: PartyDraft;
   onChange: (patch: Partial<PartyDraft>) => void;
   tried: boolean;
-  openingFixed: boolean;
 }) {
   const t = useTranslations("accounts.party.form");
   const bad = draftProblems(draft).party;
@@ -407,7 +384,7 @@ export function PartyFields({
 
   return (
     <div className="flex flex-col gap-5">
-      {/* customer, supplier or both; an empty opening balance follows who usually owes whom */}
+      {/* customer, supplier or both */}
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-sm">{t("type")}</legend>
         <div className="flex gap-2">
@@ -416,7 +393,7 @@ export function PartyFields({
               key={type}
               type="button"
               aria-pressed={draft.type === type}
-              onClick={() => onChange({ type, ...(draft.opening.trim() === "" ? { owedBy: usualOwedBy(type) } : {}) })}
+              onClick={() => onChange({ type })}
               className={chip(draft.type === type)}
             >
               {t(`types.${type}`)}
@@ -512,38 +489,6 @@ export function PartyFields({
         )}
       </section>
 
-      {/* the opening balance, its date and who owed whom; fixed once money has moved */}
-      <fieldset className="flex flex-col gap-3 rounded-control border border-chestnut/20 p-3" disabled={openingFixed}>
-        <legend className="px-1 text-sm">{t("opening")}</legend>
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-xs text-chestnut/70">{t("amount")}</span>
-            <NumberInput value={draft.opening} decimals={2} maxDigits={13} onChange={(v) => onChange({ opening: v })} placeholder="0" className={cn(input(false), "tabular disabled:opacity-60")} />
-          </label>
-          <label className="flex min-w-0 flex-col gap-1.5">
-            <span className="text-xs text-chestnut/70">{t("asOn")}</span>
-            <input
-              type="date"
-              value={draft.openingDate}
-              onChange={(e) => onChange({ openingDate: e.target.value })}
-              aria-invalid={show("openingDate") || undefined}
-              className={cn(input(show("openingDate")), "disabled:opacity-60")}
-            />
-          </label>
-        </div>
-        <div className="flex gap-2">
-          {(["them", "us"] as const).map((owedBy) => (
-            <button key={owedBy} type="button" aria-pressed={draft.owedBy === owedBy} onClick={() => onChange({ owedBy })} className={cn(chip(draft.owedBy === owedBy), "disabled:opacity-60")}>
-              {t(owedBy === "them" ? "theyOwe" : "weOwe")}
-            </button>
-          ))}
-        </div>
-        {openingFixed && (
-          <p className="flex items-start gap-2 text-xs text-chestnut/70">
-            <Lock className="mt-0.5 size-3.5 shrink-0" aria-hidden /> {t("openingFixed")}
-          </p>
-        )}
-      </fieldset>
 
       <Field label={t("remarks")}>
         <textarea value={draft.remarks} maxLength={MAX.remarks} rows={2} onChange={(e) => onChange({ remarks: e.target.value })} className={cn(input(false), "py-2.5")} />

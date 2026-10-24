@@ -17,7 +17,6 @@ function errorKey(err: unknown) {
   const data = (err as { data?: { code?: string } })?.data;
   if (!data) return "network";
   if (data.code === "CONFLICT") return "taken";
-  if (data.code === "PRECONDITION_FAILED") return "openingFixed";
   if (data.code === "BAD_REQUEST") return "check";
   if (data.code === "NOT_FOUND") return "gone";
   return "failed";
@@ -70,7 +69,7 @@ export function BankSheet({ bankId, onClose }: { bankId: string | "new" | null; 
       ) : (
         <form onSubmit={save} noValidate className="flex min-h-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
-            <BankFields draft={draft} onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} tried={tried} openingFixed={editing && !!bank.data?.hasEntries} />
+            <BankFields draft={draft} onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} tried={tried} />
             {error && <FieldMessage>{error}</FieldMessage>}
           </div>
           <footer className="flex shrink-0 flex-col border-t border-chestnut/15 px-5 py-4">

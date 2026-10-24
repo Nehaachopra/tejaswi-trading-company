@@ -12,6 +12,7 @@ export function Menu({
   triggerClassName,
   surface = "ivory",
   align = "right",
+  plain = false,
   disabled,
   children,
 }: {
@@ -20,6 +21,8 @@ export function Menu({
   triggerClassName?: string;
   surface?: "ivory" | "chestnut";
   align?: "left" | "right";
+  // an icon button with no edge (the ⋯ menus); dropdown fields keep theirs
+  plain?: boolean;
   disabled?: boolean;
   children: (close: () => void) => React.ReactNode;
 }) {
@@ -53,9 +56,11 @@ export function Menu({
         onClick={() => setOpen((v) => !v)}
         className={cn(
           "flex min-h-11 items-center justify-center gap-1.5 rounded-control border transition-colors disabled:opacity-40",
-          surface === "ivory"
-            ? cn("border-chestnut/60 text-chestnut hover:border-chestnut", open && "border-chestnut")
-            : cn("border-ivory/40 text-ivory hover:border-ivory/70", open && "border-ivory"),
+          plain
+            ? cn("border-transparent", surface === "ivory" ? "text-chestnut hover:bg-chestnut/[0.08]" : "text-ivory hover:bg-ivory/10", open && (surface === "ivory" ? "bg-chestnut/[0.08]" : "bg-ivory/10"))
+            : surface === "ivory"
+              ? cn("border-chestnut/60 text-chestnut hover:border-chestnut", open && "border-chestnut")
+              : cn("border-ivory/40 text-ivory hover:border-ivory/70", open && "border-ivory"),
           triggerClassName,
         )}
       >

@@ -19,7 +19,6 @@ function errorKey(err: unknown) {
   if (!data) return "network";
   // a clash is about the short name or a GSTIN; the server's message says which
   if (data.code === "CONFLICT") return (err as { message?: string }).message?.startsWith("Short name") ? "shortNameTaken" : "gstinTaken";
-  if (data.code === "PRECONDITION_FAILED") return "openingFixed";
   if (data.code === "BAD_REQUEST") return "check";
   if (data.code === "NOT_FOUND") return "gone";
   return "failed";
@@ -84,7 +83,7 @@ export function PartySheet({
       ) : (
         <form onSubmit={save} noValidate className="flex min-h-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
-            <PartyFields draft={draft} onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} tried={tried} openingFixed={editing && !!party.data?.hasEntries} />
+            <PartyFields draft={draft} onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} tried={tried} />
             {error && <FieldMessage>{error}</FieldMessage>}
           </div>
           <footer className="flex shrink-0 flex-col border-t border-chestnut/15 px-5 py-4">

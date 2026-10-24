@@ -1,9 +1,10 @@
 "use client";
 
-import { CircleAlert } from "lucide-react";
+import { CircleAlert, SlidersHorizontal, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { NumberInput } from "~/components/ui/number-input";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { rupees } from "~/lib/format";
@@ -15,10 +16,14 @@ import { type Balance, type Head, indiaDay, postDatedText, startOfIndiaDay } fro
 import { SignedAmount } from "./signed-amount";
 
 type Line = RouterOutputs["accounts"]["ledger"]["statement"]["lines"][number];
-type Range = "month" | "year" | "all";
+type Range = "month" | "year" | "all" | "custom";
+
+// the transaction types a statement can be narrowed to
+const TYPES = ["sale", "purchase", "sale_return", "purchase_return", "receipt", "payment", "deposit", "withdrawal", "transfer", "drawing", "salary", "other", "opening_balance"] as const;
+type TransactionType = (typeof TYPES)[number];
 
 // where each quick range starts, in India: the 1st of this month, or 1 April of this financial year
-function rangeStart(range: Range) {
+function rangeStart(range: Exclude<Range, "custom">) {
   if (range === "all") return null;
   const [y, m] = indiaDay(new Date()).split("-").map(Number) as [number, number];
   if (range === "month") return startOfIndiaDay(`${y}-${String(m).padStart(2, "0")}-01`);
@@ -31,6 +36,9 @@ const monthBar = "sticky top-0 z-10 bg-[color-mix(in_srgb,var(--color-ivory)_90%
 // the columns of one side from 768px: day, particulars, amount; and of a phone line: day, particulars, debit, credit
 const sideCols = "grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 px-4";
 const phoneCols = "grid grid-cols-[1.75rem_4.75rem_minmax(0,1fr)_minmax(0,1fr)] items-center gap-x-2 px-4";
+
+// a field in the filters
+const filterInput = "min-h-10 min-w-0 rounded-control border border-chestnut/70 bg-transparent px-3 text-sm outline-none focus:border-chestnut";
 
 const chip = (on: boolean) =>
   cn("min-h-9 shrink-0 rounded-control border px-4 text-sm transition-colors", on ? "border-chestnut bg-chestnut font-medium text-ivory" : "border-chestnut/50 hover:border-chestnut");
@@ -62,24 +70,68 @@ function byMonth<T extends { at: Date | null }>(rows: T[]) {
 // two-sided ledger, Debit on the left and Credit on the right, both closing on the same total (the opening
 // balance and the balance brought into a range read Balance b/f, the closing balance is carried down as
 // Balance c/d); on phones a line per entry with its Debit or Credit amount in its own column. Long particulars
-// end in "…" with the full text on hover. Tapping an entry will open its transaction in History (coming with it)
+// end in "…" with the full text on hover. Filters (a search over number and remarks, types, an amount range, a
+// custom date range) show only the matching entries, each side with the total of what's shown instead of b/f and
+// c/d. Tapping an entry will open its transaction in History (coming with it)
 export function LedgerStatement({
   ledgerId,
   name,
   head,
   balance,
+  menu,
 }: {
   ledgerId: string;
   name: string;
   // the head it sits under, which signs its balance
   head: Head;
   balance: { today: Balance; postDated: Balance | null };
+  // the ledger's own ⋯ menu, beside its balance
+  menu?: React.ReactNode;
 }) {
   const t = useTranslations("accounts.ledger");
   const tt = useTranslations("accounts.types");
   const format = useFormatter();
+  const tf = useTranslations("accounts.ledger.filters");
   const [range, setRange] = useState<Range>("year");
-  const statement = trpc.accounts.ledger.statement.useQuery({ ledgerId, from: rangeStart(range), to: null });
+  // the filters: a custom date range, a search, types and an amount range
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [typed, setTyped] = useState("");
+  const [search, setSearch] = useState("");
+  const [types, setTypes] = useState<TransactionType[]>([]);
+  const [min, setMin] = useState("");
+  const [max, setMax] = useState("");
+
+  // search once typing pauses
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(typed.trim()), 250);
+    return () => clearTimeout(timer);
+  }, [typed]);
+
+  const statement = trpc.accounts.ledger.statement.useQuery(
+    {
+      ledgerId,
+      from: range === "custom" ? (from ? startOfIndiaDay(from) : null) : rangeStart(range),
+      // up to the end of the last day
+      to: range === "custom" && to ? new Date(startOfIndiaDay(to).getTime() + 24 * 60 * 60 * 1000 - 1) : null,
+      types,
+      minAmount: min === "" ? null : Number(min),
+      maxAmount: max === "" ? null : Number(max),
+      search,
+    },
+    { placeholderData: (previous) => previous },
+  );
+  const narrowed = statement.data?.narrowed ?? null;
+
+  // the filters in force, each as a chip that clears it
+  const active = [
+    ...(range === "custom" && (from || to) ? [{ key: "dates", label: `${from || "…"} – ${to || "…"}`, clear: () => (setRange("year"), setFrom(""), setTo("")) }] : []),
+    ...(search ? [{ key: "search", label: `“${search}”`, clear: () => setTyped("") }] : []),
+    ...types.map((type) => ({ key: type, label: tt(type), clear: () => setTypes((all) => all.filter((x) => x !== type)) })),
+    ...(min ? [{ key: "min", label: `≥ ${rupees(Number(min))}`, clear: () => setMin("") }] : []),
+    ...(max ? [{ key: "max", label: `≤ ${rupees(Number(max))}`, clear: () => setMax("") }] : []),
+  ];
 
   // "October 2026" over each month's entries, which show only their day
   const monthName = (month: string) => format.dateTime(new Date(`${month}-15T12:00:00+05:30`), { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
@@ -107,11 +159,12 @@ export function LedgerStatement({
     const { broughtForward: bf, closing } = statement.data;
     const debit: Row[] = [];
     const credit: Row[] = [];
-    if (bf.amount !== 0) (bf.side === "debit" ? debit : credit).push({ key: "bf", at: null, what: t("balanceBf"), number: null, amount: bf.amount, opens: false });
+    if (!narrowed && bf.amount !== 0) (bf.side === "debit" ? debit : credit).push({ key: "bf", at: null, what: t("balanceBf"), number: null, amount: bf.amount, opens: false });
     for (const r of rows) (r.side === "debit" ? debit : credit).push(r);
-    if (closing.amount !== 0) (closing.side === "debit" ? credit : debit).push({ key: "cd", at: null, what: t("balanceCd"), number: null, amount: closing.amount, opens: false });
+    if (!narrowed && closing.amount !== 0) (closing.side === "debit" ? credit : debit).push({ key: "cd", at: null, what: t("balanceCd"), number: null, amount: closing.amount, opens: false });
     const total = Math.max(...[debit, credit].map((side) => side.reduce((sum, r) => sum + r.amount, 0)));
-    return { debit, credit, total };
+    // the foot of each side: the balancing total, or (narrowed) what that side shows
+    return { debit, credit, foot: narrowed ? { debit: narrowed.debit, credit: narrowed.credit } : { debit: total, credit: total } };
   })();
 
   // what an entry says: its type and number, or b/f and c/d in italics
@@ -138,6 +191,7 @@ export function LedgerStatement({
               {t("titleOf", { name })}
             </h2>
             <SignedAmount balance={balance.today} head={head} badge className="shrink-0 font-heading text-base font-bold md:px-3 md:py-1 md:text-xl" />
+            {menu && <div className="ml-auto shrink-0 md:ml-0">{menu}</div>}
           </div>
           {balance.postDated && (
             <p className="tabular mt-1 text-sm text-chestnut/70">{t("postDated", { amount: postDatedText(balance.postDated, head) })}</p>
@@ -149,8 +203,68 @@ export function LedgerStatement({
               {t(`ranges.${r}`)}
             </button>
           ))}
+          <button type="button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)} className={cn(chip(filtersOpen || active.length > 0), "flex items-center gap-1.5")}>
+            <SlidersHorizontal className="size-4" aria-hidden /> {tf("open")}
+            {active.length > 0 && <span className="tabular">({active.length})</span>}
+          </button>
         </div>
       </header>
+
+      {/* the filters: search, dates, types, amounts */}
+      {filtersOpen && (
+        <div className="flex max-h-[45%] shrink-0 flex-col gap-3 overflow-y-auto border-b border-chestnut/15 p-4">
+          <input
+            type="search"
+            value={typed}
+            maxLength={50}
+            onChange={(e) => setTyped(e.target.value)}
+            placeholder={tf("search")}
+            className={cn(filterInput, "w-full")}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex min-w-0 flex-col gap-1 text-xs text-chestnut/70">
+              {tf("from")}
+              <input type="date" value={from} onChange={(e) => (setFrom(e.target.value), setRange("custom"))} className={filterInput} />
+            </label>
+            <label className="flex min-w-0 flex-col gap-1 text-xs text-chestnut/70">
+              {tf("to")}
+              <input type="date" value={to} onChange={(e) => (setTo(e.target.value), setRange("custom"))} className={filterInput} />
+            </label>
+            <label className="flex min-w-0 flex-col gap-1 text-xs text-chestnut/70">
+              {tf("min")}
+              <NumberInput value={min} decimals={2} maxDigits={13} onChange={setMin} placeholder="0" className={cn(filterInput, "tabular")} />
+            </label>
+            <label className="flex min-w-0 flex-col gap-1 text-xs text-chestnut/70">
+              {tf("max")}
+              <NumberInput value={max} decimals={2} maxDigits={13} onChange={setMax} placeholder="0" className={cn(filterInput, "tabular")} />
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label={tf("types")}>
+            {TYPES.map((type) => (
+              <button
+                key={type}
+                type="button"
+                aria-pressed={types.includes(type)}
+                onClick={() => setTypes((all) => (all.includes(type) ? all.filter((x) => x !== type) : [...all, type]))}
+                className={cn(chip(types.includes(type)), "min-h-8 px-3 text-xs")}
+              >
+                {tt(type)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* the filters in force; a tap clears one */}
+      {active.length > 0 && (
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-chestnut/15 px-4 py-2">
+          {active.map((a) => (
+            <button key={a.key} type="button" onClick={a.clear} className="flex min-h-8 items-center gap-1 rounded-control bg-chestnut/10 px-2.5 text-xs font-medium hover:bg-chestnut/20">
+              {a.label} <X className="size-3.5" aria-label={tf("clear")} />
+            </button>
+          ))}
+        </div>
+      )}
 
       {statement.isPending ? (
         <p className="flex justify-center py-12 text-chestnut/70">
@@ -171,7 +285,7 @@ export function LedgerStatement({
               <span className="text-right">{t("credit")}</span>
             </div>
             <ol className="min-h-0 flex-1 divide-y divide-chestnut/10 overflow-y-auto">
-              {statement.data.broughtForward.amount !== 0 && (
+              {!narrowed && statement.data.broughtForward.amount !== 0 && (
                 <li className={cn(phoneCols, "py-2.5")}>
                   <span />
                   <span className="whitespace-nowrap pr-0.5 text-sm italic text-chestnut/70">{t("balanceBf")}</span>
@@ -206,10 +320,18 @@ export function LedgerStatement({
               ))}
               {rows.length === 0 && <li className="px-4 py-8 text-center text-sm text-chestnut/70">{t("empty")}</li>}
             </ol>
-            <p className="flex shrink-0 items-center justify-between gap-3 border-t-2 border-chestnut/30 px-4 py-3 font-medium">
-              <span>{t("closing")}</span>
-              <SignedAmount balance={statement.data.closing} head={head} className="font-heading text-base font-bold" />
-            </p>
+            {narrowed ? (
+              <p className={cn(phoneCols, "shrink-0 border-t-2 border-chestnut/30 py-3 font-medium")}>
+                <span className="col-span-2 text-sm">{t("shownTotal")}</span>
+                <span className="tabular text-right text-sm font-bold">{rupees(narrowed.debit)}</span>
+                <span className="tabular text-right text-sm font-bold">{rupees(narrowed.credit)}</span>
+              </p>
+            ) : (
+              <p className="flex shrink-0 items-center justify-between gap-3 border-t-2 border-chestnut/30 px-4 py-3 font-medium">
+                <span>{t("closing")}</span>
+                <SignedAmount balance={statement.data.closing} head={head} className="font-heading text-base font-bold" />
+              </p>
+            )}
           </div>
 
           {/* from 768px: Debit on the left, Credit on the right; the headings and totals stay put, the two
@@ -256,8 +378,8 @@ export function LedgerStatement({
             <div className="grid shrink-0 grid-cols-2 divide-x divide-chestnut/15 border-t-2 border-chestnut/30 overflow-y-hidden [scrollbar-gutter:stable]">
               {(["debit", "credit"] as const).map((side) => (
                 <p key={side} className="tabular flex justify-between px-4 py-2.5 font-heading text-base font-bold">
-                  <span>{t("total")}</span>
-                  <span>{rupees(sides.total)}</span>
+                  <span>{narrowed ? t("shownTotal") : t("total")}</span>
+                  <span>{rupees(sides.foot[side])}</span>
                 </p>
               ))}
             </div>
