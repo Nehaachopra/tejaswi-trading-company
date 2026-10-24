@@ -1,9 +1,10 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, db, eq } from "@repo/database";
-import { bankDetailsTable, ledgersTable } from "@repo/database/schema";
+import { and, asc, db, eq, inArray, ne, sql } from "@repo/database";
+import { bankDetailsTable, bankUpiIdsTable, ledgersTable } from "@repo/database/schema";
 
 import AccountsService from "../accounts";
 import type { ActorModel } from "../accounts/model";
+import type { Tx } from "../stock/engine";
 import {
   type BankAccountIdInputModel,
   type BankAccountModel,
@@ -20,7 +21,9 @@ import {
 const REFERENCE = "bank_details";
 
 const notFound = () => new TRPCError({ code: "NOT_FOUND", message: "Bank account not found." });
-const taken = () => new TRPCError({ code: "CONFLICT", message: "This account number and IFSC are already added." });
+const taken = () => new TRPCError({ code: "CONFLICT", message: "This account number is already added for this bank." });
+// a UPI ID belongs to one account; the message's start tells the screen which field it's about
+const upiTaken = () => new TRPCError({ code: "CONFLICT", message: "UPI ID already linked to another account." });
 
 const isUniqueViolation = (error: unknown) =>
   ((error as { cause?: { code?: string } })?.cause ?? (error as { code?: string }))?.code === "23505";
@@ -28,8 +31,8 @@ const isUniqueViolation = (error: unknown) =>
 // the ledger's name wherever money moves: "SBI ••1234"
 const ledgerName = (d: Pick<BankDetailsInputModel, "bankName" | "accountNumber">) => `${d.bankName} ••${d.accountNumber.slice(-4)}`.slice(0, 150);
 
-// our bank accounts: each one has its own ledger under Asset → Bank, opened with its opening balance in
-// the same save. One is made inactive only once its balance is zero
+// our bank accounts: each one has its own ledger under Asset → Bank and its UPI IDs. The same account number
+// can't be added twice for one bank (with or without an IFSC); one is made inactive only once its balance is zero
 export default class BankService {
   constructor(private readonly accounts = new AccountsService()) {}
 
@@ -43,8 +46,15 @@ export default class BankService {
       .orderBy(asc(bankDetailsTable.bankName), asc(bankDetailsTable.createdAt));
     const ledgerIds = rows.map((r) => r.ledgerId);
 
-    // balances, and which ones have entries besides the opening balance
-    const [balances, hasEntries] = await Promise.all([this.accounts.balances(ledgerIds), this.accounts.withEntries(ledgerIds)]);
+    // balances, which ones have entries besides the opening balance, and their UPI IDs
+    const ids = rows.map((r) => r.bank.id);
+    const [balances, hasEntries, upis] = await Promise.all([
+      this.accounts.balances(ledgerIds),
+      this.accounts.withEntries(ledgerIds),
+      ids.length === 0
+        ? []
+        : db.select().from(bankUpiIdsTable).where(inArray(bankUpiIdsTable.bankDetailsId, ids)).orderBy(asc(bankUpiIdsTable.createdAt)),
+    ]);
 
     return Promise.all(
       rows.map(async ({ bank: b, ledgerId }) => ({
@@ -57,7 +67,7 @@ export default class BankService {
         last4: b.accountNumber.slice(-4),
         ifscCode: b.ifscCode,
         accountType: b.accountType,
-        upiId: b.upiId,
+        upiIds: upis.filter((u) => u.bankDetailsId === b.id).map((u) => ({ upiId: u.upiId, provider: u.provider })),
         isActive: b.isActive,
         balance: balances.get(ledgerId)!,
         openingBalance: await this.accounts.savedOpening(ledgerId),
@@ -76,13 +86,45 @@ export default class BankService {
     return bank;
   }
 
-  // a new account and its ledger, saved together or not at all (its opening balance is set on the Opening
-  // balances page)
+  // the same account number at the same bank is the same account (the IFSC can be left out, so it's checked by
+  // bank too); and a UPI ID belongs to one account
+  private async assertFree(tx: Tx, details: BankDetailsInputModel, exceptId?: string) {
+    const [clash] = await tx
+      .select({ id: bankDetailsTable.id })
+      .from(bankDetailsTable)
+      .where(
+        and(
+          eq(bankDetailsTable.accountNumber, details.accountNumber),
+          eq(sql`lower(${bankDetailsTable.bankName})`, details.bankName),
+          exceptId ? ne(bankDetailsTable.id, exceptId) : undefined,
+        ),
+      );
+    if (clash) throw taken();
+    if (details.upiIds.length > 0) {
+      const [used] = await tx
+        .select({ id: bankUpiIdsTable.id })
+        .from(bankUpiIdsTable)
+        .where(and(inArray(bankUpiIdsTable.upiId, details.upiIds.map((u) => u.upiId)), exceptId ? ne(bankUpiIdsTable.bankDetailsId, exceptId) : undefined));
+      if (used) throw upiTaken();
+    }
+  }
+
+  // the account's UPI IDs, as given (the old ones are replaced)
+  private async setUpiIds(tx: Tx, bankId: string, upiIds: BankDetailsInputModel["upiIds"]) {
+    await tx.delete(bankUpiIdsTable).where(eq(bankUpiIdsTable.bankDetailsId, bankId));
+    if (upiIds.length > 0) await tx.insert(bankUpiIdsTable).values(upiIds.map((u) => ({ bankDetailsId: bankId, ...u })));
+  }
+
+  // a new account, its UPI IDs and its ledger, saved together or not at all (its opening balance is set on the
+  // Opening balances page)
   async create(rawInput: CreateBankAccountInputModel, actor: ActorModel): Promise<BankAccountModel> {
     const { details } = createBankAccountInputModel.parse(rawInput);
+    const { upiIds, ...row } = details;
     try {
       const id = await db.transaction(async (tx) => {
-        const [bank] = await tx.insert(bankDetailsTable).values(details).returning({ id: bankDetailsTable.id });
+        await this.assertFree(tx, details);
+        const [bank] = await tx.insert(bankDetailsTable).values(row).returning({ id: bankDetailsTable.id });
+        await this.setUpiIds(tx, bank!.id, upiIds);
         const master = await this.accounts.master(tx, "bank");
         const [ledger] = await tx
           .insert(ledgersTable)
@@ -100,24 +142,27 @@ export default class BankService {
       });
       return this.get({ id });
     } catch (error) {
-      if (isUniqueViolation(error)) throw taken();
+      if (isUniqueViolation(error)) throw String((error as { cause?: { constraint?: string } }).cause?.constraint).includes("upi") ? upiTaken() : taken();
       throw error;
     }
   }
 
-  // new details; the ledger's name follows
+  // new details and UPI IDs; the ledger's name follows
   async update(rawInput: UpdateBankAccountInputModel, actor: ActorModel): Promise<BankAccountModel> {
     const { id, details } = updateBankAccountInputModel.parse(rawInput);
+    const { upiIds, ...row } = details;
     try {
       await db.transaction(async (tx) => {
-        const updated = await tx.update(bankDetailsTable).set(details).where(eq(bankDetailsTable.id, id)).returning({ id: bankDetailsTable.id });
+        await this.assertFree(tx, details, id);
+        const updated = await tx.update(bankDetailsTable).set(row).where(eq(bankDetailsTable.id, id)).returning({ id: bankDetailsTable.id });
         if (updated.length === 0) throw notFound();
+        await this.setUpiIds(tx, id, upiIds);
         const ledger = await this.accounts.ledgerOf(tx, REFERENCE, id);
         const name = ledgerName(details);
         await tx.update(ledgersTable).set({ name }).where(eq(ledgersTable.id, ledger.id));
       });
     } catch (error) {
-      if (isUniqueViolation(error)) throw taken();
+      if (isUniqueViolation(error)) throw String((error as { cause?: { constraint?: string } }).cause?.constraint).includes("upi") ? upiTaken() : taken();
       throw error;
     }
     return this.get({ id });

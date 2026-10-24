@@ -6,30 +6,45 @@ const idModel = z.string().uuid();
 
 export const bankAccountTypeModel = z.enum(["savings", "current", "cash_credit", "overdraft"]);
 
-// lengths follow bank_details: holder 255, bank and branch 100, account number 30, IFSC 11, UPI 255
+export const upiProviderModel = z.enum(["phonepe", "gpay", "paytm", "bhim", "amazon_pay", "other"]);
+
+// one UPI ID linked to the account, and the app it was made in; stored in lowercase
+export const upiIdModel = z.object({
+  upiId: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .max(255)
+    .regex(/^[\w.-]+@[\w.-]+$/, "A UPI ID looks like name@bank."),
+  provider: upiProviderModel,
+});
+
+// lengths follow bank_details: holder 255, bank and branch 100, account number 30, IFSC 11, UPI 255. Names are
+// stored in lowercase (screens start each word with a capital). The IFSC is optional: without it the bank comes
+// from the list of banks; with it, the bank and branch come from the IFSC
 export const bankDetailsInputModel = z.object({
-  bankName: z.string().trim().min(1).max(100),
-  accountHolderName: z.string().trim().min(1).max(255),
-  branchName: z.string().trim().min(1).max(100),
+  bankName: z.string().trim().toLowerCase().min(1).max(100),
+  accountHolderName: z.string().trim().toLowerCase().min(1).max(255),
+  branchName: z.string().trim().toLowerCase().min(1).max(100),
+  // Indian banks use 9 to 18 digits
   accountNumber: z
     .string()
     .trim()
-    .toUpperCase()
-    .regex(/^[0-9A-Z]{6,30}$/, "Letters and digits only, 6 to 30."),
+    .regex(/^\d{9,18}$/, "An account number is 9 to 18 digits."),
   ifscCode: z
     .string()
     .trim()
     .toUpperCase()
-    .regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, "An IFSC looks like SBIN0001234."),
-  accountType: bankAccountTypeModel,
-  upiId: z
-    .string()
-    .trim()
-    .max(255)
-    .regex(/^$|^[\w.-]+@[\w.-]+$/, "A UPI ID looks like name@bank.")
+    .regex(/^$|^[A-Z]{4}0[A-Z0-9]{6}$/, "An IFSC looks like SBIN0001234.")
     .transform((v) => (v === "" ? null : v))
     .nullable()
     .default(null),
+  accountType: bankAccountTypeModel,
+  upiIds: z
+    .array(upiIdModel)
+    .max(10)
+    .default([])
+    .refine((ids) => new Set(ids.map((u) => u.upiId)).size === ids.length, "Each UPI ID only once."),
 });
 
 export type BankDetailsInputModel = z.infer<typeof bankDetailsInputModel>;
@@ -67,9 +82,9 @@ export const bankAccountModel = z.object({
   branchName: z.string(),
   accountNumber: z.string(),
   last4: z.string(),
-  ifscCode: z.string(),
+  ifscCode: z.string().nullable(),
   accountType: bankAccountTypeModel,
-  upiId: z.string().nullable(),
+  upiIds: z.array(upiIdModel),
   isActive: z.boolean(),
   balance: ledgerBalanceModel,
   openingBalance: savedOpeningBalanceModel.nullable(),
