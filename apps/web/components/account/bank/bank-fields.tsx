@@ -8,10 +8,12 @@ import { fieldClass } from "~/components/ui/card-form";
 import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
+import { trpc } from "~/trpc/client";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { PickMenu } from "../../stock/pick-menu";
 import { BANKS } from "./bank-list";
+import { BranchSearch } from "./branch-search";
 
 export type BankAccount = RouterOutputs["accounts"]["bank"]["get"];
 
@@ -122,8 +124,8 @@ export function draftInput(d: BankDraft) {
 
 const input = (bad: boolean) => `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
 
-// a locked value, filled in from the IFSC
-const locked = "flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control border border-chestnut/30 px-3 text-base";
+// a locked value, filled in from the IFSC: tinted, so it reads apart from the fields that can be typed in
+const locked = "flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control border border-chestnut/25 bg-chestnut/[0.1] px-3 text-base";
 
 // the bank and branch behind an IFSC, from Razorpay's free IFSC directory (no key)
 type Lookup = { state: "idle" | "looking" | "missing" } | { state: "found"; bank: string; branch: string };
@@ -162,7 +164,10 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
   }, [draft.ifscCode]);
 
   const setUpi = (key: string, patch: Partial<UpiDraft>) => onChange({ upiIds: draft.upiIds.map((u) => (u.key === key ? { ...u, ...patch } : u)) });
-  const listed = BANKS.find((n) => n.toLowerCase() === draft.bankName.trim().toLowerCase());
+  // the banks from the branch directory (the built-in list until it has loaded, or if it's empty)
+  const directory = trpc.accounts.bank.banks.useQuery(undefined, { staleTime: Infinity });
+  const bankNames: readonly string[] = directory.data && directory.data.length > 0 ? directory.data : BANKS;
+  const listed = bankNames.find((n) => n.toLowerCase() === draft.bankName.trim().toLowerCase());
 
   return (
     <div className="flex flex-col gap-5">
@@ -210,11 +215,14 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
             <span className="text-sm">{t("bankName")}</span>
             <PickMenu
               label={t("bankName")}
-              current={draft.bankOther ? t("otherBank") : (listed ?? t("pickBank"))}
-              options={[...BANKS.map((n) => ({ id: n as string, name: n })), { id: OTHER, name: t("otherBank") }]}
+              current={draft.bankOther ? t("otherBank") : listed ? titleCase(listed.toLowerCase()) : t("pickBank")}
+              options={[...bankNames.map((n) => ({ id: n, name: titleCase(n.toLowerCase()) })), { id: OTHER, name: t("otherBank") }]}
               picked={draft.bankOther ? OTHER : (listed ?? "")}
               onPick={(id) => onChange(id === OTHER ? { bankOther: true, bankName: "" } : { bankOther: false, bankName: id })}
               invalid={show("bankName") && !draft.bankOther}
+              searchable
+              searchLabel={t("searchBank")}
+              noMatch={t("noBank")}
             />
           </label>
           {draft.bankOther && (
@@ -223,9 +231,21 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
               <input value={draft.bankName} maxLength={NAME_MAX} onChange={(e) => onChange({ bankName: e.target.value })} aria-invalid={show("bankName") || undefined} className={input(show("bankName"))} />
             </label>
           )}
+          {/* a listed bank's branches can be searched (picking one fills in the IFSC); an Other bank's is typed */}
           <label className="flex flex-col gap-1.5">
             <span className="text-sm">{t("branch")}</span>
-            <input value={draft.branchName} maxLength={NAME_MAX} onChange={(e) => onChange({ branchName: e.target.value })} aria-invalid={show("branchName") || undefined} className={input(show("branchName"))} />
+            {listed && !draft.bankOther ? (
+              <BranchSearch
+                bank={listed}
+                value={draft.branchName}
+                onType={(branchName) => onChange({ branchName })}
+                onPick={(ifscCode) => onChange({ ifscCode })}
+                invalid={show("branchName")}
+                className={input(show("branchName"))}
+              />
+            ) : (
+              <input value={draft.branchName} maxLength={NAME_MAX} onChange={(e) => onChange({ branchName: e.target.value })} aria-invalid={show("branchName") || undefined} className={input(show("branchName"))} />
+            )}
           </label>
         </>
       )}

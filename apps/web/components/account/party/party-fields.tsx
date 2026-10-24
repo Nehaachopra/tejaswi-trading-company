@@ -326,6 +326,9 @@ function AddressFields({
           picked={address.stateCode ?? "29"}
           onPick={(code) => onChange({ stateCode: code, state: GST_STATES.find(([c]) => c === code)![1] })}
           invalid={show("state")}
+          searchable
+          searchLabel={t("searchState")}
+          noMatch={t("noState")}
         />
       </Field>
 

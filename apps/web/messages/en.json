@@ -632,7 +632,11 @@
         },
         "addUpi": "Add UPI ID",
         "removeUpi": "Remove UPI ID",
-        "upiHint": "Each UPI ID looks like name@bank, has its app, and is listed once."
+        "upiHint": "Each UPI ID looks like name@bank, has its app, and is listed once.",
+        "searchBank": "Search banks",
+        "noBank": "No bank by that name. Pick Other bank.",
+        "searchBranch": "Type the branch or city",
+        "noBranch": "No branch by that name. Keep typing it, it can be saved as typed."
       },
       "toAccounts": "Asset",
       "showDetails": "Show or hide details",
@@ -787,7 +791,9 @@
           "shortNameTaken": "Another party already uses this short name."
         },
         "shortName": "Short name",
-        "shortNameHint": "What ledgers and lists show, e.g. SRT for Sri Ramswamy Traders."
+        "shortNameHint": "What ledgers and lists show, e.g. SRT for Sri Ramswamy Traders.",
+        "searchState": "Search states",
+        "noState": "No state by that name."
       },
       "showDetails": "Show or hide details",
       "place": "Place",
