@@ -70,12 +70,14 @@ export default class AccountsService {
         if (!haveMaster.has(`${ledgerGroupId}|${m.name}`)) await tx.insert(ledgerMastersTable).values({ name: m.name, ledgerGroupId });
       }
 
-      // the fixed ledgers
-      const fixed = await tx.select().from(ledgersTable).where(isNull(ledgersTable.referenceId));
-      const haveLedger = new Set(fixed.map((l) => `${l.ledgerGroupId}|${l.name}`));
+      // the fixed ledgers; one that has moved to another head (Sale return to Expense, Purchase return to Income)
+      // is moved there with its entries, not created twice
+      const fixed = await tx.select().from(ledgersTable).where(and(isNull(ledgersTable.referenceId), isNull(ledgersTable.ledgerMasterId)));
       for (const l of Object.values(LEDGERS)) {
         const ledgerGroupId = groupId.get(l.group)!;
-        if (!haveLedger.has(`${ledgerGroupId}|${l.name}`)) await tx.insert(ledgersTable).values({ name: l.name, ledgerGroupId, balance: "0.00" });
+        const found = fixed.find((f) => f.name === l.name);
+        if (!found) await tx.insert(ledgersTable).values({ name: l.name, ledgerGroupId, balance: "0.00" });
+        else if (found.ledgerGroupId !== ledgerGroupId) await tx.update(ledgersTable).set({ ledgerGroupId }).where(eq(ledgersTable.id, found.id));
       }
     });
   }

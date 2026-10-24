@@ -73,8 +73,8 @@ The app creates this accounting structure itself:
 |---|---|---|
 | Asset | Debtors, Debtor-creditors (parties who are both; one net ledger each), Bank (one ledger per bank account) | Cash, Input CGST, Input SGST, Input IGST, TDS receivable (TDS customers deduct from us) |
 | Liability | Creditors, Employees (one ledger per employee: salary owed to them; an advance shows as what they owe us) | Output CGST, Output SGST, Output IGST, Output CGST (RCM), Output SGST (RCM), Output IGST (RCM), TDS payable (TDS we deduct from others), TCS, Drawings, Capital (the other side of every opening balance) |
-| Income | — | Sale, Sale return, Discount received |
-| Expense | — | Salary, Purchase, Purchase return, Discount given, Rent, Electricity, Wifi expense |
+| Income | — | Sale, Purchase return, Discount received |
+| Expense | — | Salary, Purchase, Sale return, Discount given, Rent, Electricity, Wifi expense |
 | Profit / Loss | — | none, calculated |
 
 Reverse-charge GST (e.g. rent from an unregistered landlord) is kept in its own RCM output ledgers, never mixed with the normal output GST ledgers, so it is easy to report in GSTR-3B.

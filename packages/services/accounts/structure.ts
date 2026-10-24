@@ -45,12 +45,14 @@ export const LEDGERS = {
   capital: { group: "liability", name: "Capital" },
 
   sale: { group: "income", name: "Sale" },
-  saleReturn: { group: "income", name: "Sale return" },
+  // goods sent back to a supplier take back what the purchase cost
+  purchaseReturn: { group: "income", name: "Purchase return" },
   discountReceived: { group: "income", name: "Discount received" },
 
   salary: { group: "expense", name: "Salary" },
   purchase: { group: "expense", name: "Purchase" },
-  purchaseReturn: { group: "expense", name: "Purchase return" },
+  // goods a customer sends back take back what the sale earned
+  saleReturn: { group: "expense", name: "Sale return" },
   discountGiven: { group: "expense", name: "Discount given" },
   rent: { group: "expense", name: "Rent" },
   electricity: { group: "expense", name: "Electricity" },
