@@ -12,6 +12,8 @@ import {
   type BranchModel,
   type BranchSearchInputModel,
   branchSearchInputModel,
+  type IfscInputModel,
+  ifscInputModel,
   type CreateBankAccountInputModel,
   createBankAccountInputModel,
   type ListBankAccountsInputModel,
@@ -83,6 +85,16 @@ export default class BankService {
   async banks(): Promise<string[]> {
     const rows = await db.selectDistinct({ bank: ifscBranchesTable.bank }).from(ifscBranchesTable).orderBy(asc(ifscBranchesTable.bank));
     return rows.map((r) => r.bank);
+  }
+
+  // the bank and branch an IFSC names, from the branch directory (null when it isn't there)
+  async byIfsc(rawInput: IfscInputModel): Promise<(BranchModel & { bank: string }) | null> {
+    const input = ifscInputModel.parse(rawInput);
+    const [row] = await db
+      .select({ ifsc: ifscBranchesTable.ifsc, bank: ifscBranchesTable.bank, branch: ifscBranchesTable.branch, city: ifscBranchesTable.city, district: ifscBranchesTable.district, state: ifscBranchesTable.state })
+      .from(ifscBranchesTable)
+      .where(eq(ifscBranchesTable.ifsc, input.ifsc));
+    return row ?? null;
   }
 
   // up to 30 of a bank's branches whose name or city holds the search; picking one gives its IFSC

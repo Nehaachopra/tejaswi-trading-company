@@ -111,3 +111,10 @@ export const branchModel = z.object({
 });
 
 export type BranchModel = z.infer<typeof branchModel>;
+
+export const ifscInputModel = z.object({ ifsc: z.string().trim().toUpperCase().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/) });
+
+export type IfscInputModel = z.infer<typeof ifscInputModel>;
+
+// what an IFSC names: its bank and branch (null when it isn't in the directory)
+export const ifscBranchModel = branchModel.extend({ bank: z.string() }).nullable();

@@ -17,6 +17,8 @@ import {
   bankAccountModel,
   branchModel,
   branchSearchInputModel,
+  ifscBranchModel,
+  ifscInputModel,
   createBankAccountInputModel,
   listBankAccountsInputModel,
   setBankAccountActiveInputModel,
@@ -43,6 +45,12 @@ const bankRouter = router({
     .input(z.void())
     .output(z.array(z.string()))
     .query(() => bankService.banks()),
+
+  ifsc: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/accounts/banks/directory/ifsc/{ifsc}", tags: ["accounts"] } })
+    .input(ifscInputModel)
+    .output(ifscBranchModel)
+    .query(({ input }) => bankService.byIfsc(input)),
 
   branches: adminProcedure
     .meta({ openapi: { method: "GET", path: "/accounts/banks/directory/branches", tags: ["accounts"] } })

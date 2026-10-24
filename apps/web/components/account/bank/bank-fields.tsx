@@ -127,7 +127,7 @@ const input = (bad: boolean) => `min-h-11 w-full min-w-0 px-3 text-base placehol
 // a locked value, filled in from the IFSC: tinted, so it reads apart from the fields that can be typed in
 const locked = "flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control border border-chestnut/25 bg-chestnut/[0.1] px-3 text-base";
 
-// the bank and branch behind an IFSC, from Razorpay's free IFSC directory (no key)
+// the bank and branch behind an IFSC, from our branch directory (loaded from Razorpay's open dataset)
 type Lookup = { state: "idle" | "looking" | "missing" } | { state: "found"; bank: string; branch: string };
 
 // the fields: IFSC (optional) first, which fills in and locks the bank and branch; without it, the bank from the
@@ -142,26 +142,20 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
   onChangeRef.current = onChange;
   const fromIfsc = lookup.state === "found";
 
-  // look the IFSC up once it's complete; what it finds is the bank and branch
+  // look the IFSC up in our branch directory once it's complete; what it names is the bank and branch
+  const ifscValid = IFSC.test(draft.ifscCode);
+  const named = trpc.accounts.bank.ifsc.useQuery({ ifsc: draft.ifscCode }, { enabled: ifscValid, staleTime: Infinity });
   useEffect(() => {
-    if (!IFSC.test(draft.ifscCode)) return setLookup({ state: "idle" });
-    const controller = new AbortController();
-    setLookup({ state: "looking" });
-    fetch(`https://ifsc.razorpay.com/${draft.ifscCode}`, { signal: controller.signal })
-      .then((r) => (r.ok ? (r.json() as Promise<{ BANK?: string; BRANCH?: string }>) : null))
-      .then((found) => {
-        if (!found?.BANK) return setLookup({ state: "missing" });
-        // the directory writes branches in capitals ("BANGALORE"): read as "Bangalore"
-        const bank = titleCase(found.BANK.toLowerCase()).slice(0, NAME_MAX);
-        const branch = titleCase((found.BRANCH ?? "").toLowerCase()).slice(0, NAME_MAX);
-        setLookup({ state: "found", bank, branch });
-        onChangeRef.current({ bankName: bank, branchName: branch, bankOther: false });
-      })
-      .catch((e: unknown) => {
-        if ((e as Error).name !== "AbortError") setLookup({ state: "missing" });
-      });
-    return () => controller.abort();
-  }, [draft.ifscCode]);
+    if (!ifscValid) return setLookup({ state: "idle" });
+    if (named.isFetching && !named.data) return setLookup({ state: "looking" });
+    if (named.isError || named.data === null) return setLookup({ state: "missing" });
+    if (!named.data) return;
+    // the directory writes branches in capitals ("BANGALORE"): read as "Bangalore"
+    const bank = titleCase(named.data.bank.toLowerCase()).slice(0, NAME_MAX);
+    const branch = titleCase(named.data.branch.toLowerCase()).slice(0, NAME_MAX);
+    setLookup({ state: "found", bank, branch });
+    onChangeRef.current({ bankName: bank, branchName: branch, bankOther: false });
+  }, [ifscValid, named.data, named.isFetching, named.isError]);
 
   const setUpi = (key: string, patch: Partial<UpiDraft>) => onChange({ upiIds: draft.upiIds.map((u) => (u.key === key ? { ...u, ...patch } : u)) });
   // the banks from the branch directory (the built-in list until it has loaded, or if it's empty)
