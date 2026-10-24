@@ -636,7 +636,9 @@
         "searchBank": "Search banks",
         "noBank": "No bank by that name. Pick Other bank.",
         "searchBranch": "Type the branch or city",
-        "noBranch": "No branch by that name. Keep typing it, it can be saved as typed."
+        "noBranch": "No branch by that name. Keep typing it, it can be saved as typed.",
+        "accountNumberBankHint": "{bank} account numbers are {digits} digits; this one has {count}.",
+        "accountNumberBankLength": "{bank} account numbers are {digits} digits."
       },
       "toAccounts": "Asset",
       "showDetails": "Show or hide details",

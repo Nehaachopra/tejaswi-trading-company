@@ -9,7 +9,7 @@ import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
-import type { RouterOutputs } from "@repo/trpc/client";
+import { lengthFits, lengthsFor, type RouterOutputs } from "@repo/trpc/client";
 
 import { PickMenu } from "../../stock/pick-menu";
 import { BANKS } from "./bank-list";
@@ -97,7 +97,8 @@ export function draftProblems(d: BankDraft) {
     ifscCode: d.ifscCode !== "" && !IFSC.test(d.ifscCode),
     bankName: d.bankName.trim() === "",
     branchName: d.branchName.trim() === "",
-    accountNumber: !ACCOUNT.test(d.accountNumber),
+    // 9 to 18 digits, and a length the bank uses when it keeps to fixed ones
+    accountNumber: !ACCOUNT.test(d.accountNumber) || (d.bankName.trim() !== "" && !lengthFits(d.bankName, d.accountNumber)),
     accountNumberAgain: needsAgain(d) && d.accountNumberAgain !== d.accountNumber,
     accountHolderName: d.accountHolderName.trim() === "",
     accountType: d.accountType === null,
@@ -256,7 +257,21 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
           aria-invalid={show("accountNumber") || undefined}
           className={cn(input(show("accountNumber")), "tabular")}
         />
-        {show("accountNumber") && <span className="text-xs text-danger">{t("accountNumberHint")}</span>}
+        {(() => {
+          // the bank's own lengths, as a hint while typing and the reason when it's wrong
+          const lengths = draft.bankName.trim() ? lengthsFor(draft.bankName) : null;
+          const typedWrong = draft.accountNumber !== "" && lengths && !lengths.includes(draft.accountNumber.length);
+          if (show("accountNumber") || typedWrong) {
+            return (
+              <span className="text-xs text-danger">
+                {lengths
+                  ? t("accountNumberBankHint", { bank: titleCase(draft.bankName.toLowerCase()), digits: lengths.join(" / "), count: draft.accountNumber.length })
+                  : t("accountNumberHint")}
+              </span>
+            );
+          }
+          return lengths ? <span className="text-xs">{t("accountNumberBankLength", { bank: titleCase(draft.bankName.toLowerCase()), digits: lengths.join(" / ") })}</span> : null;
+        })()}
       </label>
       {needsAgain(draft) && (
         <label className="flex flex-col gap-1.5">

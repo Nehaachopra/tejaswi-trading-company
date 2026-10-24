@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { ledgerBalanceModel, savedOpeningBalanceModel } from "../accounts/model";
+import { lengthFits, lengthsFor } from "./account-lengths";
 
 const idModel = z.string().uuid();
 
@@ -45,7 +46,17 @@ export const bankDetailsInputModel = z.object({
     .max(10)
     .default([])
     .refine((ids) => new Set(ids.map((u) => u.upiId)).size === ids.length, "Each UPI ID only once."),
-});
+})
+  // a bank that keeps to fixed account number lengths takes only those
+  .superRefine((d, ctx) => {
+    if (!lengthFits(d.bankName, d.accountNumber)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["accountNumber"],
+        message: `${d.bankName} account numbers are ${lengthsFor(d.bankName)!.join(" or ")} digits.`,
+      });
+    }
+  });
 
 export type BankDetailsInputModel = z.infer<typeof bankDetailsInputModel>;
 
