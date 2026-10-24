@@ -33,7 +33,7 @@ export const othersTable = pgTable("others", {
 
   creditLedgerNameSnapshot: varchar("credit_ledger_name_snapshot", { length: 150 }).notNull(),
 
-  remark: varchar("remark", { length: 100 }),
+  // remarks live on the transaction
   total: money("total").notNull(),
   ...timestamps,
 },

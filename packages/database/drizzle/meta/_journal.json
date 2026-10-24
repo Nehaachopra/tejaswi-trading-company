@@ -50,6 +50,13 @@
       "when": 1792830106646,
       "tag": "0006_gigantic_morbius",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792839021311,
+      "tag": "0007_aspiring_beast",
+      "breakpoints": true
     }
   ]
 }

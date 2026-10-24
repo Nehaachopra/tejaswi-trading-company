@@ -3,7 +3,7 @@
 import { check, pgEnum, pgTable, timestamp, uuid, varchar, index } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
-import { timestamps } from "../../utils/common/column-type";
+import { money, timestamps } from "../../utils/common/column-type";
 import { usersTable } from "../auth/user";
 import { text } from "drizzle-orm/pg-core";
 import { uniqueIndex } from "drizzle-orm/pg-core";
@@ -37,9 +37,13 @@ export const transactionsTable = pgTable(
 
     subType: varchar("sub_type", { length: 30 }),
 
+    // the date the transaction is for (it may be pre- or post-dated)
     dateTime: timestamp("date_time", {
       withTimezone: true,
-    }),
+    }).notNull(),
+
+    // the amount it involves, for listing and filtering every type together in History
+    amount: money("amount").notNull().default("0.00"),
 
     assignedId: varchar("assigned_id", { length: 30 }).notNull(),
 

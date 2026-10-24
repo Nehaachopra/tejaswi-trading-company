@@ -34,7 +34,7 @@ export const contrasTable = pgTable("contras", {
 
   referenceNumber: varchar("reference_number", { length: 30 }),
 
-  remarks: varchar("remarks", { length: 100 }),
+  // remarks live on the transaction
 
   referenceUrl: text("reference_url"),
 

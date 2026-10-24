@@ -1,4 +1,4 @@
-﻿// receipt.ts
+// receipt.ts
 
 import { boolean, pgTable, text, uuid, varchar } from "drizzle-orm/pg-core";
 
@@ -59,9 +59,7 @@ export const receiptsTable = pgTable(
 
     tdsAmount: money("tds_amount"),
 
-    remarks: varchar("remarks", { length: 100 }),
-
-    voucherUrl: text("voucher_url").notNull(),
+    // remarks live on the transaction; the voucher PDF is made when someone asks for it
 
     ...timestamps,
   },
