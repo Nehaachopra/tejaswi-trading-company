@@ -202,7 +202,7 @@ export default class AccountsService {
           .where(eq(transactionsTable.id, current.id));
         return;
       }
-      await tx.update(transactionsTable).set({ dateTime: input.date }).where(eq(transactionsTable.id, current.id));
+      await tx.update(transactionsTable).set({ dateTime: input.date, amount: fromPaise(Math.round(input.amount * 100)) }).where(eq(transactionsTable.id, current.id));
     }
 
     // a new one gets its OB number
@@ -214,6 +214,7 @@ export default class AccountsService {
           .values({
             type: "opening_balance",
             dateTime: input!.date,
+            amount: fromPaise(Math.round(input!.amount * 100)),
             assignedId: await this.counter.next(tx, "OB", input!.date),
             remarks: `Opening balance: ${ledger.name}`.slice(0, 100),
             createdById: actor.id,
