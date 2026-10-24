@@ -9,11 +9,17 @@ import { fromPaise, toPaise } from "./money";
 import {
   type ActorModel,
   type BalanceModel,
+  type CreateLedgerInputModel,
+  createLedgerInputModel,
   type LedgerBalanceModel,
   type LedgerIdInputModel,
   type LedgerSummaryModel,
   type OpeningBalanceModel,
   type OverviewModel,
+  type SetLedgerActiveInputModel,
+  setLedgerActiveInputModel,
+  type UpdateLedgerInputModel,
+  updateLedgerInputModel,
   openingBalanceModel,
   type SavedOpeningBalanceModel,
   type StatementInputModel,
@@ -251,7 +257,7 @@ export default class AccountsService {
     // the balance after each line
     let running = toPaise(before!.total);
     const broughtForward = asBalance(running);
-    const lines = rows.map(({ entry: e, type, assignedId, remarks }) => {
+    const all = rows.map(({ entry: e, type, assignedId, remarks }) => {
       running += (e.transactionType === "debit" ? 1 : -1) * toPaise(e.amount);
       return {
         id: e.id,
@@ -266,7 +272,27 @@ export default class AccountsService {
         balance: asBalance(running),
       };
     });
-    return { ledgerId: ledger.id, name: ledger.name, broughtForward, lines, closing: asBalance(running) };
+    // narrowed down: the lines that match, each keeping the true balance after it, and their totals
+    const search = input.search.toLowerCase();
+    const narrowing = input.types.length > 0 || input.minAmount !== null || input.maxAmount !== null || search !== "";
+    const lines = narrowing
+      ? all.filter(
+          (l) =>
+            (input.types.length === 0 || input.types.includes(l.type)) &&
+            (input.minAmount === null || l.amount >= input.minAmount) &&
+            (input.maxAmount === null || l.amount <= input.maxAmount) &&
+            (search === "" || l.assignedId.toLowerCase().includes(search) || (l.remarks ?? "").toLowerCase().includes(search)),
+        )
+      : all;
+    const total = (side: "debit" | "credit") => Number(fromPaise(lines.filter((l) => l.side === side).reduce((sum, l) => sum + toPaise(l.amount), 0)));
+    return {
+      ledgerId: ledger.id,
+      name: ledger.name,
+      broughtForward,
+      lines,
+      closing: asBalance(running),
+      narrowed: narrowing ? { debit: total("debit"), credit: total("credit") } : null,
+    };
   }
 
   // every ledger with its head, sub-group and balance as of today (one, when an id is given)
@@ -285,6 +311,7 @@ export default class AccountsService {
       head,
       masterKey: masterName ? (MASTER_KEY.get(`${head}|${masterName}`) ?? null) : null,
       key: l.referenceId === null && !masterName ? (LEDGER_KEY.get(`${head}|${l.name}`) ?? null) : null,
+      custom: l.referenceId === null && !masterName && !LEDGER_KEY.has(`${head}|${l.name}`),
       referenceId: l.referenceId,
       isActive: l.isActive,
       balance: balances.get(l.id)!,
@@ -323,6 +350,80 @@ export default class AccountsService {
     const net = -heads.filter((h) => h.head === "income" || h.head === "expense").reduce((sum, h) => sum + (h.total.side === "debit" ? 1 : -1) * toPaise(h.total.amount), 0);
     const worked = (head: "profit" | "loss", paise: number) => ({ head, total: asBalance(head === "profit" ? -paise : paise), masters: [], ledgers: [] });
     return { heads: [...heads, worked("profit", Math.max(net, 0)), worked("loss", Math.max(-net, 0))] };
+  }
+
+  // a ledger name can't repeat within its head (built-in ones included)
+  private async assertNameFree(tx: Tx, ledgerGroupId: string, name: string, exceptId?: string) {
+    const [clash] = await tx
+      .select({ id: ledgersTable.id })
+      .from(ledgersTable)
+      .where(
+        and(
+          eq(ledgersTable.ledgerGroupId, ledgerGroupId),
+          isNull(ledgersTable.referenceId),
+          eq(sql`lower(${ledgersTable.name})`, name.toLowerCase()),
+          exceptId ? ne(ledgersTable.id, exceptId) : undefined,
+        ),
+      );
+    if (clash) throw new TRPCError({ code: "CONFLICT", message: "A ledger with this name already exists under this head." });
+  }
+
+  // a ledger the admin adds under a head (a loan, other income, an expense head), opened with its opening balance
+  // in the same save
+  async createLedger(rawInput: CreateLedgerInputModel, actor: ActorModel): Promise<LedgerSummaryModel> {
+    const input = createLedgerInputModel.parse(rawInput);
+    const id = await db.transaction(async (tx) => {
+      const [group] = await tx.select({ id: ledgerGroupsTable.id }).from(ledgerGroupsTable).where(eq(ledgerGroupsTable.type, input.head));
+      if (!group) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The accounting structure is missing." });
+      await this.assertNameFree(tx, group.id, input.name);
+      const [ledger] = await tx
+        .insert(ledgersTable)
+        .values({ name: input.name, ledgerGroupId: group.id, balance: "0.00" })
+        .returning({ id: ledgersTable.id, name: ledgersTable.name });
+      await this.setOpeningBalance(tx, ledger!, input.openingBalance, actor);
+      return ledger!.id;
+    });
+    return this.ledger({ id });
+  }
+
+  // a ledger's opening balance, and the name of one the admin added. Bank accounts, parties and employees change
+  // theirs on their own pages; Capital has none (it is the other side of every opening balance)
+  async updateLedger(rawInput: UpdateLedgerInputModel, actor: ActorModel): Promise<LedgerSummaryModel> {
+    const input = updateLedgerInputModel.parse(rawInput);
+    const current = await this.ledger({ id: input.id });
+    if (current.referenceId !== null || current.masterKey !== null) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Change this on its bank account, party or employee page." });
+    }
+    if (current.key === "capital") throw new TRPCError({ code: "BAD_REQUEST", message: "Capital has no opening balance of its own." });
+    if (input.name !== undefined && input.name !== current.name && !current.custom) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "A built-in ledger keeps its name." });
+    }
+    await db.transaction(async (tx) => {
+      const [row] = await tx.select({ ledgerGroupId: ledgersTable.ledgerGroupId }).from(ledgersTable).where(eq(ledgersTable.id, input.id)).for("update");
+      const name = input.name ?? current.name;
+      if (name !== current.name) {
+        await this.assertNameFree(tx, row!.ledgerGroupId, name, input.id);
+        await tx.update(ledgersTable).set({ name }).where(eq(ledgersTable.id, input.id));
+      }
+      await this.setOpeningBalance(tx, { id: input.id, name }, input.openingBalance, actor);
+    });
+    return this.ledger({ id: input.id });
+  }
+
+  // a ledger the admin added is made inactive only at a zero balance (post-dated entries included); built-in
+  // ones always stay
+  async setLedgerActive(rawInput: SetLedgerActiveInputModel): Promise<LedgerSummaryModel> {
+    const input = setLedgerActiveInputModel.parse(rawInput);
+    const current = await this.ledger({ id: input.id });
+    if (!current.custom) throw new TRPCError({ code: "BAD_REQUEST", message: "Only ledgers you added can be made inactive here." });
+    await db.transaction(async (tx) => {
+      const [row] = await tx.select({ balance: ledgersTable.balance }).from(ledgersTable).where(eq(ledgersTable.id, input.id)).for("update");
+      if (!input.isActive && Number(row!.balance) !== 0) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "This ledger still has a balance. Bring it to zero first." });
+      }
+      await tx.update(ledgersTable).set({ isActive: input.isActive }).where(eq(ledgersTable.id, input.id));
+    });
+    return this.ledger({ id: input.id });
   }
 
   // a ledger's id from the record it belongs to (a bank account, party or employee)

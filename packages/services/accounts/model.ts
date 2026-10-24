@@ -43,10 +43,18 @@ export const savedOpeningBalanceModel = openingBalanceModel.extend({ assignedId:
 
 export type SavedOpeningBalanceModel = z.infer<typeof savedOpeningBalanceModel>;
 
+export const transactionTypeModel = z.enum(["sale", "purchase", "sale_return", "purchase_return", "payment", "receipt", "drawing", "deposit", "withdrawal", "transfer", "salary", "other", "opening_balance"]);
+
+// a statement for a date range (all of it when none is given), narrowed down if asked: some transaction types,
+// an amount range, and a search over the transaction's number and remarks
 export const statementInputModel = z.object({
   ledgerId: idModel,
   from: z.coerce.date().nullable().default(null),
   to: z.coerce.date().nullable().default(null),
+  types: z.array(transactionTypeModel).max(13).default([]),
+  minAmount: z.number().nonnegative().max(9_999_999_999_999).nullable().default(null),
+  maxAmount: z.number().nonnegative().max(9_999_999_999_999).nullable().default(null),
+  search: z.string().trim().max(50).default(""),
 });
 
 export type StatementInputModel = z.infer<typeof statementInputModel>;
@@ -73,6 +81,9 @@ export const statementModel = z.object({
   broughtForward: balanceModel,
   lines: z.array(statementLineModel),
   closing: balanceModel,
+  // when types, amounts or a search hide some lines: only the lines that match are returned, each still with
+  // the true balance after it, and these are their totals
+  narrowed: z.object({ debit: z.number(), credit: z.number() }).nullable(),
 });
 
 export type StatementModel = z.infer<typeof statementModel>;
@@ -93,6 +104,8 @@ export const ledgerSummaryModel = z.object({
   // a built-in ledger's key (cash, sale ...), so screens can show its name in the reader's language;
   // null for ledgers people name themselves
   key: z.string().nullable(),
+  // a ledger the admin added (a loan, other income ...): it can be renamed and made inactive
+  custom: z.boolean(),
   // the bank account, party or employee it belongs to, if any
   referenceId: idModel.nullable(),
   isActive: z.boolean(),
@@ -116,6 +129,31 @@ export const overviewModel = z.object({
 });
 
 export type OverviewModel = z.infer<typeof overviewModel>;
+
+export const customHeadModel = z.enum(["asset", "liability", "income", "expense"]);
+
+// a ledger the admin adds under a head, with what it stood at on a date
+export const createLedgerInputModel = z.object({
+  head: customHeadModel,
+  name: z.string().trim().min(1).max(150),
+  openingBalance: openingBalanceModel.nullable().default(null),
+});
+
+export type CreateLedgerInputModel = z.infer<typeof createLedgerInputModel>;
+
+// a ledger's opening balance (any ledger of its own: Cash, Drawings, a loan ...), and a new name for one the
+// admin added
+export const updateLedgerInputModel = z.object({
+  id: idModel,
+  name: z.string().trim().min(1).max(150).optional(),
+  openingBalance: openingBalanceModel.nullable().default(null),
+});
+
+export type UpdateLedgerInputModel = z.infer<typeof updateLedgerInputModel>;
+
+export const setLedgerActiveInputModel = z.object({ id: idModel, isActive: z.boolean() });
+
+export type SetLedgerActiveInputModel = z.infer<typeof setLedgerActiveInputModel>;
 
 // who is saving
 export type ActorModel = { id: string; name: string };

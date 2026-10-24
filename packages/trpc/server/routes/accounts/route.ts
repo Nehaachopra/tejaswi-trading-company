@@ -1,6 +1,15 @@
 import { z } from "zod";
 
-import { ledgerIdInputModel, ledgerSummaryModel, overviewModel, statementInputModel, statementModel } from "@repo/services/accounts/model";
+import {
+  createLedgerInputModel,
+  ledgerIdInputModel,
+  ledgerSummaryModel,
+  overviewModel,
+  setLedgerActiveInputModel,
+  statementInputModel,
+  statementModel,
+  updateLedgerInputModel,
+} from "@repo/services/accounts/model";
 import {
   bankAccountIdInputModel,
   bankAccountModel,
@@ -90,8 +99,28 @@ const partyRouter = router({
     .mutation(({ input }) => partyService.setActive(input)),
 });
 
-// any ledger and its statement, for the admin
+// any ledger and its statement, for the admin; ledgers of its own (a loan, other income, an expense head) added,
+// renamed and made inactive, and any ledger's opening balance set
 const ledgerRouter = router({
+  create: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/accounts/ledgers", tags: ["accounts"] } })
+    .input(createLedgerInputModel)
+    .output(ledgerSummaryModel)
+    .mutation(({ ctx, input }) => accountsService.createLedger(input, ctx.session.user)),
+
+  update: adminProcedure
+    .meta({ openapi: { method: "PATCH", path: "/accounts/ledgers/{id}", tags: ["accounts"] } })
+    .input(updateLedgerInputModel)
+    .output(ledgerSummaryModel)
+    .mutation(({ ctx, input }) => accountsService.updateLedger(input, ctx.session.user)),
+
+  // only ledgers the admin added, at a zero balance
+  setActive: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/accounts/ledgers/{id}/active", tags: ["accounts"] } })
+    .input(setLedgerActiveInputModel)
+    .output(ledgerSummaryModel)
+    .mutation(({ input }) => accountsService.setLedgerActive(input)),
+
   get: adminProcedure
     .meta({ openapi: { method: "GET", path: "/accounts/ledgers/{id}", tags: ["accounts"] } })
     .input(ledgerIdInputModel)
