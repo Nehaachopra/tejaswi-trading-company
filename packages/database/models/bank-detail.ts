@@ -20,9 +20,9 @@ export const bankDetailsTable = pgTable("bank_details", {
   bankName: varchar("bank_name", { length: 100 }).notNull(),
   branchName: varchar("branch_name", { length: 100 }).notNull(),
   accountNumber: varchar("account_number", { length: 30 }).notNull(),
-  ifscCode: varchar("ifsc_code", { length: 11 }).notNull(),
+  // optional: not everyone knows it; when it's there it names the bank and branch
+  ifscCode: varchar("ifsc_code", { length: 11 }),
   accountType: bankAccountTypeEnum("account_type").notNull(),
-  upiId: varchar("upi_id", { length: 255 }),
   isActive: boolean("is_active").default(true).notNull(),
   ...timestamps,
 },

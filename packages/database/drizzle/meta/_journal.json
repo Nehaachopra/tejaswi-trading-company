@@ -36,6 +36,13 @@
       "when": 1792773389920,
       "tag": "0004_tearful_power_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792827932755,
+      "tag": "0005_moaning_shriek",
+      "breakpoints": true
     }
   ]
 }
