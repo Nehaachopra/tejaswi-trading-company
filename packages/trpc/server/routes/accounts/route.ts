@@ -15,6 +15,8 @@ import {
 import {
   bankAccountIdInputModel,
   bankAccountModel,
+  branchModel,
+  branchSearchInputModel,
   createBankAccountInputModel,
   listBankAccountsInputModel,
   setBankAccountActiveInputModel,
@@ -35,6 +37,19 @@ import { adminProcedure, router } from "../../trpc";
 
 // bank accounts: only the admin sees or changes them (and their balances)
 const bankRouter = router({
+  // the banks and their branches (from the IFSC dataset), for picking a branch without knowing its IFSC
+  banks: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/accounts/banks/directory", tags: ["accounts"] } })
+    .input(z.void())
+    .output(z.array(z.string()))
+    .query(() => bankService.banks()),
+
+  branches: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/accounts/banks/directory/branches", tags: ["accounts"] } })
+    .input(branchSearchInputModel)
+    .output(z.array(branchModel))
+    .query(({ input }) => bankService.branches(input)),
+
   list: adminProcedure
     .meta({ openapi: { method: "GET", path: "/accounts/banks", tags: ["accounts"] } })
     .input(listBankAccountsInputModel)

@@ -93,3 +93,21 @@ export const bankAccountModel = z.object({
 });
 
 export type BankAccountModel = z.infer<typeof bankAccountModel>;
+
+// a bank's branches whose name (or city) holds the search, for picking a branch without knowing its IFSC
+export const branchSearchInputModel = z.object({
+  bank: z.string().trim().min(1).max(150),
+  search: z.string().trim().min(2).max(60),
+});
+
+export type BranchSearchInputModel = z.infer<typeof branchSearchInputModel>;
+
+export const branchModel = z.object({
+  ifsc: z.string(),
+  branch: z.string(),
+  city: z.string().nullable(),
+  district: z.string().nullable(),
+  state: z.string().nullable(),
+});
+
+export type BranchModel = z.infer<typeof branchModel>;

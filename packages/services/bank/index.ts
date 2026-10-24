@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, db, eq, inArray, ne, sql } from "@repo/database";
-import { bankDetailsTable, bankUpiIdsTable, ledgersTable } from "@repo/database/schema";
+import { bankDetailsTable, bankUpiIdsTable, ifscBranchesTable, ledgersTable } from "@repo/database/schema";
 
 import AccountsService from "../accounts";
 import type { ActorModel } from "../accounts/model";
@@ -9,6 +9,9 @@ import {
   type BankAccountIdInputModel,
   type BankAccountModel,
   type BankDetailsInputModel,
+  type BranchModel,
+  type BranchSearchInputModel,
+  branchSearchInputModel,
   type CreateBankAccountInputModel,
   createBankAccountInputModel,
   type ListBankAccountsInputModel,
@@ -74,6 +77,29 @@ export default class BankService {
         hasEntries: hasEntries.has(ledgerId),
       })),
     );
+  }
+
+  // every bank in the branch list (from Razorpay's IFSC dataset), for the bank dropdown
+  async banks(): Promise<string[]> {
+    const rows = await db.selectDistinct({ bank: ifscBranchesTable.bank }).from(ifscBranchesTable).orderBy(asc(ifscBranchesTable.bank));
+    return rows.map((r) => r.bank);
+  }
+
+  // up to 30 of a bank's branches whose name or city holds the search; picking one gives its IFSC
+  async branches(rawInput: BranchSearchInputModel): Promise<BranchModel[]> {
+    const input = branchSearchInputModel.parse(rawInput);
+    const like = `%${input.search.toLowerCase().replace(/[%_\\]/g, "\\$&")}%`;
+    return db
+      .select({ ifsc: ifscBranchesTable.ifsc, branch: ifscBranchesTable.branch, city: ifscBranchesTable.city, district: ifscBranchesTable.district, state: ifscBranchesTable.state })
+      .from(ifscBranchesTable)
+      .where(
+        and(
+          eq(sql`lower(${ifscBranchesTable.bank})`, input.bank.toLowerCase()),
+          sql`(lower(${ifscBranchesTable.branch}) like ${like} or lower(coalesce(${ifscBranchesTable.city}, '')) like ${like})`,
+        ),
+      )
+      .orderBy(asc(ifscBranchesTable.branch))
+      .limit(30);
   }
 
   async list(input: ListBankAccountsInputModel): Promise<BankAccountModel[]> {
