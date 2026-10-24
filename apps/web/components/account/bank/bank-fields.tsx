@@ -129,8 +129,9 @@ export function BankFields({
   const bad = draftProblems(draft);
   const show = (field: keyof typeof bad) => tried && bad[field];
   const [lookup, setLookup] = useState<Lookup>({ state: "idle" });
-  // what the lookup last filled in, so it only replaces its own suggestion, never what was typed
-  const filled = useRef({ bank: draft.bankName, branch: draft.branchName });
+  // what the lookup last filled in, so it only fills empty fields or replaces its own suggestion, never what was
+  // typed or saved
+  const filled = useRef({ bank: "", branch: "" });
   const latest = useRef(draft);
   latest.current = draft;
 

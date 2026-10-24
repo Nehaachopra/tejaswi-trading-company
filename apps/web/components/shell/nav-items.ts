@@ -1,11 +1,11 @@
-import { Activity, ClipboardList, History, House, Landmark, type LucideIcon, Package, Receipt, Warehouse } from "lucide-react";
+import { Activity, ClipboardList, History, House, Landmark, type LucideIcon, Package, Receipt, Users, Warehouse } from "lucide-react";
 
 export type Role = "admin" | "staff";
 
 export type NavItem = {
   href: string;
   // key under shell.nav in the translation files
-  label: "home" | "history" | "orders" | "stock" | "products" | "accounts" | "gst" | "jobs";
+  label: "home" | "history" | "orders" | "stock" | "products" | "parties" | "accounts" | "gst" | "jobs";
   icon: LucideIcon;
   adminOnly?: boolean;
   // on phones: in the bottom bar, in the More sheet, or not at all (Home: the logo goes there)
@@ -25,6 +25,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/stock", label: "stock", icon: Warehouse, place: "bar" },
   { href: "/order", label: "orders", icon: ClipboardList, place: "bar" },
   { href: "/product", label: "products", icon: Package, adminOnly: true, place: "more" },
+  { href: "/party", label: "parties", icon: Users, adminOnly: true, place: "more" },
   {
     href: "/account",
     label: "accounts",
@@ -32,8 +33,8 @@ export const NAV_ITEMS: NavItem[] = [
     adminOnly: true,
     place: "more",
     children: [
-      { href: "/account/asset", label: "asset", also: ["/account/bank"] },
-      { href: "/account/liability", label: "liability" },
+      { href: "/account/asset", label: "asset", also: ["/account/bank", "/account/debtor", "/account/debtor-creditor"] },
+      { href: "/account/liability", label: "liability", also: ["/account/creditor"] },
       { href: "/account/income", label: "income" },
       { href: "/account/expense", label: "expense" },
       { href: "/account/profit", label: "profit" },

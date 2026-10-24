@@ -9,16 +9,19 @@ import { toast } from "~/components/ui/toast";
 import { trpc } from "~/trpc/client";
 import type { RouterOutputs } from "@repo/trpc/client";
 
-import { balanceText, postDatedText } from "./balance";
+import { postDatedText } from "./balance";
+import { SignedAmount } from "./signed-amount";
 import { useLedgerName } from "./ledger-name";
 
 type Head = RouterOutputs["accounts"]["overview"]["heads"][number];
 
 // where each sub-group's ledgers are listed; the rest come with their steps
-const MASTER_PAGE: Record<string, string | undefined> = { bank: "/account/bank" };
-
-// the side a head's balances usually sit on, for the post-dated note
-const usual = (head: Head["head"]) => (head === "asset" || head === "expense" || head === "loss" ? "debit" : "credit");
+const MASTER_PAGE: Record<string, string | undefined> = {
+  bank: "/account/bank",
+  debtors: "/account/debtor",
+  creditors: "/account/creditor",
+  debtorCreditors: "/account/debtor-creditor",
+};
 
 // /account, admin only: every ledger account under its head (Asset, Liability, Income, Expense, Profit, Loss),
 // each head with its total (or one head, on its own page). Sub-groups (Bank, Debtors ...) are cards with the total of their ledgers; the
@@ -51,7 +54,7 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
                 <h2 id={`head-${h.head}`} className="font-heading text-2xl font-bold">
                   {t(`heads.${h.head}`)}
                 </h2>
-                <span className="tabular font-heading text-xl font-bold">{balanceText(h.total)}</span>
+                <SignedAmount balance={h.total} head={h.head} className="font-heading text-xl font-bold" />
               </header>
 
               {/* profit and loss: worked out, nothing posts to them */}
@@ -68,7 +71,7 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
                           <span className="block truncate font-heading text-xl font-bold leading-7">{t(`masters.${m.key}`)}</span>
                           <span className="block text-sm text-chestnut/70">{t("ledgers", { count: m.ledgers })}</span>
                         </span>
-                        <span className="tabular shrink-0 font-heading text-lg font-bold">{balanceText(m.total)}</span>
+                        <SignedAmount balance={m.total} head={h.head} className="shrink-0 font-heading text-lg font-bold" />
                         <ChevronRight className="size-5 shrink-0 text-chestnut/60" aria-hidden />
                       </>
                     );
@@ -101,8 +104,8 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
                           {nameOf(l)}
                         </span>
                         <span className="flex shrink-0 flex-col items-end">
-                          <span className="tabular font-medium">{balanceText(l.balance.today)}</span>
-                          {l.balance.postDated && <span className="tabular text-xs text-chestnut/70">{t("postDated", { amount: postDatedText(l.balance.postDated, usual(h.head)) })}</span>}
+                          <SignedAmount balance={l.balance.today} head={h.head} className="font-medium" />
+                          {l.balance.postDated && <span className="tabular text-xs text-chestnut/70">{t("postDated", { amount: postDatedText(l.balance.postDated, h.head) })}</span>}
                         </span>
                         {/* the same arrow as the sub-group cards: this opens its ledger */}
                         <ChevronRight className="size-5 shrink-0 text-chestnut/60" aria-hidden />

@@ -10,7 +10,8 @@ import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 
 import { chip } from "../../product/row-styles";
-import { balanceText, postDatedText } from "../balance";
+import { postDatedText } from "../balance";
+import { SignedAmount } from "../signed-amount";
 import { BankSheet } from "./bank-sheet";
 
 // /account/bank, admin only: + Add bank account, then a card per account (bank, ••last 4 and type on the
@@ -78,8 +79,8 @@ export function BanksBoard() {
                   </span>
                 </span>
                 <span className="flex shrink-0 flex-col items-end">
-                  <span className="tabular font-heading text-xl font-bold leading-7">{balanceText(b.balance.today)}</span>
-                  {b.balance.postDated && <span className="tabular text-xs opacity-70">{t("postDated", { amount: postDatedText(b.balance.postDated, "debit") })}</span>}
+                  <SignedAmount balance={b.balance.today} head="asset" className="font-heading text-xl font-bold leading-7" />
+                  {b.balance.postDated && <span className="tabular text-xs opacity-70">{t("postDated", { amount: postDatedText(b.balance.postDated, "asset") })}</span>}
                 </span>
               </Link>
             </li>

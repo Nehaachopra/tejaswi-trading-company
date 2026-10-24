@@ -11,7 +11,8 @@ import { toast } from "~/components/ui/toast";
 import { rupees } from "~/lib/format";
 import { trpc } from "~/trpc/client";
 
-import { balanceText, postDatedText } from "../balance";
+import { signed } from "../balance";
+import { DetailRows, DetailsCard } from "../details-card";
 import { LedgerStatement } from "../ledger-statement";
 import { BankSheet } from "./bank-sheet";
 
@@ -68,27 +69,19 @@ export function BankPage({ bankId }: { bankId: string }) {
             {
               label: t("details.opening"),
               value: b.openingBalance
-                ? `${balanceText(b.openingBalance)} · ${format.dateTime(new Date(b.openingBalance.date), { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" })} · ${b.openingBalance.assignedId}`
+                ? `${signed(b.openingBalance, "asset").text} · ${format.dateTime(new Date(b.openingBalance.date), { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" })} · ${b.openingBalance.assignedId}`
                 : rupees(0),
             },
           ];
 
           return (
             <div className="mt-2 flex flex-col gap-4">
-              {/* the details: name, balance, the ⋯ menu, then each detail */}
-              <section className="on-ivory rounded-control bg-ivory text-chestnut">
-                <header className="flex items-start gap-3 border-b border-chestnut/15 p-4">
-                  <div className="min-w-0 flex-1">
-                    <h1 className="flex items-center gap-2">
-                      <span className="truncate font-heading text-2xl font-bold" title={b.bankName}>
-                        {b.bankName}
-                      </span>
-                      <span className="tabular shrink-0 text-base text-chestnut/70">••{b.last4}</span>
-                      {!b.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
-                    </h1>
-                    <p className="tabular mt-1 font-heading text-3xl font-bold">{balanceText(b.balance.today)}</p>
-                    {b.balance.postDated && <p className="tabular text-sm text-chestnut/70">{t("postDated", { amount: postDatedText(b.balance.postDated, "debit") })}</p>}
-                  </div>
+              {/* the details: name and the ⋯ menu, opening to each detail */}
+              <DetailsCard
+                title={name}
+                openLabel={t("showDetails")}
+                tags={!b.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
+                menu={
                   <Menu label={t("menu")} triggerClassName="size-11 shrink-0" trigger={<Ellipsis className="size-5" aria-hidden />}>
                     {(close) => (
                       <>
@@ -114,21 +107,13 @@ export function BankPage({ bankId }: { bankId: string }) {
                       </>
                     )}
                   </Menu>
-                </header>
-                <dl className="grid grid-cols-1 divide-y divide-chestnut/10 px-4 sm:grid-cols-2 sm:gap-x-8 sm:divide-y-0">
-                  {rows.map((row) => (
-                    <div key={row.label} className="flex items-center justify-between gap-3 py-2.5 text-sm sm:border-b sm:border-chestnut/10">
-                      <dt className="shrink-0 text-chestnut/70">{row.label}</dt>
-                      <dd className={row.number ? "tabular min-w-0 truncate text-right font-medium" : "min-w-0 truncate text-right font-medium"} title={row.value}>
-                        {row.value}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </section>
+                }
+              >
+                <DetailRows rows={rows} />
+              </DetailsCard>
 
               {/* its ledger */}
-              <LedgerStatement ledgerId={b.ledgerId} name={name} balance={b.balance} />
+              <LedgerStatement ledgerId={b.ledgerId} name={name} head="asset" balance={b.balance} />
 
               <BankSheet bankId={editing ? b.id : null} onClose={() => setEditing(false)} />
             </div>

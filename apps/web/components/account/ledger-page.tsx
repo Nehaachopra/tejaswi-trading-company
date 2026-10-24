@@ -35,7 +35,7 @@ export function LedgerPage({ ledgerId }: { ledgerId: string }) {
       ) : (
         <div className="mt-2">
           <h1 className="sr-only">{nameOf(ledger.data)}</h1>
-          <LedgerStatement ledgerId={ledgerId} name={nameOf(ledger.data)} balance={ledger.data.balance} />
+          <LedgerStatement ledgerId={ledgerId} name={nameOf(ledger.data)} head={ledger.data.head} balance={ledger.data.balance} />
         </div>
       )}
     </main>

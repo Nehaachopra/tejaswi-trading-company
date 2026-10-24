@@ -29,7 +29,8 @@
         "expense": "Expense",
         "profit": "Profit",
         "loss": "Loss"
-      }
+      },
+      "parties": "Parties"
     }
   },
   "home": {
@@ -603,7 +604,8 @@
           "failed": "Something went wrong. Try again."
         }
       },
-      "toAccounts": "Asset"
+      "toAccounts": "Asset",
+      "showDetails": "Show or hide details"
     },
     "overview": {
       "title": "Accounts",
@@ -655,6 +657,147 @@
       "rent": "Rent",
       "electricity": "Electricity",
       "wifi": "Wifi expense"
+    },
+    "party": {
+      "titles": {
+        "customer": "Debtors",
+        "supplier": "Creditors",
+        "both": "Debtor-creditors"
+      },
+      "empty": {
+        "customer": "No customers yet. Add them in Parties.",
+        "supplier": "No suppliers yet. Add them in Parties.",
+        "both": "No parties here yet. Add them in Parties."
+      },
+      "search": "Short name, name or phone",
+      "noMatch": "No one matches that search.",
+      "showInactive": "Show inactive",
+      "loading": "Loading parties",
+      "loadError": "Couldn't load the parties. Check your connection and try again.",
+      "inactive": "Inactive",
+      "postDated": "{amount} post-dated",
+      "details": {
+        "type": "Type",
+        "phone": "Phone",
+        "email": "Email",
+        "pan": "PAN",
+        "name": "Full name"
+      },
+      "errors": {
+        "gone": "This party no longer exists."
+      },
+      "form": {
+        "addTitle": {
+          "customer": "Add customer",
+          "supplier": "Add supplier",
+          "both": "Add party"
+        },
+        "editTitle": "Edit party",
+        "close": "Close",
+        "save": "Save party",
+        "saveDetails": "Save details",
+        "type": "Type",
+        "types": {
+          "customer": "Customer",
+          "supplier": "Supplier",
+          "both": "Both"
+        },
+        "name": "Full name",
+        "phone": "Phone (optional)",
+        "email": "Email (optional)",
+        "pan": "PAN (optional)",
+        "remarks": "Remarks (optional)",
+        "addresses": "Addresses",
+        "addressN": "Address {n}",
+        "addAddress": "Add address",
+        "removeAddress": "Remove address",
+        "isDefault": "Default",
+        "makeDefault": "Make default",
+        "pin": "PIN code",
+        "lookingUp": "Looking up the PIN…",
+        "pinNotFound": "PIN not found in the directory. Type the city, district and state.",
+        "line1": "Address line 1",
+        "line2": "Address line 2 (optional)",
+        "landmark": "Landmark (optional)",
+        "city": "City",
+        "district": "District",
+        "state": "State",
+        "pick": "Pick",
+        "gstin": "GSTIN (optional)",
+        "gstinHint": "15 characters, starting with the state's code.",
+        "label": "Label (optional)",
+        "labelPlaceholder": "Shop, warehouse…",
+        "use": "Used for",
+        "uses": {
+          "both": "Billing and shipping",
+          "billing": "Billing",
+          "shipping": "Shipping",
+          "registered": "Registered office"
+        },
+        "opening": "Opening balance (optional)",
+        "amount": "Amount (₹)",
+        "asOn": "As on",
+        "theyOwe": "They owe us",
+        "weOwe": "We owe them",
+        "openingFixed": "Fixed: money has already moved with this party.",
+        "toast": {
+          "added": "{name} added",
+          "saved": "{name} saved"
+        },
+        "errors": {
+          "fill": "Fill in the highlighted fields.",
+          "gstinTaken": "That GSTIN already belongs to another party.",
+          "openingFixed": "The opening balance can't change once money has moved.",
+          "check": "Check the highlighted fields.",
+          "gone": "This party no longer exists.",
+          "network": "Can't reach the server. Check your connection.",
+          "failed": "Something went wrong. Try again.",
+          "shortNameTaken": "Another party already uses this short name."
+        },
+        "shortName": "Short name",
+        "shortNameHint": "What ledgers and lists show, e.g. SRT for Sri Ramswamy Traders."
+      },
+      "showDetails": "Show or hide details",
+      "place": "Place",
+      "allPlaces": "All places",
+      "insights": {
+        "transactions": "Transactions",
+        "pendingOrders": "Orders pending",
+        "collectionTime": "Average collection time",
+        "paymentTime": "Average payment time",
+        "days": "{count, plural, one {# day} other {# days}}",
+        "perMonth": "Transactions a month"
+      }
+    }
+  },
+  "parties": {
+    "title": "Parties",
+    "adminOnly": "Parties are for the admin only.",
+    "add": "Add party",
+    "search": "Short name, name or phone",
+    "type": "Type",
+    "allTypes": "All types",
+    "place": "Place",
+    "allPlaces": "All places",
+    "showInactive": "Show inactive",
+    "loading": "Loading parties",
+    "loadError": "Couldn't load the parties. Check your connection and try again.",
+    "empty": "No parties yet. Add the first one.",
+    "noMatch": "No one matches these filters.",
+    "inactive": "Inactive",
+    "menu": "Party options",
+    "edit": "Edit details",
+    "deactivate": "Mark inactive",
+    "reactivate": "Mark active",
+    "toast": {
+      "deactivated": "{name} marked inactive",
+      "reactivated": "{name} marked active"
+    },
+    "errors": {
+      "hasBalance": "This party still has a balance. Settle it first.",
+      "hasOrders": "This party has pending orders. Complete or cancel them first.",
+      "network": "Can't reach the server. Check your connection.",
+      "failed": "Something went wrong. Try again."
     }
   }
 }

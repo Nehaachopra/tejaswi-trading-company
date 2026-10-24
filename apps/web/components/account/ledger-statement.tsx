@@ -11,7 +11,8 @@ import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 import type { RouterOutputs } from "@repo/trpc/client";
 
-import { type Balance, balanceText, indiaDay, postDatedText, startOfIndiaDay } from "./balance";
+import { type Balance, type Head, indiaDay, postDatedText, startOfIndiaDay } from "./balance";
+import { SignedAmount } from "./signed-amount";
 
 type Line = RouterOutputs["accounts"]["ledger"]["statement"]["lines"][number];
 type Range = "month" | "year" | "all";
@@ -62,7 +63,18 @@ function byMonth<T extends { at: Date | null }>(rows: T[]) {
 // balance and the balance brought into a range read Balance b/f, the closing balance is carried down as
 // Balance c/d); on phones a line per entry with its Debit or Credit amount in its own column. Long particulars
 // end in "…" with the full text on hover. Tapping an entry will open its transaction in History (coming with it)
-export function LedgerStatement({ ledgerId, name, balance }: { ledgerId: string; name: string; balance: { today: Balance; postDated: Balance | null } }) {
+export function LedgerStatement({
+  ledgerId,
+  name,
+  head,
+  balance,
+}: {
+  ledgerId: string;
+  name: string;
+  // the head it sits under, which signs its balance
+  head: Head;
+  balance: { today: Balance; postDated: Balance | null };
+}) {
   const t = useTranslations("accounts.ledger");
   const tt = useTranslations("accounts.types");
   const format = useFormatter();
@@ -125,12 +137,10 @@ export function LedgerStatement({ ledgerId, name, balance }: { ledgerId: string;
             <h2 className="min-w-0 truncate font-heading text-xl font-bold md:text-2xl" title={t("titleOf", { name })}>
               {t("titleOf", { name })}
             </h2>
-            <span className="tabular shrink-0 rounded-control bg-chestnut px-2.5 py-0.5 font-heading text-base font-bold text-ivory md:px-3 md:py-1 md:text-xl">
-              {balanceText(balance.today)}
-            </span>
+            <SignedAmount balance={balance.today} head={head} badge className="shrink-0 font-heading text-base font-bold md:px-3 md:py-1 md:text-xl" />
           </div>
           {balance.postDated && (
-            <p className="tabular mt-1 text-sm text-chestnut/70">{t("postDated", { amount: postDatedText(balance.postDated, balance.today.side) })}</p>
+            <p className="tabular mt-1 text-sm text-chestnut/70">{t("postDated", { amount: postDatedText(balance.postDated, head) })}</p>
           )}
         </div>
         <div className="flex gap-1.5 overflow-x-auto">
@@ -198,7 +208,7 @@ export function LedgerStatement({ ledgerId, name, balance }: { ledgerId: string;
             </ol>
             <p className="flex shrink-0 items-center justify-between gap-3 border-t-2 border-chestnut/30 px-4 py-3 font-medium">
               <span>{t("closing")}</span>
-              <span className="tabular font-heading text-base font-bold">{balanceText(statement.data.closing)}</span>
+              <SignedAmount balance={statement.data.closing} head={head} className="font-heading text-base font-bold" />
             </p>
           </div>
 
