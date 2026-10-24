@@ -1,42 +1,22 @@
 "use client";
 
-import { ArrowLeft, CircleAlert, Ellipsis, Pencil, Power } from "lucide-react";
+import { ArrowLeft, CircleAlert } from "lucide-react";
 import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useTranslations } from "next-intl";
 
-import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
-import { toast } from "~/components/ui/toast";
-import { rupees } from "~/lib/format";
+import { titleCase } from "~/lib/format";
 import { trpc } from "~/trpc/client";
 
-import { signed } from "../balance";
 import { DetailRows, DetailsCard } from "../details-card";
 import { LedgerStatement } from "../ledger-statement";
-import { BankSheet } from "./bank-sheet";
 
-// /account/bank/[account], admin only: the account's details on top (Edit and Mark inactive in its ⋯ menu),
-// its ledger below
+// /account/bank/[account], admin only and view only: the account's details on top, its ledger below (it is
+// added, edited and made inactive in Entities → Bank accounts)
 export function BankPage({ bankId }: { bankId: string }) {
   const t = useTranslations("accounts.bank");
-  const format = useFormatter();
-  const utils = trpc.useUtils();
+  const tf = useTranslations("accounts.bank.form");
   const bank = trpc.accounts.bank.get.useQuery({ id: bankId });
-  const setActive = trpc.accounts.bank.setActive.useMutation();
-  const [editing, setEditing] = useState(false);
-
-  // mark it inactive (only at a zero balance) or active again
-  async function toggleActive(makeActive: boolean, name: string) {
-    try {
-      await setActive.mutateAsync({ id: bankId, isActive: makeActive });
-      toast.success(t(makeActive ? "toast.reactivated" : "toast.deactivated", { name }));
-      void utils.accounts.invalidate();
-    } catch (err) {
-      const code = (err as { data?: { code?: string } })?.data?.code;
-      toast.error(t(code === "PRECONDITION_FAILED" ? "errors.hasBalance" : code === undefined ? "errors.network" : "errors.failed"));
-    }
-  }
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 sm:px-6">
@@ -56,22 +36,15 @@ export function BankPage({ bankId }: { bankId: string }) {
       ) : (
         (() => {
           const b = bank.data;
-          const name = `${b.bankName} ••${b.last4}`;
-          // money is still in it (or owed), now or post-dated
-          const blocked = b.isActive && (b.balance.today.amount !== 0 || !!b.balance.postDated);
+          const name = `${titleCase(b.bankName)} ••${b.last4}`;
           const rows = [
             { label: t("details.accountNumber"), value: b.accountNumber, number: true },
-            { label: t("details.ifsc"), value: b.ifscCode, number: true },
-            { label: t("details.branch"), value: b.branchName },
+            { label: t("details.ifsc"), value: b.ifscCode ?? "—", number: true },
+            { label: t("details.branch"), value: titleCase(b.branchName) },
             { label: t("details.type"), value: t(`form.types.${b.accountType}`) },
-            { label: t("details.holder"), value: b.accountHolderName },
-            { label: t("details.upi"), value: b.upiId ?? "—" },
-            {
-              label: t("details.opening"),
-              value: b.openingBalance
-                ? `${signed(b.openingBalance, "asset").text} · ${format.dateTime(new Date(b.openingBalance.date), { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" })} · ${b.openingBalance.assignedId}`
-                : rupees(0),
-            },
+            { label: t("details.holder"), value: titleCase(b.accountHolderName) },
+            // each UPI ID with the app it's in
+            { label: t("details.upi"), value: b.upiIds.length ? b.upiIds.map((u) => `${u.upiId} (${tf(`providers.${u.provider}`)})`).join(", ") : "—" },
           ];
 
           return (
@@ -81,41 +54,13 @@ export function BankPage({ bankId }: { bankId: string }) {
                 title={name}
                 openLabel={t("showDetails")}
                 tags={!b.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
-                menu={
-                  <Menu plain label={t("menu")} triggerClassName="size-11 shrink-0" trigger={<Ellipsis className="size-5" aria-hidden />}>
-                    {(close) => (
-                      <>
-                        <MenuItem
-                          onClick={() => {
-                            close();
-                            setEditing(true);
-                          }}
-                        >
-                          <Pencil className="size-4" aria-hidden /> {t("edit")}
-                        </MenuItem>
-                        <MenuItem
-                          disabled={blocked}
-                          onClick={() => {
-                            close();
-                            void toggleActive(!b.isActive, name);
-                          }}
-                          className="flex-wrap"
-                        >
-                          <Power className="size-4" aria-hidden /> {b.isActive ? t("deactivate") : t("reactivate")}
-                          {blocked && <span className="w-full pl-6 text-xs">{t("hasBalance")}</span>}
-                        </MenuItem>
-                      </>
-                    )}
-                  </Menu>
-                }
               >
                 <DetailRows rows={rows} />
               </DetailsCard>
 
-              {/* its ledger */}
-              <LedgerStatement ledgerId={b.ledgerId} name={name} head="asset" balance={b.balance} />
+              {/* its ledger, titled with the account's name (the header above carries the bank and ••last 4) */}
+              <LedgerStatement ledgerId={b.ledgerId} name={b.accountHolderName} head="asset" balance={b.balance} />
 
-              <BankSheet bankId={editing ? b.id : null} onClose={() => setEditing(false)} />
             </div>
           );
         })()

@@ -29,11 +29,13 @@
         "expense": "Expense",
         "profit": "Profit",
         "loss": "Loss",
-        "opening": "Opening balances"
+        "opening": "Opening balances",
+        "parties": "Parties",
+        "banks": "Bank accounts"
       },
-      "parties": "Parties",
       "debit": "Debit",
-      "credit": "Credit"
+      "credit": "Credit",
+      "entities": "Entities"
     }
   },
   "home": {
@@ -562,7 +564,7 @@
         "branch": "Branch",
         "type": "Type",
         "holder": "Account holder",
-        "upi": "UPI ID",
+        "upi": "UPI IDs",
         "opening": "Opening balance"
       },
       "toast": {
@@ -581,10 +583,9 @@
         "close": "Close",
         "save": "Save bank account",
         "saveDetails": "Save details",
-        "ifsc": "IFSC",
+        "ifsc": "IFSC (optional)",
         "lookingUp": "Looking up the IFSC…",
-        "found": "{bank}, {branch}",
-        "notFound": "IFSC not found in the directory. Type the bank and branch.",
+        "notFound": "Not in the IFSC directory. Pick the bank and type the branch.",
         "bankName": "Bank name",
         "branch": "Branch",
         "accountNumber": "Account number",
@@ -597,24 +598,48 @@
           "cash_credit": "Cash credit",
           "overdraft": "Overdraft"
         },
-        "upi": "UPI ID (optional)",
+        "upi": "UPI ID",
         "toast": {
           "added": "{name} added",
           "saved": "{name} saved"
         },
         "errors": {
           "fill": "Fill in the highlighted fields.",
-          "taken": "This account number and IFSC are already added.",
+          "taken": "This account number is already added for this bank.",
           "check": "Check the highlighted fields.",
           "gone": "This bank account no longer exists.",
           "network": "Can't reach the server. Check your connection.",
-          "failed": "Something went wrong. Try again."
-        }
+          "failed": "Something went wrong. Try again.",
+          "upiTaken": "One of these UPI IDs is already linked to another account."
+        },
+        "ifscHint": "Don't know it? Leave it blank and pick the bank below.",
+        "pickBank": "Pick the bank",
+        "otherBank": "Other bank",
+        "otherBankName": "Bank's name",
+        "accountNumberHint": "An account number is 9 to 18 digits.",
+        "accountNumberAgain": "Account number again",
+        "accountNumberMismatch": "The two account numbers don't match.",
+        "upiIds": "UPI IDs (optional)",
+        "provider": "App",
+        "pickApp": "App",
+        "providers": {
+          "phonepe": "PhonePe",
+          "gpay": "Google Pay",
+          "paytm": "Paytm",
+          "bhim": "BHIM",
+          "amazon_pay": "Amazon Pay",
+          "other": "Other"
+        },
+        "addUpi": "Add UPI ID",
+        "removeUpi": "Remove UPI ID",
+        "upiHint": "Each UPI ID looks like name@bank, has its app, and is listed once."
       },
       "toAccounts": "Asset",
       "showDetails": "Show or hide details",
       "search": "Bank, branch, IFSC or account number",
-      "noMatch": "No account matches that search."
+      "noMatch": "No account matches that search.",
+      "emptyView": "No bank accounts yet.",
+      "addFirst": "Add the first one in Bank accounts"
     },
     "overview": {
       "title": "Accounts",
@@ -679,9 +704,9 @@
         "both": "Debtor-creditors"
       },
       "empty": {
-        "customer": "No customers yet. Add them in Parties.",
-        "supplier": "No suppliers yet. Add them in Parties.",
-        "both": "No parties here yet. Add them in Parties."
+        "customer": "No customers yet.",
+        "supplier": "No suppliers yet.",
+        "both": "No parties here yet."
       },
       "search": "Short name, name or phone",
       "noMatch": "No one matches that search.",
@@ -774,7 +799,8 @@
         "paymentTime": "Average payment time",
         "days": "{count, plural, one {# day} other {# days}}",
         "perMonth": "Transactions a month"
-      }
+      },
+      "addFirst": "Add them in Parties"
     },
     "ledgerForm": {
       "addTitle": "New ledger under {head}",
@@ -838,7 +864,6 @@
   },
   "parties": {
     "title": "Parties",
-    "adminOnly": "Parties are for the admin only.",
     "add": "Add party",
     "search": "Short name, name or phone",
     "type": "Type",
@@ -865,5 +890,11 @@
       "network": "Can't reach the server. Check your connection.",
       "failed": "Something went wrong. Try again."
     }
+  },
+  "entities": {
+    "adminOnly": "Entities are for the admin only."
+  },
+  "banks": {
+    "title": "Bank accounts"
   }
 }

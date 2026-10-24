@@ -5,7 +5,7 @@ export type Role = "admin" | "staff";
 export type NavItem = {
   href: string;
   // key under shell.nav in the translation files
-  label: "home" | "history" | "orders" | "stock" | "products" | "parties" | "accounts" | "gst" | "jobs";
+  label: "home" | "history" | "orders" | "stock" | "products" | "entities" | "accounts" | "gst" | "jobs";
   icon: LucideIcon;
   adminOnly?: boolean;
   // on phones: in the bottom bar, in the More sheet, or not at all (Home: the logo goes there)
@@ -16,10 +16,14 @@ export type NavItem = {
 };
 
 // keys under shell.nav.heads
-export type SubLabel = HeadLabel | "opening";
+export type SubLabel = HeadLabel | "opening" | "parties" | "banks";
 
 // the six heads (each tagged Debit or Credit)
 export type HeadLabel = "asset" | "liability" | "income" | "expense" | "profit" | "loss";
+
+// the six heads carry a Debit or Credit tag; the other pages under a group don't
+const HEADS: readonly string[] = ["asset", "liability", "income", "expense", "profit", "loss"];
+export const isHead = (label: SubLabel): label is HeadLabel => HEADS.includes(label);
 
 // the side a head's accounts sit on, shown beside it: Asset, Expense and Loss are debit accounts, the rest credit
 export const sideOf = (head: HeadLabel) => (head === "asset" || head === "expense" || head === "loss" ? "debit" : "credit");
@@ -37,7 +41,18 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/stock", label: "stock", icon: Warehouse, place: "bar" },
   { href: "/order", label: "orders", icon: ClipboardList, place: "bar" },
   { href: "/product", label: "products", icon: Package, adminOnly: true, place: "more" },
-  { href: "/party", label: "parties", icon: Users, adminOnly: true, place: "more" },
+  // the people and accounts the business deals with, added and edited here (Accounts shows their ledgers)
+  {
+    href: "/entities",
+    label: "entities",
+    icon: Users,
+    adminOnly: true,
+    place: "more",
+    children: [
+      { href: "/entities/parties", label: "parties" },
+      { href: "/entities/banks", label: "banks" },
+    ],
+  },
   {
     href: "/account",
     label: "accounts",

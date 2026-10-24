@@ -10,7 +10,7 @@ import { useState } from "react";
 import { Sheet } from "~/components/ui/sheet";
 import { cn } from "~/lib/utils";
 
-import { isCurrent, isSubCurrent, NEW_TRANSACTION_HREF, type NavItem, navFor, type Role, sideOf, sideTag } from "./nav-items";
+import { isCurrent, isSubCurrent, NEW_TRANSACTION_HREF, type NavItem, navFor, type Role, isHead, sideOf, sideTag } from "./nav-items";
 
 const slot = "flex min-h-16 w-full flex-col items-center justify-center gap-1 px-1 text-xs transition-colors";
 const tone = (current: boolean) => (current ? "font-semibold text-chestnut" : "text-chestnut/80 hover:text-chestnut");
@@ -120,7 +120,7 @@ export function BottomBar({ role }: { role: Role }) {
                           >
                             <span className="flex-1">{t(`heads.${child.label}`)}</span>
                             {/* debit or credit account */}
-                            {child.label !== "opening" && <span className={sideTag(child.label)}>{t(sideOf(child.label))}</span>}
+                            {isHead(child.label) && <span className={sideTag(child.label)}>{t(sideOf(child.label))}</span>}
                           </Link>
                         </li>
                       );

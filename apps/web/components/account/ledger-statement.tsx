@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { NumberInput } from "~/components/ui/number-input";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
-import { rupees } from "~/lib/format";
+import { rupees, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 import type { RouterOutputs } from "@repo/trpc/client";
@@ -187,8 +187,9 @@ export function LedgerStatement({
       <header className="flex shrink-0 flex-col gap-3 border-b border-chestnut/15 p-4 md:flex-row md:items-center md:gap-4">
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-3">
-            <h2 className="min-w-0 truncate font-heading text-xl font-bold md:text-2xl" title={t("titleOf", { name })}>
-              {t("titleOf", { name })}
+            {/* every ledger's name starts each word with a capital (a short name in capitals stays as it is) */}
+            <h2 className="min-w-0 truncate font-heading text-xl font-bold md:text-2xl" title={t("titleOf", { name: titleCase(name) })}>
+              {t("titleOf", { name: titleCase(name) })}
             </h2>
             <SignedAmount balance={balance.today} head={head} badge className="shrink-0 font-heading text-base font-bold md:px-3 md:py-1 md:text-xl" />
             {menu && <div className="ml-auto shrink-0 md:ml-0">{menu}</div>}

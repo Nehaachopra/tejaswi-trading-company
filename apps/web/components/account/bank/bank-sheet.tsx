@@ -16,7 +16,8 @@ import { BankFields, type BankDraft, draftFrom, draftInput, draftOk, emptyDraft 
 function errorKey(err: unknown) {
   const data = (err as { data?: { code?: string } })?.data;
   if (!data) return "network";
-  if (data.code === "CONFLICT") return "taken";
+  // a clash is the account number or a UPI ID; the server's message says which
+  if (data.code === "CONFLICT") return (err as { message?: string }).message?.startsWith("UPI ID") ? "upiTaken" : "taken";
   if (data.code === "BAD_REQUEST") return "check";
   if (data.code === "NOT_FOUND") return "gone";
   return "failed";

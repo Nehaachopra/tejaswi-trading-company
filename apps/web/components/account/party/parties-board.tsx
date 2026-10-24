@@ -105,7 +105,19 @@ export function PartiesBoard({ type }: { type: PartyType }) {
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
       ) : shown.length === 0 ? (
-        <p className="mt-16 text-center text-ivory/70">{search || city ? t("noMatch") : t(`empty.${type}`)}</p>
+        // none yet: they're added in Entities → Parties
+        <p className="mt-16 text-center text-ivory/70">
+          {search || city ? (
+            t("noMatch")
+          ) : (
+            <>
+              {t(`empty.${type}`)}{" "}
+              <Link href="/entities/parties" className="font-semibold text-ivory underline underline-offset-4">
+                {t("addFirst")}
+              </Link>
+            </>
+          )}
+        </p>
       ) : (
         <ul className="mt-2 flex flex-col gap-3">
           {shown.map((p) => (
