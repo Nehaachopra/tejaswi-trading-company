@@ -4,6 +4,7 @@ import { CircleAlert, SlidersHorizontal, X } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { ClearButton } from "~/components/ui/clear-button";
 import { NumberInput } from "~/components/ui/number-input";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
@@ -88,6 +89,7 @@ export function LedgerStatement({
   // the ledger's own ⋯ menu, beside its balance
   menu?: React.ReactNode;
 }) {
+  const tc = useTranslations("common");
   const t = useTranslations("accounts.ledger");
   const tt = useTranslations("accounts.types");
   const format = useFormatter();
@@ -214,14 +216,22 @@ export function LedgerStatement({
       {/* the filters: search, dates, types, amounts */}
       {filtersOpen && (
         <div className="flex max-h-[45%] shrink-0 flex-col gap-3 overflow-y-auto border-b border-chestnut/15 p-4">
-          <input
-            type="search"
-            value={typed}
-            maxLength={50}
-            onChange={(e) => setTyped(e.target.value)}
-            placeholder={tf("search")}
-            className={cn(filterInput, "w-full")}
-          />
+          {/* the search, with its ✕ inside the box */}
+          <div className="relative">
+            <input
+              type="search"
+              value={typed}
+              maxLength={50}
+              onChange={(e) => setTyped(e.target.value)}
+              placeholder={tf("search")}
+              className={cn(filterInput, "w-full pr-10")}
+            />
+            {typed && (
+              <span className="absolute inset-y-0 right-1.5 flex items-center">
+                <ClearButton onClear={() => setTyped("")} label={tc("clearSearch")} surface="ivory" />
+              </span>
+            )}
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <label className="flex min-w-0 flex-col gap-1 text-xs text-chestnut/70">
               {tf("from")}

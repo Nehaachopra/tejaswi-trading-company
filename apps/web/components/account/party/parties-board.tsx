@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { ClearButton } from "~/components/ui/clear-button";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
 import { cn } from "~/lib/utils";
@@ -20,6 +21,7 @@ import { PARTY_KINDS, type PartyType } from "./party-kinds";
 // then a card per party (short name, phone and city on the left, its balance signed by its head on the right)
 // opening its page. Parties are added where they belong, not here: in Parties, or while making a transaction
 export function PartiesBoard({ type }: { type: PartyType }) {
+  const tc = useTranslations("common");
   const t = useTranslations("accounts.party");
   const th = useTranslations("accounts.overview.heads");
   const kind = PARTY_KINDS[type];
@@ -62,6 +64,7 @@ export function PartiesBoard({ type }: { type: PartyType }) {
             placeholder={t("search")}
             className="min-w-0 flex-1 bg-transparent text-base text-ivory outline-none placeholder:text-ivory/60"
           />
+          {typed && <ClearButton onClear={() => setTyped("")} label={tc("clearSearch")} />}
         </label>
         <Menu
           label={t("place")}

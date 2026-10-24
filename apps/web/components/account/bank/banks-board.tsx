@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { ClearButton } from "~/components/ui/clear-button";
 import { Spinner } from "~/components/ui/spinner";
 import { cn } from "~/lib/utils";
 import { titleCase } from "~/lib/format";
@@ -18,6 +19,7 @@ import { SignedAmount } from "../signed-amount";
 // inactive, both staying under the header, then a card per account (bank, ••last 4 and type on the left, today's
 // balance and any post-dated amount on the right) opening its page
 export function BanksBoard() {
+  const tc = useTranslations("common");
   const t = useTranslations("accounts.bank");
   const [showInactive, setShowInactive] = useState(false);
   const banks = trpc.accounts.bank.list.useQuery({ includeInactive: showInactive });
@@ -50,6 +52,7 @@ export function BanksBoard() {
             placeholder={t("search")}
             className="min-w-0 flex-1 bg-transparent text-base text-ivory outline-none placeholder:text-ivory/60"
           />
+          {search && <ClearButton onClear={() => setSearch("")} label={tc("clearSearch")} />}
         </label>
         <button type="button" aria-pressed={showInactive} onClick={() => setShowInactive((v) => !v)} className={chip(showInactive)}>
           {t("showInactive")}

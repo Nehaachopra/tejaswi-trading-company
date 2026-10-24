@@ -4,6 +4,7 @@ import { CircleAlert, Ellipsis, Pencil, Plus, Power, Search } from "lucide-react
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { ClearButton } from "~/components/ui/clear-button";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
@@ -19,6 +20,7 @@ import { chip } from "../product/row-styles";
 // staying under the header, then a row per account: bank ••last 4 and type, branch and IFSC; tapping a row edits
 // it, its ⋯ menu also marks it inactive or active
 export function BanksManager() {
+  const tc = useTranslations("common");
   const t = useTranslations("banks");
   const tb = useTranslations("accounts.bank");
   const utils = trpc.useUtils();
@@ -71,6 +73,7 @@ export function BanksManager() {
             placeholder={tb("search")}
             className="min-w-0 flex-1 bg-transparent text-base text-ivory outline-none placeholder:text-ivory/60"
           />
+          {search && <ClearButton onClear={() => setSearch("")} label={tc("clearSearch")} />}
         </label>
         <button type="button" aria-pressed={showInactive} onClick={() => setShowInactive((v) => !v)} className={chip(showInactive)}>
           {tb("showInactive")}

@@ -4,6 +4,7 @@ import { ChevronDown, CircleAlert, Ellipsis, Pencil, Plus, Power, Search } from 
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { ClearButton } from "~/components/ui/clear-button";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
@@ -52,6 +53,7 @@ function Filter<T extends string | null>({ label, current, options, picked, onPi
 // staying under the header), then a row per party: short name and type, full name, phone and city; tapping a row
 // edits it, its ⋯ menu also marks it inactive or active
 export function PartiesManager() {
+  const tc = useTranslations("common");
   const t = useTranslations("parties");
   const tf = useTranslations("accounts.party.form");
   const utils = trpc.useUtils();
@@ -112,6 +114,7 @@ export function PartiesManager() {
             placeholder={t("search")}
             className="min-w-0 flex-1 bg-transparent text-base text-ivory outline-none placeholder:text-ivory/60"
           />
+          {typed && <ClearButton onClear={() => setTyped("")} label={tc("clearSearch")} />}
         </label>
         <Filter
           label={t("type")}

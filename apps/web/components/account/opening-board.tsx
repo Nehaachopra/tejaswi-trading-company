@@ -4,6 +4,7 @@ import { CircleAlert, Lock, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { ClearButton } from "~/components/ui/clear-button";
 import { fieldClass, SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { NumberInput } from "~/components/ui/number-input";
@@ -40,6 +41,7 @@ const debitPaise = (typed: string, head: Head) => {
 // with other entries is locked. Capital takes the other side of all of them, worked out as you type; one save
 // writes them all
 export function OpeningBoard() {
+  const tc = useTranslations("common");
   const t = useTranslations("accounts.opening");
   const th = useTranslations("accounts.overview.heads");
   const tm = useTranslations("accounts.overview.masters");
@@ -163,6 +165,7 @@ export function OpeningBoard() {
                 placeholder={t("search")}
                 className="min-w-0 flex-1 bg-transparent text-base text-ivory outline-none placeholder:text-ivory/60"
               />
+              {search && <ClearButton onClear={() => setSearch("")} label={tc("clearSearch")} />}
             </label>
           </div>
 

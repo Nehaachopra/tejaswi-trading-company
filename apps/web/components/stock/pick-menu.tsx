@@ -1,8 +1,10 @@
 "use client";
 
 import { ChevronDown, Search } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { ClearButton } from "~/components/ui/clear-button";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { cn } from "~/lib/utils";
 
@@ -34,6 +36,7 @@ export function PickMenu<T extends string | null>({
   searchLabel?: string;
   noMatch?: string;
 }) {
+  const tc = useTranslations("common");
   const [search, setSearch] = useState("");
   const needle = search.trim().toLowerCase();
   const shown = needle === "" ? options : options.filter((o) => o.name.toLowerCase().includes(needle) || (o.hint ?? "").toLowerCase().includes(needle));
@@ -76,6 +79,7 @@ export function PickMenu<T extends string | null>({
                 aria-label={searchLabel ?? label}
                 className="min-w-0 flex-1 bg-transparent text-sm text-chestnut outline-none placeholder:text-chestnut/60"
               />
+              {search && <ClearButton onClear={() => setSearch("")} label={tc("clearSearch")} surface="ivory" />}
             </label>
           )}
           {/* a long list shows its first 100; the search reaches the rest */}
