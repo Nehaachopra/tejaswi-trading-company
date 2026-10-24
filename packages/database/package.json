@@ -4,9 +4,10 @@
   "scripts": {
     "db:migrate": "dotenv -e ../../.env -- drizzle-kit migrate",
     "db:migrate:debug": "dotenv -e ../../.env -- tsx scripts/migrate-debug.ts",
-    "db:generate":"dotenv -e ../../.env -- drizzle-kit generate",
+    "db:generate": "dotenv -e ../../.env -- drizzle-kit generate",
     "seed:demo": "dotenv -e ../../.env -- tsx scripts/seed-demo-products.ts",
-    "dev": "dotenv -e ../../.env -- drizzle-kit studio"
+    "dev": "dotenv -e ../../.env -- drizzle-kit studio",
+    "ifsc:load": "dotenv -e ../../.env -- tsx scripts/load-ifsc.ts"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

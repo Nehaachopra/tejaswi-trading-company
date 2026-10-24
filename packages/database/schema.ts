@@ -9,6 +9,7 @@ export * from "./models/auth/session";
 export * from "./models/auth/user";
 export * from "./models/bank-detail";
 export * from "./models/bank-upi-id";
+export * from "./models/ifsc-branch";
 export * from "./models/employee/employee";
 export * from "./models/godown/godown";
 export * from "./models/godown/product-godown";
