@@ -22,41 +22,42 @@ export const MASTERS = {
 
 export type MasterKey = keyof typeof MASTERS;
 
+// names are stored in lowercase (screens show them in the reader's language, by key)
 export const LEDGERS = {
-  cash: { group: "asset", name: "Cash" },
-  inputCgst: { group: "asset", name: "Input CGST" },
-  inputSgst: { group: "asset", name: "Input SGST" },
-  inputIgst: { group: "asset", name: "Input IGST" },
+  cash: { group: "asset", name: "cash" },
+  inputCgst: { group: "asset", name: "input cgst" },
+  inputSgst: { group: "asset", name: "input sgst" },
+  inputIgst: { group: "asset", name: "input igst" },
   // TDS customers deduct from us
-  tdsReceivable: { group: "asset", name: "TDS receivable" },
+  tdsReceivable: { group: "asset", name: "tds receivable" },
 
-  outputCgst: { group: "liability", name: "Output CGST" },
-  outputSgst: { group: "liability", name: "Output SGST" },
-  outputIgst: { group: "liability", name: "Output IGST" },
+  outputCgst: { group: "liability", name: "output cgst" },
+  outputSgst: { group: "liability", name: "output sgst" },
+  outputIgst: { group: "liability", name: "output igst" },
   // reverse-charge GST stays apart from normal output GST, for GSTR-3B
-  outputCgstRcm: { group: "liability", name: "Output CGST (RCM)" },
-  outputSgstRcm: { group: "liability", name: "Output SGST (RCM)" },
-  outputIgstRcm: { group: "liability", name: "Output IGST (RCM)" },
+  outputCgstRcm: { group: "liability", name: "output cgst (rcm)" },
+  outputSgstRcm: { group: "liability", name: "output sgst (rcm)" },
+  outputIgstRcm: { group: "liability", name: "output igst (rcm)" },
   // TDS we deduct from others
-  tdsPayable: { group: "liability", name: "TDS payable" },
-  tcs: { group: "liability", name: "TCS" },
-  drawings: { group: "liability", name: "Drawings" },
+  tdsPayable: { group: "liability", name: "tds payable" },
+  tcs: { group: "liability", name: "tcs" },
+  drawings: { group: "liability", name: "drawings" },
   // the other side of every opening balance
-  capital: { group: "liability", name: "Capital" },
+  capital: { group: "liability", name: "capital" },
 
-  sale: { group: "income", name: "Sale" },
+  sale: { group: "income", name: "sale" },
   // goods sent back to a supplier take back what the purchase cost
-  purchaseReturn: { group: "income", name: "Purchase return" },
-  discountReceived: { group: "income", name: "Discount received" },
+  purchaseReturn: { group: "income", name: "purchase return" },
+  discountReceived: { group: "income", name: "discount received" },
 
-  salary: { group: "expense", name: "Salary" },
-  purchase: { group: "expense", name: "Purchase" },
+  salary: { group: "expense", name: "salary" },
+  purchase: { group: "expense", name: "purchase" },
   // goods a customer sends back take back what the sale earned
-  saleReturn: { group: "expense", name: "Sale return" },
-  discountGiven: { group: "expense", name: "Discount given" },
-  rent: { group: "expense", name: "Rent" },
-  electricity: { group: "expense", name: "Electricity" },
-  wifi: { group: "expense", name: "Wifi expense" },
+  saleReturn: { group: "expense", name: "sale return" },
+  discountGiven: { group: "expense", name: "discount given" },
+  rent: { group: "expense", name: "rent" },
+  electricity: { group: "expense", name: "electricity" },
+  wifi: { group: "expense", name: "wifi expense" },
 } as const satisfies Record<string, { group: GroupType; name: string }>;
 
 export type LedgerKey = keyof typeof LEDGERS;

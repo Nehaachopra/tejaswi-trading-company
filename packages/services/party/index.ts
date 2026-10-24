@@ -252,9 +252,10 @@ export default class PartyService {
     return { ledgerMasterId: master.id, ledgerGroupId: master.ledgerGroupId };
   }
 
-  // a new party, its addresses, its ledger and its opening balance, saved together or not at all
+  // a new party, its addresses and its ledger, saved together or not at all (its opening balance is set on the
+  // Opening balances page)
   async create(rawInput: CreatePartyInputModel, actor: ActorModel): Promise<PartyModel> {
-    const { details, addresses, openingBalance } = createPartyInputModel.parse(rawInput);
+    const { details, addresses } = createPartyInputModel.parse(rawInput);
     const id = await db.transaction(async (tx) => {
       await this.assertShortNameFree(tx, details.shortName);
       await this.assertGstinsFree(tx, addresses);
@@ -263,8 +264,8 @@ export default class PartyService {
       const [ledger] = await tx
         .insert(ledgersTable)
         .values({ name: details.shortName, ...(await this.placeFor(tx, details.type)), referenceTable: REFERENCE, referenceId: party!.id, balance: "0.00" })
-        .returning({ id: ledgersTable.id, name: ledgersTable.name });
-      await this.accounts.setOpeningBalance(tx, ledger!, openingBalance, actor);
+        .returning({ id: ledgersTable.id });
+      if (!ledger) throw notFound();
       return party!.id;
     }).catch((error: unknown) => {
       if (isUniqueViolation(error)) throw shortNameTaken(details.shortName);
@@ -273,10 +274,10 @@ export default class PartyService {
     return this.get({ id });
   }
 
-  // new details, addresses and opening balance, saved together; a new type moves its ledger to the matching
+  // new details and addresses, saved together; a new type moves its ledger to the matching
   // sub-group with every entry kept, and the ledger's name follows the party's short name
   async update(rawInput: UpdatePartyInputModel, actor: ActorModel): Promise<PartyModel> {
-    const { id, details, addresses, openingBalance } = updatePartyInputModel.parse(rawInput);
+    const { id, details, addresses } = updatePartyInputModel.parse(rawInput);
     await db.transaction(async (tx) => {
       const [party] = await tx.select({ id: partiesTable.id }).from(partiesTable).where(eq(partiesTable.id, id)).for("update");
       if (!party) throw notFound();
@@ -310,7 +311,6 @@ export default class PartyService {
         .update(ledgersTable)
         .set({ name: details.shortName, ...(await this.placeFor(tx, details.type)) })
         .where(eq(ledgersTable.id, ledger.id));
-      await this.accounts.setOpeningBalance(tx, { id: ledger.id, name: details.shortName }, openingBalance, actor);
     }).catch((error: unknown) => {
       if (isUniqueViolation(error)) throw shortNameTaken(details.shortName);
       throw error;

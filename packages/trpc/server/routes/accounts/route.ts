@@ -3,8 +3,10 @@ import { z } from "zod";
 import {
   createLedgerInputModel,
   ledgerIdInputModel,
-  ledgerSummaryModel,
+  ledgerModel,
+  openingSheetModel,
   overviewModel,
+  saveOpeningInputModel,
   setLedgerActiveInputModel,
   statementInputModel,
   statementModel,
@@ -105,26 +107,26 @@ const ledgerRouter = router({
   create: adminProcedure
     .meta({ openapi: { method: "POST", path: "/accounts/ledgers", tags: ["accounts"] } })
     .input(createLedgerInputModel)
-    .output(ledgerSummaryModel)
+    .output(ledgerModel)
     .mutation(({ ctx, input }) => accountsService.createLedger(input, ctx.session.user)),
 
   update: adminProcedure
     .meta({ openapi: { method: "PATCH", path: "/accounts/ledgers/{id}", tags: ["accounts"] } })
     .input(updateLedgerInputModel)
-    .output(ledgerSummaryModel)
-    .mutation(({ ctx, input }) => accountsService.updateLedger(input, ctx.session.user)),
+    .output(ledgerModel)
+    .mutation(({ input }) => accountsService.updateLedger(input)),
 
   // only ledgers the admin added, at a zero balance
   setActive: adminProcedure
     .meta({ openapi: { method: "POST", path: "/accounts/ledgers/{id}/active", tags: ["accounts"] } })
     .input(setLedgerActiveInputModel)
-    .output(ledgerSummaryModel)
+    .output(ledgerModel)
     .mutation(({ input }) => accountsService.setLedgerActive(input)),
 
   get: adminProcedure
     .meta({ openapi: { method: "GET", path: "/accounts/ledgers/{id}", tags: ["accounts"] } })
     .input(ledgerIdInputModel)
-    .output(ledgerSummaryModel)
+    .output(ledgerModel)
     .query(({ input }) => accountsService.ledger(input)),
 
   statement: adminProcedure
@@ -134,7 +136,23 @@ const ledgerRouter = router({
     .query(({ input }) => accountsService.statement(input)),
 });
 
+// the Opening balances page: every ledger's opening balance, read and saved at once on the date the books start
+const openingRouter = router({
+  get: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/accounts/opening", tags: ["accounts"] } })
+    .input(z.void())
+    .output(openingSheetModel)
+    .query(() => accountsService.openingSheet()),
+
+  save: adminProcedure
+    .meta({ openapi: { method: "PUT", path: "/accounts/opening", tags: ["accounts"] } })
+    .input(saveOpeningInputModel)
+    .output(openingSheetModel)
+    .mutation(({ ctx, input }) => accountsService.saveOpening(input, ctx.session.user)),
+});
+
 export const accountsRouter = router({
+  opening: openingRouter,
   // /account: the six heads with their sub-groups, ledgers and totals
   overview: adminProcedure
     .meta({ openapi: { method: "GET", path: "/accounts", tags: ["accounts"] } })

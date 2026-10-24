@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ledgerBalanceModel, openingBalanceModel, savedOpeningBalanceModel } from "../accounts/model";
+import { ledgerBalanceModel, savedOpeningBalanceModel } from "../accounts/model";
 
 const idModel = z.string().uuid();
 
@@ -96,11 +96,10 @@ export const partyDetailsInputModel = z.object({
 
 export type PartyDetailsInputModel = z.infer<typeof partyDetailsInputModel>;
 
-// a new party with its addresses (up to 10) and what it owed or was owed on a date
+// a new party with its addresses (up to 10); its opening balance is set on the Opening balances page
 export const createPartyInputModel = z.object({
   details: partyDetailsInputModel,
   addresses: z.array(partyAddressInputModel).max(10).default([]),
-  openingBalance: openingBalanceModel.nullable().default(null),
 });
 
 export type CreatePartyInputModel = z.infer<typeof createPartyInputModel>;

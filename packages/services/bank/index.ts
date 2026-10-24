@@ -76,9 +76,10 @@ export default class BankService {
     return bank;
   }
 
-  // a new account, its ledger and its opening balance, saved together or not at all
+  // a new account and its ledger, saved together or not at all (its opening balance is set on the Opening
+  // balances page)
   async create(rawInput: CreateBankAccountInputModel, actor: ActorModel): Promise<BankAccountModel> {
-    const { details, openingBalance } = createBankAccountInputModel.parse(rawInput);
+    const { details } = createBankAccountInputModel.parse(rawInput);
     try {
       const id = await db.transaction(async (tx) => {
         const [bank] = await tx.insert(bankDetailsTable).values(details).returning({ id: bankDetailsTable.id });
@@ -93,8 +94,8 @@ export default class BankService {
             referenceId: bank!.id,
             balance: "0.00",
           })
-          .returning({ id: ledgersTable.id, name: ledgersTable.name });
-        await this.accounts.setOpeningBalance(tx, ledger!, openingBalance, actor);
+          .returning({ id: ledgersTable.id });
+        if (!ledger) throw notFound();
         return bank!.id;
       });
       return this.get({ id });
@@ -104,9 +105,9 @@ export default class BankService {
     }
   }
 
-  // new details (the ledger's name follows) and opening balance, saved together
+  // new details; the ledger's name follows
   async update(rawInput: UpdateBankAccountInputModel, actor: ActorModel): Promise<BankAccountModel> {
-    const { id, details, openingBalance } = updateBankAccountInputModel.parse(rawInput);
+    const { id, details } = updateBankAccountInputModel.parse(rawInput);
     try {
       await db.transaction(async (tx) => {
         const updated = await tx.update(bankDetailsTable).set(details).where(eq(bankDetailsTable.id, id)).returning({ id: bankDetailsTable.id });
@@ -114,7 +115,6 @@ export default class BankService {
         const ledger = await this.accounts.ledgerOf(tx, REFERENCE, id);
         const name = ledgerName(details);
         await tx.update(ledgersTable).set({ name }).where(eq(ledgersTable.id, ledger.id));
-        await this.accounts.setOpeningBalance(tx, { id: ledger.id, name }, openingBalance, actor);
       });
     } catch (error) {
       if (isUniqueViolation(error)) throw taken();

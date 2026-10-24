@@ -114,6 +114,14 @@ export const ledgerSummaryModel = z.object({
 
 export type LedgerSummaryModel = z.infer<typeof ledgerSummaryModel>;
 
+// one ledger on its own page: also its opening balance, and whether anything else has been posted (then that is fixed)
+export const ledgerModel = ledgerSummaryModel.extend({
+  openingBalance: savedOpeningBalanceModel.nullable(),
+  hasEntries: z.boolean(),
+});
+
+export type LedgerModel = z.infer<typeof ledgerModel>;
+
 // /account: the six heads. Asset, Liability, Income and Expense hold sub-groups (with the total of their
 // ledgers) and the ledgers that sit directly under them; Profit and Loss are worked out from income and
 // expense, so only one of them has an amount
@@ -132,21 +140,21 @@ export type OverviewModel = z.infer<typeof overviewModel>;
 
 export const customHeadModel = z.enum(["asset", "liability", "income", "expense"]);
 
-// a ledger the admin adds under a head, with what it stood at on a date
+// names are stored in lowercase; screens start each word with a capital
+const ledgerNameModel = z.string().trim().toLowerCase().min(1).max(150);
+
+// a ledger the admin adds under a head; its opening balance is set on the Opening balances page
 export const createLedgerInputModel = z.object({
   head: customHeadModel,
-  name: z.string().trim().min(1).max(150),
-  openingBalance: openingBalanceModel.nullable().default(null),
+  name: ledgerNameModel,
 });
 
 export type CreateLedgerInputModel = z.infer<typeof createLedgerInputModel>;
 
-// a ledger's opening balance (any ledger of its own: Cash, Drawings, a loan ...), and a new name for one the
-// admin added
+// a new name for a ledger the admin added
 export const updateLedgerInputModel = z.object({
   id: idModel,
-  name: z.string().trim().min(1).max(150).optional(),
-  openingBalance: openingBalanceModel.nullable().default(null),
+  name: ledgerNameModel,
 });
 
 export type UpdateLedgerInputModel = z.infer<typeof updateLedgerInputModel>;
@@ -154,6 +162,37 @@ export type UpdateLedgerInputModel = z.infer<typeof updateLedgerInputModel>;
 export const setLedgerActiveInputModel = z.object({ id: idModel, isActive: z.boolean() });
 
 export type SetLedgerActiveInputModel = z.infer<typeof setLedgerActiveInputModel>;
+
+// one row of the Opening balances page: a ledger that can have an opening balance (every one but Capital), where it
+// sits, and its opening balance; locked once anything else has been posted to it
+export const openingRowModel = z.object({
+  ledgerId: idModel,
+  name: z.string(),
+  key: z.string().nullable(),
+  head: customHeadModel,
+  masterKey: z.string().nullable(),
+  isActive: z.boolean(),
+  opening: balanceModel.nullable(),
+  locked: z.boolean(),
+});
+
+// the date the books start on (the opening balances' date, once any are saved) and every row
+export const openingSheetModel = z.object({
+  date: z.date().nullable(),
+  rows: z.array(openingRowModel),
+});
+
+export type OpeningSheetModel = z.infer<typeof openingSheetModel>;
+
+// every opening balance at once, all on the date the books start; a ledger left out or locked keeps what it has
+export const saveOpeningInputModel = z.object({
+  date: z.coerce.date(),
+  lines: z
+    .array(z.object({ ledgerId: idModel, opening: z.object({ amount: amountModel, side: sideModel }).nullable() }))
+    .max(5000),
+});
+
+export type SaveOpeningInputModel = z.infer<typeof saveOpeningInputModel>;
 
 // who is saving
 export type ActorModel = { id: string; name: string };

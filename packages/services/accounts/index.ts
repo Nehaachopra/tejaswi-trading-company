@@ -13,9 +13,13 @@ import {
   createLedgerInputModel,
   type LedgerBalanceModel,
   type LedgerIdInputModel,
+  type LedgerModel,
   type LedgerSummaryModel,
   type OpeningBalanceModel,
+  type OpeningSheetModel,
   type OverviewModel,
+  type SaveOpeningInputModel,
+  saveOpeningInputModel,
   type SetLedgerActiveInputModel,
   setLedgerActiveInputModel,
   type UpdateLedgerInputModel,
@@ -81,9 +85,12 @@ export default class AccountsService {
       const fixed = await tx.select().from(ledgersTable).where(and(isNull(ledgersTable.referenceId), isNull(ledgersTable.ledgerMasterId)));
       for (const l of Object.values(LEDGERS)) {
         const ledgerGroupId = groupId.get(l.group)!;
-        const found = fixed.find((f) => f.name === l.name);
+        // found whatever its case, and kept in lowercase like every other name
+        const found = fixed.find((f) => f.name.toLowerCase() === l.name);
         if (!found) await tx.insert(ledgersTable).values({ name: l.name, ledgerGroupId, balance: "0.00" });
-        else if (found.ledgerGroupId !== ledgerGroupId) await tx.update(ledgersTable).set({ ledgerGroupId }).where(eq(ledgersTable.id, found.id));
+        else if (found.ledgerGroupId !== ledgerGroupId || found.name !== l.name) {
+          await tx.update(ledgersTable).set({ ledgerGroupId, name: l.name }).where(eq(ledgersTable.id, found.id));
+        }
       }
     });
   }
@@ -318,10 +325,11 @@ export default class AccountsService {
     }));
   }
 
-  async ledger(input: LedgerIdInputModel): Promise<LedgerSummaryModel> {
+  async ledger(input: LedgerIdInputModel): Promise<LedgerModel> {
     const [ledger] = await this.summaries(input.id);
     if (!ledger) throw notFound();
-    return ledger;
+    const [openingBalance, withEntries] = await Promise.all([this.savedOpening(ledger.id), this.withEntries([ledger.id])]);
+    return { ...ledger, openingBalance, hasEntries: withEntries.has(ledger.id) };
   }
 
   // the six heads with their totals as of today
@@ -370,7 +378,7 @@ export default class AccountsService {
 
   // a ledger the admin adds under a head (a loan, other income, an expense head), opened with its opening balance
   // in the same save
-  async createLedger(rawInput: CreateLedgerInputModel, actor: ActorModel): Promise<LedgerSummaryModel> {
+  async createLedger(rawInput: CreateLedgerInputModel, actor: ActorModel): Promise<LedgerModel> {
     const input = createLedgerInputModel.parse(rawInput);
     const id = await db.transaction(async (tx) => {
       const [group] = await tx.select({ id: ledgerGroupsTable.id }).from(ledgerGroupsTable).where(eq(ledgerGroupsTable.type, input.head));
@@ -380,39 +388,81 @@ export default class AccountsService {
         .insert(ledgersTable)
         .values({ name: input.name, ledgerGroupId: group.id, balance: "0.00" })
         .returning({ id: ledgersTable.id, name: ledgersTable.name });
-      await this.setOpeningBalance(tx, ledger!, input.openingBalance, actor);
       return ledger!.id;
     });
     return this.ledger({ id });
   }
 
-  // a ledger's opening balance, and the name of one the admin added. Bank accounts, parties and employees change
-  // theirs on their own pages; Capital has none (it is the other side of every opening balance)
-  async updateLedger(rawInput: UpdateLedgerInputModel, actor: ActorModel): Promise<LedgerSummaryModel> {
+  // a new name for a ledger the admin added; built-in ledgers keep theirs
+  async updateLedger(rawInput: UpdateLedgerInputModel): Promise<LedgerModel> {
     const input = updateLedgerInputModel.parse(rawInput);
     const current = await this.ledger({ id: input.id });
-    if (current.referenceId !== null || current.masterKey !== null) {
-      throw new TRPCError({ code: "BAD_REQUEST", message: "Change this on its bank account, party or employee page." });
-    }
-    if (current.key === "capital") throw new TRPCError({ code: "BAD_REQUEST", message: "Capital has no opening balance of its own." });
-    if (input.name !== undefined && input.name !== current.name && !current.custom) {
-      throw new TRPCError({ code: "BAD_REQUEST", message: "A built-in ledger keeps its name." });
-    }
+    if (!current.custom) throw new TRPCError({ code: "BAD_REQUEST", message: "A built-in ledger keeps its name." });
     await db.transaction(async (tx) => {
       const [row] = await tx.select({ ledgerGroupId: ledgersTable.ledgerGroupId }).from(ledgersTable).where(eq(ledgersTable.id, input.id)).for("update");
-      const name = input.name ?? current.name;
-      if (name !== current.name) {
-        await this.assertNameFree(tx, row!.ledgerGroupId, name, input.id);
-        await tx.update(ledgersTable).set({ name }).where(eq(ledgersTable.id, input.id));
+      if (input.name !== current.name) {
+        await this.assertNameFree(tx, row!.ledgerGroupId, input.name, input.id);
+        await tx.update(ledgersTable).set({ name: input.name }).where(eq(ledgersTable.id, input.id));
       }
-      await this.setOpeningBalance(tx, { id: input.id, name }, input.openingBalance, actor);
     });
     return this.ledger({ id: input.id });
   }
 
+  // the Opening balances page: every ledger but Capital, with its opening balance and whether it's locked, and the
+  // date the books start (the earliest opening balance's date, once any are saved)
+  async openingSheet(): Promise<OpeningSheetModel> {
+    const ledgers = (await this.summaries()).filter((l) => l.key !== "capital" && l.head !== "profit" && l.head !== "loss");
+    const ids = ledgers.map((l) => l.id);
+    const [openings, locked] = await Promise.all([
+      ids.length === 0
+        ? []
+        : db
+            .select({ ledgerId: ledgerEntriesTable.ledgerId, amount: ledgerEntriesTable.amount, side: ledgerEntriesTable.transactionType, at: transactionsTable.dateTime })
+            .from(ledgerEntriesTable)
+            .innerJoin(transactionsTable, eq(transactionsTable.id, ledgerEntriesTable.transactionId))
+            .where(and(inArray(ledgerEntriesTable.ledgerId, ids), eq(transactionsTable.type, "opening_balance"), eq(transactionsTable.status, "active"))),
+      this.withEntries(ids),
+    ]);
+    const openingOf = new Map(openings.map((o) => [o.ledgerId, o]));
+    const dates = openings.map((o) => o.at!.getTime());
+    return {
+      date: dates.length ? new Date(Math.min(...dates)) : null,
+      rows: ledgers.map((l) => {
+        const o = openingOf.get(l.id);
+        return {
+          ledgerId: l.id,
+          name: l.name,
+          key: l.key,
+          head: l.head as "asset" | "liability" | "income" | "expense",
+          masterKey: l.masterKey,
+          isActive: l.isActive,
+          opening: o ? { amount: Number(o.amount), side: o.side } : null,
+          locked: locked.has(l.id),
+        };
+      }),
+    };
+  }
+
+  // every opening balance at once, all on the date the books start, in one save; Capital takes the other side of
+  // each. A locked ledger (with other entries) keeps what it has
+  async saveOpening(rawInput: SaveOpeningInputModel, actor: ActorModel): Promise<OpeningSheetModel> {
+    const input = saveOpeningInputModel.parse(rawInput);
+    const sheet = await this.openingSheet();
+    const rowOf = new Map(sheet.rows.map((r) => [r.ledgerId, r]));
+    await db.transaction(async (tx) => {
+      for (const line of input.lines) {
+        const row = rowOf.get(line.ledgerId);
+        if (!row) throw new TRPCError({ code: "BAD_REQUEST", message: "That ledger can't have an opening balance here." });
+        if (row.locked) continue;
+        await this.setOpeningBalance(tx, { id: row.ledgerId, name: row.name }, line.opening ? { ...line.opening, date: input.date } : null, actor);
+      }
+    });
+    return this.openingSheet();
+  }
+
   // a ledger the admin added is made inactive only at a zero balance (post-dated entries included); built-in
   // ones always stay
-  async setLedgerActive(rawInput: SetLedgerActiveInputModel): Promise<LedgerSummaryModel> {
+  async setLedgerActive(rawInput: SetLedgerActiveInputModel): Promise<LedgerModel> {
     const input = setLedgerActiveInputModel.parse(rawInput);
     const current = await this.ledger({ id: input.id });
     if (!current.custom) throw new TRPCError({ code: "BAD_REQUEST", message: "Only ledgers you added can be made inactive here." });

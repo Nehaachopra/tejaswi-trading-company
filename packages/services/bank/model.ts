@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ledgerBalanceModel, openingBalanceModel, savedOpeningBalanceModel } from "../accounts/model";
+import { ledgerBalanceModel, savedOpeningBalanceModel } from "../accounts/model";
 
 const idModel = z.string().uuid();
 
@@ -34,15 +34,14 @@ export const bankDetailsInputModel = z.object({
 
 export type BankDetailsInputModel = z.infer<typeof bankDetailsInputModel>;
 
-// a new bank account, with what it held on a date (none for an account opened today with nothing in it)
+// a new bank account; its opening balance is set on the Opening balances page
 export const createBankAccountInputModel = z.object({
   details: bankDetailsInputModel,
-  openingBalance: openingBalanceModel.nullable().default(null),
 });
 
 export type CreateBankAccountInputModel = z.infer<typeof createBankAccountInputModel>;
 
-// its details and opening balance; the opening balance changes only while it is the ledger's only entry
+// its details
 export const updateBankAccountInputModel = createBankAccountInputModel.extend({ id: idModel });
 
 export type UpdateBankAccountInputModel = z.infer<typeof updateBankAccountInputModel>;
