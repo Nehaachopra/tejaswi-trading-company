@@ -1,8 +1,17 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, count, db, eq, ilike, inArray, ne, notInArray, or, type SQL } from "@repo/database";
-import { ledgersTable, partiesTable, partyAddressesTable, purchaseOrdersTable, saleOrdersTable } from "@repo/database/schema";
+import { and, asc, count, db, eq, ilike, inArray, ne, notInArray, or, type SQL, sql } from "@repo/database";
+import {
+  ledgerEntriesTable,
+  ledgersTable,
+  partiesTable,
+  partyAddressesTable,
+  purchaseOrdersTable,
+  saleOrdersTable,
+  transactionsTable,
+} from "@repo/database/schema";
 
 import AccountsService from "../accounts";
+import { toPaise } from "../accounts/money";
 import type { ActorModel } from "../accounts/model";
 import type { Tx } from "../stock/engine";
 import {
@@ -23,10 +32,17 @@ import {
 
 const REFERENCE = "parties";
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 // the sub-group a party's one ledger sits under, by its type
 const MASTER = { customer: "debtors", supplier: "creditors", both: "debtorCreditors" } as const;
 
 const notFound = () => new TRPCError({ code: "NOT_FOUND", message: "Party not found." });
+// the short name is taken; the message's start tells the screen which field it's about
+const shortNameTaken = (shortName: string) => new TRPCError({ code: "CONFLICT", message: `Short name ${shortName} is already used by another party.` });
+
+const isUniqueViolation = (error: unknown) =>
+  ((error as { cause?: { code?: string } })?.cause ?? (error as { code?: string }))?.code === "23505";
 
 // what the party table and its address rows hold, from the input
 const addressValues = (partyId: string, a: PartyAddressInputModel) => ({
@@ -70,6 +86,15 @@ export default class PartyService {
     if (clash) throw new TRPCError({ code: "CONFLICT", message: `GSTIN ${clash.gstin} already belongs to ${clash.name}.` });
   }
 
+  // no other party may use this short name
+  private async assertShortNameFree(tx: Tx, shortName: string, partyId?: string) {
+    const [clash] = await tx
+      .select({ id: partiesTable.id })
+      .from(partiesTable)
+      .where(and(eq(partiesTable.shortName, shortName), partyId ? ne(partiesTable.id, partyId) : undefined));
+    if (clash) throw shortNameTaken(shortName);
+  }
+
   // the parties with their ledgers and balances
   private async summaries(where: SQL | undefined) {
     const rows = await db
@@ -77,7 +102,7 @@ export default class PartyService {
       .from(partiesTable)
       .innerJoin(ledgersTable, and(eq(ledgersTable.referenceTable, REFERENCE), eq(ledgersTable.referenceId, partiesTable.id)))
       .where(where)
-      .orderBy(asc(partiesTable.name));
+      .orderBy(asc(partiesTable.shortName));
     const ids = rows.map((r) => r.party.id);
     const [balances, defaults] = await Promise.all([
       this.accounts.balances(rows.map((r) => r.ledgerId)),
@@ -95,6 +120,7 @@ export default class PartyService {
         id: p.id,
         ledgerId,
         name: p.name,
+        shortName: p.shortName,
         type: p.type,
         phone: p.phone,
         city: defaultOf.get(p.id)?.city ?? null,
@@ -112,7 +138,7 @@ export default class PartyService {
       and(
         input.type ? eq(partiesTable.type, input.type) : undefined,
         input.includeInactive ? undefined : eq(partiesTable.isActive, true),
-        search ? or(ilike(partiesTable.name, search), ilike(partiesTable.phone, search)) : undefined,
+        search ? or(ilike(partiesTable.shortName, search), ilike(partiesTable.name, search), ilike(partiesTable.phone, search)) : undefined,
       ),
     );
     return rows.map((r) => r.summary);
@@ -125,6 +151,58 @@ export default class PartyService {
       q.select({ n: count() }).from(purchaseOrdersTable).where(and(eq(purchaseOrdersTable.partyId, partyId), eq(purchaseOrdersTable.status, "pending"))),
     ]);
     return (sale?.n ?? 0) + (purchase?.n ?? 0);
+  }
+
+  // how this party deals with us: its transactions, how long its dues take to settle, and how often it trades
+  private async insights(ledgerId: string, type: PartyTypeModel, pendingOrders: number): Promise<PartyModel["insights"]> {
+    // each active transaction's net effect on the ledger, on its own date, up to today (an edit that posted again
+    // still counts once; a cancelled one not at all)
+    const rows = await db
+      .select({
+        type: transactionsTable.type,
+        at: transactionsTable.dateTime,
+        net: sql<string>`sum(case when ${ledgerEntriesTable.transactionType} = 'debit' then ${ledgerEntriesTable.amount} else -${ledgerEntriesTable.amount} end)`,
+      })
+      .from(ledgerEntriesTable)
+      .innerJoin(transactionsTable, eq(transactionsTable.id, ledgerEntriesTable.transactionId))
+      .where(and(eq(ledgerEntriesTable.ledgerId, ledgerId), eq(transactionsTable.status, "active"), sql`${transactionsTable.dateTime} <= now()`))
+      .groupBy(transactionsTable.id)
+      .orderBy(asc(transactionsTable.dateTime), asc(transactionsTable.createdAt));
+
+    const dealt = rows.filter((r) => r.type !== "opening_balance" && toPaise(r.net) !== 0);
+    const first = dealt[0]?.at;
+    const months = first ? Math.max(1, (Date.now() - first.getTime()) / (DAY_MS * 30.44)) : 1;
+
+    // dues settle oldest first: a customer's debits are what it owes, its credits settle them; a supplier the
+    // other way round
+    const owes = type === "supplier" ? -1 : 1;
+    const open: { paise: number; at: Date }[] = [];
+    let settledPaise = 0;
+    let weightedDays = 0;
+    for (const r of rows) {
+      let paise = owes * toPaise(r.net);
+      if (paise > 0) {
+        open.push({ paise, at: r.at! });
+        continue;
+      }
+      paise = -paise;
+      while (paise > 0 && open.length > 0) {
+        const due = open[0]!;
+        const part = Math.min(due.paise, paise);
+        weightedDays += part * Math.max(0, (r.at!.getTime() - due.at.getTime()) / DAY_MS);
+        settledPaise += part;
+        due.paise -= part;
+        paise -= part;
+        if (due.paise === 0) open.shift();
+      }
+    }
+
+    return {
+      transactions: dealt.length,
+      pendingOrders,
+      averageDays: settledPaise > 0 ? Math.round(weightedDays / settledPaise) : null,
+      perMonth: Math.round((dealt.length / months) * 10) / 10,
+    };
   }
 
   async get(input: PartyIdInputModel): Promise<PartyModel> {
@@ -164,7 +242,7 @@ export default class PartyService {
       })),
       openingBalance,
       hasEntries: withEntries.has(summary.ledgerId),
-      pendingOrders,
+      insights: await this.insights(summary.ledgerId, p.type, pendingOrders),
     };
   }
 
@@ -178,26 +256,31 @@ export default class PartyService {
   async create(rawInput: CreatePartyInputModel, actor: ActorModel): Promise<PartyModel> {
     const { details, addresses, openingBalance } = createPartyInputModel.parse(rawInput);
     const id = await db.transaction(async (tx) => {
+      await this.assertShortNameFree(tx, details.shortName);
       await this.assertGstinsFree(tx, addresses);
       const [party] = await tx.insert(partiesTable).values(details).returning({ id: partiesTable.id });
       if (addresses.length > 0) await tx.insert(partyAddressesTable).values(this.withDefault(addresses).map((a) => addressValues(party!.id, a)));
       const [ledger] = await tx
         .insert(ledgersTable)
-        .values({ name: details.name, ...(await this.placeFor(tx, details.type)), referenceTable: REFERENCE, referenceId: party!.id, balance: "0.00" })
+        .values({ name: details.shortName, ...(await this.placeFor(tx, details.type)), referenceTable: REFERENCE, referenceId: party!.id, balance: "0.00" })
         .returning({ id: ledgersTable.id, name: ledgersTable.name });
       await this.accounts.setOpeningBalance(tx, ledger!, openingBalance, actor);
       return party!.id;
+    }).catch((error: unknown) => {
+      if (isUniqueViolation(error)) throw shortNameTaken(details.shortName);
+      throw error;
     });
     return this.get({ id });
   }
 
   // new details, addresses and opening balance, saved together; a new type moves its ledger to the matching
-  // sub-group with every entry kept, and the ledger's name follows the party's
+  // sub-group with every entry kept, and the ledger's name follows the party's short name
   async update(rawInput: UpdatePartyInputModel, actor: ActorModel): Promise<PartyModel> {
     const { id, details, addresses, openingBalance } = updatePartyInputModel.parse(rawInput);
     await db.transaction(async (tx) => {
       const [party] = await tx.select({ id: partiesTable.id }).from(partiesTable).where(eq(partiesTable.id, id)).for("update");
       if (!party) throw notFound();
+      await this.assertShortNameFree(tx, details.shortName, id);
       await this.assertGstinsFree(tx, addresses, id);
       await tx.update(partiesTable).set(details).where(eq(partiesTable.id, id));
 
@@ -225,9 +308,12 @@ export default class PartyService {
       const ledger = await this.accounts.ledgerOf(tx, REFERENCE, id);
       await tx
         .update(ledgersTable)
-        .set({ name: details.name, ...(await this.placeFor(tx, details.type)) })
+        .set({ name: details.shortName, ...(await this.placeFor(tx, details.type)) })
         .where(eq(ledgersTable.id, ledger.id));
-      await this.accounts.setOpeningBalance(tx, { id: ledger.id, name: details.name }, openingBalance, actor);
+      await this.accounts.setOpeningBalance(tx, { id: ledger.id, name: details.shortName }, openingBalance, actor);
+    }).catch((error: unknown) => {
+      if (isUniqueViolation(error)) throw shortNameTaken(details.shortName);
+      throw error;
     });
     return this.get({ id });
   }

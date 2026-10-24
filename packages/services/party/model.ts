@@ -56,9 +56,17 @@ export const partyAddressInputModel = z
 
 export type PartyAddressInputModel = z.infer<typeof partyAddressInputModel>;
 
-// the party itself; lengths follow parties: name 150, phone 20, email 254, PAN 10
+// the party itself; lengths follow parties: name 150, short name 20, phone 20, email 254, PAN 10. The short name
+// ("SRT" for Sri Ramswamy Traders) is kept in capitals and is what ledgers and lists show
+export const shortNameModel = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z0-9][A-Z0-9 &.-]{0,19}$/, "Up to 20 letters or digits (spaces, & . - allowed).");
+
 export const partyDetailsInputModel = z.object({
   name: z.string().trim().min(1).max(150),
+  shortName: shortNameModel,
   type: partyTypeModel,
   phone: z
     .string()
@@ -142,6 +150,7 @@ export const partySummaryModel = z.object({
   id: idModel,
   ledgerId: idModel,
   name: z.string(),
+  shortName: z.string(),
   type: partyTypeModel,
   phone: z.string().nullable(),
   city: z.string().nullable(),
@@ -162,7 +171,18 @@ export const partyModel = partySummaryModel.extend({
   openingBalance: savedOpeningBalanceModel.nullable(),
   // whether anything besides the opening balance has been posted (then the opening balance is fixed)
   hasEntries: z.boolean(),
-  pendingOrders: z.number().int(),
+  insights: z.object({
+    // transactions with this party (its opening balance and cancelled ones aside)
+    transactions: z.number().int(),
+    // sale and purchase orders still waiting on it
+    pendingOrders: z.number().int(),
+    // how long money owed takes to be settled, in days: what a customer owes us until it is received, what we owe
+    // a supplier until it is paid. Settled oldest first (no bill-wise matching), weighted by amount; null until
+    // something has been settled
+    averageDays: z.number().int().nullable(),
+    // transactions a month, since its first one
+    perMonth: z.number(),
+  }),
 });
 
 export type PartyModel = z.infer<typeof partyModel>;
