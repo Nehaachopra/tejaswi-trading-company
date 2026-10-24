@@ -29,6 +29,13 @@
       "when": 1792752363444,
       "tag": "0003_previous_hellion",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792773389920,
+      "tag": "0004_tearful_power_pack",
+      "breakpoints": true
     }
   ]
 }

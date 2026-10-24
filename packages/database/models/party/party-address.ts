@@ -5,7 +5,6 @@ import { timestamps } from "../../utils/common/column-type";
 import { partiesTable } from "./party";
 
 import { addressTypeEnum, gstPlaceOfSupplyEnum } from "../../utils/common/enum";
-import { uniqueIndex } from "drizzle-orm/pg-core";
 
 export const partyAddressesTable = pgTable(
   "party_addresses",
@@ -65,7 +64,9 @@ export const partyAddressesTable = pgTable(
   (table) => [
     index("party_addresses_party_id_idx")
       .on(table.partyId),
-    uniqueIndex("parties_gstin_unique")
+    // not unique: one GSTIN covers a party's whole state registration, so its addresses in that state share
+    // it; the service makes sure no other party uses the same GSTIN
+    index("party_addresses_gstin_idx")
       .on(table.gstin),
   ],
 );

@@ -1,6 +1,6 @@
 // party.ts
 
-import { pgEnum, pgTable, text, uuid, varchar, boolean } from "drizzle-orm/pg-core";
+import { pgEnum, pgTable, text, uniqueIndex, uuid, varchar, boolean } from "drizzle-orm/pg-core";
 
 import { timestamps } from "../../utils/common/column-type";
 
@@ -16,6 +16,11 @@ export const partiesTable = pgTable(
       .defaultRandom(),
 
     name: varchar("name", { length: 150 })
+      .notNull(),
+
+    // the short name the business uses for a party ("Sri Ramswamy Traders" → "SRT"), in capitals; it is the
+    // ledger's name and what lists and ledgers show, the full name appears only in the party's details
+    shortName: varchar("short_name", { length: 20 })
       .notNull(),
 
     type: partyTypeEnum("type").notNull(),
@@ -38,6 +43,10 @@ export const partiesTable = pgTable(
 
     ...timestamps,
   },
+  (table) => [
+    // two parties can't share a short name
+    uniqueIndex("parties_short_name_unique").on(table.shortName),
+  ],
 );
 
 export type PartiesType = typeof partiesTable.$inferSelect;
