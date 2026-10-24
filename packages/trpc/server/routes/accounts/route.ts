@@ -5,6 +5,8 @@ import {
   ledgerIdInputModel,
   ledgerModel,
   openingSheetModel,
+  pickLedgersInputModel,
+  pickedLedgerModel,
   overviewModel,
   saveOpeningInputModel,
   setLedgerActiveInputModel,
@@ -35,7 +37,7 @@ import {
 } from "@repo/services/party/model";
 
 import { accountsService, bankService, partyService } from "../../services";
-import { adminProcedure, router } from "../../trpc";
+import { adminProcedure, protectedProcedure, router } from "../../trpc";
 
 // bank accounts: only the admin sees or changes them (and their balances)
 const bankRouter = router({
@@ -127,11 +129,22 @@ const partyRouter = router({
 // any ledger and its statement, for the admin; ledgers of its own (a loan, other income, an expense head) added,
 // renamed and made inactive, and any ledger's opening balance set
 const ledgerRouter = router({
+  // the ledgers a receipt can come from or a payment go to; staff record receipts and payments too, but only the
+  // admin sees balances
+  pickable: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/accounts/ledgers/pickable", tags: ["accounts"] } })
+    .input(pickLedgersInputModel)
+    .output(z.array(pickedLedgerModel))
+    .query(async ({ ctx, input }) => {
+      const ledgers = await accountsService.pickable(input);
+      return ctx.session.user.role === "admin" ? ledgers : ledgers.map((l) => ({ ...l, balance: null }));
+    }),
+
   create: adminProcedure
     .meta({ openapi: { method: "POST", path: "/accounts/ledgers", tags: ["accounts"] } })
     .input(createLedgerInputModel)
     .output(ledgerModel)
-    .mutation(({ ctx, input }) => accountsService.createLedger(input, ctx.session.user)),
+    .mutation(({ input }) => accountsService.createLedger(input)),
 
   update: adminProcedure
     .meta({ openapi: { method: "PATCH", path: "/accounts/ledgers/{id}", tags: ["accounts"] } })

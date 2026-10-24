@@ -18,6 +18,8 @@ import {
   type OpeningBalanceModel,
   type OpeningSheetModel,
   type OverviewModel,
+  type PickLedgersInputModel,
+  pickLedgersInputModel,
   type SaveOpeningInputModel,
   saveOpeningInputModel,
   type SetLedgerActiveInputModel,
@@ -379,19 +381,21 @@ export default class AccountsService {
 
   // a ledger the admin adds under a head (a loan, other income, an expense head), opened with its opening balance
   // in the same save
-  async createLedger(rawInput: CreateLedgerInputModel, actor: ActorModel): Promise<LedgerModel> {
+  async createLedger(rawInput: CreateLedgerInputModel): Promise<LedgerModel> {
     const input = createLedgerInputModel.parse(rawInput);
-    const id = await db.transaction(async (tx) => {
-      const [group] = await tx.select({ id: ledgerGroupsTable.id }).from(ledgerGroupsTable).where(eq(ledgerGroupsTable.type, input.head));
-      if (!group) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The accounting structure is missing." });
-      await this.assertNameFree(tx, group.id, input.name);
-      const [ledger] = await tx
-        .insert(ledgersTable)
-        .values({ name: input.name, ledgerGroupId: group.id, balance: "0.00" })
-        .returning({ id: ledgersTable.id, name: ledgersTable.name });
-      return ledger!.id;
-    });
+    const id = await db.transaction((tx) => this.createLedgerIn(tx, input));
     return this.ledger({ id });
+  }
+
+  // the same, inside another save (a receipt or payment that adds the ledger it uses), so a failed save never
+  // leaves an empty ledger behind
+  async createLedgerIn(tx: Tx, rawInput: CreateLedgerInputModel) {
+    const input = createLedgerInputModel.parse(rawInput);
+    const [group] = await tx.select({ id: ledgerGroupsTable.id }).from(ledgerGroupsTable).where(eq(ledgerGroupsTable.type, input.head));
+    if (!group) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The accounting structure is missing." });
+    await this.assertNameFree(tx, group.id, input.name);
+    const [ledger] = await tx.insert(ledgersTable).values({ name: input.name, ledgerGroupId: group.id, balance: "0.00" }).returning({ id: ledgersTable.id });
+    return ledger!.id;
   }
 
   // a new name for a ledger the admin added; built-in ledgers keep theirs
@@ -407,6 +411,20 @@ export default class AccountsService {
       }
     });
     return this.ledger({ id: input.id });
+  }
+
+  // the ledgers a receipt can come from or a payment go to, with their balances as of today
+  async pickable(rawInput: PickLedgersInputModel): Promise<LedgerSummaryModel[]> {
+    const input = pickLedgersInputModel.parse(rawInput);
+    return (await this.summaries()).filter(
+      (l) =>
+        l.isActive &&
+        l.key !== "cash" &&
+        l.masterKey !== "bank" &&
+        l.head !== "profit" &&
+        l.head !== "loss" &&
+        (input.purpose === "receipt" || (l.masterKey !== "employees" && l.key !== "drawings")),
+    );
   }
 
   // the Opening balances page: every ledger but Capital, with its opening balance and whether it's locked, and the

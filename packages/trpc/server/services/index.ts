@@ -3,6 +3,7 @@ import AccountsService from "@repo/services/accounts";
 import AuthService from "@repo/services/auth";
 import BankService from "@repo/services/bank";
 import PartyService from "@repo/services/party";
+import ReceiptService from "@repo/services/receipt";
 import TransactionService from "@repo/services/transaction";
 import CategoryService from "@repo/services/category";
 import GodownService from "@repo/services/godown";
@@ -28,3 +29,5 @@ export const bankService = new BankService(accountsService);
 export const partyService = new PartyService(accountsService);
 
 export const transactionService = new TransactionService();
+
+export const receiptService = new ReceiptService(accountsService, transactionService);

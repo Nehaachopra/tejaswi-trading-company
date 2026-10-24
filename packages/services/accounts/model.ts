@@ -194,5 +194,14 @@ export const saveOpeningInputModel = z.object({
 
 export type SaveOpeningInputModel = z.infer<typeof saveOpeningInputModel>;
 
+// the ledgers a receipt can come from or a payment go to: every active one but cash and the bank accounts (a payment
+// also leaves out employees and Drawings, which have their own pages)
+export const pickLedgersInputModel = z.object({ purpose: z.enum(["receipt", "payment"]) });
+
+export type PickLedgersInputModel = z.infer<typeof pickLedgersInputModel>;
+
+// a ledger to pick: its balance only for the admin (staff never see balances)
+export const pickedLedgerModel = ledgerSummaryModel.extend({ balance: ledgerBalanceModel.nullable() });
+
 // who is saving
 export type ActorModel = { id: string; name: string };
