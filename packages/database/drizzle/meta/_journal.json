@@ -99,6 +99,13 @@
       "when": 1793162069457,
       "tag": "0013_common_grey_gargoyle",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793168171437,
+      "tag": "0014_curved_old_lace",
+      "breakpoints": true
     }
   ]
 }

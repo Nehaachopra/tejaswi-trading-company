@@ -64,6 +64,8 @@ export const LEDGERS = {
   rent: { group: "expense", name: "rent" },
   electricity: { group: "expense", name: "electricity" },
   wifi: { group: "expense", name: "wifi expense" },
+  // the interest part of a loan we repay
+  interestPaid: { group: "expense", name: "interest paid" },
 } as const satisfies Record<string, { group: GroupType; name: string }>;
 
 export type LedgerKey = keyof typeof LEDGERS;

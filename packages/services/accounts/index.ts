@@ -38,9 +38,12 @@ import {
   statementInputModel,
   type StatementModel,
   OWN_SCREEN_LEDGERS,
+  fitsPaymentKind,
   fitsReceiptKind,
+  type PaymentKind,
   type PickedLedgerModel,
   type ReceiptKind,
+  TAX_LEDGERS,
 } from "./model";
 import { GROUPS, type GroupType, LEDGERS, type LedgerKey, MASTERS, type MasterKey } from "./structure";
 
@@ -442,7 +445,9 @@ export default class AccountsService {
       l.head !== "profit" &&
       l.head !== "loss" &&
       (input.purpose === "receipt" || (l.masterKey !== "employees" && l.key !== "drawings")) &&
-      (input.receiptKind === null || fitsReceiptKind(input.receiptKind, l));
+      (input.receiptKind === null || fitsReceiptKind(input.receiptKind, l)) &&
+      (input.paymentKind === null || fitsPaymentKind(input.paymentKind, l));
+    const kindWhere = input.receiptKind ? this.receiptKindWhere(input.receiptKind) : input.paymentKind ? this.paymentKindWhere(input.paymentKind) : undefined;
 
     // nothing typed: the ledgers used last for this purpose, newest first
     if (input.search === "") {
@@ -455,8 +460,8 @@ export default class AccountsService {
       const found = new Map((ids.length ? await this.summariesWhere(inArray(ledgersTable.id, ids)) : []).map((l) => [l.id, l]));
       const picks = ids.map((id) => found.get(id)).filter((l): l is LedgerSummaryModel => !!l && allowed(l)).slice(0, RECENT_PICKS);
       // one kind picked: topped up with that kind's ledgers, so Capital or Scrap sale shows without typing
-      if (input.receiptKind && picks.length < RECENT_PICKS) {
-        const more = await this.summariesWhere(and(eq(ledgersTable.isActive, true), this.receiptKindWhere(input.receiptKind)), RECENT_PICKS + 10);
+      if (kindWhere && picks.length < RECENT_PICKS) {
+        const more = await this.summariesWhere(and(eq(ledgersTable.isActive, true), kindWhere), RECENT_PICKS + 10);
         for (const l of more) if (picks.length < RECENT_PICKS && allowed(l) && !picks.some((p) => p.id === l.id)) picks.push(l);
       }
       return this.withParties(picks);
@@ -471,7 +476,7 @@ export default class AccountsService {
       and(
         eq(ledgersTable.isActive, true),
         sql`(lower(${ledgersTable.name}) like ${like} or lower(coalesce(${partiesTable.name}, '')) like ${like} or coalesce(${partiesTable.phone}, '') like ${like} or (length(${typed}) >= 3 and ${closeness} >= ${FUZZY_FLOOR}))`,
-        input.receiptKind ? this.receiptKindWhere(input.receiptKind) : undefined,
+        kindWhere,
       ),
       PICK_LIMIT + 10,
       sql`${closeness} desc`,
@@ -512,6 +517,31 @@ export default class AccountsService {
         return and(own, eq(ledgerGroupsTable.type, "income"));
       case "refund":
         return and(own, inArray(ledgerGroupsTable.type, ["asset", "expense"]), ne(ledgersTable.name, LEDGERS.cash.name));
+    }
+  }
+
+  // the ledgers of one payment kind, in SQL (fitsPaymentKind has the final say)
+  private paymentKindWhere(kind: PaymentKind): SQL | undefined {
+    const inMaster = (...keys: MasterKey[]) => inArray(ledgerMastersTable.name, keys.map((k) => MASTERS[k].name));
+    switch (kind) {
+      case "supplier":
+      case "loanRepaid":
+      case "loanGiven":
+      case "refund":
+        return inMaster("debtors", "creditors", "debtorCreditors", "parties");
+      case "taxPaid":
+        return and(
+          isNull(ledgersTable.ledgerMasterId),
+          isNull(ledgersTable.referenceId),
+          inArray(ledgersTable.name, TAX_LEDGERS.map((k) => LEDGERS[k as LedgerKey].name)),
+        );
+      case "expense":
+        return and(
+          isNull(ledgersTable.ledgerMasterId),
+          isNull(ledgersTable.referenceId),
+          eq(ledgerGroupsTable.type, "expense"),
+          notInArray(ledgersTable.name, OWN_SCREEN_LEDGERS.map((k) => LEDGERS[k as LedgerKey].name)),
+        );
     }
   }
 

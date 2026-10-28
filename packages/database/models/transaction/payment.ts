@@ -7,7 +7,7 @@ import { money, percent, timestamps } from "../../utils/common/column-type";
 import { bankDetailsTable } from "../bank-detail";
 import { ledgersTable } from "../accounting/ledger";
 import { transactionsTable } from "./transaction";
-import { settledInEnum, supplyTypeEnum } from "../../utils/common/enum";
+import { gstPlaceOfSupplyEnum, paidForEnum, settledInEnum, supplyTypeEnum } from "../../utils/common/enum";
 import { uniqueIndex } from "drizzle-orm/pg-core";
 import { index } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
@@ -41,6 +41,29 @@ export const paymentsTable = pgTable("payments", {
 
     partyEmailSnapshot: varchar("party_email_snapshot", { length: 254 }),
 
+    // the party as it was when paid, so the voucher can be drawn again unchanged on any later date: its full and short
+    // name and its default address (null when it went to a plain ledger)
+    partyNameSnapshot: varchar("party_name_snapshot", { length: 150 }),
+
+    partyShortNameSnapshot: varchar("party_short_name_snapshot", { length: 20 }),
+
+    partyAddressLine1Snapshot: varchar("party_address_line_1_snapshot", { length: 200 }),
+
+    partyAddressLine2Snapshot: varchar("party_address_line_2_snapshot", { length: 200 }),
+
+    partyCitySnapshot: varchar("party_city_snapshot", { length: 100 }),
+
+    partyPostalCodeSnapshot: varchar("party_postal_code_snapshot", { length: 6 }),
+
+    partyStateSnapshot: varchar("party_state_snapshot", { length: 100 }),
+
+    partyStateCodeSnapshot: gstPlaceOfSupplyEnum("party_state_code_snapshot"),
+
+    partyGstinSnapshot: varchar("party_gstin_snapshot", { length: 15 }),
+
+  // what it was for (the voucher's "Paid for" and its particulars)
+  paidFor: paidForEnum("paid_for").notNull(),
+
   settledIn: settledInEnum("settled_in").notNull(),
 
   bankDetailsId: uuid("bank_details_id")
@@ -48,7 +71,20 @@ export const paymentsTable = pgTable("payments", {
       onDelete: "restrict"
     }),
 
+  // the UTR or cheque number of a bank payment
+  referenceNumber: varchar("reference_number", { length: 30 }),
+
+  // the bank account as it was when paid: its bank, the last 4 digits and IFSC
+  bankNameSnapshot: varchar("bank_name_snapshot", { length: 100 }),
+
+  bankAccountLast4Snapshot: varchar("bank_account_last4_snapshot", { length: 4 }),
+
+  bankIfscSnapshot: varchar("bank_ifsc_snapshot", { length: 11 }),
+
   amount: money("amount").default("0.00").notNull(),
+
+  // a loan repaid: how much of the amount was interest (to Interest paid); the rest reduces the loan
+  interestAmount: money("interest_amount"),
 
   // optional GST on an expense bill (rent, services): the GST part is booked to input GST
   // and is checked against the GSTR-3B lock; all set together or none
@@ -76,7 +112,8 @@ export const paymentsTable = pgTable("payments", {
 
   tdsAmount: money("tds_amount"),
 
-  // remarks live on the transaction; the voucher PDF is made when someone asks for it
+  // remarks and the company block live on the transaction; the voucher is drawn from all of these whenever someone
+  // asks for it, never stored
 
   ...timestamps,
 }, (table) => [
@@ -90,6 +127,11 @@ export const paymentsTable = pgTable("payments", {
   check(
     "payments_amount_positive",
     sql`${table.amount} > 0`,
+  ),
+
+  check(
+    "payments_interest_within_amount",
+    sql`${table.interestAmount} IS NULL OR (${table.interestAmount} >= 0 AND ${table.interestAmount} <= ${table.amount})`,
   ),
 
   check(

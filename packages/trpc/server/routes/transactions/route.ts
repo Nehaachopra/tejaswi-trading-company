@@ -11,9 +11,17 @@ import {
 
 import { ledgerSummaryModel } from "@repo/services/accounts/model";
 import { createReceiptInputModel, receiptIdInputModel, receiptModel, receiptShareKeyModel, savedReceiptModel, sharedReceiptInputModel } from "@repo/services/receipt/model";
+import {
+  createPaymentInputModel,
+  paymentIdInputModel,
+  paymentModel,
+  paymentShareKeyModel,
+  savedPaymentModel,
+  sharedPaymentInputModel,
+} from "@repo/services/payment/model";
 import { opensVoucher, voucherKey } from "@repo/services/transaction/share-link";
 
-import { receiptService, transactionService } from "../../services";
+import { paymentService, receiptService, transactionService } from "../../services";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 
 // History: every past transaction of every type, one in full, and cancelling one; the admin only
@@ -83,7 +91,52 @@ const receiptRouter = router({
     }),
 });
 
+// payments: money going out, recorded by the admin or staff
+const paymentRouter = router({
+  create: protectedProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/payments", tags: ["transactions"] } })
+    .input(createPaymentInputModel)
+    .output(savedPaymentModel)
+    .mutation(({ ctx, input }) => {
+      // only the admin adds a new ledger or party while recording one
+      if ((input.newLedger || input.newParty) && ctx.session.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only the admin adds ledgers." });
+      return paymentService.create(input, ctx.session.user).then((p) => (ctx.session.user.role === "admin" ? p : { ...p, balances: null }));
+    }),
+
+  // the ledgers it moved with their balances now, for the page after a save; the admin's only
+  balances: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/payments/{transactionId}/balances", tags: ["transactions"] } })
+    .input(paymentIdInputModel)
+    .output(z.array(ledgerSummaryModel).nullable())
+    .query(({ ctx, input }) => (ctx.session.user.role === "admin" ? paymentService.balances(input) : null)),
+
+  // its details and voucher: for staff too (no balances in it)
+  get: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/payments/{transactionId}", tags: ["transactions"] } })
+    .input(paymentIdInputModel)
+    .output(paymentModel)
+    .query(({ input }) => paymentService.get(input)),
+
+  // the key for its voucher's link, to share it with the party on WhatsApp
+  shareKey: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/payments/{transactionId}/share-key", tags: ["transactions"] } })
+    .input(paymentIdInputModel)
+    .output(paymentShareKeyModel)
+    .query(({ input }) => ({ key: voucherKey(input.transactionId) })),
+
+  // its voucher from a shared link, for the party: no login, only with the key from that link
+  shared: publicProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/payments/{transactionId}/shared", tags: ["transactions"] } })
+    .input(sharedPaymentInputModel)
+    .output(paymentModel)
+    .query(({ input }) => {
+      if (!opensVoucher(input.transactionId, input.key)) throw new TRPCError({ code: "NOT_FOUND", message: "Payment not found." });
+      return paymentService.get({ transactionId: input.transactionId });
+    }),
+});
+
 export const transactionsRouter = router({
   history: historyRouter,
   receipt: receiptRouter,
+  payment: paymentRouter,
 });

@@ -118,6 +118,9 @@ export const settledInEnum = pgEnum("settled_in", ["cash", "bank"]);
 // what a receipt was for: a customer's payment, a loan received, a loan repaid to us, capital, a refund, other income
 export const receivedForEnum = pgEnum("received_for", ["customer", "loan_received", "loan_repaid", "capital", "refund", "other_income"]);
 
+// what a payment was for: a supplier, a loan we repay, a loan we give, an expense, a tax, a refund to a customer
+export const paidForEnum = pgEnum("paid_for", ["supplier", "loan_repaid", "loan_given", "expense", "tax_paid", "refund"]);
+
 export const paymentModeEnum = pgEnum("payment_mode", ["cash", "upi", "net_banking", "card"]);
 
 export const ledgerTransactionTypeEnum = pgEnum("ledger_transaction_type", ["debit", "credit"]);

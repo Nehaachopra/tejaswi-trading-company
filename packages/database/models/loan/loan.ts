@@ -11,8 +11,9 @@ import { transactionsTable } from "../transaction/transaction";
 // how often the interest is paid
 export const loanFrequencyEnum = pgEnum("loan_frequency", ["monthly", "quarterly", "half_yearly", "yearly"]);
 
-// a loan received from a party (credited to the party's own ledger): one row per loan, made with the receipt that
-// brought the money in. Loans only carry interest: its rate and how often it's paid. The party's address and
+// a loan received from a party (made with the receipt that brought the money in) or given to one (made with the
+// payment that took it out), on the party's own ledger; which one it is follows that transaction's type. One row per
+// loan. Loans only carry interest: its rate and how often it's paid. The party's address and
 // contacts live on the party; its name and phone are copied here as they were
 export const loansTable = pgTable(
   "loans",
@@ -27,7 +28,7 @@ export const loansTable = pgTable(
 
     partyPhone: varchar("party_phone", { length: 20 }),
 
-    // the receipt the money came in with
+    // the receipt the money came in with, or the payment it went out with
     transactionId: uuid("transaction_id")
       .notNull()
       .references(() => transactionsTable.id, { onDelete: "restrict" }),

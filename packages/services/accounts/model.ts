@@ -220,11 +220,33 @@ export function fitsReceiptKind(kind: ReceiptKind, l: { head: string; masterKey:
   return (l.head === "asset" || l.head === "expense") && l.key !== "cash";
 }
 
+// what a payment can be for: a supplier, a loan we repay, a loan we give, an expense, a tax, a customer refunded
+export const paymentKindModel = z.enum(["supplier", "loanRepaid", "loanGiven", "expense", "taxPaid", "refund"]);
+
+export type PaymentKind = z.infer<typeof paymentKindModel>;
+
+// the payment kinds that go to a party's ledger
+export const PARTY_PAYMENT_KINDS: PaymentKind[] = ["supplier", "loanRepaid", "loanGiven", "refund"];
+
+// the built-in ledgers a tax is paid into: TDS we deducted, TCS, and output GST (normal and reverse charge)
+export const TAX_LEDGERS = ["tdsPayable", "tcs", "outputCgst", "outputSgst", "outputIgst", "outputCgstRcm", "outputSgstRcm", "outputIgstRcm"];
+
+// whether a ledger can take money paid out for a kind: a party's ledger for a supplier, a loan or a refund; a tax
+// ledger for a tax; any expense head of our own (not salary, purchase or a sale return) for an expense
+export function fitsPaymentKind(kind: PaymentKind, l: { head: string; masterKey: string | null; key: string | null; referenceId: string | null }) {
+  const party = l.masterKey === "debtors" || l.masterKey === "creditors" || l.masterKey === "debtorCreditors" || l.masterKey === "parties";
+  if (PARTY_PAYMENT_KINDS.includes(kind)) return party;
+  if (kind === "taxPaid") return l.key !== null && TAX_LEDGERS.includes(l.key);
+  if (l.masterKey !== null || l.referenceId !== null || (l.key !== null && OWN_SCREEN_LEDGERS.includes(l.key))) return false;
+  return l.head === "expense";
+}
+
 // what a receipt can come from or a payment go to: the ones used last, or those matching what's typed (a party's
 // name, short name or phone); a receipt narrowed to one kind
 export const pickLedgersInputModel = z.object({
   purpose: z.enum(["receipt", "payment"]),
   receiptKind: receiptKindModel.nullable().default(null),
+  paymentKind: paymentKindModel.nullable().default(null),
   search: z.string().trim().max(60).default(""),
 });
 
