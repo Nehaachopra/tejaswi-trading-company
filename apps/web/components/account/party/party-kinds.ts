@@ -1,13 +1,23 @@
+import { titleCase } from "~/lib/format";
+
 import type { Head } from "../balance";
 
-export type PartyType = "customer" | "supplier" | "both";
+// a party as lists, pages and ledgers name it: its short name, or (without one) its full name
+export const partyLabel = (p: { shortName: string | null; name: string }) => p.shortName ?? titleCase(p.name.toLowerCase());
 
-// the three party lists: which type each holds, where it lives, the head its ledgers sit under, and its
+export type PartyType = "customer" | "supplier" | "both" | "none";
+
+// a party's list: its type, or "none" until its first sale or purchase
+export const kindOf = (type: Exclude<PartyType, "none"> | null): PartyType => type ?? "none";
+
+// the four party lists: which type each holds, where it lives, the head its ledgers sit under, and its
 // sub-group's key (as /account and the sidebar know it)
 export const PARTY_KINDS = {
   customer: { path: "/account/debtor", head: "asset", master: "debtors" },
   supplier: { path: "/account/creditor", head: "liability", master: "creditors" },
   both: { path: "/account/debtor-creditor", head: "asset", master: "debtorCreditors" },
+  // parties with no sale or purchase yet
+  none: { path: "/account/parties", head: "asset", master: "parties" },
 } as const satisfies Record<PartyType, { path: string; head: Head; master: string }>;
 
 // the GST states: code (the first two digits of a GSTIN) and name

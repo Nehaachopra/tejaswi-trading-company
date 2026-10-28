@@ -16,6 +16,7 @@ import type { RouterOutputs } from "@repo/trpc/client";
 
 import { type Head, indiaDay, startOfIndiaDay, usualSide } from "./balance";
 import { useLedgerName } from "./ledger-name";
+import { SHELL_WIDTH } from "../shell/nav-items";
 import { SignedAmount } from "./signed-amount";
 
 type Row = RouterOutputs["accounts"]["opening"]["get"]["rows"][number];
@@ -23,7 +24,7 @@ type Row = RouterOutputs["accounts"]["opening"]["get"]["rows"][number];
 const HEADS = ["asset", "liability", "income", "expense"] as const;
 // the sub-groups in each head, in the order /account shows them
 const MASTERS: Record<(typeof HEADS)[number], string[]> = {
-  asset: ["bank", "debtors", "debtorCreditors"],
+  asset: ["bank", "debtors", "debtorCreditors", "parties"],
   liability: ["creditors", "employees"],
   income: [],
   expense: [],
@@ -199,19 +200,24 @@ export function OpeningBoard() {
           </div>
 
           {/* Capital, worked out, and the one save, at the foot of the screen */}
-          <div className="fixed inset-x-0 bottom-16 z-20 border-t border-chestnut/15 bg-ivory text-chestnut lg:bottom-0 lg:left-60">
-            <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
-              <p className="min-w-0 flex-1 text-sm">
-                {t("capital")} <SignedAmount balance={capital} head="liability" className="font-heading text-lg font-bold" />
-              </p>
-              {error && (
-                <div className="w-full">
-                  <FieldMessage>{error}</FieldMessage>
+          <div className="fixed inset-x-0 bottom-16 z-20 lg:bottom-0">
+            {/* within the app's width, beside the sidebar */}
+            <div className={cn(SHELL_WIDTH, "lg:pl-60")}>
+              <div className="border-t border-chestnut/15 bg-ivory text-chestnut">
+                <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
+                  <p className="min-w-0 flex-1 text-sm">
+                    {t("capital")} <SignedAmount balance={capital} head="liability" className="font-heading text-lg font-bold" />
+                  </p>
+                  {error && (
+                    <div className="w-full">
+                      <FieldMessage>{error}</FieldMessage>
+                    </div>
+                  )}
+                  <SubmitButton busy={save.isPending}>
+                    <span className="px-6">{t("save")}</span>
+                  </SubmitButton>
                 </div>
-              )}
-              <SubmitButton busy={save.isPending}>
-                <span className="px-6">{t("save")}</span>
-              </SubmitButton>
+              </div>
             </div>
           </div>
         </form>

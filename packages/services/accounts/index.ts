@@ -1,6 +1,12 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, count, db, eq, gte, inArray, isNull, lt, lte, ne, sql } from "@repo/database";
-import { ledgerEntriesTable, ledgerGroupsTable, ledgerMastersTable, ledgersTable, transactionsTable } from "@repo/database/schema";
+import { and, asc, count, db, desc, eq, gte, inArray, isNull, lt, lte, ne, notInArray, type SQL, sql } from "@repo/database";
+import { ledgerEntriesTable, ledgerGroupsTable, ledgerMastersTable, ledgersTable, partiesTable, partyAddressesTable, paymentsTable, receiptsTable, transactionsTable } from "@repo/database/schema";
+
+// the picker: the ledgers used last when nothing is typed, and at most this many matches when something is
+const RECENT_PICKS = 8;
+// how close a party's name must be spelt to what's typed to count as a match (0 to 1; trigram word similarity)
+const FUZZY_FLOOR = 0.4;
+const PICK_LIMIT = 20;
 
 import type { Tx } from "../stock/engine";
 import AssignedIdCounter from "../transaction/assigned-id";
@@ -31,6 +37,10 @@ import {
   type StatementInputModel,
   statementInputModel,
   type StatementModel,
+  OWN_SCREEN_LEDGERS,
+  fitsReceiptKind,
+  type PickedLedgerModel,
+  type ReceiptKind,
 } from "./model";
 import { GROUPS, type GroupType, LEDGERS, type LedgerKey, MASTERS, type MasterKey } from "./structure";
 
@@ -307,13 +317,20 @@ export default class AccountsService {
 
   // every ledger with its head, sub-group and balance as of today (one, when an id is given)
   private async summaries(id?: string): Promise<LedgerSummaryModel[]> {
-    const rows = await db
+    return this.summariesWhere(id ? eq(ledgersTable.id, id) : undefined);
+  }
+
+  // the ledgers matching a condition (a party ledger matches on its party's full name too), up to `limit`
+  private async summariesWhere(where: SQL | undefined, limit?: number, closestFirst?: SQL): Promise<LedgerSummaryModel[]> {
+    const query = db
       .select({ ledger: ledgersTable, head: ledgerGroupsTable.type, masterName: ledgerMastersTable.name })
       .from(ledgersTable)
       .innerJoin(ledgerGroupsTable, eq(ledgerGroupsTable.id, ledgersTable.ledgerGroupId))
       .leftJoin(ledgerMastersTable, eq(ledgerMastersTable.id, ledgersTable.ledgerMasterId))
-      .where(id ? eq(ledgersTable.id, id) : undefined)
-      .orderBy(asc(ledgersTable.name));
+      .leftJoin(partiesTable, eq(partiesTable.id, ledgersTable.referenceId))
+      .where(where)
+      .orderBy(...(closestFirst ? [closestFirst] : []), asc(ledgersTable.name));
+    const rows = limit ? await query.limit(limit) : await query;
     const balances = await this.balances(rows.map((r) => r.ledger.id));
     return rows.map(({ ledger: l, head, masterName }) => ({
       id: l.id,
@@ -414,17 +431,105 @@ export default class AccountsService {
   }
 
   // the ledgers a receipt can come from or a payment go to, with their balances as of today
-  async pickable(rawInput: PickLedgersInputModel): Promise<LedgerSummaryModel[]> {
+  async pickable(rawInput: PickLedgersInputModel): Promise<PickedLedgerModel[]> {
     const input = pickLedgersInputModel.parse(rawInput);
-    return (await this.summaries()).filter(
-      (l) =>
-        l.isActive &&
-        l.key !== "cash" &&
-        l.masterKey !== "bank" &&
-        l.head !== "profit" &&
-        l.head !== "loss" &&
-        (input.purpose === "receipt" || (l.masterKey !== "employees" && l.key !== "drawings")),
+    // what money can come from or go to: not cash or a bank, not profit or loss; a payment never to an employee
+    // or drawings (salary and drawings have their own screens)
+    const allowed = (l: LedgerSummaryModel) =>
+      l.isActive &&
+      l.key !== "cash" &&
+      l.masterKey !== "bank" &&
+      l.head !== "profit" &&
+      l.head !== "loss" &&
+      (input.purpose === "receipt" || (l.masterKey !== "employees" && l.key !== "drawings")) &&
+      (input.receiptKind === null || fitsReceiptKind(input.receiptKind, l));
+
+    // nothing typed: the ledgers used last for this purpose, newest first
+    if (input.search === "") {
+      const used =
+        input.purpose === "receipt"
+          ? db.select({ id: receiptsTable.receivedFromLedgerId, at: transactionsTable.dateTime }).from(receiptsTable).innerJoin(transactionsTable, eq(transactionsTable.id, receiptsTable.transactionId))
+          : db.select({ id: paymentsTable.paidToLedgerId, at: transactionsTable.dateTime }).from(paymentsTable).innerJoin(transactionsTable, eq(transactionsTable.id, paymentsTable.transactionId));
+      const recent = await used.orderBy(desc(transactionsTable.dateTime)).limit(50);
+      const ids = [...new Set(recent.map((r) => r.id))];
+      const found = new Map((ids.length ? await this.summariesWhere(inArray(ledgersTable.id, ids)) : []).map((l) => [l.id, l]));
+      const picks = ids.map((id) => found.get(id)).filter((l): l is LedgerSummaryModel => !!l && allowed(l)).slice(0, RECENT_PICKS);
+      // one kind picked: topped up with that kind's ledgers, so Capital or Scrap sale shows without typing
+      if (input.receiptKind && picks.length < RECENT_PICKS) {
+        const more = await this.summariesWhere(and(eq(ledgersTable.isActive, true), this.receiptKindWhere(input.receiptKind)), RECENT_PICKS + 10);
+        for (const l of more) if (picks.length < RECENT_PICKS && allowed(l) && !picks.some((p) => p.id === l.id)) picks.push(l);
+      }
+      return this.withParties(picks);
+    }
+
+    // typed: the ledger's name, its party's full name or phone holds it, or the party's name is spelt close to it
+    // (trigrams: "ramaswamy" finds "sri ramswamy traders"); the closest come first
+    const typed = input.search.toLowerCase();
+    const like = `%${typed.replace(/[%_\\]/g, "\\$&")}%`;
+    const closeness = sql`greatest(word_similarity(${typed}, lower(coalesce(${partiesTable.name}, ''))), word_similarity(${typed}, lower(${ledgersTable.name})))`;
+    const matches = await this.summariesWhere(
+      and(
+        eq(ledgersTable.isActive, true),
+        sql`(lower(${ledgersTable.name}) like ${like} or lower(coalesce(${partiesTable.name}, '')) like ${like} or coalesce(${partiesTable.phone}, '') like ${like} or (length(${typed}) >= 3 and ${closeness} >= ${FUZZY_FLOOR}))`,
+        input.receiptKind ? this.receiptKindWhere(input.receiptKind) : undefined,
+      ),
+      PICK_LIMIT + 10,
+      sql`${closeness} desc`,
     );
+    return this.withParties(matches.filter(allowed).slice(0, PICK_LIMIT));
+  }
+
+  // each ledger with the party behind it (its default address's town), for the picker to show who it is
+  private async withParties(ledgers: LedgerSummaryModel[]): Promise<PickedLedgerModel[]> {
+    const ids = ledgers.map((l) => l.referenceId).filter((id): id is string => id !== null);
+    const rows = ids.length
+      ? await db
+          .select({ id: partiesTable.id, name: partiesTable.name, shortName: partiesTable.shortName, phone: partiesTable.phone, type: partiesTable.type, city: partyAddressesTable.city })
+          .from(partiesTable)
+          .leftJoin(partyAddressesTable, and(eq(partyAddressesTable.partyId, partiesTable.id), eq(partyAddressesTable.isActive, true), eq(partyAddressesTable.isDefault, true)))
+          .where(inArray(partiesTable.id, ids))
+      : [];
+    const byId = new Map(rows.map(({ id, ...p }) => [id, p]));
+    return ledgers.map((l) => ({ ...l, party: (l.referenceId && byId.get(l.referenceId)) || null }));
+  }
+
+  // the ledgers of one receipt kind, in SQL, so a search only fetches those (fitsReceiptKind has the final say)
+  private receiptKindWhere(kind: ReceiptKind): SQL | undefined {
+    const inMaster = (...keys: MasterKey[]) => inArray(ledgerMastersTable.name, keys.map((k) => MASTERS[k].name));
+    const own = and(
+      isNull(ledgersTable.ledgerMasterId),
+      isNull(ledgersTable.referenceId),
+      notInArray(ledgersTable.name, OWN_SCREEN_LEDGERS.map((k) => LEDGERS[k as LedgerKey].name)),
+    );
+    switch (kind) {
+      case "customer":
+      case "loanTaken":
+      case "loanReturned":
+        return inMaster("debtors", "creditors", "debtorCreditors", "parties");
+      case "capital":
+        return and(own, eq(ledgersTable.name, LEDGERS.capital.name));
+      case "otherIncome":
+        return and(own, eq(ledgerGroupsTable.type, "income"));
+      case "refund":
+        return and(own, inArray(ledgerGroupsTable.type, ["asset", "expense"]), ne(ledgersTable.name, LEDGERS.cash.name));
+    }
+  }
+
+  // where a ledger sits (its head, sub-group and built-in key), read inside a save
+  async placeIn(tx: Tx, ledgerId: string) {
+    const [row] = await tx
+      .select({ name: ledgersTable.name, head: ledgerGroupsTable.type, masterName: ledgerMastersTable.name, referenceId: ledgersTable.referenceId })
+      .from(ledgersTable)
+      .innerJoin(ledgerGroupsTable, eq(ledgerGroupsTable.id, ledgersTable.ledgerGroupId))
+      .leftJoin(ledgerMastersTable, eq(ledgerMastersTable.id, ledgersTable.ledgerMasterId))
+      .where(eq(ledgersTable.id, ledgerId));
+    if (!row) throw notFound();
+    return {
+      head: row.head,
+      masterKey: row.masterName ? (MASTER_KEY.get(`${row.head}|${row.masterName}`) ?? null) : null,
+      key: row.referenceId === null && !row.masterName ? (LEDGER_KEY.get(`${row.head}|${row.name}`) ?? null) : null,
+      referenceId: row.referenceId,
+    };
   }
 
   // the Opening balances page: every ledger but Capital, with its opening balance and whether it's locked, and the

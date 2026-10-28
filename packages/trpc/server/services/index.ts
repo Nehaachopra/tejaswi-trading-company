@@ -30,4 +30,4 @@ export const partyService = new PartyService(accountsService);
 
 export const transactionService = new TransactionService();
 
-export const receiptService = new ReceiptService(accountsService, transactionService);
+export const receiptService = new ReceiptService(accountsService, transactionService, partyService);

@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, count, db, eq, ilike, inArray, ne, notInArray, or, type SQL, sql } from "@repo/database";
+import { and, asc, count, db, desc, eq, ilike, inArray, isNull, ne, notInArray, or, type SQL, sql } from "@repo/database";
 import {
   ledgerEntriesTable,
   ledgersTable,
@@ -24,10 +24,13 @@ import {
   type PartyModel,
   type PartySummaryModel,
   type PartyTypeModel,
+  type PinPlaceInputModel,
+  type PinPlaceModel,
   type SetPartyActiveInputModel,
   setPartyActiveInputModel,
   type UpdatePartyInputModel,
   updatePartyInputModel,
+  settledDetails,
 } from "./model";
 
 const REFERENCE = "parties";
@@ -39,10 +42,19 @@ const MASTER = { customer: "debtors", supplier: "creditors", both: "debtorCredit
 
 const notFound = () => new TRPCError({ code: "NOT_FOUND", message: "Party not found." });
 // the short name is taken; the message's start tells the screen which field it's about
-const shortNameTaken = (shortName: string) => new TRPCError({ code: "CONFLICT", message: `Short name ${shortName} is already used by another party.` });
+// a party's ledger name: its short name, or (without one) its full name in lowercase like other ledgers
+const ledgerNameOf = (d: { shortName: string | null; name: string }) => d.shortName ?? d.name.trim().toLowerCase();
+
+const shortNameTaken = (shortName: string | null) => new TRPCError({ code: "CONFLICT", message: `Short name ${shortName} is already used by another party.` });
+
+// the phone is someone else's: who, so the screen can say (the message's start tells it which field)
+const phoneTaken = (phone: string, owner: string) => new TRPCError({ code: "CONFLICT", message: `Phone ${phone} is already ${owner}'s.` });
 
 const isUniqueViolation = (error: unknown) =>
   ((error as { cause?: { code?: string } })?.cause ?? (error as { code?: string }))?.code === "23505";
+
+// which unique rule a clash broke (the phone's or the short name's)
+const violated = (error: unknown) => ((error as { cause?: { constraint?: string } })?.cause ?? (error as { constraint?: string }))?.constraint ?? "";
 
 // what the party table and its address rows hold, from the input
 const addressValues = (partyId: string, a: PartyAddressInputModel) => ({
@@ -63,7 +75,7 @@ const addressValues = (partyId: string, a: PartyAddressInputModel) => ({
 });
 
 // customers, suppliers and parties who are both: each has one ledger (Debtors, Creditors or Debtor-creditors by
-// its type), opened with its opening balance in the same save. A GSTIN belongs to one party only; a party is
+// its type, set by its sales and purchases; Parties until the first), opened with its opening balance in the same save. A GSTIN belongs to one party only; a party is
 // made inactive only at a zero balance with no pending orders
 export default class PartyService {
   constructor(private readonly accounts = new AccountsService()) {}
@@ -87,7 +99,18 @@ export default class PartyService {
   }
 
   // no other party may use this short name
-  private async assertShortNameFree(tx: Tx, shortName: string, partyId?: string) {
+  // one phone, one party
+  private async assertPhoneFree(tx: Tx, phone: string | null, partyId?: string) {
+    if (!phone) return;
+    const [clash] = await tx
+      .select({ name: partiesTable.name, shortName: partiesTable.shortName })
+      .from(partiesTable)
+      .where(and(eq(partiesTable.phone, phone), partyId ? ne(partiesTable.id, partyId) : undefined));
+    if (clash) throw phoneTaken(phone, clash.shortName ?? clash.name);
+  }
+
+  private async assertShortNameFree(tx: Tx, shortName: string | null, partyId?: string) {
+    if (shortName === null) return;
     const [clash] = await tx
       .select({ id: partiesTable.id })
       .from(partiesTable)
@@ -102,7 +125,7 @@ export default class PartyService {
       .from(partiesTable)
       .innerJoin(ledgersTable, and(eq(ledgersTable.referenceTable, REFERENCE), eq(ledgersTable.referenceId, partiesTable.id)))
       .where(where)
-      .orderBy(asc(partiesTable.shortName));
+      .orderBy(asc(sql`coalesce(${partiesTable.shortName}, upper(${partiesTable.name}))`));
     const ids = rows.map((r) => r.party.id);
     const [balances, defaults] = await Promise.all([
       this.accounts.balances(rows.map((r) => r.ledgerId)),
@@ -136,7 +159,7 @@ export default class PartyService {
     const search = input.search ? `%${input.search.replace(/[%_\\]/g, "\\$&")}%` : null;
     const rows = await this.summaries(
       and(
-        input.type ? eq(partiesTable.type, input.type) : undefined,
+        input.type === "none" ? isNull(partiesTable.type) : input.type ? eq(partiesTable.type, input.type) : undefined,
         input.includeInactive ? undefined : eq(partiesTable.isActive, true),
         search ? or(ilike(partiesTable.shortName, search), ilike(partiesTable.name, search), ilike(partiesTable.phone, search)) : undefined,
       ),
@@ -154,7 +177,7 @@ export default class PartyService {
   }
 
   // how this party deals with us: its transactions, how long its dues take to settle, and how often it trades
-  private async insights(ledgerId: string, type: PartyTypeModel, pendingOrders: number): Promise<PartyModel["insights"]> {
+  private async insights(ledgerId: string, type: PartyTypeModel | null, pendingOrders: number): Promise<PartyModel["insights"]> {
     // each active transaction's net effect on the ledger, on its own date, up to today (an edit that posted again
     // still counts once; a cancelled one not at all)
     const rows = await db
@@ -205,6 +228,22 @@ export default class PartyService {
     };
   }
 
+  // the town, district and state last saved with this PIN code, if any address has it
+  async pinPlace(input: PinPlaceInputModel): Promise<PinPlaceModel> {
+    const [place] = await db
+      .select({
+        city: partyAddressesTable.city,
+        district: partyAddressesTable.district,
+        state: partyAddressesTable.state,
+        stateCode: partyAddressesTable.stateCode,
+      })
+      .from(partyAddressesTable)
+      .where(and(eq(partyAddressesTable.postalCode, input.postalCode), eq(partyAddressesTable.isActive, true)))
+      .orderBy(desc(partyAddressesTable.updatedAt))
+      .limit(1);
+    return place ?? null;
+  }
+
   async get(input: PartyIdInputModel): Promise<PartyModel> {
     const [found] = await this.summaries(eq(partiesTable.id, input.id));
     if (!found) throw notFound();
@@ -246,42 +285,53 @@ export default class PartyService {
     };
   }
 
-  // the ledger's sub-group and head for a party type
-  private async placeFor(tx: Tx, type: PartyTypeModel) {
-    const master = await this.accounts.master(tx, MASTER[type]);
+  // the ledger's sub-group and head for a party type (Parties until its first sale or purchase)
+  private async placeFor(tx: Tx, type: PartyTypeModel | null) {
+    const master = await this.accounts.master(tx, type ? MASTER[type] : "parties");
     return { ledgerMasterId: master.id, ledgerGroupId: master.ledgerGroupId };
   }
 
   // a new party, its addresses and its ledger, saved together or not at all (its opening balance is set on the
   // Opening balances page)
   async create(rawInput: CreatePartyInputModel, actor: ActorModel): Promise<PartyModel> {
-    const { details, addresses } = createPartyInputModel.parse(rawInput);
-    const id = await db.transaction(async (tx) => {
-      await this.assertShortNameFree(tx, details.shortName);
-      await this.assertGstinsFree(tx, addresses);
-      const [party] = await tx.insert(partiesTable).values(details).returning({ id: partiesTable.id });
-      if (addresses.length > 0) await tx.insert(partyAddressesTable).values(this.withDefault(addresses).map((a) => addressValues(party!.id, a)));
-      const [ledger] = await tx
-        .insert(ledgersTable)
-        .values({ name: details.shortName, ...(await this.placeFor(tx, details.type)), referenceTable: REFERENCE, referenceId: party!.id, balance: "0.00" })
-        .returning({ id: ledgersTable.id });
-      if (!ledger) throw notFound();
-      return party!.id;
-    }).catch((error: unknown) => {
-      if (isUniqueViolation(error)) throw shortNameTaken(details.shortName);
+    const input = createPartyInputModel.parse(rawInput);
+    const { partyId } = await db.transaction((tx) => this.createIn(tx, input)).catch((error: unknown) => {
+      if (isUniqueViolation(error)) throw violated(error).includes("phone") ? phoneTaken(input.details.phone ?? "", "another party") : shortNameTaken(input.details.shortName);
       throw error;
     });
-    return this.get({ id });
+    return this.get({ id: partyId });
+  }
+
+  // the same, inside another save (a receipt from someone not in the app yet), so a failed save leaves no
+  // party behind; gives the party and its ledger
+  async createIn(tx: Tx, rawInput: CreatePartyInputModel, type: PartyTypeModel | null = null) {
+    const parsed = createPartyInputModel.parse(rawInput);
+    const details = settledDetails(parsed.details);
+    const { addresses } = parsed;
+    await this.assertShortNameFree(tx, details.shortName);
+    await this.assertPhoneFree(tx, details.phone);
+    await this.assertGstinsFree(tx, addresses);
+    const [party] = await tx.insert(partiesTable).values({ ...details, type }).returning({ id: partiesTable.id });
+    if (addresses.length > 0) await tx.insert(partyAddressesTable).values(this.withDefault(addresses).map((a) => addressValues(party!.id, a)));
+    const [ledger] = await tx
+      .insert(ledgersTable)
+      .values({ name: ledgerNameOf(details), ...(await this.placeFor(tx, type)), referenceTable: REFERENCE, referenceId: party!.id, balance: "0.00" })
+      .returning({ id: ledgersTable.id });
+    if (!ledger) throw notFound();
+    return { partyId: party!.id, ledgerId: ledger.id };
   }
 
   // new details and addresses, saved together; a new type moves its ledger to the matching
   // sub-group with every entry kept, and the ledger's name follows the party's short name
   async update(rawInput: UpdatePartyInputModel, actor: ActorModel): Promise<PartyModel> {
-    const { id, details, addresses } = updatePartyInputModel.parse(rawInput);
+    const parsed = updatePartyInputModel.parse(rawInput);
+    const { id, addresses } = parsed;
+    const details = settledDetails(parsed.details);
     await db.transaction(async (tx) => {
       const [party] = await tx.select({ id: partiesTable.id }).from(partiesTable).where(eq(partiesTable.id, id)).for("update");
       if (!party) throw notFound();
       await this.assertShortNameFree(tx, details.shortName, id);
+      await this.assertPhoneFree(tx, details.phone, id);
       await this.assertGstinsFree(tx, addresses, id);
       await tx.update(partiesTable).set(details).where(eq(partiesTable.id, id));
 
@@ -305,14 +355,11 @@ export default class PartyService {
         }
       }
 
-      // its ledger: name, place, opening balance
+      // its ledger's name follows (its place follows the type, which its transactions set)
       const ledger = await this.accounts.ledgerOf(tx, REFERENCE, id);
-      await tx
-        .update(ledgersTable)
-        .set({ name: details.shortName, ...(await this.placeFor(tx, details.type)) })
-        .where(eq(ledgersTable.id, ledger.id));
+      await tx.update(ledgersTable).set({ name: ledgerNameOf(details) }).where(eq(ledgersTable.id, ledger.id));
     }).catch((error: unknown) => {
-      if (isUniqueViolation(error)) throw shortNameTaken(details.shortName);
+      if (isUniqueViolation(error)) throw violated(error).includes("phone") ? phoneTaken(details.phone ?? "", "another party") : shortNameTaken(details.shortName);
       throw error;
     });
     return this.get({ id });

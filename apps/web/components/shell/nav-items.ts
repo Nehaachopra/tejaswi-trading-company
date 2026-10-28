@@ -60,7 +60,7 @@ export const NAV_ITEMS: NavItem[] = [
     adminOnly: true,
     place: "more",
     children: [
-      { href: "/account/asset", label: "asset", also: ["/account/bank", "/account/debtor", "/account/debtor-creditor"] },
+      { href: "/account/asset", label: "asset", also: ["/account/bank", "/account/debtor", "/account/debtor-creditor", "/account/parties"] },
       { href: "/account/liability", label: "liability", also: ["/account/creditor"] },
       { href: "/account/income", label: "income" },
       { href: "/account/expense", label: "expense" },
@@ -75,6 +75,9 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 export const NEW_TRANSACTION_HREF = "/transaction";
+
+// how wide the app gets on a wide screen: 1440px, centred (the header's contents, the sidebar and the page)
+export const SHELL_WIDTH = "mx-auto w-full max-w-[90rem]";
 
 // staff never see admin-only pages
 export const navFor = (role: Role) => NAV_ITEMS.filter((item) => !item.adminOnly || role === "admin");

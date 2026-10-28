@@ -79,3 +79,85 @@ input[type="search"]::-webkit-search-cancel-button {
   appearance: none;
   display: none;
 }
+
+/* printing a voucher (or saving it as a PDF): only the voucher, on white, at the top of the page */
+@media print {
+  @page {
+    margin: 12mm;
+  }
+  body {
+    background: #fff !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    inset: 0 0 auto 0;
+    background: #fff !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* a scroll area with no visible scrollbar; it still scrolls by wheel, touch and keys */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* the chat: a question rises into place, an answer pops in from the right, choices follow just after; the helper's
+   typing dots bounce one after another (reduced motion shortens all of it, above) */
+@keyframes chat-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes chat-pop {
+  from {
+    opacity: 0;
+    transform: translateX(14px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes chat-dot {
+  0%,
+  70%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  35% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+.chat-rise {
+  animation: chat-rise 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.chat-pop {
+  animation: chat-pop 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.chat-follow {
+  animation: chat-rise 0.34s cubic-bezier(0.2, 0.8, 0.2, 1) 0.12s both;
+}
+.chat-dot {
+  animation: chat-dot 1.1s ease-in-out infinite;
+}

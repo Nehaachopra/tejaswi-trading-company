@@ -24,6 +24,7 @@ const MASTER_PAGE: Record<string, string | undefined> = {
   debtors: "/account/debtor",
   creditors: "/account/creditor",
   debtorCreditors: "/account/debtor-creditor",
+  parties: "/account/parties",
 };
 
 // /account, admin only: every ledger account under its head (Asset, Liability, Income, Expense, Profit, Loss),

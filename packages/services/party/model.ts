@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { ledgerBalanceModel, savedOpeningBalanceModel } from "../accounts/model";
@@ -64,17 +65,16 @@ export const shortNameModel = z
   .toUpperCase()
   .regex(/^[A-Z0-9][A-Z0-9 &.-]{0,19}$/, "Up to 20 letters or digits (spaces, & . - allowed).");
 
+// the short name is optional (without one the ledger goes by the full name); a sale or purchase that adds a party
+// asks for it. The type is never typed in: the transactions set it
+// a party's phone: a mobile (10 digits, starting 6-9) or a landline with its STD code (starting 0, 11 or 12 digits);
+// every party has one, and no two share it
+export const PHONE_PATTERN = /^([6-9]\d{9}|0\d{10,11})$/;
+
 export const partyDetailsInputModel = z.object({
   name: z.string().trim().min(1).max(150),
-  shortName: shortNameModel,
-  type: partyTypeModel,
-  phone: z
-    .string()
-    .trim()
-    .regex(/^\d{0,20}$/, "Digits only, up to 20.")
-    .transform((v) => (v === "" ? null : v))
-    .nullable()
-    .default(null),
+  shortName: shortNameModel.nullable().default(null),
+  phone: z.string().trim().regex(PHONE_PATTERN, "A 10-digit mobile, or a landline with its STD code."),
   email: z
     .string()
     .trim()
@@ -96,6 +96,12 @@ export const partyDetailsInputModel = z.object({
 
 export type PartyDetailsInputModel = z.infer<typeof partyDetailsInputModel>;
 
+// the details as saved; `needsShortName` when the party is added from a sale or purchase
+export function settledDetails(d: PartyDetailsInputModel, needsShortName = false): PartyDetailsInputModel {
+  if (needsShortName && !d.shortName) throw new TRPCError({ code: "BAD_REQUEST", message: "A party added from a sale or purchase needs a short name." });
+  return d;
+}
+
 // a new party with its addresses (up to 10); its opening balance is set on the Opening balances page
 export const createPartyInputModel = z.object({
   details: partyDetailsInputModel,
@@ -114,10 +120,10 @@ export const partyIdInputModel = z.object({ id: idModel });
 
 export type PartyIdInputModel = z.infer<typeof partyIdInputModel>;
 
-// the lists: one type (Debtors = customers, Creditors = suppliers, Debtor-creditors = both), active only unless
-// asked, and a search over name and phone
+// the lists: one type (customers, suppliers, both, or "none" for parties with no sale or purchase yet), active only
+// unless asked, and a search over name and phone
 export const listPartiesInputModel = z.object({
-  type: partyTypeModel.optional(),
+  type: z.enum(["customer", "supplier", "both", "none"]).optional(),
   includeInactive: z.boolean().default(false),
   search: z.string().trim().max(150).default(""),
 });
@@ -125,6 +131,17 @@ export const listPartiesInputModel = z.object({
 export type ListPartiesInputModel = z.infer<typeof listPartiesInputModel>;
 
 export const setPartyActiveInputModel = z.object({ id: idModel, isActive: z.boolean() });
+
+// a PIN code already saved on an address: its town, district and state, to fill a new address with
+export const pinPlaceInputModel = z.object({ postalCode: z.string().trim().regex(/^\d{6}$/, "A PIN code is 6 digits.") });
+
+export type PinPlaceInputModel = z.infer<typeof pinPlaceInputModel>;
+
+export const pinPlaceModel = z
+  .object({ city: z.string(), district: z.string(), state: z.string(), stateCode: stateCodeModel })
+  .nullable();
+
+export type PinPlaceModel = z.infer<typeof pinPlaceModel>;
 
 export type SetPartyActiveInputModel = z.infer<typeof setPartyActiveInputModel>;
 
@@ -149,8 +166,9 @@ export const partySummaryModel = z.object({
   id: idModel,
   ledgerId: idModel,
   name: z.string(),
-  shortName: z.string(),
-  type: partyTypeModel,
+  shortName: z.string().nullable(),
+  // set by its sales and purchases; null until the first
+  type: partyTypeModel.nullable(),
   phone: z.string().nullable(),
   city: z.string().nullable(),
   gstin: z.string().nullable(),

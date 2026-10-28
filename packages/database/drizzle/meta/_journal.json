@@ -57,6 +57,48 @@
       "when": 1792839021311,
       "tag": "0007_aspiring_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792855737264,
+      "tag": "0008_cuddly_wildside",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792860810799,
+      "tag": "0009_milky_franklin_richards",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792905317929,
+      "tag": "0010_rare_blue_shield",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792914752044,
+      "tag": "0011_hesitant_thena",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792983735837,
+      "tag": "0012_young_newton_destine",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793162069457,
+      "tag": "0013_common_grey_gargoyle",
+      "breakpoints": true
     }
   ]
 }

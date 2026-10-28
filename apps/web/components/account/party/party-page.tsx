@@ -9,7 +9,7 @@ import { trpc } from "~/trpc/client";
 
 import { DetailRows, DetailsCard } from "../details-card";
 import { LedgerStatement } from "../ledger-statement";
-import { PARTY_KINDS, type PartyType } from "./party-kinds";
+import { kindOf, PARTY_KINDS, partyLabel, type PartyType } from "./party-kinds";
 
 // a party's page in Accounts, admin only and view only: its details (opening to its addresses), its insights, then
 // its ledger. Parties are added, edited and made inactive in Parties
@@ -17,13 +17,14 @@ export function PartyPage({ partyId, type }: { partyId: string; type: PartyType 
   const t = useTranslations("accounts.party");
   const tf = useTranslations("accounts.party.form");
   const party = trpc.accounts.party.get.useQuery({ id: partyId });
-  const kind = PARTY_KINDS[party.data?.type ?? type];
+  const list = party.data ? kindOf(party.data.type) : type;
+  const kind = PARTY_KINDS[list];
 
   return (
     <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 sm:px-6">
       {/* back to its list */}
       <Link href={kind.path} className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
-        <ArrowLeft className="size-4" aria-hidden /> {t(`titles.${party.data?.type ?? type}`)}
+        <ArrowLeft className="size-4" aria-hidden /> {t(`titles.${list}`)}
       </Link>
 
       {party.isPending ? (
@@ -49,7 +50,7 @@ export function PartyPage({ partyId, type }: { partyId: string; type: PartyType 
           ];
           const rows = [
             { label: t("details.name"), value: p.name },
-            { label: t("details.type"), value: tf(`types.${p.type}`) },
+            { label: t("details.type"), value: tf(`types.${kindOf(p.type)}`) },
             { label: t("details.phone"), value: p.phone ? `${p.countryCode} ${p.phone}` : "—", number: true },
             { label: t("details.email"), value: p.email ?? "—" },
             { label: t("details.pan"), value: p.pan ?? "—", number: true },
@@ -60,7 +61,7 @@ export function PartyPage({ partyId, type }: { partyId: string; type: PartyType 
               {/* the details: short name, opening to each detail (the full name first) and its addresses; it is edited in
                   Parties */}
               <DetailsCard
-                title={p.shortName}
+                title={partyLabel(p)}
                 openLabel={t("showDetails")}
                 tags={!p.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
               >
@@ -101,7 +102,7 @@ export function PartyPage({ partyId, type }: { partyId: string; type: PartyType 
               </dl>
 
               {/* its ledger */}
-              <LedgerStatement ledgerId={p.ledgerId} name={p.shortName} head={kind.head} balance={p.balance} />
+              <LedgerStatement ledgerId={p.ledgerId} name={partyLabel(p)} head={kind.head} balance={p.balance} />
 
             </div>
           );

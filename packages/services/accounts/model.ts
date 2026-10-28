@@ -141,7 +141,7 @@ export type OverviewModel = z.infer<typeof overviewModel>;
 export const customHeadModel = z.enum(["asset", "liability", "income", "expense"]);
 
 // names are stored in lowercase; screens start each word with a capital
-const ledgerNameModel = z.string().trim().toLowerCase().min(1).max(150);
+export const ledgerNameModel = z.string().trim().toLowerCase().min(1).max(150);
 
 // a ledger the admin adds under a head; its opening balance is set on the Opening balances page
 export const createLedgerInputModel = z.object({
@@ -196,12 +196,56 @@ export type SaveOpeningInputModel = z.infer<typeof saveOpeningInputModel>;
 
 // the ledgers a receipt can come from or a payment go to: every active one but cash and the bank accounts (a payment
 // also leaves out employees and Drawings, which have their own pages)
-export const pickLedgersInputModel = z.object({ purpose: z.enum(["receipt", "payment"]) });
+// what money comes in for: a customer's payment, a loan received or a loan repaid to us (all three credit the party's
+// own ledger), the owner putting money in (Capital), a refund (an asset or expense of our own: TDS receivable, a
+// deposit), or other income (scrap sale, insurance claim, interest). A receipt keeps which it was
+export const receiptKindModel = z.enum(["customer", "loanTaken", "loanReturned", "capital", "refund", "otherIncome"]);
+
+export type ReceiptKind = z.infer<typeof receiptKindModel>;
+
+// built-in ledgers that only their own screens post to (a sale, a purchase, their returns, salary), never a receipt
+export const OWN_SCREEN_LEDGERS = ["sale", "purchase", "saleReturn", "purchaseReturn", "salary"];
+
+// the kinds that come from a party (its own ledger, whatever its type)
+export const PARTY_RECEIPT_KINDS: ReceiptKind[] = ["customer", "loanTaken", "loanReturned"];
+
+// whether a ledger can take money in for a kind: a party's ledger for a payment or a loan; Capital for capital; any
+// income head of our own for other income; any asset or expense head of our own (not cash) for a refund
+export function fitsReceiptKind(kind: ReceiptKind, l: { head: string; masterKey: string | null; key: string | null; referenceId: string | null }) {
+  const party = l.masterKey === "debtors" || l.masterKey === "creditors" || l.masterKey === "debtorCreditors" || l.masterKey === "parties";
+  if (PARTY_RECEIPT_KINDS.includes(kind)) return party;
+  if (l.masterKey !== null || l.referenceId !== null || (l.key !== null && OWN_SCREEN_LEDGERS.includes(l.key))) return false;
+  if (kind === "capital") return l.key === "capital";
+  if (kind === "otherIncome") return l.head === "income";
+  return (l.head === "asset" || l.head === "expense") && l.key !== "cash";
+}
+
+// what a receipt can come from or a payment go to: the ones used last, or those matching what's typed (a party's
+// name, short name or phone); a receipt narrowed to one kind
+export const pickLedgersInputModel = z.object({
+  purpose: z.enum(["receipt", "payment"]),
+  receiptKind: receiptKindModel.nullable().default(null),
+  search: z.string().trim().max(60).default(""),
+});
 
 export type PickLedgersInputModel = z.infer<typeof pickLedgersInputModel>;
 
-// a ledger to pick: its balance only for the admin (staff never see balances)
-export const pickedLedgerModel = ledgerSummaryModel.extend({ balance: ledgerBalanceModel.nullable() });
+// the party behind a ledger, so a pick shows who it is: full and short name, phone, town (its default address) and
+// type (null until its first sale or purchase)
+export const pickedPartyModel = z.object({
+  name: z.string(),
+  shortName: z.string().nullable(),
+  phone: z.string().nullable(),
+  city: z.string().nullable(),
+  type: z.enum(["customer", "supplier", "both"]).nullable(),
+});
+
+export type PickedPartyModel = z.infer<typeof pickedPartyModel>;
+
+// a ledger to pick: its party when it has one; its balance only for the admin (staff never see balances)
+export const pickedLedgerModel = ledgerSummaryModel.extend({ balance: ledgerBalanceModel.nullable(), party: pickedPartyModel.nullable() });
+
+export type PickedLedgerModel = z.infer<typeof pickedLedgerModel>;
 
 // who is saving
 export type ActorModel = { id: string; name: string };

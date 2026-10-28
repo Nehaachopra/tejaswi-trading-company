@@ -11,14 +11,17 @@ import { toast } from "~/components/ui/toast";
 import { trpc } from "~/trpc/client";
 
 import { draftFrom, draftInput, draftOk, emptyDraft, PartyFields, type PartyDraft } from "./party-fields";
-import type { PartyType } from "./party-kinds";
+import { kindOf, partyLabel, type PartyType } from "./party-kinds";
 
 // what a failed save means, for the message under the form
 function errorKey(err: unknown) {
   const data = (err as { data?: { code?: string } })?.data;
   if (!data) return "network";
   // a clash is about the short name or a GSTIN; the server's message says which
-  if (data.code === "CONFLICT") return (err as { message?: string }).message?.startsWith("Short name") ? "shortNameTaken" : "gstinTaken";
+  if (data.code === "CONFLICT") {
+    const message = (err as { message?: string }).message ?? "";
+    return message.startsWith("Phone") ? "phoneTaken" : message.startsWith("Short name") ? "shortNameTaken" : "gstinTaken";
+  }
   if (data.code === "BAD_REQUEST") return "check";
   if (data.code === "NOT_FOUND") return "gone";
   return "failed";
@@ -45,14 +48,14 @@ export function PartySheet({
   const create = trpc.accounts.party.create.useMutation();
   const update = trpc.accounts.party.update.useMutation();
 
-  const [draft, setDraft] = useState<PartyDraft>(() => emptyDraft(type));
+  const [draft, setDraft] = useState<PartyDraft>(() => emptyDraft());
   const [tried, setTried] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loaded = !editing || !!party.data;
   useEffect(() => {
     if (!partyId || !loaded) return;
-    setDraft(editing ? draftFrom(party.data!) : emptyDraft(type));
+    setDraft(editing ? draftFrom(party.data!) : emptyDraft());
     setTried(false);
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when it opens or first loads
@@ -65,9 +68,9 @@ export function PartySheet({
     if (!draftOk(draft)) return setError(t("errors.fill"));
     try {
       const saved = editing ? await update.mutateAsync({ id: partyId, ...draftInput(draft) }) : await create.mutateAsync(draftInput(draft));
-      toast.success(t(editing ? "toast.saved" : "toast.added", { name: saved.shortName }));
+      toast.success(t(editing ? "toast.saved" : "toast.added", { name: partyLabel(saved) }));
       void utils.accounts.invalidate();
-      onSaved?.({ id: saved.id, type: saved.type });
+      onSaved?.({ id: saved.id, type: kindOf(saved.type) });
       onClose();
     } catch (err) {
       setError(t(`errors.${errorKey(err)}`));

@@ -8,6 +8,7 @@ import { fromPaise } from "../accounts/money";
 import { LEDGERS } from "../accounts/structure";
 import type { Tx } from "../stock/engine";
 import AssignedIdCounter, { type Prefix } from "./assigned-id";
+import { COMPANY } from "./company";
 import {
   type CancelTransactionInputModel,
   cancelTransactionInputModel,
@@ -105,6 +106,7 @@ export default class TransactionService {
         remarks: input.remarks,
         createdById: actor.id,
         createdByName: actor.name.slice(0, 30),
+        companySnapshot: COMPANY,
       })
       .returning({ id: transactionsTable.id });
     await this.engine.post(tx, { transactionId: created!.id, dateTime: input.dateTime, lines: input.lines, isContra: input.isContra });
@@ -159,8 +161,8 @@ export default class TransactionService {
           input.maxAmount !== null ? lte(transactionsTable.amount, String(input.maxAmount)) : undefined,
           search ? or(ilike(transactionsTable.assignedId, search), ilike(transactionsTable.remarks, search)) : undefined,
           // the page after the last one shown
-          input.before
-            ? or(lt(transactionsTable.dateTime, input.before.dateTime), and(eq(transactionsTable.dateTime, input.before.dateTime), lt(transactionsTable.id, input.before.id)))
+          input.beforeDateTime && input.beforeId
+            ? or(lt(transactionsTable.dateTime, input.beforeDateTime), and(eq(transactionsTable.dateTime, input.beforeDateTime), lt(transactionsTable.id, input.beforeId)))
             : undefined,
         ),
       )

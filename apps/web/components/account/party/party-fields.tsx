@@ -5,13 +5,16 @@ import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
 import { fieldClass } from "~/components/ui/card-form";
+import { spokenDigits, wholePhone } from "~/lib/number-words";
+import { MicButton, MicField } from "~/components/ui/mic-button";
+import { RequiredMark } from "~/components/ui/required-mark";
 import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import type { RouterOutputs } from "@repo/trpc/client";
+import { PHONE_PATTERN, type RouterOutputs } from "@repo/trpc/client";
 
 import { PickMenu } from "../../stock/pick-menu";
-import { GST_STATES, type PartyType, type StateCode, stateCodeOf } from "./party-kinds";
+import { GST_STATES, type StateCode, stateCodeOf } from "./party-kinds";
 
 export type Party = RouterOutputs["accounts"]["party"]["get"];
 
@@ -54,7 +57,6 @@ export type AddressDraft = {
 
 // a party as typed
 export type PartyDraft = {
-  type: PartyType;
   name: string;
   // follows the name's initials until it's typed in
   shortName: string;
@@ -85,8 +87,7 @@ export const emptyAddress = (isDefault: boolean): AddressDraft => ({
   isDefault,
 });
 
-export const emptyDraft = (type: PartyType): PartyDraft => ({
-  type,
+export const emptyDraft = (): PartyDraft => ({
   name: "",
   shortName: "",
   shortNameTyped: false,
@@ -98,9 +99,8 @@ export const emptyDraft = (type: PartyType): PartyDraft => ({
 });
 
 export const draftFrom = (p: Party): PartyDraft => ({
-  type: p.type,
   name: p.name,
-  shortName: p.shortName,
+  shortName: p.shortName ?? "",
   shortNameTyped: true,
   phone: p.phone ?? "",
   email: p.email ?? "",
@@ -139,21 +139,23 @@ function addressProblems(a: AddressDraft) {
   };
 }
 
-// what's missing or wrong: the party's own fields, then each address's (blank addresses don't count)
-export function draftProblems(d: PartyDraft) {
+// what's missing or wrong: the party's own fields (its phone always: a mobile, or a landline with its STD code), then each
+// address's (blank addresses don't count). `strict` (a party added from a receipt) also needs its first address in full
+export function draftProblems(d: PartyDraft, strict = false) {
   return {
     party: {
       name: d.name.trim() === "",
-      shortName: !SHORT_NAME.test(d.shortName.trim()),
+      phone: !PHONE_PATTERN.test(d.phone),
+      shortName: d.shortName.trim() !== "" && !SHORT_NAME.test(d.shortName.trim()),
       email: d.email.trim() !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim()),
       pan: d.pan.trim() !== "" && !/^[A-Z]{5}\d{4}[A-Z]$/.test(d.pan.trim()),
     },
-    addresses: d.addresses.map((a) => (blank(a) ? null : addressProblems(a))),
+    addresses: d.addresses.map((a, i) => (blank(a) && !(strict && i === 0) ? null : addressProblems(a))),
   };
 }
 
-export const draftOk = (d: PartyDraft) => {
-  const p = draftProblems(d);
+export const draftOk = (d: PartyDraft, strict = false) => {
+  const p = draftProblems(d, strict);
   return Object.values(p.party).every((bad) => !bad) && p.addresses.every((a) => !a || Object.values(a).every((bad) => !bad));
 };
 
@@ -161,7 +163,7 @@ export const draftOk = (d: PartyDraft) => {
 export function draftInput(d: PartyDraft) {
   const kept = d.addresses.filter((a) => !blank(a));
   return {
-    details: { name: d.name.trim(), shortName: d.shortName.trim(), type: d.type, phone: d.phone, email: d.email.trim(), pan: d.pan.trim(), remarks: d.remarks.trim() },
+    details: { name: d.name.trim(), shortName: d.shortName.trim() || null, phone: d.phone, email: d.email.trim(), pan: d.pan.trim(), remarks: d.remarks.trim() },
     addresses: kept.map((a) => ({
       ...(a.id ? { id: a.id } : {}),
       label: a.label.trim(),
@@ -181,14 +183,15 @@ export function draftInput(d: PartyDraft) {
 }
 
 const input = (bad: boolean) => `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
-const chip = (on: boolean) =>
-  cn("min-h-11 flex-1 rounded-control border px-2 text-sm transition-colors", on ? "border-chestnut bg-chestnut font-medium text-ivory" : "border-chestnut/60 hover:border-chestnut");
 
 // a labelled field
-function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+function Field({ label, children, className, required = false }: { label: string; children: React.ReactNode; className?: string; required?: boolean }) {
   return (
     <label className={cn("flex min-w-0 flex-col gap-1.5", className)}>
-      <span className="text-sm">{label}</span>
+      <span className="text-sm">
+        {label}
+        {required && <RequiredMark />}
+      </span>
       {children}
     </label>
   );
@@ -204,6 +207,7 @@ function AddressFields({
   index,
   count,
   tried,
+  required = false,
   onChange,
   onRemove,
   onMakeDefault,
@@ -212,12 +216,16 @@ function AddressFields({
   index: number;
   count: number;
   tried: boolean;
+  // filled in or not, it must be complete
+  required?: boolean;
   onChange: (patch: Partial<AddressDraft>) => void;
   onRemove: () => void;
   onMakeDefault: () => void;
 }) {
   const t = useTranslations("accounts.party.form");
-  const bad = blank(address) ? null : addressProblems(address);
+  const bad = blank(address) && !required ? null : addressProblems(address);
+  // its must-haves are starred when it must be filled, or once anything is typed in it
+  const must = required || !blank(address);
   const show = (field: keyof ReturnType<typeof addressProblems>) => tried && !!bad?.[field];
   const [lookup, setLookup] = useState<Lookup>({ state: "idle" });
   // what the lookup last filled in, so it only fills empty fields or replaces its own suggestion, never what was
@@ -279,7 +287,7 @@ function AddressFields({
       </div>
 
       {/* PIN, with what it found */}
-      <Field label={t("pin")}>
+      <Field label={t("pin")} required={must}>
         <input
           value={address.postalCode}
           inputMode="numeric"
@@ -299,26 +307,36 @@ function AddressFields({
       </Field>
 
       {/* the lines */}
-      <Field label={t("line1")}>
-        <input value={address.addressLine1} maxLength={MAX.line} onChange={(e) => onChange({ addressLine1: e.target.value })} aria-invalid={show("addressLine1") || undefined} className={input(show("addressLine1"))} />
+      <Field label={t("line1")} required={must}>
+        <MicField onText={(said) => onChange({ addressLine1: (address.addressLine1.trim() ? `${address.addressLine1.trim()} ${said}` : said).slice(0, MAX.line) })}>
+          <input value={address.addressLine1} maxLength={MAX.line} onChange={(e) => onChange({ addressLine1: e.target.value })} aria-invalid={show("addressLine1") || undefined} className={cn(input(show("addressLine1")), "pr-11")} />
+        </MicField>
       </Field>
       <Field label={t("line2")}>
-        <input value={address.addressLine2} maxLength={MAX.line} onChange={(e) => onChange({ addressLine2: e.target.value })} className={input(false)} />
+        <MicField onText={(said) => onChange({ addressLine2: (address.addressLine2.trim() ? `${address.addressLine2.trim()} ${said}` : said).slice(0, MAX.line) })}>
+          <input value={address.addressLine2} maxLength={MAX.line} onChange={(e) => onChange({ addressLine2: e.target.value })} className={cn(input(false), "pr-11")} />
+        </MicField>
       </Field>
       <Field label={t("landmark")}>
-        <input value={address.landmark} maxLength={MAX.landmark} onChange={(e) => onChange({ landmark: e.target.value })} className={input(false)} />
+        <MicField onText={(said) => onChange({ landmark: (address.landmark.trim() ? `${address.landmark.trim()} ${said}` : said).slice(0, MAX.landmark) })}>
+          <input value={address.landmark} maxLength={MAX.landmark} onChange={(e) => onChange({ landmark: e.target.value })} className={cn(input(false), "pr-11")} />
+        </MicField>
       </Field>
 
       {/* city, district and state (filled in from the PIN, still editable) */}
       <div className="grid grid-cols-2 gap-3">
-        <Field label={t("city")}>
-          <input value={address.city} maxLength={MAX.place} onChange={(e) => onChange({ city: e.target.value })} aria-invalid={show("city") || undefined} className={input(show("city"))} />
+        <Field label={t("city")} required={must}>
+          <MicField onText={(said) => onChange({ city: (address.city.trim() ? `${address.city.trim()} ${said}` : said).slice(0, MAX.place) })}>
+          <input value={address.city} maxLength={MAX.place} onChange={(e) => onChange({ city: e.target.value })} aria-invalid={show("city") || undefined} className={cn(input(show("city")), "pr-11")} />
+        </MicField>
         </Field>
-        <Field label={t("district")}>
-          <input value={address.district} maxLength={MAX.place} onChange={(e) => onChange({ district: e.target.value })} aria-invalid={show("district") || undefined} className={input(show("district"))} />
+        <Field label={t("district")} required={must}>
+          <MicField onText={(said) => onChange({ district: (address.district.trim() ? `${address.district.trim()} ${said}` : said).slice(0, MAX.place) })}>
+          <input value={address.district} maxLength={MAX.place} onChange={(e) => onChange({ district: e.target.value })} aria-invalid={show("district") || undefined} className={cn(input(show("district")), "pr-11")} />
+        </MicField>
         </Field>
       </div>
-      <Field label={t("state")}>
+      <Field label={t("state")} required={must}>
         <PickMenu
           label={t("state")}
           current={address.stateCode ? (GST_STATES.find(([code]) => code === address.stateCode)?.[1] ?? address.state) : t("pick")}
@@ -363,19 +381,33 @@ function AddressFields({
   );
 }
 
-// the party's fields: its type, who it is and how to reach them, its addresses and remarks; its opening balance is
-// set on the Opening balances page
+// the party's fields: who it is and how to reach them, its addresses and remarks (its type comes from its sales and
+// purchases); its opening balance is set on the Opening balances page. With `phoneFirst` the phone comes first, with
+// `belowPhone` under it (a receipt shows the parties already added with that phone there); `onlyPhone` hides the rest
+// (that phone is someone already added, shown in their place)
 export function PartyFields({
   draft,
   onChange,
   tried,
+  phoneFirst = false,
+  belowPhone,
+  onlyPhone = false,
+  belowName,
+  strict = false,
 }: {
   draft: PartyDraft;
   onChange: (patch: Partial<PartyDraft>) => void;
   tried: boolean;
+  phoneFirst?: boolean;
+  belowPhone?: React.ReactNode;
+  onlyPhone?: boolean;
+  // under the name: parties with a similar name, as a suggestion
+  belowName?: React.ReactNode;
+  // a party added from a receipt: its phone and first address are needed too
+  strict?: boolean;
 }) {
   const t = useTranslations("accounts.party.form");
-  const bad = draftProblems(draft).party;
+  const bad = draftProblems(draft, strict).party;
   const show = (field: keyof typeof bad) => tried && bad[field];
 
   // one address changed, added, removed or made the default
@@ -385,38 +417,65 @@ export function PartyFields({
     onChange({ addresses: left.some((a) => a.isDefault) ? left : left.map((a, i) => ({ ...a, isDefault: i === 0 })) });
   };
 
+  // a spoken phone adds to a part already typed (a whole one is replaced)
+  const phoneSoFar = draft.phone.length >= 10 ? "" : draft.phone;
+
+  // the phone, with whatever goes under it
+  const phone = (
+    <div className="relative flex flex-col gap-2">
+      <Field label={t("phoneRequired")} required>
+        <span className={cn("flex min-h-11 items-center gap-2 px-3", fieldClass(show("phone")))}>
+          <span className="text-chestnut/70">+91</span>
+          <input
+            autoFocus={phoneFirst}
+            aria-invalid={show("phone") || undefined}
+            value={draft.phone}
+            inputMode="tel"
+            maxLength={MAX.phone}
+            onChange={(e) => onChange({ phone: e.target.value.replace(/\D/g, "") })}
+            className="tabular min-w-0 flex-1 bg-transparent text-base outline-none"
+          />
+          {/* spoken digit by digit: it listens through pauses until all 10 are in, adding to a part already there */}
+          <MicButton
+            onText={(said) => onChange({ phone: (phoneSoFar + spokenDigits(said)).slice(0, 10) })}
+            until={(heard) => wholePhone(heard, phoneSoFar)}
+          />
+        </span>
+        <span className={cn("text-xs", show("phone") ? "text-danger" : "text-chestnut/70")}>{t("phoneHint")}</span>
+      </Field>
+      {belowPhone}
+    </div>
+  );
+
+  if (onlyPhone) return phone;
+
   return (
     <div className="flex flex-col gap-5">
-      {/* customer, supplier or both */}
-      <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm">{t("type")}</legend>
-        <div className="flex gap-2">
-          {(["customer", "supplier", "both"] as const).map((type) => (
-            <button
-              key={type}
-              type="button"
-              aria-pressed={draft.type === type}
-              onClick={() => onChange({ type })}
-              className={chip(draft.type === type)}
-            >
-              {t(`types.${type}`)}
-            </button>
-          ))}
-        </div>
-      </fieldset>
+      {phoneFirst && phone}
 
       {/* who it is and how to reach them */}
-      <Field label={t("name")}>
-        <input
-          autoFocus
-          value={draft.name}
-          maxLength={MAX.name}
-          onChange={(e) => onChange({ name: e.target.value, ...(draft.shortNameTyped ? {} : { shortName: initialsOf(e.target.value) }) })}
-          aria-invalid={show("name") || undefined}
-          className={input(show("name"))}
-        />
-      </Field>
-      {/* the short name ledgers and lists show; suggested from the name's initials */}
+      <div className="relative flex flex-col gap-2">
+        <Field label={t("name")} required>
+          <MicField
+            onText={(said) => {
+              const name = (draft.name.trim() ? `${draft.name.trim()} ${said}` : said).slice(0, MAX.name);
+              onChange({ name, ...(draft.shortNameTyped ? {} : { shortName: initialsOf(name) }) });
+            }}
+          >
+            <input
+            autoFocus={!phoneFirst}
+            value={draft.name}
+            maxLength={MAX.name}
+            onChange={(e) => onChange({ name: e.target.value, ...(draft.shortNameTyped ? {} : { shortName: initialsOf(e.target.value) }) })}
+            aria-invalid={show("name") || undefined}
+            className={cn(input(show("name")), "pr-11")}
+          />
+          </MicField>
+        </Field>
+        {belowName}
+      </div>
+      {/* the short name ledgers and lists show (optional; without it they show the full name); suggested from the
+          name's initials */}
       <Field label={t("shortName")}>
         <input
           value={draft.shortName}
@@ -429,18 +488,7 @@ export function PartyFields({
         />
         <span className="text-xs text-chestnut/70">{t("shortNameHint")}</span>
       </Field>
-      <Field label={t("phone")}>
-        <span className={cn("flex min-h-11 items-center gap-2 px-3", fieldClass(false))}>
-          <span className="text-chestnut/70">+91</span>
-          <input
-            value={draft.phone}
-            inputMode="tel"
-            maxLength={MAX.phone}
-            onChange={(e) => onChange({ phone: e.target.value.replace(/\D/g, "") })}
-            className="tabular min-w-0 flex-1 bg-transparent text-base outline-none"
-          />
-        </span>
-      </Field>
+      {!phoneFirst && phone}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label={t("email")}>
           <input
@@ -476,6 +524,7 @@ export function PartyFields({
             index={i}
             count={draft.addresses.length}
             tried={tried}
+            required={strict && i === 0}
             onChange={(patch) => setAddress(a.key, patch)}
             onRemove={() => removeAddress(a.key)}
             onMakeDefault={() => onChange({ addresses: draft.addresses.map((x) => ({ ...x, isDefault: x.key === a.key })) })}

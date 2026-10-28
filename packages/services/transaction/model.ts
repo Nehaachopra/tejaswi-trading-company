@@ -25,7 +25,9 @@ export const listTransactionsInputModel = z.object({
   minAmount: z.number().nonnegative().max(9_999_999_999_999).nullable().default(null),
   maxAmount: z.number().nonnegative().max(9_999_999_999_999).nullable().default(null),
   search: z.string().trim().max(50).default(""),
-  before: z.object({ dateTime: z.coerce.date(), id: idModel }).nullable().default(null),
+  // the next page: rows older than the last one shown (its date and id); flat, so it fits a GET query
+  beforeDateTime: z.coerce.date().nullable().default(null),
+  beforeId: idModel.nullable().default(null),
   limit: z.number().int().min(1).max(100).default(50),
 });
 

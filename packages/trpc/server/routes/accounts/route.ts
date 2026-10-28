@@ -32,6 +32,8 @@ import {
   partyIdInputModel,
   partyModel,
   partySummaryModel,
+  pinPlaceInputModel,
+  pinPlaceModel,
   setPartyActiveInputModel,
   updatePartyInputModel,
 } from "@repo/services/party/model";
@@ -59,6 +61,15 @@ const bankRouter = router({
     .input(branchSearchInputModel)
     .output(z.array(branchModel))
     .query(({ input }) => bankService.branches(input)),
+
+  // the active accounts money can go into or come from, for receipts and payments: names only (staff use it too)
+  pickable: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/accounts/banks/pickable", tags: ["accounts"] } })
+    .input(z.void())
+    .output(z.array(z.object({ id: z.string(), bankName: z.string(), last4: z.string(), accountType: z.string() })))
+    .query(async () =>
+      (await bankService.list({ includeInactive: false })).map((b) => ({ id: b.id, bankName: b.bankName, last4: b.last4, accountType: b.accountType })),
+    ),
 
   list: adminProcedure
     .meta({ openapi: { method: "GET", path: "/accounts/banks", tags: ["accounts"] } })
@@ -124,6 +135,13 @@ const partyRouter = router({
     .input(setPartyActiveInputModel)
     .output(partyModel)
     .mutation(({ input }) => partyService.setActive(input)),
+
+  // a PIN code already on a saved address: its town, district and state, filled into a new address
+  pinPlace: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/accounts/parties/pin/{postalCode}", tags: ["accounts"] } })
+    .input(pinPlaceInputModel)
+    .output(pinPlaceModel)
+    .query(({ input }) => partyService.pinPlace(input)),
 });
 
 // any ledger and its statement, for the admin; ledgers of its own (a loan, other income, an expense head) added,

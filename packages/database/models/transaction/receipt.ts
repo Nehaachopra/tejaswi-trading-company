@@ -11,7 +11,7 @@ import { uniqueIndex } from "drizzle-orm/pg-core";
 import { index } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import { settledInEnum } from "../../utils/common/enum";
+import { gstPlaceOfSupplyEnum, receivedForEnum, settledInEnum } from "../../utils/common/enum";
 
 export const receiptsTable = pgTable(
   "receipts",
@@ -43,6 +43,30 @@ export const receiptsTable = pgTable(
 
     partyEmailSnapshot: varchar("party_email_snapshot", { length: 254 }),
 
+    // the party as it was when received, so the voucher can be drawn again unchanged on any later date: its full and
+    // short name and its default address (null when it came from a plain ledger, or saved before these were kept)
+    partyNameSnapshot: varchar("party_name_snapshot", { length: 150 }),
+
+    partyShortNameSnapshot: varchar("party_short_name_snapshot", { length: 20 }),
+
+    partyAddressLine1Snapshot: varchar("party_address_line_1_snapshot", { length: 200 }),
+
+    partyAddressLine2Snapshot: varchar("party_address_line_2_snapshot", { length: 200 }),
+
+    partyCitySnapshot: varchar("party_city_snapshot", { length: 100 }),
+
+    partyPostalCodeSnapshot: varchar("party_postal_code_snapshot", { length: 6 }),
+
+    partyStateSnapshot: varchar("party_state_snapshot", { length: 100 }),
+
+    partyStateCodeSnapshot: gstPlaceOfSupplyEnum("party_state_code_snapshot"),
+
+    partyGstinSnapshot: varchar("party_gstin_snapshot", { length: 15 }),
+
+    // what it was for (the voucher's "Received for" and its particulars); receipts saved before it was kept count
+    // as a customer's payment
+    receivedFor: receivedForEnum("received_for").notNull().default("customer"),
+
     settledIn: settledInEnum("settled_in").notNull(),
 
     bankDetailsId: uuid("bank_details_id").references(() => bankDetailsTable.id, {
@@ -50,6 +74,13 @@ export const receiptsTable = pgTable(
     }),
 
     referenceNumber: varchar("reference_number", { length: 30 }),
+
+    // the bank account as it was when received: its bank, the last 4 digits and IFSC
+    bankNameSnapshot: varchar("bank_name_snapshot", { length: 100 }),
+
+    bankAccountLast4Snapshot: varchar("bank_account_last4_snapshot", { length: 4 }),
+
+    bankIfscSnapshot: varchar("bank_ifsc_snapshot", { length: 11 }),
 
     amount: money("amount").notNull().default("0.00"),
 
@@ -59,7 +90,8 @@ export const receiptsTable = pgTable(
 
     tdsAmount: money("tds_amount"),
 
-    // remarks live on the transaction; the voucher PDF is made when someone asks for it
+    // remarks and the company block live on the transaction; the voucher is drawn from all of these whenever someone
+    // asks for it, never stored
 
     ...timestamps,
   },

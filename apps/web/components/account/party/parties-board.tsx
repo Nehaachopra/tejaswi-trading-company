@@ -14,7 +14,7 @@ import { trpc } from "~/trpc/client";
 import { chip } from "../../product/row-styles";
 import { postDatedText } from "../balance";
 import { SignedAmount } from "../signed-amount";
-import { PARTY_KINDS, type PartyType } from "./party-kinds";
+import { PARTY_KINDS, partyLabel, type PartyType } from "./party-kinds";
 
 // /account/debtor, /account/creditor and /account/debtor-creditor, admin only: the ledgers of one kind of party.
 // A search over short name, name and phone, then a place filter and Show inactive (all staying under the header),
@@ -134,10 +134,10 @@ export function PartiesBoard({ type }: { type: PartyType }) {
               >
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
-                    <span className="truncate font-heading text-xl font-bold leading-7">{p.shortName}</span>
+                    <span className="truncate font-heading text-xl font-bold leading-7">{partyLabel(p)}</span>
                     {!p.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
                   </span>
-                  <span className="tabular block truncate text-sm opacity-70">{[p.phone, p.city].filter(Boolean).join(" · ") || "—"}</span>
+                  <span className="tabular block truncate text-sm opacity-70">{[p.phone && `+91 ${p.phone}`, p.city].filter(Boolean).join(" · ") || "—"}</span>
                 </span>
                 <span className="flex shrink-0 flex-col items-end">
                   <SignedAmount balance={p.balance.today} head={kind.head} className="font-heading text-xl font-bold leading-7" />

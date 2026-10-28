@@ -11,7 +11,7 @@ import { toast } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 
-import type { PartyType } from "../account/party/party-kinds";
+import { kindOf, partyLabel, type PartyType } from "../account/party/party-kinds";
 import { PartySheet } from "../account/party/party-sheet";
 import { chip } from "../product/row-styles";
 
@@ -95,7 +95,7 @@ export function PartiesManager() {
 
       <button
         type="button"
-        onClick={() => setOpen({ id: "new", type: type ?? "customer" })}
+        onClick={() => setOpen({ id: "new", type: "none" })}
         className="flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-ivory px-5 font-heading text-lg font-bold text-chestnut sm:w-auto"
       >
         <Plus className="size-5" aria-hidden /> {t("add")}
@@ -119,7 +119,7 @@ export function PartiesManager() {
         <Filter
           label={t("type")}
           current={type ? tf(`types.${type}`) : t("allTypes")}
-          options={[{ id: null, name: t("allTypes") }, ...(["customer", "supplier", "both"] as const).map((id) => ({ id, name: tf(`types.${id}`) }))]}
+          options={[{ id: null, name: t("allTypes") }, ...(["customer", "supplier", "both", "none"] as const).map((id) => ({ id, name: tf(`types.${id}`) }))]}
           picked={type}
           onPick={setType}
         />
@@ -148,16 +148,16 @@ export function PartiesManager() {
               className={cn("flex items-center gap-2 rounded-control border p-2 pl-4", p.isActive ? "on-ivory border-ivory bg-ivory text-chestnut" : "border-dashed border-ivory/60 text-ivory")}
             >
               {/* the party: tap to edit */}
-              <button type="button" onClick={() => setOpen({ id: p.id, type: p.type })} className="min-w-0 flex-1 py-1.5 text-left">
+              <button type="button" onClick={() => setOpen({ id: p.id, type: kindOf(p.type) })} className="min-w-0 flex-1 py-1.5 text-left">
                 <span className="flex items-center gap-2">
-                  <span className="truncate font-heading text-xl font-bold leading-7">{p.shortName}</span>
-                  <span className="shrink-0 rounded-control border border-current/40 px-2 py-0.5 text-xs">{tf(`types.${p.type}`)}</span>
+                  <span className="truncate font-heading text-xl font-bold leading-7">{partyLabel(p)}</span>
+                  <span className="shrink-0 rounded-control border border-current/40 px-2 py-0.5 text-xs">{tf(`types.${kindOf(p.type)}`)}</span>
                   {!p.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
                 </span>
                 <span className="block truncate text-sm" title={p.name}>
                   {p.name}
                 </span>
-                <span className="tabular block truncate text-xs opacity-70">{[p.phone, p.city].filter(Boolean).join(" · ") || "—"}</span>
+                <span className="tabular block truncate text-xs opacity-70">{[p.phone && `+91 ${p.phone}`, p.city].filter(Boolean).join(" · ") || "—"}</span>
               </button>
 
               {/* edit, or mark inactive / active */}
@@ -167,7 +167,7 @@ export function PartiesManager() {
                     <MenuItem
                       onClick={() => {
                         close();
-                        setOpen({ id: p.id, type: p.type });
+                        setOpen({ id: p.id, type: kindOf(p.type) });
                       }}
                     >
                       <Pencil className="size-4" aria-hidden /> {t("edit")}
@@ -175,7 +175,7 @@ export function PartiesManager() {
                     <MenuItem
                       onClick={() => {
                         close();
-                        void toggleActive(p.id, p.shortName, !p.isActive);
+                        void toggleActive(p.id, partyLabel(p), !p.isActive);
                       }}
                     >
                       <Power className="size-4" aria-hidden /> {p.isActive ? t("deactivate") : t("reactivate")}

@@ -664,11 +664,12 @@
         "loss": "Loss"
       },
       "masters": {
-        "debtors": "Debtors",
-        "debtorCreditors": "Debtor-creditors",
+        "debtors": "Customers",
+        "debtorCreditors": "Customers & suppliers",
         "bank": "Bank",
-        "creditors": "Creditors",
-        "employees": "Employees"
+        "creditors": "Suppliers",
+        "employees": "Employees",
+        "parties": "Parties"
       },
       "ledgers": "{count, plural, =0 {No accounts yet} one {# account} other {# accounts}}",
       "postDated": "{amount} post-dated",
@@ -705,18 +706,23 @@
       "discountGiven": "Discount given",
       "rent": "Rent",
       "electricity": "Electricity",
-      "wifi": "Wifi expense"
+      "wifi": "Wifi expense",
+      "scrapSale": "Scrap sale",
+      "insuranceClaim": "Insurance claim",
+      "interestReceived": "Interest received"
     },
     "party": {
       "titles": {
-        "customer": "Debtors",
-        "supplier": "Creditors",
-        "both": "Debtor-creditors"
+        "customer": "Customers",
+        "supplier": "Suppliers",
+        "both": "Customers & suppliers",
+        "none": "Parties"
       },
       "empty": {
         "customer": "No customers yet.",
         "supplier": "No suppliers yet.",
-        "both": "No parties here yet."
+        "both": "No parties here yet.",
+        "none": "No parties here yet."
       },
       "search": "Short name, name or phone",
       "noMatch": "No one matches that search.",
@@ -739,7 +745,8 @@
         "addTitle": {
           "customer": "Add customer",
           "supplier": "Add supplier",
-          "both": "Add party"
+          "both": "Add party",
+          "none": "Add party"
         },
         "editTitle": "Edit party",
         "close": "Close",
@@ -749,7 +756,8 @@
         "types": {
           "customer": "Customer",
           "supplier": "Supplier",
-          "both": "Both"
+          "both": "Both",
+          "none": "No sale or purchase yet"
         },
         "name": "Full name",
         "phone": "Phone (optional)",
@@ -794,12 +802,15 @@
           "gone": "This party no longer exists.",
           "network": "Can't reach the server. Check your connection.",
           "failed": "Something went wrong. Try again.",
-          "shortNameTaken": "Another party already uses this short name."
+          "shortNameTaken": "Another party already uses this short name.",
+          "phoneTaken": "That phone number is already another party's."
         },
-        "shortName": "Short name",
+        "shortName": "Short name (optional)",
         "shortNameHint": "What ledgers and lists show, e.g. SRT for Sri Ramswamy Traders.",
         "searchState": "Search states",
-        "noState": "No state by that name."
+        "noState": "No state by that name.",
+        "phoneRequired": "Phone",
+        "phoneHint": "Mobile, or landline with STD code"
       },
       "showDetails": "Show or hide details",
       "place": "Place",
@@ -910,6 +921,264 @@
     "title": "Bank accounts"
   },
   "common": {
-    "clearSearch": "Clear search"
+    "clearSearch": "Clear search",
+    "speech": {
+      "speak": "Speak",
+      "stop": "Stop listening",
+      "listening": "Listening… speak now",
+      "problems": {
+        "denied": "The mic is blocked for this site. Allow it from the lock icon in the address bar.",
+        "network": "Can't reach the speech service. Check the internet (Chrome sends speech to Google; Brave can't do this).",
+        "noMic": "No microphone found. Pick the right one in the browser's microphone settings.",
+        "silent": "Didn't hear anything. Tap the mic and speak.",
+        "error": "Couldn't listen. Try again."
+      },
+      "starting": "Getting ready…"
+    }
+  },
+  "transactions": {
+    "hub": {
+      "title": "New transaction",
+      "comingSoon": "Coming soon.",
+      "kinds": {
+        "sale": "Sale",
+        "purchase": "Purchase",
+        "receipt": "Receipt",
+        "payment": "Payment",
+        "deposit": "Deposit",
+        "withdrawal": "Withdrawal",
+        "transfer": "Transfer",
+        "saleReturn": "Sale return",
+        "purchaseReturn": "Purchase return",
+        "salary": "Salary",
+        "drawing": "Drawing",
+        "others": "Others"
+      }
+    },
+    "picker": {
+      "search": "Search ledgers",
+      "noMatch": "No ledger matches.",
+      "new": "new",
+      "newLedger": "New ledger",
+      "newName": "Ledger name",
+      "useNew": "Use this ledger",
+      "recent": "Used recently",
+      "typeToFind": "Type a name to find the ledger.",
+      "searching": "Searching…",
+      "narrow": "Showing the first 20. Type more to narrow.",
+      "newParty": "New party"
+    },
+    "receipt": {
+      "title": "Receipt",
+      "amount": "Amount received",
+      "from": "Received from",
+      "pickFrom": "Pick a ledger",
+      "loading": "Loading…",
+      "tdsDeducted": "TDS deducted",
+      "tdsRate": "TDS rate %",
+      "tdsAmount": "TDS",
+      "into": "Received into",
+      "cash": "Cash",
+      "bank": "Bank",
+      "noBanks": "No bank accounts yet.",
+      "reference": "Reference / UTR",
+      "date": "Date",
+      "remarks": "Remarks",
+      "save": "Save receipt",
+      "errors": {
+        "fill": "Fill in the fields marked in red.",
+        "check": "Check the details and try again.",
+        "taken": "That short name or ledger name is taken.",
+        "network": "Can't reach the server. Check your connection.",
+        "failed": "Couldn't save the receipt. Try again."
+      },
+      "pickBank": "Pick the bank account",
+      "searchBank": "Search bank accounts",
+      "noBankMatch": "No bank account matches.",
+      "kinds": {
+        "customer": "Customer",
+        "loanTaken": "Loan received",
+        "loanReturned": "Loan repaid",
+        "capital": "Capital",
+        "refund": "Refund",
+        "otherIncome": "Other income"
+      },
+      "for": "Received for",
+      "source": "Source",
+      "steps": {
+        "what": "Received",
+        "loan": "Loan",
+        "where": "Into",
+        "party": "Party"
+      },
+      "stepsLabel": "Steps",
+      "next": "Next",
+      "back": "Back",
+      "loanTerms": "Loan terms",
+      "success": {
+        "title": "Receipt successfully created",
+        "number": "Transaction ID",
+        "voucher": "Voucher",
+        "balances": "Balances",
+        "newTransaction": "New transaction",
+        "loading": "Loading…",
+        "loadError": "Couldn't load the receipt. Check your connection and try again."
+      },
+      "party": "Party",
+      "finder": {
+        "matches": "{count, plural, one {Found 1 party} other {Found # parties}}",
+        "already": "Already added with this phone",
+        "notThem": "Not them? Add as new party",
+        "similar": "Similar names already added",
+        "noneOfThese": "None of these"
+      }
+    },
+    "voucher": {
+      "whatsApp": "Share on WhatsApp",
+      "whatsAppMessage": "Receipt {number} for ₹{amount} from {company}: {url}",
+      "title": "Receipt Voucher",
+      "loading": "Loading…",
+      "loadError": "Couldn't load the voucher. Check your connection and try again.",
+      "back": "Back",
+      "download": "Download PDF",
+      "cancelled": "Cancelled",
+      "from": "Received from",
+      "amount": "Amount (₹)",
+      "inWords": "Total in words (Rupees)",
+      "mode": "Mode",
+      "cash": "Cash",
+      "reference": "Reference / UTR",
+      "remarks": "Remarks",
+      "for": "Received for",
+      "particulars": {
+        "customer": "Received towards account",
+        "loan": "Loan received @ {rate}% a year, interest paid {frequency}",
+        "loanPlain": "Loan received",
+        "loanReturned": "Loan repaid",
+        "capital": "Capital introduced",
+        "refund": "Refund received"
+      },
+      "particularsHead": "Particulars",
+      "number": "Voucher No",
+      "dated": "Dated",
+      "bank": "Bank",
+      "state": "State",
+      "code": "Code",
+      "jurisdiction": "Subject to {place} JURISDICTION",
+      "sl": "Sl",
+      "tdsLine": "TDS deducted @ {rate}%",
+      "receivedIn": "Received in",
+      "account": "A/c Number",
+      "ifsc": "IFSC code",
+      "amountReceived": "Amount received Rs.",
+      "tdsDeducted": "TDS deducted Rs.",
+      "totalSettled": "Total settled Rs.",
+      "computerGenerated": "This is a computer generated voucher.",
+      "receivedBy": "Received by",
+      "signatory": "Authorised Signatory"
+    },
+    "loan": {
+      "rate": "Interest % a year",
+      "frequency": "Interest paid",
+      "frequencies": {
+        "monthly": "Monthly",
+        "quarterly": "Quarterly",
+        "half_yearly": "Half-yearly",
+        "yearly": "Yearly"
+      }
+    },
+    "chat": {
+      "title": "Receipt",
+      "helper": "Tejaswi",
+      "change": "Change this answer",
+      "q": {
+        "amount": "Amount",
+        "kind": "For",
+        "from": "From",
+        "ledgerName": "Ledger name",
+        "phone": "Phone",
+        "phoneMatch": "Already added with this phone",
+        "name": "Full name",
+        "pin": "PIN code",
+        "line1": "Address",
+        "city": "Town",
+        "district": "District",
+        "state": "State",
+        "tds": "TDS deducted",
+        "tdsRate": "TDS rate %",
+        "loanRate": "Interest % a year",
+        "loanFrequency": "Interest paid",
+        "into": "Received in",
+        "bank": "Bank account",
+        "reference": "Reference / UTR",
+        "date": "Date",
+        "remarks": "Remarks",
+        "summary": "Receipt"
+      },
+      "hints": {
+        "amount": "10,000",
+        "from": "Name, short name or phone",
+        "ledgerName": "e.g. Rent received",
+        "phone": "10-digit mobile or landline",
+        "name": "e.g. Ramesh Kumar",
+        "pin": "6-digit PIN",
+        "line1": "Door no., street, area",
+        "city": "e.g. Hiriyur",
+        "district": "e.g. Chitradurga",
+        "tdsRate": "e.g. 0.1",
+        "loanRate": "e.g. 12",
+        "reference": "UTR or cheque no.",
+        "remarks": "Optional note",
+        "date": "Pick a day",
+        "pick": "Pick an answer above"
+      },
+      "problems": {
+        "amount": "That doesn't look like an amount.",
+        "required": "I need this one.",
+        "phone": "A 10-digit mobile, or a landline with its STD code.",
+        "pin": "A PIN code has 6 digits.",
+        "rate": "A rate is between 0 and 100.",
+        "date": "Pick a day."
+      },
+      "saveErrors": {
+        "network": "Can't reach the server. Check your connection.",
+        "taken": "That name is taken.",
+        "check": "Something in it isn't right. Check the answers.",
+        "failed": "Couldn't save the receipt. Try again.",
+        "phone": "This phone is already another party's. Use them, or change the phone."
+      },
+      "sum": {
+        "amount": "Amount",
+        "for": "For",
+        "from": "From",
+        "tds": "TDS",
+        "interest": "Interest",
+        "into": "Into",
+        "reference": "Reference",
+        "date": "Date",
+        "remarks": "Remarks"
+      },
+      "newParty": "New party",
+      "newLedger": "New ledger",
+      "yes": "Yes",
+      "no": "No",
+      "cash": "Cash",
+      "bank": "Bank",
+      "noBanks": "No bank accounts yet.",
+      "skip": "Skip",
+      "skipped": "—",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "aYear": "a year",
+      "looking": "Looking…",
+      "noMatch": "No one matches.",
+      "typeToFind": "Type a name or phone below.",
+      "searchState": "Search states",
+      "pickDay": "Pick a day",
+      "save": "Save receipt",
+      "send": "Send",
+      "typing": "Tejaswi is typing",
+      "changePhone": "Change the phone"
+    }
   }
 }

@@ -1,12 +1,25 @@
 // transaction.ts
 
-import { check, pgEnum, pgTable, timestamp, uuid, varchar, index } from "drizzle-orm/pg-core";
+import { check, index, jsonb, pgEnum, pgTable, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 import { money, timestamps } from "../../utils/common/column-type";
 import { usersTable } from "../auth/user";
 import { text } from "drizzle-orm/pg-core";
 import { uniqueIndex } from "drizzle-orm/pg-core";
+
+// our own details as they were when a transaction was saved, so its voucher or invoice prints them unchanged later
+export type CompanySnapshot = {
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  state: string;
+  stateCode: string;
+  gstin: string;
+  fssai: string;
+  jurisdiction: string;
+};
 
 // a cancelled transaction is kept with its number; its effect is reversed by entries dated on the cancel day
 export const transactionStatusEnum = pgEnum("transaction_status", ["active", "cancelled"]);
@@ -69,6 +82,9 @@ export const transactionsTable = pgTable(
     cancelledByName: varchar("cancelled_by_name", { length: 30 }),
 
     cancelReason: varchar("cancel_reason", { length: 200 }),
+
+    // the company block its voucher or invoice is headed with; null on transactions saved before it was kept
+    companySnapshot: jsonb("company_snapshot").$type<CompanySnapshot>(),
 
     ...timestamps,
   },

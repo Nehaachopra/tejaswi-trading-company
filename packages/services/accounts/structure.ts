@@ -18,6 +18,9 @@ export const MASTERS = {
   bank: { group: "asset", name: "Bank" },
   creditors: { group: "liability", name: "Creditors" },
   employees: { group: "liability", name: "Employees" },
+  // parties with no sale or purchase yet (added from a receipt or in Entities); their first sale or purchase moves
+  // them to Debtors or Creditors
+  parties: { group: "asset", name: "Parties" },
 } as const satisfies Record<string, { group: GroupType; name: string }>;
 
 export type MasterKey = keyof typeof MASTERS;
@@ -49,6 +52,9 @@ export const LEDGERS = {
   // goods sent back to a supplier take back what the purchase cost
   purchaseReturn: { group: "income", name: "purchase return" },
   discountReceived: { group: "income", name: "discount received" },
+  scrapSale: { group: "income", name: "scrap sale" },
+  insuranceClaim: { group: "income", name: "insurance claim" },
+  interestReceived: { group: "income", name: "interest received" },
 
   salary: { group: "expense", name: "salary" },
   purchase: { group: "expense", name: "purchase" },
