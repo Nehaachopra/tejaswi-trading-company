@@ -13,14 +13,22 @@ import { signed } from "../account/balance";
 import { useLedgerName } from "../account/ledger-name";
 import { NEW_TRANSACTION_HREF } from "../shell/nav-items";
 
-// /transaction/receipt/[id], where a saved receipt lands (and the voucher returns to): that it worked, its number
-// and voucher, the balances of the ledgers it moved (rolling into place; the admin's only), and the way to a new
-// transaction
-export function ReceiptSuccess({ id }: { id: string }) {
-  const t = useTranslations("transactions.receipt.success");
+// /transaction/receipt/[id] and /transaction/payment/[id], where a saved receipt or payment lands (and its voucher
+// returns to): that it worked, its number and voucher, the balances of the ledgers it moved (rolling into place; the
+// admin's only), and the way to a new transaction
+export function ReceiptSuccess({ id, flow = "receipt" }: { id: string; flow?: "receipt" | "payment" }) {
+  const base = useTranslations("transactions.receipt.success");
+  // a payment's own words where it has them, the receipt's otherwise
+  const own = useTranslations("transactions.payment.success");
+  const t = ((key: string) => (flow === "payment" && own.has(key as never) ? own(key as never) : base(key as never))) as typeof base;
   const nameOf = useLedgerName();
-  const receipt = trpc.transactions.receipt.get.useQuery({ transactionId: id });
-  const balances = trpc.transactions.receipt.balances.useQuery({ transactionId: id });
+  const isPayment = flow === "payment";
+  const receiptGet = trpc.transactions.receipt.get.useQuery({ transactionId: id }, { enabled: !isPayment });
+  const receiptBalances = trpc.transactions.receipt.balances.useQuery({ transactionId: id }, { enabled: !isPayment });
+  const paymentGet = trpc.transactions.payment.get.useQuery({ transactionId: id }, { enabled: isPayment });
+  const paymentBalances = trpc.transactions.payment.balances.useQuery({ transactionId: id }, { enabled: isPayment });
+  const receipt = isPayment ? paymentGet : receiptGet;
+  const balances = isPayment ? paymentBalances : receiptBalances;
 
   return (
     <main className="mx-auto max-w-xl px-4 pb-28 pt-6 sm:px-6">
@@ -49,7 +57,7 @@ export function ReceiptSuccess({ id }: { id: string }) {
             <p className="text-sm">
               {t("number")} <span className="font-heading text-xl font-bold">{receipt.data.assignedId}</span>
             </p>
-            <Link href={`/transaction/receipt/${id}/voucher`} className="flex min-h-11 items-center gap-2 rounded-control border border-chestnut/50 px-4 text-sm font-semibold">
+            <Link href={`/transaction/${flow}/${id}/voucher`} className="flex min-h-11 items-center gap-2 rounded-control border border-chestnut/50 px-4 text-sm font-semibold">
               <FileText className="size-4" aria-hidden /> {t("voucher")}
             </Link>
           </div>

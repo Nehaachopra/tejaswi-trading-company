@@ -13,6 +13,30 @@ import { trpc } from "~/trpc/client";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 type Receipt = RouterOutputs["transactions"]["receipt"]["get"];
+type Payment = RouterOutputs["transactions"]["payment"]["get"];
+
+// what a voucher prints, the same for money in and out: what it was for, who it was with, and the rest as saved
+type Voucher = Omit<Receipt, "receivedFor" | "receivedFromName" | "receivedFromLedgerId"> & {
+  flow: "receipt" | "payment";
+  kind: string;
+  counterName: string;
+  interestAmount: number | null;
+};
+
+const fromReceipt = ({ receivedFor, receivedFromName, receivedFromLedgerId: _l, ...r }: Receipt): Voucher => ({
+  ...r,
+  flow: "receipt",
+  kind: receivedFor,
+  counterName: receivedFromName,
+  interestAmount: null,
+});
+
+const fromPayment = ({ paidFor, paidToName, paidToLedgerId: _l, ...p }: Payment): Voucher => ({
+  ...p,
+  flow: "payment",
+  kind: paidFor,
+  counterName: paidToName,
+});
 
 // a day as on a voucher: 24-10-2026 (India time)
 const dated = (d: Date | string) => new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(d)).replace(/\//g, "-");
@@ -35,13 +59,13 @@ function Detail({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 // where the money was received: our bank account (its bank, A/c and IFSC), or cash
-function ReceivedIn({ r, className }: { r: Receipt; className?: string }) {
+function ReceivedIn({ r, label, className }: { r: Voucher; label: string; className?: string }) {
   const t = useTranslations("transactions.voucher");
   return (
     <div className={cn("grid grid-cols-[auto_1fr] content-start border-chestnut/40", className)}>
       {r.bank ? (
         <>
-          <span className={cn(cell, "border-b border-r font-medium")}>{t("receivedIn")}</span>
+          <span className={cn(cell, "border-b border-r font-medium")}>{label}</span>
           <span className={cn(cell, "border-b")}>{titleCase(r.bank.name)}</span>
           <span className={cn(cell, "border-b border-r font-medium")}>{t("account")}</span>
           <span className={cn(cell, "border-b tabular")}>•••• {r.bank.last4}</span>
@@ -50,7 +74,7 @@ function ReceivedIn({ r, className }: { r: Receipt; className?: string }) {
         </>
       ) : (
         <>
-          <span className={cn(cell, "border-r font-medium")}>{t("receivedIn")}</span>
+          <span className={cn(cell, "border-r font-medium")}>{label}</span>
           <span className={cell}>{t("cash")}</span>
         </>
       )}
@@ -58,26 +82,46 @@ function ReceivedIn({ r, className }: { r: Receipt; className?: string }) {
   );
 }
 
-// what the money was for, as the voucher's one particular
-function useParticular() {
+// what the money was for, as the voucher's particulars: one line, or for a loan repaid with interest, the part
+// towards the loan and the interest
+function useParticulars() {
   const t = useTranslations("transactions.voucher.particulars");
+  const tp = useTranslations("transactions.payment.voucher.particulars");
   const tf = useTranslations("transactions.loan.frequencies");
-  return (r: Receipt) => {
-    switch (r.receivedFor) {
-      case "loanTaken":
-        return r.loan ? t("loan", { rate: r.loan.interestRate, frequency: tf(r.loan.frequency).toLowerCase() }) : t("loanPlain");
-      case "otherIncome":
-        return titleCase(r.receivedFromName);
+  return (r: Voucher): [string, number][] => {
+    const loan = (words: typeof t | typeof tp) =>
+      r.loan ? words("loan", { rate: r.loan.interestRate, frequency: tf(r.loan.frequency).toLowerCase() }) : words("loanPlain");
+    if (r.flow === "receipt") {
+      if (r.kind === "loanTaken") return [[loan(t), r.amount]];
+      if (r.kind === "otherIncome") return [[titleCase(r.counterName), r.amount]];
+      return [[t(r.kind as never), r.amount]];
+    }
+    switch (r.kind) {
+      case "loanGiven":
+        return [[loan(tp), r.amount]];
+      case "loanRepaid":
+        return r.interestAmount
+          ? [
+              [tp("loanRepaid"), Math.round((r.amount - r.interestAmount) * 100) / 100],
+              [tp("interest"), r.interestAmount],
+            ]
+          : [[tp("loanRepaid"), r.amount]];
+      // an expense or a tax: the head it was paid to
+      case "expense":
+        return [[titleCase(r.counterName), r.amount]];
+      case "taxPaid":
+        return [[`${tp("taxPaid")}: ${titleCase(r.counterName)}`, r.amount]];
       default:
-        return t(r.receivedFor);
+        return [[tp(r.kind as never), r.amount]];
     }
   };
 }
 
 // WhatsApp opened on the customer's chat (or, with no phone kept, on a contact to pick) with a message ready to send:
 // the voucher number, the amount and the link that opens the voucher without a login
-function whatsAppLink(r: Receipt, key: string, t: (key: string, values?: Record<string, string>) => string) {
-  const url = `${window.location.origin}/voucher/${r.transactionId}?k=${encodeURIComponent(key)}`;
+function whatsAppLink(r: Voucher, key: string, t: (key: string, values?: Record<string, string>) => string) {
+  const path = r.flow === "payment" ? `/voucher/payment/${r.transactionId}` : `/voucher/${r.transactionId}`;
+  const url = `${window.location.origin}${path}?k=${encodeURIComponent(key)}`;
   const text = t("whatsAppMessage", { number: r.assignedId, amount: money(r.amount), company: r.company.name, url });
   const to = r.partyPhone ? `91${r.partyPhone.replace(/\D/g, "").slice(-10)}` : "";
   return `https://wa.me/${to}?text=${encodeURIComponent(text)}`;
@@ -87,16 +131,25 @@ function whatsAppLink(r: Receipt, key: string, t: (key: string, values?: Record<
 // remarks beside it, the particulars, where it was received with the totals, the amount in words, and signatures.
 // It prints (or saves as a PDF) on its own. With a share key it's the customer's copy, opened from a link without a
 // login: only the download, no way back into the app and nothing to share
-export function ReceiptVoucher({ id, shareKey }: { id: string; shareKey?: string }) {
-  const t = useTranslations("transactions.voucher");
-  const tk = useTranslations("transactions.receipt.kinds");
-  const particular = useParticular();
+export function ReceiptVoucher({ id, shareKey, flow = "receipt" }: { id: string; shareKey?: string; flow?: "receipt" | "payment" }) {
+  const base = useTranslations("transactions.voucher");
+  // a payment's own words where it has them (Paid to, Paid from ...), the receipt's otherwise
+  const ownWords = useTranslations("transactions.payment.voucher");
+  const t = ((key: string, values?: Record<string, string>) =>
+    flow === "payment" && ownWords.has(key as never) ? ownWords(key as never, values as never) : base(key as never, values as never)) as typeof base;
+  const tk = useTranslations(flow === "payment" ? "transactions.payment.kinds" : "transactions.receipt.kinds");
+  const particulars = useParticulars();
   const shared = shareKey !== undefined;
-  const own = trpc.transactions.receipt.get.useQuery({ transactionId: id }, { enabled: !shared });
-  const theirs = trpc.transactions.receipt.shared.useQuery({ transactionId: id, key: shareKey ?? "" }, { enabled: shared, retry: false });
-  const receipt = shared ? theirs : own;
+  const isPayment = flow === "payment";
+  const receiptOwn = trpc.transactions.receipt.get.useQuery({ transactionId: id }, { enabled: !shared && !isPayment });
+  const receiptTheirs = trpc.transactions.receipt.shared.useQuery({ transactionId: id, key: shareKey ?? "" }, { enabled: shared && !isPayment, retry: false });
+  const paymentOwn = trpc.transactions.payment.get.useQuery({ transactionId: id }, { enabled: !shared && isPayment });
+  const paymentTheirs = trpc.transactions.payment.shared.useQuery({ transactionId: id, key: shareKey ?? "" }, { enabled: shared && isPayment, retry: false });
+  const receipt = isPayment ? (shared ? paymentTheirs : paymentOwn) : shared ? receiptTheirs : receiptOwn;
   // the key for the link sent on WhatsApp
-  const link = trpc.transactions.receipt.shareKey.useQuery({ transactionId: id }, { enabled: !shared });
+  const receiptLink = trpc.transactions.receipt.shareKey.useQuery({ transactionId: id }, { enabled: !shared && !isPayment });
+  const paymentLink = trpc.transactions.payment.shareKey.useQuery({ transactionId: id }, { enabled: !shared && isPayment });
+  const link = isPayment ? paymentLink : receiptLink;
 
   if (receipt.isPending)
     return (
@@ -111,10 +164,11 @@ export function ReceiptVoucher({ id, shareKey }: { id: string; shareKey?: string
       </p>
     );
 
-  const r = receipt.data;
+  const r = isPayment ? fromPayment(receipt.data as Payment) : fromReceipt(receipt.data as Receipt);
   const p = r.party;
   const settled = Math.round((r.amount + (r.tdsAmount ?? 0)) * 100) / 100;
-  const fromName = p ? (p.shortName ?? titleCase(p.name.toLowerCase())) : titleCase(r.receivedFromName);
+  const fromName = p ? (p.shortName ?? titleCase(p.name.toLowerCase())) : titleCase(r.counterName);
+  const lines = particulars(r);
 
   return (
     <main className="mx-auto max-w-4xl px-4 pb-28 pt-6 sm:px-6">
@@ -126,7 +180,7 @@ export function ReceiptVoucher({ id, shareKey }: { id: string; shareKey?: string
         {shared ? (
           <span className="hidden sm:block" />
         ) : (
-          <Link href={`/transaction/receipt/${id}`} className="flex min-h-11 items-center gap-1.5 text-sm font-medium">
+          <Link href={`/transaction/${flow}/${id}`} className="flex min-h-11 items-center gap-1.5 text-sm font-medium">
             <ArrowLeft className="size-4" aria-hidden /> {t("back")}
           </Link>
         )}
@@ -178,7 +232,7 @@ export function ReceiptVoucher({ id, shareKey }: { id: string; shareKey?: string
             <div className="grid grid-cols-[auto_1fr_auto_1fr] content-start border-b border-chestnut/40 [&>*:nth-child(4n)]:border-r-0">
               <Detail label={t("number")} value={<span className="font-bold">{r.assignedId}</span>} />
               <Detail label={t("dated")} value={dated(r.dateTime)} />
-              <Detail label={t("for")} value={tk(r.receivedFor)} />
+              <Detail label={t("for")} value={tk(r.kind as never)} />
               <Detail label={t("mode")} value={r.settledIn === "cash" ? t("cash") : t("bank")} />
               <Detail label={t("reference")} value={r.referenceNumber} />
               <Detail label={t("dated")} value={r.referenceNumber ? dated(r.dateTime) : null} />
@@ -223,7 +277,7 @@ export function ReceiptVoucher({ id, shareKey }: { id: string; shareKey?: string
           </div>
 
           {/* on phones: where it was received, right after the remarks */}
-          <ReceivedIn r={r} className="border-b sm:hidden" />
+          <ReceivedIn r={r} label={t("receivedIn")} className="border-b sm:hidden" />
 
           {/* the particulars */}
           <table className="w-full border-collapse">
@@ -235,14 +289,16 @@ export function ReceiptVoucher({ id, shareKey }: { id: string; shareKey?: string
               </tr>
             </thead>
             <tbody>
-              <tr className="align-top">
-                <td className={cn(cell, "border-r")}>1</td>
-                <td className={cn(cell, "border-r")}>{particular(r)}</td>
-                <td className={cn(cell, "tabular text-right")}>{money(r.amount)}</td>
-              </tr>
+              {lines.map(([words, amount], i) => (
+                <tr key={i} className="align-top">
+                  <td className={cn(cell, "border-r")}>{i + 1}</td>
+                  <td className={cn(cell, "border-r")}>{words}</td>
+                  <td className={cn(cell, "tabular text-right")}>{money(amount)}</td>
+                </tr>
+              ))}
               {r.tdsAmount !== null && (
                 <tr className="align-top">
-                  <td className={cn(cell, "border-r")}>2</td>
+                  <td className={cn(cell, "border-r")}>{lines.length + 1}</td>
                   <td className={cn(cell, "border-r")}>{t("tdsLine", { rate: r.tdsRate ?? 0 })}</td>
                   <td className={cn(cell, "tabular text-right")}>{money(r.tdsAmount)}</td>
                 </tr>
@@ -258,7 +314,7 @@ export function ReceiptVoucher({ id, shareKey }: { id: string; shareKey?: string
 
           {/* where it was received (on phones it sits after the remarks instead), and the totals */}
           <div className="grid border-t border-chestnut/40 sm:grid-cols-[1fr_1.5fr]">
-            <ReceivedIn r={r} className="hidden sm:grid sm:border-r" />
+            <ReceivedIn r={r} label={t("receivedIn")} className="hidden sm:grid sm:border-r" />
             <div className="grid grid-cols-[1fr_9rem] content-start">
               <span className={cn(cell, "border-b border-r text-right font-semibold")}>{t("amountReceived")}</span>
               <span className={cn(cell, "border-b tabular text-right font-semibold")}>{money(r.amount)}</span>
@@ -286,7 +342,7 @@ export function ReceiptVoucher({ id, shareKey }: { id: string; shareKey?: string
           <p>
             {t("receivedBy")}: {r.createdByName}
           </p>
-          <p className="font-semibold">{t("signatory")}</p>
+          <p className="font-semibold">{isPayment ? t("receiverSign") : t("signatory")}</p>
         </div>
 
         {/* cancelled: stamped across it */}

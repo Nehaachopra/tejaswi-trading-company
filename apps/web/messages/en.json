@@ -1179,6 +1179,65 @@
       "send": "Send",
       "typing": "Tejaswi is typing",
       "changePhone": "Change the phone"
+    },
+    "payment": {
+      "kinds": {
+        "supplier": "Supplier",
+        "loanRepaid": "Loan repaid",
+        "loanGiven": "Loan given",
+        "expense": "Expense",
+        "taxPaid": "Tax paid",
+        "refund": "Refund"
+      },
+      "chat": {
+        "title": "Payment",
+        "q": {
+          "from": "To",
+          "into": "Paid from",
+          "interest": "Interest in this",
+          "summary": "Payment"
+        },
+        "hints": {
+          "interest": "e.g. 500"
+        },
+        "problems": {
+          "interest": "The interest can't be more than the amount."
+        },
+        "sum": {
+          "from": "To",
+          "into": "From",
+          "interest": "Interest",
+          "principal": "Towards the loan"
+        },
+        "none": "None",
+        "save": "Save payment",
+        "saveErrors": {
+          "failed": "Couldn't save the payment. Try again."
+        }
+      },
+      "success": {
+        "title": "Payment successfully created",
+        "loadError": "Couldn't load the payment. Check your connection and try again."
+      },
+      "voucher": {
+        "title": "Payment Voucher",
+        "whatsAppMessage": "Payment {number} of ₹{amount} from {company}: {url}",
+        "from": "Paid to",
+        "for": "Paid for",
+        "receivedIn": "Paid from",
+        "amountReceived": "Amount paid Rs.",
+        "receivedBy": "Paid by",
+        "receiverSign": "Receiver's signature",
+        "particulars": {
+          "supplier": "Paid towards account",
+          "loan": "Loan given @ {rate}% a year, interest paid {frequency}",
+          "loanPlain": "Loan given",
+          "loanRepaid": "Loan repaid",
+          "interest": "Interest paid",
+          "refund": "Refund paid",
+          "taxPaid": "Tax paid"
+        }
+      }
     }
   }
 }

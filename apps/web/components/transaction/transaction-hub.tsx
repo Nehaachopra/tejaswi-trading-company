@@ -27,7 +27,7 @@ const KINDS: Kind[] = [
   { key: "sale", icon: ShoppingCart },
   { key: "purchase", icon: Truck },
   { key: "receipt", icon: ArrowDownLeft, href: "/transaction/receipt" },
-  { key: "payment", icon: ArrowUpRight },
+  { key: "payment", icon: ArrowUpRight, href: "/transaction/payment" },
   { key: "deposit", icon: Landmark },
   { key: "withdrawal", icon: Wallet },
   { key: "transfer", icon: ArrowLeftRight },

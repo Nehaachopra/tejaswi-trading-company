@@ -24,7 +24,7 @@ import {
 } from "../../account/party/party-fields";
 import { GST_STATES, partyLabel, stateCodeOf } from "../../account/party/party-kinds";
 import { SignedAmount } from "../../account/signed-amount";
-import type { LedgerChoice, Pickable, ReceiptKind } from "../ledger-picker";
+import type { LedgerChoice, PaymentKind, Pickable, ReceiptKind } from "../ledger-picker";
 import { PartyPick, usePhoneMatches, withCode } from "../party-finder";
 import {
   AnswerBubble,
@@ -55,6 +55,7 @@ type Q =
   | "tdsRate"
   | "loanRate"
   | "loanFrequency"
+  | "interest"
   | "into"
   | "bank"
   | "reference"
@@ -62,16 +63,28 @@ type Q =
   | "remarks"
   | "summary";
 
-const KINDS: ReceiptKind[] = [
-  "customer",
-  "loanTaken",
-  "loanReturned",
-  "capital",
-  "refund",
-  "otherIncome",
-];
-const PARTY_KINDS: ReceiptKind[] = ["customer", "loanTaken", "loanReturned"];
-const PLAIN_KINDS: ReceiptKind[] = ["refund", "otherIncome"];
+// money in or out: the chat is the same, only its kinds, a few words and the save differ
+type Flow = "receipt" | "payment";
+type Kind = ReceiptKind | PaymentKind;
+
+// per flow: what it can be for, which of those go to a party, which can add a plain ledger, which one a party deducts
+// TDS on, and which one brings a loan with its terms
+const FLOWS: Record<Flow, { kinds: Kind[]; partyKinds: Kind[]; plainKinds: Kind[]; tdsKind: Kind; loanKind: Kind }> = {
+  receipt: {
+    kinds: ["customer", "loanTaken", "loanReturned", "capital", "refund", "otherIncome"],
+    partyKinds: ["customer", "loanTaken", "loanReturned"],
+    plainKinds: ["refund", "otherIncome"],
+    tdsKind: "customer",
+    loanKind: "loanTaken",
+  },
+  payment: {
+    kinds: ["supplier", "loanRepaid", "loanGiven", "expense", "taxPaid", "refund"],
+    partyKinds: ["supplier", "loanRepaid", "loanGiven", "refund"],
+    plainKinds: ["expense"],
+    tdsKind: "supplier",
+    loanKind: "loanGiven",
+  },
+};
 const FREQUENCIES = ["monthly", "quarterly", "half_yearly", "yearly"] as const;
 type Frequency = (typeof FREQUENCIES)[number];
 
@@ -91,9 +104,9 @@ const PARTY_QS: Q[] = [
 const REFERENCE_MAX = 30;
 const REMARKS_MAX = 100;
 
-// the TDS a party deducted, on what it owed (as the server works it out)
-const tdsOn = (received: number, rate: number) =>
-  Math.round((received / (1 - rate / 100) - received) * 100) / 100;
+// the TDS deducted (by a customer from us, or by us from a supplier), on what was owed (as the server works it out)
+const tdsOn = (settled: number, rate: number) =>
+  Math.round((settled / (1 - rate / 100) - settled) * 100) / 100;
 
 // a day as the moment it's saved at: now for today, noon (India) for any other day
 const momentOf = (day: string) =>
@@ -106,28 +119,45 @@ const isParty = (l: Pickable) =>
   l.masterKey === "debtorCreditors" ||
   l.masterKey === "parties";
 
-// /transaction/receipt as a chat: Tejaswi asks one thing at a time, the answers stack up on the right (tap one to
-// change it), choices come as chips and cards, anything typed or spoken goes in the box at the bottom. Nothing is
-// saved until the summary's Save; the save goes to the receipt's own page
+// /transaction/receipt and /transaction/payment as a chat: Tejaswi asks one thing at a time, the answers stack up on
+// the right (tap one to change it), choices come as chips and cards, anything typed or spoken goes in the box at the
+// bottom. Nothing is saved until the summary's Save; the save goes to the receipt's or payment's own page
 export function ReceiptChat({ isAdmin }: { isAdmin: boolean }) {
-  const t = useTranslations("transactions.chat");
-  const tk = useTranslations("transactions.receipt.kinds");
+  return <MoneyChat flow="receipt" isAdmin={isAdmin} />;
+}
+
+export function PaymentChat({ isAdmin }: { isAdmin: boolean }) {
+  return <MoneyChat flow="payment" isAdmin={isAdmin} />;
+}
+
+function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
+  const base = useTranslations("transactions.chat");
+  // a payment's own words where it has them (To, Paid from, Save payment ...), the shared ones otherwise
+  const own = useTranslations("transactions.payment.chat");
+  const t = ((key: string, values?: Record<string, string>) =>
+    flow === "payment" && own.has(key as never) ? own(key as never, values as never) : base(key as never, values as never)) as typeof base;
+  const tk = useTranslations(flow === "payment" ? "transactions.payment.kinds" : "transactions.receipt.kinds");
   const tf = useTranslations("transactions.loan.frequencies");
   const utils = trpc.useUtils();
   const router = useRouter();
   const nameOf = useLedgerName();
   const banks = trpc.accounts.bank.pickable.useQuery();
-  const create = trpc.transactions.receipt.create.useMutation();
+  const createReceipt = trpc.transactions.receipt.create.useMutation();
+  const createPayment = trpc.transactions.payment.create.useMutation();
+  const create = flow === "payment" ? createPayment : createReceipt;
+  const { kinds: KINDS, partyKinds: PARTY_KINDS, plainKinds: PLAIN_KINDS, tdsKind, loanKind } = FLOWS[flow];
 
   // the answers
   const [amount, setAmount] = useState("");
-  const [kind, setKind] = useState<ReceiptKind | null>(null);
+  const [kind, setKind] = useState<Kind | null>(null);
   const [from, setFrom] = useState<LedgerChoice>(null);
   const [party, setParty] = useState<PartyDraft>(() => emptyParty());
   const [tds, setTds] = useState(false);
   const [tdsRate, setTdsRate] = useState("");
   const [loanRate, setLoanRate] = useState("");
   const [frequency, setFrequency] = useState<Frequency | null>(null);
+  // a loan repaid: how much of it is interest ("0" for none)
+  const [interest, setInterest] = useState("");
   const [into, setInto] = useState<"cash" | "bank">("cash");
   const [bankId, setBankId] = useState<string | null>(null);
   const [reference, setReference] = useState("");
@@ -149,12 +179,14 @@ export function ReceiptChat({ isAdmin }: { isAdmin: boolean }) {
   const address = party.addresses[0]!;
   const value = Number(amount) || 0;
   const bank = banks.data?.find((b) => b.id === bankId);
-  const phoneMatches = usePhoneMatches(party.phone, kind ?? "customer");
+  const phoneMatches = usePhoneMatches(party.phone, "customer");
   // a phone someone already has: one phone, one party, so it's them (or the phone gets changed)
   const showMatch = from?.kind === "party" && phoneMatches.length > 0;
-  const customerParty =
-    kind === "customer" &&
+  // TDS is asked of the party it applies to: a customer paying us, or a supplier we pay
+  const tdsParty =
+    kind === tdsKind &&
     ((from?.kind === "ledger" && isParty(from.ledger)) || from?.kind === "party");
+  const interestValue = Number(interest) || 0;
   const tdsValue = Number(tdsRate) || 0;
 
   // who it came from: the box searches (phone, name or short name) once typing pauses; the ones used last first
@@ -164,11 +196,16 @@ export function ReceiptChat({ isAdmin }: { isAdmin: boolean }) {
     return () => clearTimeout(timer);
   }, [typed]);
   const found = trpc.accounts.ledger.pickable.useQuery(
-    { purpose: "receipt", receiptKind: kind, search: asked },
+    {
+      purpose: flow,
+      receiptKind: flow === "receipt" ? (kind as ReceiptKind | null) : null,
+      paymentKind: flow === "payment" ? (kind as PaymentKind | null) : null,
+      search: asked,
+    },
     { enabled: kind !== null && !done.has("from"), placeholderData: (previous) => previous },
   );
   const tdsAmount =
-    customerParty && tds && tdsValue > 0 && tdsValue < 100 ? tdsOn(value, tdsValue) : 0;
+    tdsParty && tds && tdsValue > 0 && tdsValue < 100 ? tdsOn(value, tdsValue) : 0;
 
   // the questions that apply now, in order; the open one is the one being changed, or else the first unanswered
   const sequence: Q[] = [
@@ -189,8 +226,9 @@ export function ReceiptChat({ isAdmin }: { isAdmin: boolean }) {
           "line1",
         ] as Q[])
       : []),
-    ...(customerParty ? (["tds", ...(tds ? ["tdsRate"] : [])] as Q[]) : []),
-    ...(kind === "loanTaken" ? (["loanRate", "loanFrequency"] as Q[]) : []),
+    ...(tdsParty ? (["tds", ...(tds ? ["tdsRate"] : [])] as Q[]) : []),
+    ...(kind === loanKind ? (["loanRate", "loanFrequency"] as Q[]) : []),
+    ...(flow === "payment" && kind === "loanRepaid" ? (["interest"] as Q[]) : []),
     "into",
     ...(into === "bank" ? (["bank", "reference"] as Q[]) : []),
     "date",
@@ -272,6 +310,8 @@ export function ReceiptChat({ isAdmin }: { isAdmin: boolean }) {
         return tdsRate;
       case "loanRate":
         return loanRate;
+      case "interest":
+        return interest === "0" ? "" : interest;
       case "reference":
         return reference;
       case "remarks":
@@ -299,7 +339,7 @@ export function ReceiptChat({ isAdmin }: { isAdmin: boolean }) {
         const n = Number(text.replace(/,/g, "")) || wordsToNumber(text) || 0;
         if (!(n > 0)) return bad("amount");
         setAmount(String(n));
-        return answered("amount", ["tdsRate"]);
+        return answered("amount", ["tdsRate", "interest"]);
       }
       // an existing party or ledger is only taken when tapped; Enter adds someone new with what was typed
       case "from": {
@@ -380,6 +420,14 @@ export function ReceiptChat({ isAdmin }: { isAdmin: boolean }) {
         (active === "tdsRate" ? setTdsRate : setLoanRate)(String(n));
         return answered(active);
       }
+      // the interest part of a loan repaid: none (0) up to the whole amount
+      case "interest": {
+        const n = text === "" || text === "0" ? 0 : Number(text.replace(/,/g, "")) || wordsToNumber(text) || -1;
+        if (n < 0) return bad("amount");
+        if (n > value) return bad("interest");
+        setInterest(String(n));
+        return answered("interest");
+      }
       case "reference":
         setReference(text.replace(/\s+/g, "").toUpperCase().slice(0, REFERENCE_MAX));
         return answered("reference");
@@ -401,26 +449,39 @@ export function ReceiptChat({ isAdmin }: { isAdmin: boolean }) {
   // the save, from the summary
   async function save() {
     setSaveError(null);
+    // what both saves share; each names who it was with in its own words
+    const shared = {
+      dateTime: momentOf(day),
+      newLedger: from?.kind === "new" ? { name: from.name } : null,
+      newParty: from?.kind === "party" ? partyInput(party) : null,
+      loan: kind === loanKind ? { interestRate: Number(loanRate), frequency: frequency! } : null,
+      amount: value,
+      settledIn: into,
+      bankDetailsId: into === "bank" ? bankId : null,
+      referenceNumber: into === "bank" ? reference : "",
+      tdsRate: tdsAmount > 0 ? tdsValue : null,
+      remarks,
+    };
+    const ledgerId = from?.kind === "ledger" ? from.ledger.id : null;
     try {
-      const r = await create.mutateAsync({
-        dateTime: momentOf(day),
-        receivedFor: kind!,
-        receivedFromLedgerId: from?.kind === "ledger" ? from.ledger.id : null,
-        newLedger: from?.kind === "new" ? { name: from.name } : null,
-        newParty: from?.kind === "party" ? partyInput(party) : null,
-        loan:
-          kind === "loanTaken" ? { interestRate: Number(loanRate), frequency: frequency! } : null,
-        amount: value,
-        settledIn: into,
-        bankDetailsId: into === "bank" ? bankId : null,
-        referenceNumber: into === "bank" ? reference : "",
-        tdsRate: tdsAmount > 0 ? tdsValue : null,
-        remarks,
-      });
-      void utils.accounts.invalidate();
-      utils.transactions.receipt.get.setData({ transactionId: r.transactionId }, r);
-      utils.transactions.receipt.balances.setData({ transactionId: r.transactionId }, r.balances);
-      router.replace(`/transaction/receipt/${r.transactionId}`);
+      if (flow === "payment") {
+        const r = await createPayment.mutateAsync({
+          ...shared,
+          paidFor: kind as PaymentKind,
+          paidToLedgerId: ledgerId,
+          interestAmount: kind === "loanRepaid" ? interestValue : null,
+        });
+        void utils.accounts.invalidate();
+        utils.transactions.payment.get.setData({ transactionId: r.transactionId }, r);
+        utils.transactions.payment.balances.setData({ transactionId: r.transactionId }, r.balances);
+        router.replace(`/transaction/payment/${r.transactionId}`);
+      } else {
+        const r = await createReceipt.mutateAsync({ ...shared, receivedFor: kind as ReceiptKind, receivedFromLedgerId: ledgerId });
+        void utils.accounts.invalidate();
+        utils.transactions.receipt.get.setData({ transactionId: r.transactionId }, r);
+        utils.transactions.receipt.balances.setData({ transactionId: r.transactionId }, r.balances);
+        router.replace(`/transaction/receipt/${r.transactionId}`);
+      }
     } catch (err) {
       const code = (err as { data?: { code?: string } })?.data?.code;
       if (code === "CONFLICT" && (err as { message?: string }).message?.startsWith("Phone")) return setSaveError(t("saveErrors.phone"));
@@ -471,6 +532,11 @@ export function ReceiptChat({ isAdmin }: { isAdmin: boolean }) {
         return `${loanRate}% ${t("aYear")}`;
       case "loanFrequency":
         return frequency ? tf(frequency) : "";
+      // the interest, and what's left towards the loan
+      case "interest":
+        return interestValue > 0
+          ? `${rupees(interestValue)} · ${t("sum.principal")} ${rupees(value - interestValue)}`
+          : t("none");
       case "into":
         return into === "cash" ? t("cash") : t("bank");
       case "bank":
@@ -559,7 +625,7 @@ export function ReceiptChat({ isAdmin }: { isAdmin: boolean }) {
                     "kind",
                     kind === k
                       ? []
-                      : ["from", ...PARTY_QS, "tds", "tdsRate", "loanRate", "loanFrequency"],
+                      : ["from", ...PARTY_QS, "tds", "tdsRate", "loanRate", "loanFrequency", "interest"],
                   );
                 }}
               >
@@ -678,6 +744,14 @@ export function ReceiptChat({ isAdmin }: { isAdmin: boolean }) {
         return (
           <Chips>
             <Chip onClick={() => void send("")}>{t("skip")}</Chip>
+          </Chips>
+        );
+      case "interest":
+        return (
+          <Chips>
+            <Chip on={done.has("interest") && interestValue === 0} onClick={() => void send("0")}>
+              {t("none")}
+            </Chip>
           </Chips>
         );
       case "date":
@@ -832,9 +906,15 @@ export function ReceiptChat({ isAdmin }: { isAdmin: boolean }) {
       ...(tdsAmount > 0
         ? ([[t("sum.tds"), `${tdsRate}% · ${rupees(tdsAmount)}`]] as [string, string][])
         : []),
-      ...(kind === "loanTaken"
+      ...(kind === loanKind
         ? ([
             [t("sum.interest"), `${loanRate}% ${t("aYear")} · ${frequency ? tf(frequency) : ""}`],
+          ] as [string, string][])
+        : []),
+      ...(kind === "loanRepaid" && interestValue > 0
+        ? ([
+            [t("sum.interest"), rupees(interestValue)],
+            [t("sum.principal"), rupees(value - interestValue)],
           ] as [string, string][])
         : []),
       [
@@ -876,7 +956,7 @@ export function ReceiptChat({ isAdmin }: { isAdmin: boolean }) {
 
   // the box at the bottom: a number, a phone, a date or words as the open question needs; voice beside it
   function composer() {
-    const numeric = active === "amount" || active === "tdsRate" || active === "loanRate";
+    const numeric = active === "amount" || active === "tdsRate" || active === "loanRate" || active === "interest";
     // a phone (10 digits) or PIN (6) is listened for until it's whole, its digits adding up across pauses
     const digitsNeeded = active === "phone" ? 10 : active === "pin" ? 6 : 0;
     const digitsSoFar = typed.length >= digitsNeeded ? "" : typed;

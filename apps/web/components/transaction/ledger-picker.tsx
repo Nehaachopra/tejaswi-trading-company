@@ -18,6 +18,7 @@ import { PartyPick } from "./party-finder";
 
 export type Pickable = RouterOutputs["accounts"]["ledger"]["pickable"][number];
 export type ReceiptKind = NonNullable<RouterInputs["accounts"]["ledger"]["pickable"]["receiptKind"]>;
+export type PaymentKind = NonNullable<RouterInputs["accounts"]["ledger"]["pickable"]["paymentKind"]>;
 
 // what's picked: an existing ledger, a new one to be made in the same save (its place set by the kind), or a new
 // party (a customer or a lender, filled in on the next step)

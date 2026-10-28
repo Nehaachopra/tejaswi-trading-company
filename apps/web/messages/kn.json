@@ -1179,6 +1179,65 @@
       "send": "ಕಳುಹಿಸಿ",
       "typing": "ತೇಜಸ್ವಿ ಟೈಪ್ ಮಾಡುತ್ತಿದ್ದಾರೆ",
       "changePhone": "ಫೋನ್ ಬದಲಿಸಿ"
+    },
+    "payment": {
+      "kinds": {
+        "supplier": "ಸರಬರಾಜುದಾರ",
+        "loanRepaid": "ಸಾಲ ಮರುಪಾವತಿ",
+        "loanGiven": "ಸಾಲ ಕೊಟ್ಟಿದ್ದು",
+        "expense": "ಖರ್ಚು",
+        "taxPaid": "ತೆರಿಗೆ ಪಾವತಿ",
+        "refund": "ಮರುಪಾವತಿ"
+      },
+      "chat": {
+        "title": "ಪಾವತಿ",
+        "q": {
+          "from": "ಯಾರಿಗೆ",
+          "into": "ಎಲ್ಲಿಂದ ಕೊಟ್ಟಿದ್ದು",
+          "interest": "ಇದರಲ್ಲಿ ಬಡ್ಡಿ",
+          "summary": "ಪಾವತಿ"
+        },
+        "hints": {
+          "interest": "ಉದಾ. 500"
+        },
+        "problems": {
+          "interest": "ಬಡ್ಡಿ ಮೊತ್ತಕ್ಕಿಂತ ಹೆಚ್ಚು ಇರಬಾರದು."
+        },
+        "sum": {
+          "from": "ಯಾರಿಗೆ",
+          "into": "ಎಲ್ಲಿಂದ",
+          "interest": "ಬಡ್ಡಿ",
+          "principal": "ಸಾಲಕ್ಕೆ"
+        },
+        "none": "ಇಲ್ಲ",
+        "save": "ಪಾವತಿ ಉಳಿಸಿ",
+        "saveErrors": {
+          "failed": "ಪಾವತಿ ಉಳಿಸಲಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."
+        }
+      },
+      "success": {
+        "title": "ಪಾವತಿ ಯಶಸ್ವಿಯಾಗಿ ಆಯಿತು",
+        "loadError": "ಪಾವತಿ ಲೋಡ್ ಆಗಲಿಲ್ಲ. ಸಂಪರ್ಕ ನೋಡಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."
+      },
+      "voucher": {
+        "title": "ಪಾವತಿ ವೋಚರ್",
+        "whatsAppMessage": "{company} ಇಂದ ₹{amount} ಪಾವತಿ {number}: {url}",
+        "from": "ಯಾರಿಗೆ ಕೊಟ್ಟಿದ್ದು",
+        "for": "ಯಾವುದಕ್ಕೆ",
+        "receivedIn": "ಎಲ್ಲಿಂದ ಕೊಟ್ಟಿದ್ದು",
+        "amountReceived": "ಕೊಟ್ಟ ಮೊತ್ತ ರೂ.",
+        "receivedBy": "ಕೊಟ್ಟವರು",
+        "receiverSign": "ಪಡೆದವರ ಸಹಿ",
+        "particulars": {
+          "supplier": "ಖಾತೆಗೆ ಪಾವತಿ",
+          "loan": "ಸಾಲ ಕೊಟ್ಟಿದ್ದು @ ವರ್ಷಕ್ಕೆ {rate}%, ಬಡ್ಡಿ {frequency}",
+          "loanPlain": "ಸಾಲ ಕೊಟ್ಟಿದ್ದು",
+          "loanRepaid": "ಸಾಲ ಮರುಪಾವತಿ",
+          "interest": "ಬಡ್ಡಿ ಪಾವತಿ",
+          "refund": "ಮರುಪಾವತಿ ಕೊಟ್ಟಿದ್ದು",
+          "taxPaid": "ತೆರಿಗೆ ಪಾವತಿ"
+        }
+      }
     }
   }
 }

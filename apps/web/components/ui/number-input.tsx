@@ -75,7 +75,8 @@ export function NumberInput({
       value={show(value)}
       // phone number pads have no minus key, so a field that takes one gets the full keyboard
       inputMode={negative ? "text" : decimals > 0 ? "decimal" : "numeric"}
-      placeholder={placeholder && show(placeholder)}
+      // a number as the hint is grouped like the value; words ("e.g. 500") are shown as they are
+      placeholder={placeholder && /^-?[\d,.]+$/.test(placeholder) ? show(placeholder.replace(/,/g, "")) : placeholder}
       onChange={(e) => {
         const before = e.target.value.slice(0, e.target.selectionStart ?? e.target.value.length);
         const raw = clean(e.target.value, decimals, maxDigits, negative);

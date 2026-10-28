@@ -1179,6 +1179,65 @@
       "send": "भेजें",
       "typing": "तेजस्वी लिख रही है",
       "changePhone": "फ़ोन बदलें"
+    },
+    "payment": {
+      "kinds": {
+        "supplier": "सप्लायर",
+        "loanRepaid": "कर्ज़ चुकाया",
+        "loanGiven": "कर्ज़ दिया",
+        "expense": "खर्च",
+        "taxPaid": "टैक्स भरा",
+        "refund": "रिफ़ंड"
+      },
+      "chat": {
+        "title": "भुगतान",
+        "q": {
+          "from": "किसको",
+          "into": "कहाँ से दिया",
+          "interest": "इसमें ब्याज",
+          "summary": "भुगतान"
+        },
+        "hints": {
+          "interest": "जैसे 500"
+        },
+        "problems": {
+          "interest": "ब्याज राशि से ज़्यादा नहीं हो सकता।"
+        },
+        "sum": {
+          "from": "किसको",
+          "into": "कहाँ से",
+          "interest": "ब्याज",
+          "principal": "कर्ज़ में"
+        },
+        "none": "कुछ नहीं",
+        "save": "भुगतान सेव करें",
+        "saveErrors": {
+          "failed": "भुगतान सेव नहीं हुआ। फिर कोशिश करें।"
+        }
+      },
+      "success": {
+        "title": "भुगतान सफलतापूर्वक बना",
+        "loadError": "भुगतान लोड नहीं हुआ। कनेक्शन देखकर फिर कोशिश करें।"
+      },
+      "voucher": {
+        "title": "भुगतान वाउचर",
+        "whatsAppMessage": "{company} से ₹{amount} का भुगतान {number}: {url}",
+        "from": "किसको दिया",
+        "for": "किसलिए दिया",
+        "receivedIn": "कहाँ से दिया",
+        "amountReceived": "दी गई राशि रु.",
+        "receivedBy": "देने वाला",
+        "receiverSign": "लेने वाले के हस्ताक्षर",
+        "particulars": {
+          "supplier": "खाते में भुगतान",
+          "loan": "कर्ज़ दिया @ {rate}% सालाना, ब्याज {frequency}",
+          "loanPlain": "कर्ज़ दिया",
+          "loanRepaid": "कर्ज़ चुकाया",
+          "interest": "ब्याज दिया",
+          "refund": "रिफ़ंड दिया",
+          "taxPaid": "टैक्स भरा"
+        }
+      }
     }
   }
 }
