@@ -128,6 +128,23 @@ export const paymentIdInputModel = z.object({ transactionId: idModel });
 
 export type PaymentIdInputModel = z.infer<typeof paymentIdInputModel>;
 
+// where a payment can come from, with what each holds today (null for staff, who never see balances)
+export const paymentSourcesModel = z.object({
+  cash: z.number().nullable(),
+  banks: z.array(z.object({ id: idModel, bankName: z.string(), last4: z.string(), available: z.number().nullable() })),
+});
+
+export type PaymentSourcesModel = z.infer<typeof paymentSourcesModel>;
+
+// whether an amount can be paid from cash or one bank account: no more than it holds today
+export const paymentFitsInputModel = z.object({
+  settledIn: z.enum(["cash", "bank"]),
+  bankDetailsId: idModel.nullable().default(null),
+  amount: amountModel,
+});
+
+export type PaymentFitsInputModel = z.infer<typeof paymentFitsInputModel>;
+
 // a voucher opened from a link shared with the party: the payment and the key in its link
 export const sharedPaymentInputModel = z.object({ transactionId: idModel, key: z.string().min(1).max(64) });
 

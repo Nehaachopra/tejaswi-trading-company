@@ -142,6 +142,8 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
   const router = useRouter();
   const nameOf = useLedgerName();
   const banks = trpc.accounts.bank.pickable.useQuery();
+  // a payment never takes more than where it's paid from holds: what each holds today (null for staff)
+  const sources = trpc.transactions.payment.sources.useQuery(undefined, { enabled: flow === "payment" });
   const createReceipt = trpc.transactions.receipt.create.useMutation();
   const createPayment = trpc.transactions.payment.create.useMutation();
   const create = flow === "payment" ? createPayment : createReceipt;
@@ -208,7 +210,11 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
     tdsParty && tds && tdsValue > 0 && tdsValue < 100 ? tdsOn(value, tdsValue) : 0;
 
   // the questions that apply now, in order; the open one is the one being changed, or else the first unanswered
+  // a payment starts with where it's paid from (and which bank), then the amount, which can't be more than that holds;
+  // its UTR or cheque number comes near the end. A receipt starts with the amount
+  const paysOut = flow === "payment";
   const sequence: Q[] = [
+    ...(paysOut ? (["into", ...(into === "bank" ? ["bank"] : [])] as Q[]) : []),
     "amount",
     "kind",
     "from",
@@ -229,8 +235,9 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
     ...(tdsParty ? (["tds", ...(tds ? ["tdsRate"] : [])] as Q[]) : []),
     ...(kind === loanKind ? (["loanRate", "loanFrequency"] as Q[]) : []),
     ...(flow === "payment" && kind === "loanRepaid" ? (["interest"] as Q[]) : []),
-    "into",
-    ...(into === "bank" ? (["bank", "reference"] as Q[]) : []),
+    ...(paysOut
+      ? ((into === "bank" ? ["reference"] : []) as Q[])
+      : (["into", ...(into === "bank" ? ["bank", "reference"] : [])] as Q[])),
     "date",
     "remarks",
     "summary",
@@ -338,6 +345,20 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
       case "amount": {
         const n = Number(text.replace(/,/g, "")) || wordsToNumber(text) || 0;
         if (!(n > 0)) return bad("amount");
+        if (paysOut) {
+          const { fits } = await utils.transactions.payment.fits
+            .fetch({ settledIn: into, bankDetailsId: into === "bank" ? bankId : null, amount: n })
+            .catch(() => ({ fits: true }));
+          if (!fits) {
+            const where = t(into === "cash" ? "fromCash" : "fromBank");
+            const held = into === "cash" ? sources.data?.cash : sources.data?.banks.find((b) => b.id === bankId)?.available;
+            return setProblem(
+              held === null || held === undefined
+                ? t("problems.overBalance", { where })
+                : t("problems.overBalanceBy", { where, held: rupees(held) }),
+            );
+          }
+        }
         setAmount(String(n));
         return answered("amount", ["tdsRate", "interest"]);
       }
@@ -485,6 +506,7 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
     } catch (err) {
       const code = (err as { data?: { code?: string } })?.data?.code;
       if (code === "CONFLICT" && (err as { message?: string }).message?.startsWith("Phone")) return setSaveError(t("saveErrors.phone"));
+      if (code === "PRECONDITION_FAILED" && paysOut) return setSaveError(t("saveErrors.balance"));
       setSaveError(
         t(
           `saveErrors.${!code ? "network" : code === "CONFLICT" ? "taken" : code === "BAD_REQUEST" ? "check" : "failed"}`,
@@ -605,6 +627,11 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
     </main>
   );
 
+  // what a bank account holds today, for a payment (the admin's only)
+  function held(id: string) {
+    return sources.data?.banks.find((b) => b.id === id)?.available ?? null;
+  }
+
   // the chips and cards under the open question
   function options(q: Q) {
     switch (q) {
@@ -704,19 +731,26 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
               on={done.has("into") && into === "cash"}
               onClick={() => {
                 setInto("cash");
-                answered("into", ["bank", "reference"]);
+                answered("into", ["bank", "reference", ...(paysOut && into !== "cash" ? (["amount"] as Q[]) : [])]);
               }}
             >
               {t("cash")}
+              {paysOut && sources.data?.cash != null && <span className="ml-1.5 opacity-75">{rupees(sources.data.cash)}</span>}
             </Chip>
             <Chip
               on={done.has("into") && into === "bank"}
               onClick={() => {
                 setInto("bank");
-                answered("into");
+                answered("into", paysOut && into !== "bank" ? ["amount"] : []);
               }}
             >
               {t("bank")}
+              {/* all the bank accounts together; each one's own shows on the next question */}
+              {paysOut && sources.data && sources.data.banks.length > 0 && sources.data.banks.every((b) => b.available !== null) && (
+                <span className="ml-1.5 opacity-75">
+                  {rupees(sources.data.banks.reduce((sum, b) => sum + (b.available ?? 0), 0))}
+                </span>
+              )}
             </Chip>
           </Chips>
         );
@@ -731,10 +765,11 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
                 on={bankId === b.id}
                 onClick={() => {
                   setBankId(b.id);
-                  answered("bank");
+                  answered("bank", paysOut && bankId !== b.id ? ["amount"] : []);
                 }}
               >
                 {titleCase(b.bankName)} ••{b.last4}
+                {paysOut && held(b.id) != null && <span className="ml-1.5 opacity-75">{rupees(held(b.id)!)}</span>}
               </Chip>
             ))}
           </Chips>

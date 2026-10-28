@@ -1,18 +1,32 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, db, eq } from "@repo/database";
-import { bankDetailsTable, ledgerEntriesTable, loansTable, partyAddressesTable, paymentsTable, transactionsTable } from "@repo/database/schema";
+import { bankDetailsTable, ledgerEntriesTable, ledgersTable, loansTable, partyAddressesTable, paymentsTable, transactionsTable } from "@repo/database/schema";
 
 import AccountsService from "../accounts";
 import { type ActorModel, fitsPaymentKind, type LedgerSummaryModel, type PaymentKind, type PostingLine } from "../accounts/model";
-import { fromPaise } from "../accounts/money";
+import { fromPaise, toPaise } from "../accounts/money";
 import PartyService from "../party";
 import TransactionService from "../transaction";
 import { COMPANY } from "../transaction/company";
 import { counterLedger, settleLedger } from "../transaction/settle";
-import { type CreatePaymentInputModel, createPaymentInputModel, PAID_FOR_DB, type PaymentIdInputModel, type PaymentModel, type SavedPaymentModel, tdsOn } from "./model";
+import {
+  type CreatePaymentInputModel,
+  createPaymentInputModel,
+  PAID_FOR_DB,
+  type PaymentFitsInputModel,
+  paymentFitsInputModel,
+  type PaymentIdInputModel,
+  type PaymentModel,
+  type PaymentSourcesModel,
+  type SavedPaymentModel,
+  tdsOn,
+} from "./model";
 
 // the kind back from how the database keeps it
 const KIND_OF = Object.fromEntries(Object.entries(PAID_FOR_DB).map(([k, v]) => [v, k])) as Record<string, PaymentKind>;
+
+// what a ledger holds today, debit as plus (cash and bank accounts hold a debit balance)
+const held = (b: { amount: number; side: "debit" | "credit" } | undefined) => (b ? (b.side === "debit" ? 1 : -1) * b.amount : 0);
 
 // money going out: to a supplier, a lender, a borrower, an expense head, a tax or a customer being refunded, from
 // cash or one bank account, on any date. A supplier we deducted TDS from goes down by what was paid plus the TDS,
@@ -41,6 +55,10 @@ export default class PaymentService {
         throw new TRPCError({ code: "BAD_REQUEST", message: "That ledger doesn't fit what the money was paid for." });
       }
       const from = await settleLedger(tx, this.accounts, input.settledIn, input.bankDetailsId);
+      // never more than cash or the bank account holds today
+      if (input.amount > held((await this.accounts.balances([from])).get(from)?.today)) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: `That's more than there is in ${input.settledIn === "cash" ? "cash" : "the bank account"}.` });
+      }
 
       // TDS only from a supplier; the interest part only of a loan repaid
       const tds = input.tdsRate !== null ? tdsOn(input.amount, input.tdsRate) : 0;
@@ -120,6 +138,33 @@ export default class PaymentService {
 
     const [payment, balances] = await Promise.all([this.get({ transactionId: saved.t.id }), this.balances({ transactionId: saved.t.id })]);
     return { ...payment, balances };
+  }
+
+  // cash and each active bank account with what it holds today; the balances only for the admin
+  async sources(showBalances: boolean): Promise<PaymentSourcesModel> {
+    const cashId = await db.transaction((tx) => this.accounts.ledgerId(tx, "cash"));
+    const banks = await db
+      .select({ id: bankDetailsTable.id, bankName: bankDetailsTable.bankName, accountNumber: bankDetailsTable.accountNumber, ledgerId: ledgersTable.id })
+      .from(bankDetailsTable)
+      .innerJoin(ledgersTable, and(eq(ledgersTable.referenceTable, "bank_details"), eq(ledgersTable.referenceId, bankDetailsTable.id)))
+      .where(eq(bankDetailsTable.isActive, true));
+    const balances = showBalances ? await this.accounts.balances([cashId, ...banks.map((b) => b.ledgerId)]) : new Map();
+    return {
+      cash: showBalances ? held(balances.get(cashId)?.today) : null,
+      banks: banks.map((b) => ({
+        id: b.id,
+        bankName: b.bankName,
+        last4: b.accountNumber.slice(-4),
+        available: showBalances ? held(balances.get(b.ledgerId)?.today) : null,
+      })),
+    };
+  }
+
+  // whether an amount can be paid from there (for staff too, who don't see the balance itself)
+  async fits(rawInput: PaymentFitsInputModel): Promise<{ fits: boolean }> {
+    const input = paymentFitsInputModel.parse(rawInput);
+    const from = await db.transaction((tx) => settleLedger(tx, this.accounts, input.settledIn, input.bankDetailsId));
+    return { fits: toPaise(input.amount) <= toPaise(held((await this.accounts.balances([from])).get(from)?.today)) };
   }
 
   // the ledgers a payment moved (cash or the bank, TDS payable, Interest paid, the party or head), each with its

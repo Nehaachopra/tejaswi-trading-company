@@ -1201,7 +1201,9 @@
           "interest": "e.g. 500"
         },
         "problems": {
-          "interest": "The interest can't be more than the amount."
+          "interest": "The interest can't be more than the amount.",
+          "overBalance": "That's more than there is in {where}.",
+          "overBalanceBy": "Only {held} in {where}."
         },
         "sum": {
           "from": "To",
@@ -1212,8 +1214,11 @@
         "none": "None",
         "save": "Save payment",
         "saveErrors": {
-          "failed": "Couldn't save the payment. Try again."
-        }
+          "failed": "Couldn't save the payment. Try again.",
+          "balance": "That's more than there is where it's paid from. Check the amount."
+        },
+        "fromCash": "cash",
+        "fromBank": "this bank account"
       },
       "success": {
         "title": "Payment successfully created",

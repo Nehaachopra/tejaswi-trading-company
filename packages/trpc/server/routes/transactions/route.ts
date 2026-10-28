@@ -13,9 +13,11 @@ import { ledgerSummaryModel } from "@repo/services/accounts/model";
 import { createReceiptInputModel, receiptIdInputModel, receiptModel, receiptShareKeyModel, savedReceiptModel, sharedReceiptInputModel } from "@repo/services/receipt/model";
 import {
   createPaymentInputModel,
+  paymentFitsInputModel,
   paymentIdInputModel,
   paymentModel,
   paymentShareKeyModel,
+  paymentSourcesModel,
   savedPaymentModel,
   sharedPaymentInputModel,
 } from "@repo/services/payment/model";
@@ -102,6 +104,19 @@ const paymentRouter = router({
       if ((input.newLedger || input.newParty) && ctx.session.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only the admin adds ledgers." });
       return paymentService.create(input, ctx.session.user).then((p) => (ctx.session.user.role === "admin" ? p : { ...p, balances: null }));
     }),
+
+  // cash and the bank accounts it can come from, with what each holds (the admin's only)
+  sources: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/payments/sources", tags: ["transactions"] } })
+    .output(paymentSourcesModel)
+    .query(({ ctx }) => paymentService.sources(ctx.session.user.role === "admin")),
+
+  // whether an amount can be paid from cash or a bank account: never more than it holds today
+  fits: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/payments/fits", tags: ["transactions"] } })
+    .input(paymentFitsInputModel)
+    .output(z.object({ fits: z.boolean() }))
+    .query(({ input }) => paymentService.fits(input)),
 
   // the ledgers it moved with their balances now, for the page after a save; the admin's only
   balances: protectedProcedure
