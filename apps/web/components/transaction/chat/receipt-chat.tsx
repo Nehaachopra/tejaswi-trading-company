@@ -12,7 +12,7 @@ import { rupees, titleCase } from "~/lib/format";
 import { spokenDigits, wholePhone, wordsToNumber } from "~/lib/number-words";
 import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
-import { PHONE_PATTERN } from "@repo/trpc/client";
+import { PHONE_PATTERN, type RouterInputs, type RouterOutputs } from "@repo/trpc/client";
 
 import { indiaDay } from "../../account/balance";
 import { useLedgerName } from "../../account/ledger-name";
@@ -55,7 +55,8 @@ type Q =
   | "tdsRate"
   | "loanRate"
   | "loanFrequency"
-  | "interest"
+  | "dueOn"
+  | "loan"
   | "into"
   | "bank"
   | "reference"
@@ -63,26 +64,46 @@ type Q =
   | "remarks"
   | "summary";
 
-// money in or out: the chat is the same, only its kinds, a few words and the save differ
-type Flow = "receipt" | "payment";
-type Kind = ReceiptKind | PaymentKind;
+// money in, money out, or a due from before the app: the chat is the same, only its kinds, a few words and the save
+// differ
+type Flow = "receipt" | "payment" | "oldDue";
+type DueKind = RouterInputs["transactions"]["due"]["list"]["kind"];
+type Kind = ReceiptKind | PaymentKind | DueKind;
+type Loan = RouterOutputs["transactions"]["due"]["openLoans"][number];
 
 // per flow: what it can be for, which of those go to a party, which can add a plain ledger, which one a party deducts
-// TDS on, and which one brings a loan with its terms
-const FLOWS: Record<Flow, { kinds: Kind[]; partyKinds: Kind[]; plainKinds: Kind[]; tdsKind: Kind; loanKind: Kind }> = {
+// TDS on, which ones make a loan (with its terms), which ones name an open loan (and of which kind), and which of
+// those repay it (never more than is left)
+const FLOWS: Record<
+  Flow,
+  { kinds: Kind[]; partyKinds: Kind[]; plainKinds: Kind[]; tdsKind: Kind | null; loanKinds: Kind[]; loanPicks: Partial<Record<Kind, "loanGiven" | "loanTaken">>; repayKinds: Kind[] }
+> = {
   receipt: {
-    kinds: ["customer", "loanTaken", "loanReturned", "capital", "refund", "otherIncome"],
-    partyKinds: ["customer", "loanTaken", "loanReturned"],
+    kinds: ["customer", "loanTaken", "loanReturned", "interestReceived", "capital", "refund", "otherIncome"],
+    partyKinds: ["customer", "loanTaken"],
     plainKinds: ["refund", "otherIncome"],
     tdsKind: "customer",
-    loanKind: "loanTaken",
+    loanKinds: ["loanTaken"],
+    loanPicks: { loanReturned: "loanGiven", interestReceived: "loanGiven" },
+    repayKinds: ["loanReturned"],
   },
   payment: {
-    kinds: ["supplier", "loanRepaid", "loanGiven", "expense", "taxPaid", "refund"],
-    partyKinds: ["supplier", "loanRepaid", "loanGiven", "refund"],
+    kinds: ["supplier", "loanRepaid", "interestPaid", "loanGiven", "expense", "taxPaid", "refund"],
+    partyKinds: ["supplier", "loanGiven", "refund"],
     plainKinds: ["expense"],
     tdsKind: "supplier",
-    loanKind: "loanGiven",
+    loanKinds: ["loanGiven"],
+    loanPicks: { loanRepaid: "loanTaken", interestPaid: "loanTaken" },
+    repayKinds: ["loanRepaid"],
+  },
+  oldDue: {
+    kinds: ["debtor", "creditor", "loanGiven", "loanTaken"],
+    partyKinds: ["debtor", "creditor", "loanGiven", "loanTaken"],
+    plainKinds: [],
+    tdsKind: null,
+    loanKinds: ["loanGiven", "loanTaken"],
+    loanPicks: {},
+    repayKinds: [],
   },
 };
 const FREQUENCIES = ["monthly", "quarterly", "half_yearly", "yearly"] as const;
@@ -112,6 +133,10 @@ const tdsOn = (settled: number, rate: number) =>
 const momentOf = (day: string) =>
   day === indiaDay(new Date()) ? new Date() : new Date(`${day}T12:00:00+05:30`);
 
+// a day as it reads in the chat: "Wednesday, 28 Oct 2026"
+const dayText = (day: string) =>
+  new Date(`${day}T12:00:00+05:30`).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short", year: "numeric" });
+
 // a ledger of a customer or supplier (or a party with no sale or purchase yet)
 const isParty = (l: Pickable) =>
   l.masterKey === "debtors" ||
@@ -130,13 +155,24 @@ export function PaymentChat({ isAdmin }: { isAdmin: boolean }) {
   return <MoneyChat flow="payment" isAdmin={isAdmin} />;
 }
 
-function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
+// /dues/old: a due from before the app (the admin's), of the kind its tab was on; it goes back where it came from (a
+// receipt or payment picking a loan, or that tab)
+export function OldDueChat({ kind, back }: { kind: DueKind | null; back: "receipt" | "payment" | null }) {
+  return <MoneyChat flow="oldDue" isAdmin initialKind={kind} back={back} />;
+}
+
+function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: Flow; isAdmin: boolean; initialKind?: Kind | null; back?: "receipt" | "payment" | null }) {
   const base = useTranslations("transactions.chat");
-  // a payment's own words where it has them (To, Paid from, Save payment ...), the shared ones otherwise
-  const own = useTranslations("transactions.payment.chat");
+  // a payment's or an old due's own words where it has them (To, Paid from, Save payment ...), the shared ones otherwise
+  const ownPayment = useTranslations("transactions.payment.chat");
+  const ownDue = useTranslations("dues.chat");
+  const own = flow === "payment" ? ownPayment : flow === "oldDue" ? ownDue : null;
   const t = ((key: string, values?: Record<string, string>) =>
-    flow === "payment" && own.has(key as never) ? own(key as never, values as never) : base(key as never, values as never)) as typeof base;
-  const tk = useTranslations(flow === "payment" ? "transactions.payment.kinds" : "transactions.receipt.kinds");
+    own?.has(key as never) ? own(key as never, values as never) : base(key as never, values as never)) as typeof base;
+  const tkReceipt = useTranslations("transactions.receipt.kinds");
+  const tkPayment = useTranslations("transactions.payment.kinds");
+  const tkDue = useTranslations("dues.kinds");
+  const tk = (k: Kind) => (flow === "payment" ? tkPayment : flow === "oldDue" ? tkDue : tkReceipt)(k as never);
   const tf = useTranslations("transactions.loan.frequencies");
   const utils = trpc.useUtils();
   const router = useRouter();
@@ -146,20 +182,23 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
   const sources = trpc.transactions.payment.sources.useQuery(undefined, { enabled: flow === "payment" });
   const createReceipt = trpc.transactions.receipt.create.useMutation();
   const createPayment = trpc.transactions.payment.create.useMutation();
-  const create = flow === "payment" ? createPayment : createReceipt;
-  const { kinds: KINDS, partyKinds: PARTY_KINDS, plainKinds: PLAIN_KINDS, tdsKind, loanKind } = FLOWS[flow];
+  const addOldDue = trpc.transactions.due.addOld.useMutation();
+  const create = flow === "payment" ? createPayment : flow === "oldDue" ? addOldDue : createReceipt;
+  const { kinds: KINDS, partyKinds: PARTY_KINDS, plainKinds: PLAIN_KINDS, tdsKind, loanKinds, loanPicks, repayKinds } = FLOWS[flow];
 
   // the answers
   const [amount, setAmount] = useState("");
-  const [kind, setKind] = useState<Kind | null>(null);
+  const [kind, setKind] = useState<Kind | null>(initialKind);
+  // the open loan a repayment or interest is on
+  const [loan, setLoan] = useState<Loan | null>(null);
+  // when a new loan (or an old due) should be paid back by; none if never set
+  const [dueOn, setDueOn] = useState<string | null>(null);
   const [from, setFrom] = useState<LedgerChoice>(null);
   const [party, setParty] = useState<PartyDraft>(() => emptyParty());
   const [tds, setTds] = useState(false);
   const [tdsRate, setTdsRate] = useState("");
   const [loanRate, setLoanRate] = useState("");
   const [frequency, setFrequency] = useState<Frequency | null>(null);
-  // a loan repaid: how much of it is interest ("0" for none)
-  const [interest, setInterest] = useState("");
   const [into, setInto] = useState<"cash" | "bank">("cash");
   const [bankId, setBankId] = useState<string | null>(null);
   const [reference, setReference] = useState("");
@@ -167,7 +206,7 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
   const [remarks, setRemarks] = useState("");
 
   // which questions are answered, which one is open again, what's in the box, and what went wrong
-  const [done, setDone] = useState<Set<Q>>(new Set());
+  const [done, setDone] = useState<Set<Q>>(() => new Set(initialKind ? ["kind"] : []));
   const [editing, setEditing] = useState<Q | null>(null);
   const [typed, setTyped] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
@@ -188,8 +227,12 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
   const tdsParty =
     kind === tdsKind &&
     ((from?.kind === "ledger" && isParty(from.ledger)) || from?.kind === "party");
-  const interestValue = Number(interest) || 0;
   const tdsValue = Number(tdsRate) || 0;
+  // a kind that makes a loan (asks its terms), one that names an open loan, and one that repays it
+  const makesLoan = kind !== null && loanKinds.includes(kind);
+  const loanOf = kind !== null ? loanPicks[kind] : undefined;
+  const repays = kind !== null && repayKinds.includes(kind);
+  const loans = trpc.transactions.due.openLoans.useQuery({ kind: loanOf ?? "loanTaken" }, { enabled: !!loanOf });
 
   // who it came from: the box searches (phone, name or short name) once typing pauses; the ones used last first
   const [asked, setAsked] = useState("");
@@ -199,8 +242,9 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
   }, [typed]);
   const found = trpc.accounts.ledger.pickable.useQuery(
     {
-      purpose: flow,
-      receiptKind: flow === "receipt" ? (kind as ReceiptKind | null) : null,
+      // an old due is on any party: the customer's search covers every party
+      purpose: flow === "payment" ? "payment" : "receipt",
+      receiptKind: flow === "receipt" ? (kind as ReceiptKind | null) : flow === "oldDue" ? "customer" : null,
       paymentKind: flow === "payment" ? (kind as PaymentKind | null) : null,
       search: asked,
     },
@@ -213,35 +257,46 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
   // a payment starts with where it's paid from (and which bank), then the amount, which can't be more than that holds;
   // its UTR or cheque number comes near the end. A receipt starts with the amount
   const paysOut = flow === "payment";
-  const sequence: Q[] = [
-    ...(paysOut ? (["into", ...(into === "bank" ? ["bank"] : [])] as Q[]) : []),
-    "amount",
-    "kind",
-    "from",
-    ...(from?.kind === "new" ? (["ledgerName"] as Q[]) : []),
-    ...(from?.kind === "party"
-      ? ([
-          "phone",
-          ...(showMatch ? ["phoneMatch"] : []),
-          "name",
-          // a PIN that's found fills the town, district and state; they're still asked, filled in, to change if needed
-          "pin",
-          "city",
-          "district",
-          "state",
-          "line1",
-        ] as Q[])
-      : []),
-    ...(tdsParty ? (["tds", ...(tds ? ["tdsRate"] : [])] as Q[]) : []),
-    ...(kind === loanKind ? (["loanRate", "loanFrequency"] as Q[]) : []),
-    ...(flow === "payment" && kind === "loanRepaid" ? (["interest"] as Q[]) : []),
-    ...(paysOut
-      ? ((into === "bank" ? ["reference"] : []) as Q[])
-      : (["into", ...(into === "bank" ? ["bank", "reference"] : [])] as Q[])),
-    "date",
-    "remarks",
-    "summary",
-  ];
+  const oldDue = flow === "oldDue";
+  // who it's with: an open loan picked (its party comes with it), or someone searched or added
+  const who: Q[] = loanOf
+    ? ["loan"]
+    : [
+        "from",
+        ...(from?.kind === "new" ? (["ledgerName"] as Q[]) : []),
+        ...(from?.kind === "party"
+          ? ([
+              "phone",
+              ...(showMatch ? ["phoneMatch"] : []),
+              "name",
+              // a PIN that's found fills the town, district and state; they're still asked, filled in, to change if needed
+              "pin",
+              "city",
+              "district",
+              "state",
+              "line1",
+            ] as Q[])
+          : []),
+      ];
+  // a loan's terms: its interest, how often it's paid, and when it's due back
+  const terms: Q[] = makesLoan ? ["loanRate", "loanFrequency", "dueOn"] : [];
+  // an old due: what it is, who, how much, the day it was taken or billed, when it's due, a loan's terms
+  const sequence: Q[] = oldDue
+    ? ["kind", ...who, "amount", "date", ...(makesLoan ? terms : (["dueOn"] as Q[])), "remarks", "summary"]
+    : [
+        ...(paysOut ? (["into", ...(into === "bank" ? ["bank"] : [])] as Q[]) : []),
+        "amount",
+        "kind",
+        ...who,
+        ...(tdsParty ? (["tds", ...(tds ? ["tdsRate"] : [])] as Q[]) : []),
+        ...terms,
+        ...(paysOut
+          ? ((into === "bank" ? ["reference"] : []) as Q[])
+          : (["into", ...(into === "bank" ? ["bank", "reference"] : [])] as Q[])),
+        "date",
+        "remarks",
+        "summary",
+      ];
   const active: Q = editing ?? sequence.find((q) => !done.has(q)) ?? "summary";
   const shown = sequence
     .slice(0, sequence.indexOf(active) + 1)
@@ -317,12 +372,12 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
         return tdsRate;
       case "loanRate":
         return loanRate;
-      case "interest":
-        return interest === "0" ? "" : interest;
       case "reference":
         return reference;
       case "remarks":
         return remarks;
+      case "dueOn":
+        return dueOn ?? "";
       default:
         return "";
     }
@@ -359,8 +414,9 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
             );
           }
         }
+        if (repays && loan && n > loan.left) return setProblem(t("problems.loanLeft", { left: rupees(loan.left) }));
         setAmount(String(n));
-        return answered("amount", ["tdsRate", "interest"]);
+        return answered("amount", ["tdsRate"]);
       }
       // an existing party or ledger is only taken when tapped; Enter adds someone new with what was typed
       case "from": {
@@ -441,20 +497,23 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
         (active === "tdsRate" ? setTdsRate : setLoanRate)(String(n));
         return answered(active);
       }
-      // the interest part of a loan repaid: none (0) up to the whole amount
-      case "interest": {
-        const n = text === "" || text === "0" ? 0 : Number(text.replace(/,/g, "")) || wordsToNumber(text) || -1;
-        if (n < 0) return bad("amount");
-        if (n > value) return bad("interest");
-        setInterest(String(n));
-        return answered("interest");
-      }
       case "reference":
         setReference(text.replace(/\s+/g, "").toUpperCase().slice(0, REFERENCE_MAX));
         return answered("reference");
       case "remarks":
         setRemarks(text.slice(0, REMARKS_MAX));
         return answered("remarks");
+      // when it's due back: a day picked, or none
+      case "dueOn": {
+        if (!text) {
+          setDueOn(null);
+          return answered("dueOn");
+        }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return bad("date");
+        if (oldDue && text < day) return bad("dueBefore");
+        setDueOn(text);
+        return answered("dueOn");
+      }
       // the box shows today until another day is picked, so Enter or send on it as it is takes that day
       case "date": {
         const picked = text || day;
@@ -475,7 +534,8 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
       dateTime: momentOf(day),
       newLedger: from?.kind === "new" ? { name: from.name } : null,
       newParty: from?.kind === "party" ? partyInput(party) : null,
-      loan: kind === loanKind ? { interestRate: Number(loanRate), frequency: frequency! } : null,
+      loan: makesLoan ? { interestRate: Number(loanRate), frequency: frequency!, dueOn } : null,
+      dueId: loan?.id ?? null,
       amount: value,
       settledIn: into,
       bankDetailsId: into === "bank" ? bankId : null,
@@ -485,12 +545,26 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
     };
     const ledgerId = from?.kind === "ledger" ? from.ledger.id : null;
     try {
-      if (flow === "payment") {
+      if (oldDue) {
+        await addOldDue.mutateAsync({
+          kind: kind as DueKind,
+          partyLedgerId: ledgerId,
+          newParty: shared.newParty,
+          amount: value,
+          dated: day,
+          dueOn,
+          interestRate: makesLoan ? Number(loanRate) : null,
+          frequency: makesLoan ? frequency : null,
+          remarks,
+        });
+        void utils.accounts.invalidate();
+        void utils.transactions.due.invalidate();
+        router.replace(back ? `/transaction/${back}` : `/dues?kind=${kind}`);
+      } else if (flow === "payment") {
         const r = await createPayment.mutateAsync({
           ...shared,
           paidFor: kind as PaymentKind,
           paidToLedgerId: ledgerId,
-          interestAmount: kind === "loanRepaid" ? interestValue : null,
         });
         void utils.accounts.invalidate();
         utils.transactions.payment.get.setData({ transactionId: r.transactionId }, r);
@@ -554,27 +628,19 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
         return `${loanRate}% ${t("aYear")}`;
       case "loanFrequency":
         return frequency ? tf(frequency) : "";
-      // the interest, and what's left towards the loan
-      case "interest":
-        return interestValue > 0
-          ? `${rupees(interestValue)} · ${t("sum.principal")} ${rupees(value - interestValue)}`
-          : t("none");
+      case "dueOn":
+        return dueOn ? dayText(dueOn) : t("noDate");
+      case "loan":
+        return loan ? `${titleCase(loan.partyName)} · ${t("left", { left: rupees(loan.left) })}` : "";
       case "into":
         return into === "cash" ? t("cash") : t("bank");
       case "bank":
         return bank ? `${titleCase(bank.bankName)} ••${bank.last4}` : "";
       case "reference":
         return reference || t("skipped");
-      // the day of the week and the date, with "Today" in front when it's today
-      case "date": {
-        const shown = new Date(`${day}T12:00:00+05:30`).toLocaleDateString("en-IN", {
-          weekday: "long",
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-        });
-        return day === indiaDay(new Date()) ? `${shown}` : shown;
-      }
+      // the day of the week and the date
+      case "date":
+        return dayText(day);
       case "remarks":
         return remarks || t("skipped");
       default:
@@ -647,12 +713,13 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
                     setKind(k);
                     setFrom(null);
                     setTds(false);
+                    setLoan(null);
                   }
                   answered(
                     "kind",
                     kind === k
                       ? []
-                      : ["from", ...PARTY_QS, "tds", "tdsRate", "loanRate", "loanFrequency", "interest"],
+                      : ["from", ...PARTY_QS, "tds", "tdsRate", "loanRate", "loanFrequency", "dueOn", "loan"],
                   );
                 }}
               >
@@ -724,6 +791,68 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
             ))}
           </Chips>
         );
+      // the open loans of that kind, oldest first: lender or borrower, the day, what's left, the interest and when it's
+      // due; at the end, one from before the app (the admin's)
+      case "loan":
+        return (
+          <Cards>
+            {loans.isPending && (
+              <Note>
+                <span className="flex items-center gap-2">
+                  <Spinner className="size-4" /> {t("looking")}
+                </span>
+              </Note>
+            )}
+            {loans.data?.length === 0 && <Note>{t("noLoans")}</Note>}
+            {(loans.data ?? []).map((l) => (
+              <Card
+                key={l.id}
+                onClick={() => {
+                  if (repays && value > l.left) return setProblem(t("problems.loanLeft", { left: rupees(l.left) }));
+                  setLoan(l);
+                  answered("loan");
+                }}
+              >
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-semibold">{titleCase(l.partyName)}</span>
+                  <span className="truncate text-xs opacity-70">
+                    {[
+                      dayText(indiaDay(new Date(l.dated))),
+                      l.interestRate !== null && `${l.interestRate}% ${t("aYear")}`,
+                      l.dueOn && t("dueBy", { day: dayText(l.dueOn) }),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                </span>
+                <span className={cn("shrink-0 text-right font-heading font-bold", l.overdue && "text-danger")}>{rupees(l.left)}</span>
+              </Card>
+            ))}
+            {isAdmin && loanOf && (
+              <Chips>
+                <Chip onClick={() => router.push(`/dues/old?kind=${loanOf}&back=${flow}`)}>
+                  <span className="flex items-center gap-1.5">
+                    <Plus className="size-4" aria-hidden /> {t("oldLoan")}
+                  </span>
+                </Chip>
+              </Chips>
+            )}
+          </Cards>
+        );
+      // when it's due back: none, or a day from the calendar on the box below
+      case "dueOn":
+        return (
+          <Chips>
+            <Chip on={done.has("dueOn") && dueOn === null} onClick={() => void send("")}>
+              {t("noDate")}
+            </Chip>
+            <Chip onClick={() => dateBox.current?.showPicker()}>
+              <span className="flex items-center gap-1.5">
+                <CalendarDays className="size-4" aria-hidden /> {t("pickDay")}
+              </span>
+            </Chip>
+          </Chips>
+        );
       case "into":
         return (
           <Chips>
@@ -779,14 +908,6 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
         return (
           <Chips>
             <Chip onClick={() => void send("")}>{t("skip")}</Chip>
-          </Chips>
-        );
-      case "interest":
-        return (
-          <Chips>
-            <Chip on={done.has("interest") && interestValue === 0} onClick={() => void send("0")}>
-              {t("none")}
-            </Chip>
           </Chips>
         );
       case "date":
@@ -937,27 +1058,23 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
         </span>,
       ],
       [t("sum.for"), kind ? tk(kind) : ""],
-      [t("sum.from"), fromName],
+      loan ? [t("sum.loan"), answerText("loan")] : [t("sum.from"), fromName],
       ...(tdsAmount > 0
         ? ([[t("sum.tds"), `${tdsRate}% · ${rupees(tdsAmount)}`]] as [string, string][])
         : []),
-      ...(kind === loanKind
+      ...(makesLoan
         ? ([
             [t("sum.interest"), `${loanRate}% ${t("aYear")} · ${frequency ? tf(frequency) : ""}`],
           ] as [string, string][])
         : []),
-      ...(kind === "loanRepaid" && interestValue > 0
-        ? ([
-            [t("sum.interest"), rupees(interestValue)],
-            [t("sum.principal"), rupees(value - interestValue)],
-          ] as [string, string][])
-        : []),
-      [
-        t("sum.into"),
-        into === "cash" ? t("cash") : bank ? `${titleCase(bank.bankName)} ••${bank.last4}` : "",
-      ],
-      ...(reference ? ([[t("sum.reference"), reference]] as [string, string][]) : []),
+      ...(oldDue
+        ? []
+        : ([
+            [t("sum.into"), into === "cash" ? t("cash") : bank ? `${titleCase(bank.bankName)} ••${bank.last4}` : ""],
+            ...(reference ? [[t("sum.reference"), reference]] : []),
+          ] as [string, string][])),
       [t("sum.date"), answerText("date")],
+      ...(makesLoan || oldDue ? ([[t("sum.dueOn"), answerText("dueOn")]] as [string, React.ReactNode][]) : []),
       ...(remarks ? ([[t("sum.remarks"), remarks]] as [string, string][]) : []),
     ];
     return (
@@ -991,7 +1108,7 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
 
   // the box at the bottom: a number, a phone, a date or words as the open question needs; voice beside it
   function composer() {
-    const numeric = active === "amount" || active === "tdsRate" || active === "loanRate" || active === "interest";
+    const numeric = active === "amount" || active === "tdsRate" || active === "loanRate";
     // a phone (10 digits) or PIN (6) is listened for until it's whole, its digits adding up across pauses
     const digitsNeeded = active === "phone" ? 10 : active === "pin" ? 6 : 0;
     const digitsSoFar = typed.length >= digitsNeeded ? "" : typed;
@@ -1010,6 +1127,7 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
         "reference",
         "remarks",
         "date",
+        "dueOn",
       ].includes(active);
     const sayInto = (said: string) => {
       if (numeric) {
@@ -1051,13 +1169,13 @@ function MoneyChat({ flow, isAdmin }: { flow: Flow; isAdmin: boolean }) {
                   placeholder={t(`hints.${active}`)}
                   className={box}
                 />
-              ) : active === "date" ? (
+              ) : active === "date" || active === "dueOn" ? (
                 <input
                   key={active}
                   ref={dateBox}
                   autoFocus
                   type="date"
-                  value={typed || day}
+                  value={typed || (active === "date" ? day : (dueOn ?? ""))}
                   onChange={(e) => setTyped(e.target.value)}
                   className={cn(box, "[&::-webkit-calendar-picker-indicator]:hidden")}
                 />

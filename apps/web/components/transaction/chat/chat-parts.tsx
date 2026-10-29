@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil } from "lucide-react";
+import { CircleAlert, Pencil } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { cn } from "~/lib/utils";
@@ -115,7 +115,12 @@ export function TypingBubble() {
 // a short note from the helper under a question (a problem with the answer, or a hint)
 export function Note({ children, tone = "hint" }: { children: React.ReactNode; tone?: "hint" | "error" }) {
   return (
-    <p role={tone === "error" ? "alert" : undefined} className={cn("text-sm", tone === "error" ? "font-medium text-[#ffb4a8]" : "text-ivory/75")}>
+    <p
+      role={tone === "error" ? "alert" : undefined}
+      // an error sits on ivory in red, so it stands out on the chestnut page
+      className={cn("text-sm", tone === "error" ? "flex w-fit items-start gap-1.5 rounded-xl bg-ivory px-3 py-1.5 font-medium text-danger" : "text-ivory/75")}
+    >
+      {tone === "error" && <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />}
       {children}
     </p>
   );

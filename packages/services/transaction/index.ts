@@ -92,7 +92,7 @@ export default class TransactionService {
   // so everything is saved together or not at all
   async create(
     tx: Tx,
-    input: { type: TransactionType; dateTime: Date; amount: number; remarks: string | null; lines: PostingLine[]; isContra?: boolean },
+    input: { type: TransactionType; subType?: string; dateTime: Date; amount: number; remarks: string | null; lines: PostingLine[]; isContra?: boolean },
     actor: ActorModel,
   ) {
     const assignedId = await this.counter.next(tx, PREFIX[input.type], input.dateTime);
@@ -100,6 +100,7 @@ export default class TransactionService {
       .insert(transactionsTable)
       .values({
         type: input.type,
+        subType: input.subType ?? null,
         dateTime: input.dateTime,
         amount: fromPaise(Math.round(input.amount * 100)),
         assignedId,

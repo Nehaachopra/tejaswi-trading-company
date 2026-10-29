@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { amountModel, ledgerNameModel, ledgerSummaryModel, PARTY_RECEIPT_KINDS, type ReceiptKind, receiptKindModel } from "../accounts/model";
-import { loanTermsInputModel } from "../loan/model";
+import { amountModel, ledgerNameModel, ledgerSummaryModel, LOAN_RECEIPT_KINDS, PARTY_RECEIPT_KINDS, type ReceiptKind, receiptKindModel } from "../accounts/model";
+import { loanTermsInputModel } from "../due/model";
 import { createPartyInputModel } from "../party/model";
 import { remarksModel } from "../transaction/model";
 
@@ -22,19 +22,22 @@ export const RECEIVED_FOR_DB = {
   customer: "customer",
   loanTaken: "loan_received",
   loanReturned: "loan_repaid",
+  interestReceived: "interest_received",
   capital: "capital",
   refund: "refund",
   otherIncome: "other_income",
 } as const satisfies Record<ReceiptKind, string>;
 
 // money received: what it was for, from a ledger of that kind (or a new one made in the same save, its place set by
-// the kind), into cash or one bank account, on any date. A customer that deducted TDS gives its rate; lengths
-// follow receipts: reference 30, remarks 100
+// the kind), into cash or one bank account, on any date. A loan given back or the interest on one names the loan
+// (dueId) instead, and comes from its borrower. A customer that deducted TDS gives its rate; lengths follow receipts:
+// reference 30, remarks 100
 export const createReceiptInputModel = z
   .object({
     dateTime: z.coerce.date(),
     receivedFor: receiptKindModel,
     receivedFromLedgerId: idModel.nullable().default(null),
+    dueId: idModel.nullable().default(null),
     newLedger: z.object({ name: ledgerNameModel }).nullable().default(null),
     // someone not in the app yet (an old customer paying, someone lending or repaying), made as a party in the same
     // save with the type picked for them. Every loan received also gives its terms
@@ -53,10 +56,11 @@ export const createReceiptInputModel = z
     tdsRate: rateModel.nullable().default(null),
     remarks: remarksModel,
   })
-  .refine((r) => [r.receivedFromLedgerId, r.newLedger, r.newParty].filter((v) => v !== null).length === 1, {
+  .refine((r) => [r.receivedFromLedgerId, r.newLedger, r.newParty].filter((v) => v !== null).length === (LOAN_RECEIPT_KINDS.includes(r.receivedFor) ? 0 : 1), {
     message: "Pick who it came from, or add a new one.",
     path: ["receivedFromLedgerId"],
   })
+  .refine((r) => (r.dueId !== null) === LOAN_RECEIPT_KINDS.includes(r.receivedFor), { message: "Pick the loan.", path: ["dueId"] })
   .refine((r) => r.newParty === null || r.newParty.addresses.length > 0, {
     message: "A new party needs an address.",
     path: ["newParty"],

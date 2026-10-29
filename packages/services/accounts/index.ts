@@ -510,6 +510,7 @@ export default class AccountsService {
       case "customer":
       case "loanTaken":
       case "loanReturned":
+      case "interestReceived":
         return inMaster("debtors", "creditors", "debtorCreditors", "parties");
       case "capital":
         return and(own, eq(ledgersTable.name, LEDGERS.capital.name));
@@ -526,6 +527,7 @@ export default class AccountsService {
     switch (kind) {
       case "supplier":
       case "loanRepaid":
+      case "interestPaid":
       case "loanGiven":
       case "refund":
         return inMaster("debtors", "creditors", "debtorCreditors", "parties");

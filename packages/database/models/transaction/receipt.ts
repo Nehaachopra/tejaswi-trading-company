@@ -7,6 +7,7 @@ import { money, percent, timestamps } from "../../utils/common/column-type";
 import { bankDetailsTable } from "../bank-detail";
 import { ledgersTable } from "../accounting/ledger";
 import { transactionsTable } from "./transaction";
+import { duesTable } from "../due/due";
 import { uniqueIndex } from "drizzle-orm/pg-core";
 import { index } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
@@ -66,6 +67,9 @@ export const receiptsTable = pgTable(
     // what it was for (the voucher's "Received for" and its particulars); receipts saved before it was kept count
     // as a customer's payment
     receivedFor: receivedForEnum("received_for").notNull().default("customer"),
+
+    // the interest received on a loan we gave: which loan (what a receipt settles is kept in due_settlements)
+    interestOnDueId: uuid("interest_on_due_id").references(() => duesTable.id, { onDelete: "restrict" }),
 
     settledIn: settledInEnum("settled_in").notNull(),
 

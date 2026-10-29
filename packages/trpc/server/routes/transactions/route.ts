@@ -21,9 +21,19 @@ import {
   savedPaymentModel,
   sharedPaymentInputModel,
 } from "@repo/services/payment/model";
+import {
+  addOldDueInputModel,
+  dueModel,
+  duesBoardModel,
+  listDuesInputModel,
+  openLoansInputModel,
+  partyDuesInputModel,
+  partyDuesModel,
+  writeOffInputModel,
+} from "@repo/services/due/model";
 import { opensVoucher, voucherKey } from "@repo/services/transaction/share-link";
 
-import { paymentService, receiptService, transactionService } from "../../services";
+import { dueService, paymentService, receiptService, transactionService } from "../../services";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 
 // History: every past transaction of every type, one in full, and cancelling one; the admin only
@@ -150,8 +160,47 @@ const paymentRouter = router({
     }),
 });
 
+// dues: what's owed both ways (debtors, creditors, loans given and taken), and old ones from before the app
+const dueRouter = router({
+  // one kind's totals and each party's open dues, for /dues; the admin only
+  list: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/dues", tags: ["transactions"] } })
+    .input(listDuesInputModel)
+    .output(duesBoardModel)
+    .query(({ input }) => dueService.list(input)),
+
+  // one party's dues page: its dues of one kind, what settled them, its pace; the admin only
+  party: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/dues/party", tags: ["transactions"] } })
+    .input(partyDuesInputModel)
+    .output(partyDuesModel)
+    .query(({ input }) => dueService.party(input)),
+
+  // a debtor's or borrower's dues booked as a bad debt; the admin only
+  writeOff: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/dues/write-off", tags: ["transactions"] } })
+    .input(writeOffInputModel)
+    .output(partyDuesModel)
+    .mutation(({ ctx, input }) => dueService.writeOff(input, ctx.session.user)),
+
+  // the open loans of one kind, for a receipt or payment to name the one it repays or pays interest on
+  openLoans: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/dues/loans", tags: ["transactions"] } })
+    .input(openLoansInputModel)
+    .output(z.array(dueModel))
+    .query(({ input }) => dueService.openLoans(input)),
+
+  // a due from before the app, posted against Capital; the admin only
+  addOld: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/dues/old", tags: ["transactions"] } })
+    .input(addOldDueInputModel)
+    .output(dueModel)
+    .mutation(({ ctx, input }) => dueService.addOld(input, ctx.session.user)),
+});
+
 export const transactionsRouter = router({
   history: historyRouter,
   receipt: receiptRouter,
   payment: paymentRouter,
+  due: dueRouter,
 });

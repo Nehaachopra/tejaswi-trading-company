@@ -35,7 +35,8 @@
       },
       "debit": "Debit",
       "credit": "Credit",
-      "entities": "Entities"
+      "entities": "Entities",
+      "dues": "Dues"
     }
   },
   "home": {
@@ -1001,7 +1002,8 @@
         "loanReturned": "Loan repaid",
         "capital": "Capital",
         "refund": "Refund",
-        "otherIncome": "Other income"
+        "otherIncome": "Other income",
+        "interestReceived": "Interest received"
       },
       "for": "Received for",
       "source": "Source",
@@ -1056,7 +1058,8 @@
         "loanPlain": "Loan received",
         "loanReturned": "Loan repaid",
         "capital": "Capital introduced",
-        "refund": "Refund received"
+        "refund": "Refund received",
+        "interestReceived": "Interest received"
       },
       "particularsHead": "Particulars",
       "number": "Voucher No",
@@ -1113,7 +1116,9 @@
         "reference": "Reference / UTR",
         "date": "Date",
         "remarks": "Remarks",
-        "summary": "Receipt"
+        "summary": "Receipt",
+        "loan": "Which loan",
+        "dueOn": "Due back by"
       },
       "hints": {
         "amount": "10,000",
@@ -1130,7 +1135,8 @@
         "reference": "UTR or cheque no.",
         "remarks": "Optional note",
         "date": "Pick a day",
-        "pick": "Pick an answer above"
+        "pick": "Pick an answer above",
+        "dueOn": "Pick a day"
       },
       "problems": {
         "amount": "That doesn't look like an amount.",
@@ -1138,7 +1144,9 @@
         "phone": "A 10-digit mobile, or a landline with its STD code.",
         "pin": "A PIN code has 6 digits.",
         "rate": "A rate is between 0 and 100.",
-        "date": "Pick a day."
+        "date": "Pick a day.",
+        "loanLeft": "Only {left} is left on this loan.",
+        "dueBefore": "It can't be due before that day."
       },
       "saveErrors": {
         "network": "Can't reach the server. Check your connection.",
@@ -1156,7 +1164,9 @@
         "into": "Into",
         "reference": "Reference",
         "date": "Date",
-        "remarks": "Remarks"
+        "remarks": "Remarks",
+        "loan": "Loan",
+        "dueOn": "Due by"
       },
       "newParty": "New party",
       "newLedger": "New ledger",
@@ -1178,7 +1188,12 @@
       "save": "Save receipt",
       "send": "Send",
       "typing": "Tejaswi is typing",
-      "changePhone": "Change the phone"
+      "changePhone": "Change the phone",
+      "noDate": "No date",
+      "left": "{left} left",
+      "dueBy": "due {day}",
+      "noLoans": "No open loans.",
+      "oldLoan": "Old loan"
     },
     "payment": {
       "kinds": {
@@ -1187,31 +1202,25 @@
         "loanGiven": "Loan given",
         "expense": "Expense",
         "taxPaid": "Tax paid",
-        "refund": "Refund"
+        "refund": "Refund",
+        "interestPaid": "Interest paid"
       },
       "chat": {
         "title": "Payment",
         "q": {
           "from": "To",
           "into": "Paid from",
-          "interest": "Interest in this",
           "summary": "Payment"
         },
-        "hints": {
-          "interest": "e.g. 500"
-        },
         "problems": {
-          "interest": "The interest can't be more than the amount.",
           "overBalance": "That's more than there is in {where}.",
           "overBalanceBy": "Only {held} in {where}."
         },
         "sum": {
           "from": "To",
           "into": "From",
-          "interest": "Interest",
-          "principal": "Towards the loan"
+          "interest": "Interest"
         },
-        "none": "None",
         "save": "Save payment",
         "saveErrors": {
           "failed": "Couldn't save the payment. Try again.",
@@ -1243,6 +1252,143 @@
           "taxPaid": "Tax paid"
         }
       }
+    }
+  },
+  "dues": {
+    "title": "Dues",
+    "tabs": {
+      "debtor": "Debtors",
+      "creditor": "Creditors",
+      "loanGiven": "Loans given",
+      "loanTaken": "Loans received"
+    },
+    "kinds": {
+      "debtor": "Owed to us",
+      "creditor": "We owe",
+      "loanGiven": "Loan given",
+      "loanTaken": "Loan received"
+    },
+    "oldDue": "Old due",
+    "left": "left",
+    "overdue": "{amount} overdue",
+    "nextDue": "due {day}",
+    "of": "of {amount}",
+    "old": "Old",
+    "total": "In all",
+    "loading": "Loading dues…",
+    "loadError": "Couldn't load the dues.",
+    "empty": {
+      "debtor": "No one owes us anything.",
+      "creditor": "We owe no one.",
+      "loanGiven": "No loans given are open.",
+      "loanTaken": "No loans received are open."
+    },
+    "chat": {
+      "title": "Old due",
+      "q": {
+        "kind": "What is it",
+        "from": "Who",
+        "date": "Taken or billed on",
+        "dueOn": "Due by",
+        "summary": "Old due"
+      },
+      "sum": {
+        "from": "Who",
+        "date": "Dated"
+      },
+      "save": "Save due",
+      "saveErrors": {
+        "failed": "Couldn't save the due. Try again."
+      }
+    },
+    "insights": {
+      "total": "Due",
+      "overdue": "Overdue",
+      "parties": "{n, plural, one {# party} other {# parties}}",
+      "allOnTime": "All on time",
+      "dues": "{n, plural, one {# due} other {# dues}}",
+      "ofDues": "{pct}% of all dues"
+    },
+    "dueIn": "{n, plural, =0 {due today} one {due tomorrow} other {due in # days}}",
+    "buckets": {
+      "late30": "30+ days late",
+      "late": "1–30 days late",
+      "week": "Due this week",
+      "later": "Due later",
+      "open": "No due date"
+    },
+    "filters": {
+      "status": "Status",
+      "allStatus": "All",
+      "town": "Town",
+      "allTowns": "All towns",
+      "sort": "Order",
+      "sorts": {
+        "overdue": "Most overdue",
+        "amount": "Largest due",
+        "oldest": "Oldest first",
+        "name": "Name A–Z"
+      },
+      "noMatch": "No one matches these filters.",
+      "overdue": "Overdue",
+      "near": "Due in 2 days"
+    },
+    "tabsShort": {
+      "debtor": "Debtors",
+      "creditor": "Creditors",
+      "loanGiven": "Lent",
+      "loanTaken": "Borrowed"
+    },
+    "party": {
+      "loadError": "Couldn't load this party's dues.",
+      "reminder": "Send reminder",
+      "recordReceipt": "Record receipt",
+      "recordPayment": "Record payment",
+      "ledger": "Ledger",
+      "badDebt": "Book as bad debt",
+      "badDebtConfirm": "Book {amount} on {id} as a bad debt?",
+      "badDebtNote": "It moves from {name}'s ledger to the Bad debts expense today, and clears this due.",
+      "reason": "Reason (optional)",
+      "confirm": "Book as bad debt",
+      "cancel": "Cancel",
+      "badDebtFailed": "Couldn't book it. Try again.",
+      "duesN": "{n, plural, one {# due} other {# dues}}",
+      "oldestLate": "oldest {n, plural, one {# day} other {# days}} late",
+      "openDues": "Open dues",
+      "noDues": "Nothing is owed now.",
+      "noDueDate": "No due date",
+      "late": "{n, plural, one {# day late} other {# days late}}",
+      "today": "due today",
+      "inDays": "{n, plural, one {in # day} other {in # days}}",
+      "cols": {
+        "txn": "Transaction",
+        "date": "Date",
+        "actions": "Actions",
+        "due": "Due",
+        "overdue": "Overdue",
+        "totalDue": "Total due"
+      },
+      "remind": "Remind",
+      "badDebtShort": "Bad debt",
+      "history": "Transaction history",
+      "rowReminderLate": "Namaste {name}, a gentle reminder from Tejaswi Trading Company: {left} against {id} (dated {dated}) was due on {on}. Kindly pay at the earliest. Thank you.",
+      "rowReminder": "Namaste {name}, a gentle reminder from Tejaswi Trading Company: {left} against {id} (dated {dated}) is due by {by}. Thank you.",
+      "rowReminderOpen": "Namaste {name}, a gentle reminder from Tejaswi Trading Company: {left} against {id} (dated {dated}) is due from you. Kindly pay at the earliest. Thank you.",
+      "sorts": {
+        "oldest": "Oldest first",
+        "late": "Most late",
+        "largest": "Largest left"
+      },
+      "tiles": {
+        "total": "Total due",
+        "overdue": "Overdue",
+        "average": "Avg. time to settle"
+      },
+      "daysN": "{n, plural, one {# day} other {# days}}",
+      "onTime": "All on time",
+      "nothingSettled": "Nothing settled yet",
+      "fromDue": "from due date to paid",
+      "of": "of"
     }
   }
 }

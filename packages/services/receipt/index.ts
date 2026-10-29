@@ -1,10 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, db, eq } from "@repo/database";
-import { bankDetailsTable, ledgerEntriesTable, ledgersTable, loansTable, partiesTable, partyAddressesTable, receiptsTable, transactionsTable } from "@repo/database/schema";
+import { bankDetailsTable, duesTable, ledgerEntriesTable, ledgersTable, partiesTable, partyAddressesTable, receiptsTable, transactionsTable } from "@repo/database/schema";
 
 import AccountsService from "../accounts";
 import { type ActorModel, fitsReceiptKind, type LedgerSummaryModel, type PostingLine, type ReceiptKind } from "../accounts/model";
 import { fromPaise } from "../accounts/money";
+import DueService from "../due";
 import PartyService from "../party";
 import TransactionService from "../transaction";
 import { COMPANY } from "../transaction/company";
@@ -15,13 +16,16 @@ import { type CreateReceiptInputModel, createReceiptInputModel, NEW_LEDGER_FOR, 
 const KIND_OF = Object.fromEntries(Object.entries(RECEIVED_FOR_DB).map(([k, v]) => [v, k])) as Record<string, ReceiptKind>;
 
 // money coming in: from a party, a loan, interest or other income, into cash or one bank account, on any date (no GST
-// lock). No bill-wise matching: a party's balance just goes down. When a party deducted TDS, its balance goes down by
-// what was received plus the TDS, and the TDS goes to TDS receivable. A new ledger it names is made in the same save
+// lock). A customer's balance goes down and its dues are settled oldest first; when it deducted TDS, by what was
+// received plus the TDS, and the TDS goes to TDS receivable. A loan given back brings the loan picked down; its
+// interest is a receipt of its own, to Interest received. A loan taken becomes a due. A new ledger it names is made in
+// the same save
 export default class ReceiptService {
   constructor(
     private readonly accounts = new AccountsService(),
     private readonly transactions = new TransactionService(),
     private readonly parties = new PartyService(accounts),
+    private readonly dues = new DueService(accounts, transactions, parties),
   ) {}
 
   async create(rawInput: CreateReceiptInputModel, actor: ActorModel): Promise<SavedReceiptModel> {
@@ -29,7 +33,10 @@ export default class ReceiptService {
     const saved = await db.transaction(async (tx) => {
       // who it came from: an existing ledger, a new party (a customer in Debtors when it's paying us; anyone else in
       // Parties until their first sale or purchase), or a new ledger made now where its kind puts it
+      // a loan given back or its interest: the loan we gave, which says who it comes from
+      const loan = input.dueId ? await this.dues.loanIn(tx, input.dueId, "loanGiven") : null;
       const fromId =
+        loan?.ledgerId ??
         input.receivedFromLedgerId ??
         (input.newParty
           ? (await this.parties.createIn(tx, input.newParty, input.receivedFor === "customer" ? "customer" : null)).ledgerId
@@ -45,10 +52,11 @@ export default class ReceiptService {
       if (input.tdsRate !== null && (!party || input.receivedFor !== "customer")) throw new TRPCError({ code: "BAD_REQUEST", message: "TDS applies to parties only." });
       const tds = input.tdsRate !== null ? tdsOn(input.amount, input.tdsRate) : 0;
 
-      // what it posts: cash or bank (and TDS receivable) up, the source down by both
+      // what it posts: cash or bank (and TDS receivable) up, the source down by both (Interest received up, for interest)
+      const fromLedger = Math.round((input.amount + tds) * 100) / 100;
       const lines: PostingLine[] = [{ ledgerId: into, side: "debit", amount: input.amount }];
       if (tds > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "tdsReceivable"), side: "debit", amount: tds });
-      lines.push({ ledgerId: from.id, side: "credit", amount: Math.round((input.amount + tds) * 100) / 100 });
+      lines.push({ ledgerId: input.receivedFor === "interestReceived" ? await this.accounts.ledgerId(tx, "interestReceived") : from.id, side: "credit", amount: fromLedger });
 
       const t = await this.transactions.create(tx, { type: "receipt", dateTime: input.dateTime, amount: input.amount, remarks: input.remarks, lines }, actor);
 
@@ -85,6 +93,7 @@ export default class ReceiptService {
         partyStateCodeSnapshot: address?.stateCode ?? null,
         partyGstinSnapshot: address?.gstin?.slice(0, 15) ?? null,
         receivedFor: RECEIVED_FOR_DB[input.receivedFor],
+        interestOnDueId: input.receivedFor === "interestReceived" ? loan!.due.id : null,
         settledIn: input.settledIn,
         bankDetailsId: input.settledIn === "bank" ? input.bankDetailsId : null,
         referenceNumber: input.referenceNumber,
@@ -97,17 +106,14 @@ export default class ReceiptService {
         tdsAmount: tds > 0 ? fromPaise(Math.round(tds * 100)) : null,
       });
 
-      // a loan received: its interest, with the party's name and phone as they are now
+      // what it does to the dues: a customer's settled oldest first (with the TDS), the loan given back brought down, a
+      // loan taken made a due with its terms
+      if (input.receivedFor === "customer" && party) await this.dues.settleOldestIn(tx, { kind: "debtor", partyId: party.id, transactionId: t.id, amount: fromLedger });
+      if (input.receivedFor === "loanReturned") await this.dues.settleLoanIn(tx, loan!.due, t.id, input.amount);
       if (input.loan) {
         if (!party) throw new TRPCError({ code: "BAD_REQUEST", message: "A loan comes from a party." });
-        await tx.insert(loansTable).values({
-          partyId: party.id,
-          partyName: party.name.slice(0, 150),
-          partyPhone: party.phone,
-          transactionId: t.id,
-          interestRate: input.loan.interestRate.toFixed(2),
-          frequency: input.loan.frequency,
-        });
+        const { dueOn, ...terms } = input.loan;
+        await this.dues.createIn(tx, { kind: "loanTaken", party, transactionId: t.id, amount: input.amount, dueOn, terms });
       }
       return { t };
     });
@@ -158,7 +164,7 @@ export default class ReceiptService {
             .from(partyAddressesTable)
             .where(and(eq(partyAddressesTable.partyId, party.id), eq(partyAddressesTable.isActive, true), eq(partyAddressesTable.isDefault, true)))
         : Promise.resolve([]),
-      db.select({ interestRate: loansTable.interestRate, frequency: loansTable.frequency }).from(loansTable).where(eq(loansTable.transactionId, r.transactionId)),
+      db.select({ interestRate: duesTable.interestRate, frequency: duesTable.frequency }).from(duesTable).where(eq(duesTable.transactionId, r.transactionId)),
     ]);
     return {
       transactionId: r.transactionId,
@@ -209,7 +215,7 @@ export default class ReceiptService {
               : null,
           }
         : null,
-      loan: loan ? { interestRate: Number(loan.interestRate), frequency: loan.frequency } : null,
+      loan: loan?.interestRate != null && loan.frequency ? { interestRate: Number(loan.interestRate), frequency: loan.frequency } : null,
       company: t.companySnapshot ?? COMPANY,
       settledIn: r.settledIn,
       bankDetailsId: r.bankDetailsId,

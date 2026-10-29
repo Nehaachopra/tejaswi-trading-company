@@ -1,10 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, db, eq } from "@repo/database";
-import { bankDetailsTable, ledgerEntriesTable, ledgersTable, loansTable, partyAddressesTable, paymentsTable, transactionsTable } from "@repo/database/schema";
+import { bankDetailsTable, duesTable, ledgerEntriesTable, ledgersTable, partyAddressesTable, paymentsTable, transactionsTable } from "@repo/database/schema";
 
 import AccountsService from "../accounts";
 import { type ActorModel, fitsPaymentKind, type LedgerSummaryModel, type PaymentKind, type PostingLine } from "../accounts/model";
 import { fromPaise, toPaise } from "../accounts/money";
+import DueService from "../due";
 import PartyService from "../party";
 import TransactionService from "../transaction";
 import { COMPANY } from "../transaction/company";
@@ -30,21 +31,26 @@ const held = (b: { amount: number; side: "debit" | "credit" } | undefined) => (b
 
 // money going out: to a supplier, a lender, a borrower, an expense head, a tax or a customer being refunded, from
 // cash or one bank account, on any date. A supplier we deducted TDS from goes down by what was paid plus the TDS,
-// and the TDS goes to TDS payable. A loan repaid splits into the interest (to Interest paid) and the rest, which
-// brings the loan down. A new party or expense ledger it names is made in the same save
+// and the TDS goes to TDS payable; it settles the supplier's dues oldest first. A loan repaid brings the loan picked
+// down (never below nothing); its interest is a payment of its own, to Interest paid. A loan given becomes a due. A
+// new party or expense ledger it names is made in the same save
 export default class PaymentService {
   constructor(
     private readonly accounts = new AccountsService(),
     private readonly transactions = new TransactionService(),
     private readonly parties = new PartyService(accounts),
+    private readonly dues = new DueService(accounts, transactions, parties),
   ) {}
 
   async create(rawInput: CreatePaymentInputModel, actor: ActorModel): Promise<SavedPaymentModel> {
     const input = createPaymentInputModel.parse(rawInput);
     const saved = await db.transaction(async (tx) => {
-      // who it went to: an existing ledger, a new party (a supplier in Creditors; anyone else in Parties until their
-      // first sale or purchase), or a new expense ledger
+      // a loan repaid or its interest: the loan we took, which says who it goes to
+      const loan = input.dueId ? await this.dues.loanIn(tx, input.dueId, "loanTaken") : null;
+      // who it went to: the lender, an existing ledger, a new party (a supplier in Creditors; anyone else in Parties
+      // until their first sale or purchase), or a new expense ledger
       const toId =
+        loan?.ledgerId ??
         input.paidToLedgerId ??
         (input.newParty
           ? (await this.parties.createIn(tx, input.newParty, input.paidFor === "supplier" ? "supplier" : null)).ledgerId
@@ -60,16 +66,15 @@ export default class PaymentService {
         throw new TRPCError({ code: "PRECONDITION_FAILED", message: `That's more than there is in ${input.settledIn === "cash" ? "cash" : "the bank account"}.` });
       }
 
-      // TDS only from a supplier; the interest part only of a loan repaid
+      // TDS only from a supplier
       const tds = input.tdsRate !== null ? tdsOn(input.amount, input.tdsRate) : 0;
-      const interest = input.paidFor === "loanRepaid" ? (input.interestAmount ?? 0) : 0;
-      const toLedger = Math.round((input.amount - interest + tds) * 100) / 100;
+      const toLedger = Math.round((input.amount + tds) * 100) / 100;
 
-      // what it posts: the party or head up by what was paid (and the TDS), Interest paid by the interest, and cash or
+      // what it posts: the party or head up by what was paid (and the TDS), or Interest paid for interest; cash or
       // bank (and TDS payable) down
-      const lines: PostingLine[] = [];
-      if (toLedger > 0) lines.push({ ledgerId: to.id, side: "debit", amount: toLedger });
-      if (interest > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "interestPaid"), side: "debit", amount: interest });
+      const lines: PostingLine[] = [
+        { ledgerId: input.paidFor === "interestPaid" ? await this.accounts.ledgerId(tx, "interestPaid") : to.id, side: "debit", amount: toLedger },
+      ];
       lines.push({ ledgerId: from, side: "credit", amount: input.amount });
       if (tds > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "tdsPayable"), side: "credit", amount: tds });
 
@@ -115,23 +120,20 @@ export default class PaymentService {
         bankAccountLast4Snapshot: bank ? bank.accountNumber.slice(-4) : null,
         bankIfscSnapshot: bank?.ifsc?.slice(0, 11) ?? null,
         amount: fromPaise(Math.round(input.amount * 100)),
-        interestAmount: input.paidFor === "loanRepaid" ? fromPaise(Math.round(interest * 100)) : null,
+        interestOnDueId: input.paidFor === "interestPaid" ? loan!.due.id : null,
         tdsApplicable: tds > 0,
         tdsRate: tds > 0 ? input.tdsRate!.toFixed(2) : null,
         tdsAmount: tds > 0 ? fromPaise(Math.round(tds * 100)) : null,
       });
 
-      // a loan given: its interest, with the party's name and phone as they are now
+      // what it does to the dues: a supplier's settled oldest first (with the TDS), the loan repaid brought down, a loan
+      // given made a due with its terms
+      if (input.paidFor === "supplier" && party) await this.dues.settleOldestIn(tx, { kind: "creditor", partyId: party.id, transactionId: t.id, amount: toLedger });
+      if (input.paidFor === "loanRepaid") await this.dues.settleLoanIn(tx, loan!.due, t.id, input.amount);
       if (input.loan) {
         if (!party) throw new TRPCError({ code: "BAD_REQUEST", message: "A loan goes to a party." });
-        await tx.insert(loansTable).values({
-          partyId: party.id,
-          partyName: party.name.slice(0, 150),
-          partyPhone: party.phone,
-          transactionId: t.id,
-          interestRate: input.loan.interestRate.toFixed(2),
-          frequency: input.loan.frequency,
-        });
+        const { dueOn, ...terms } = input.loan;
+        await this.dues.createIn(tx, { kind: "loanGiven", party, transactionId: t.id, amount: input.amount, dueOn, terms });
       }
       return { t };
     });
@@ -189,7 +191,7 @@ export default class PaymentService {
       .where(eq(paymentsTable.transactionId, input.transactionId));
     if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Payment not found." });
     const { p, t } = row;
-    const [loan] = await db.select({ interestRate: loansTable.interestRate, frequency: loansTable.frequency }).from(loansTable).where(eq(loansTable.transactionId, p.transactionId));
+    const [loan] = await db.select({ interestRate: duesTable.interestRate, frequency: duesTable.frequency }).from(duesTable).where(eq(duesTable.transactionId, p.transactionId));
     return {
       transactionId: p.transactionId,
       assignedId: t.assignedId,
@@ -219,13 +221,12 @@ export default class PaymentService {
               : null,
           }
         : null,
-      loan: loan ? { interestRate: Number(loan.interestRate), frequency: loan.frequency } : null,
+      loan: loan?.interestRate != null && loan.frequency ? { interestRate: Number(loan.interestRate), frequency: loan.frequency } : null,
       company: t.companySnapshot ?? COMPANY,
       settledIn: p.settledIn,
       bankDetailsId: p.bankDetailsId,
       referenceNumber: p.referenceNumber,
       amount: Number(p.amount),
-      interestAmount: p.interestAmount === null ? null : Number(p.interestAmount),
       tdsRate: p.tdsRate === null ? null : Number(p.tdsRate),
       tdsAmount: p.tdsAmount === null ? null : Number(p.tdsAmount),
     };

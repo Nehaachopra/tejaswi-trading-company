@@ -1,11 +1,11 @@
-import { Activity, ClipboardList, History, House, Landmark, type LucideIcon, Package, Receipt, Users, Warehouse } from "lucide-react";
+import { Activity, ClipboardList, HandCoins, History, House, Landmark, type LucideIcon, Package, Receipt, Users, Warehouse } from "lucide-react";
 
 export type Role = "admin" | "staff";
 
 export type NavItem = {
   href: string;
   // key under shell.nav in the translation files
-  label: "home" | "history" | "orders" | "stock" | "products" | "entities" | "accounts" | "gst" | "jobs";
+  label: "home" | "history" | "orders" | "stock" | "products" | "entities" | "accounts" | "dues" | "gst" | "jobs";
   icon: LucideIcon;
   adminOnly?: boolean;
   // on phones: in the bottom bar, in the More sheet, or not at all (Home: the logo goes there)
@@ -70,6 +70,8 @@ export const NAV_ITEMS: NavItem[] = [
       { href: "/account/opening", label: "opening" },
     ],
   },
+  // what's owed both ways: debtors, creditors, loans given and taken
+  { href: "/dues", label: "dues", icon: HandCoins, adminOnly: true, place: "more" },
   { href: "/gst", label: "gst", icon: Receipt, adminOnly: true, place: "more" },
   { href: "/jobs", label: "jobs", icon: Activity, adminOnly: true, place: "more" },
 ];

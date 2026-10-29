@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { amountModel, ledgerNameModel, ledgerSummaryModel, PARTY_PAYMENT_KINDS, type PaymentKind, paymentKindModel } from "../accounts/model";
-import { loanTermsInputModel } from "../loan/model";
+import { amountModel, ledgerNameModel, ledgerSummaryModel, LOAN_PAYMENT_KINDS, PARTY_PAYMENT_KINDS, type PaymentKind, paymentKindModel } from "../accounts/model";
+import { loanTermsInputModel } from "../due/model";
 import { createPartyInputModel } from "../party/model";
 import { remarksModel } from "../transaction/model";
 
@@ -14,6 +14,7 @@ const rateModel = z.number().positive().max(100).multipleOf(0.01);
 export const PAID_FOR_DB = {
   supplier: "supplier",
   loanRepaid: "loan_repaid",
+  interestPaid: "interest_paid",
   loanGiven: "loan_given",
   expense: "expense",
   taxPaid: "tax_paid",
@@ -21,18 +22,19 @@ export const PAID_FOR_DB = {
 } as const satisfies Record<PaymentKind, string>;
 
 // money paid out: what it was for, to a ledger of that kind (or a new one made in the same save: a party, or an
-// expense head), from cash or one bank account, on any date. TDS we deducted is for a supplier only; the interest
-// part only for a loan repaid; a loan given gives its terms. Lengths follow payments: reference 30, remarks 100
+// expense head), from cash or one bank account, on any date. A loan repaid or the interest on one names the loan
+// (dueId) instead, and goes to its lender. TDS we deducted is for a supplier only; a loan given gives its terms.
+// Lengths follow payments: reference 30, remarks 100
 export const createPaymentInputModel = z
   .object({
     dateTime: z.coerce.date(),
     paidFor: paymentKindModel,
     paidToLedgerId: idModel.nullable().default(null),
+    dueId: idModel.nullable().default(null),
     newLedger: z.object({ name: ledgerNameModel }).nullable().default(null),
     newParty: createPartyInputModel.nullable().default(null),
     loan: loanTermsInputModel.nullable().default(null),
     amount: amountModel,
-    interestAmount: z.number().min(0).multipleOf(0.01).nullable().default(null),
     settledIn: z.enum(["cash", "bank"]),
     bankDetailsId: idModel.nullable().default(null),
     referenceNumber: z
@@ -45,17 +47,16 @@ export const createPaymentInputModel = z
     tdsRate: rateModel.nullable().default(null),
     remarks: remarksModel,
   })
-  .refine((p) => [p.paidToLedgerId, p.newLedger, p.newParty].filter((v) => v !== null).length === 1, {
+  .refine((p) => [p.paidToLedgerId, p.newLedger, p.newParty].filter((v) => v !== null).length === (LOAN_PAYMENT_KINDS.includes(p.paidFor) ? 0 : 1), {
     message: "Pick who it was paid to, or add a new one.",
     path: ["paidToLedgerId"],
   })
+  .refine((p) => (p.dueId !== null) === LOAN_PAYMENT_KINDS.includes(p.paidFor), { message: "Pick the loan.", path: ["dueId"] })
   .refine((p) => p.newParty === null || p.newParty.addresses.length > 0, { message: "A new party needs an address.", path: ["newParty"] })
   .refine((p) => p.newParty === null || PARTY_PAYMENT_KINDS.includes(p.paidFor), { message: "Only a supplier, a loan or a refund goes to a new party.", path: ["newParty"] })
   .refine((p) => p.newLedger === null || p.paidFor === "expense", { message: "Only an expense makes a new ledger.", path: ["newLedger"] })
   .refine((p) => (p.paidFor === "loanGiven") === (p.loan !== null), { message: "A loan given needs its terms.", path: ["loan"] })
   .refine((p) => p.tdsRate === null || p.paidFor === "supplier", { message: "TDS is deducted from a supplier only.", path: ["tdsRate"] })
-  .refine((p) => p.interestAmount === null || p.paidFor === "loanRepaid", { message: "Only a loan repaid has an interest part.", path: ["interestAmount"] })
-  .refine((p) => p.interestAmount === null || p.interestAmount <= p.amount, { message: "The interest can't be more than the amount.", path: ["interestAmount"] })
   .refine((p) => p.settledIn === "cash" || p.bankDetailsId !== null, { message: "Pick the bank account.", path: ["bankDetailsId"] });
 
 export type CreatePaymentInputModel = z.infer<typeof createPaymentInputModel>;
@@ -116,8 +117,6 @@ export const paymentModel = z.object({
   bankDetailsId: idModel.nullable(),
   referenceNumber: z.string().nullable(),
   amount: z.number(),
-  // a loan repaid: the interest part of the amount
-  interestAmount: z.number().nullable(),
   tdsRate: z.number().nullable(),
   tdsAmount: z.number().nullable(),
 });

@@ -20,7 +20,6 @@ type Voucher = Omit<Receipt, "receivedFor" | "receivedFromName" | "receivedFromL
   flow: "receipt" | "payment";
   kind: string;
   counterName: string;
-  interestAmount: number | null;
 };
 
 const fromReceipt = ({ receivedFor, receivedFromName, receivedFromLedgerId: _l, ...r }: Receipt): Voucher => ({
@@ -28,7 +27,6 @@ const fromReceipt = ({ receivedFor, receivedFromName, receivedFromLedgerId: _l, 
   flow: "receipt",
   kind: receivedFor,
   counterName: receivedFromName,
-  interestAmount: null,
 });
 
 const fromPayment = ({ paidFor, paidToName, paidToLedgerId: _l, ...p }: Payment): Voucher => ({
@@ -82,8 +80,7 @@ function ReceivedIn({ r, label, className }: { r: Voucher; label: string; classN
   );
 }
 
-// what the money was for, as the voucher's particulars: one line, or for a loan repaid with interest, the part
-// towards the loan and the interest
+// what the money was for, as the voucher's particulars: one line
 function useParticulars() {
   const t = useTranslations("transactions.voucher.particulars");
   const tp = useTranslations("transactions.payment.voucher.particulars");
@@ -100,12 +97,9 @@ function useParticulars() {
       case "loanGiven":
         return [[loan(tp), r.amount]];
       case "loanRepaid":
-        return r.interestAmount
-          ? [
-              [tp("loanRepaid"), Math.round((r.amount - r.interestAmount) * 100) / 100],
-              [tp("interest"), r.interestAmount],
-            ]
-          : [[tp("loanRepaid"), r.amount]];
+        return [[tp("loanRepaid"), r.amount]];
+      case "interestPaid":
+        return [[tp("interest"), r.amount]];
       // an expense or a tax: the head it was paid to
       case "expense":
         return [[titleCase(r.counterName), r.amount]];

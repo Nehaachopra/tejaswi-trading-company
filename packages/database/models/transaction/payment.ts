@@ -7,6 +7,7 @@ import { money, percent, timestamps } from "../../utils/common/column-type";
 import { bankDetailsTable } from "../bank-detail";
 import { ledgersTable } from "../accounting/ledger";
 import { transactionsTable } from "./transaction";
+import { duesTable } from "../due/due";
 import { gstPlaceOfSupplyEnum, paidForEnum, settledInEnum, supplyTypeEnum } from "../../utils/common/enum";
 import { uniqueIndex } from "drizzle-orm/pg-core";
 import { index } from "drizzle-orm/pg-core";
@@ -83,8 +84,8 @@ export const paymentsTable = pgTable("payments", {
 
   amount: money("amount").default("0.00").notNull(),
 
-  // a loan repaid: how much of the amount was interest (to Interest paid); the rest reduces the loan
-  interestAmount: money("interest_amount"),
+  // the interest paid on a loan: which loan (what a payment settles is kept in due_settlements)
+  interestOnDueId: uuid("interest_on_due_id").references(() => duesTable.id, { onDelete: "restrict" }),
 
   // optional GST on an expense bill (rent, services): the GST part is booked to input GST
   // and is checked against the GSTR-3B lock; all set together or none
@@ -130,8 +131,8 @@ export const paymentsTable = pgTable("payments", {
   ),
 
   check(
-    "payments_interest_within_amount",
-    sql`${table.interestAmount} IS NULL OR (${table.interestAmount} >= 0 AND ${table.interestAmount} <= ${table.amount})`,
+    "payments_interest_on_a_loan",
+    sql`(${table.interestOnDueId} IS NOT NULL) = (${table.paidFor}::text = 'interest_paid')`,
   ),
 
   check(

@@ -199,15 +199,19 @@ export type SaveOpeningInputModel = z.infer<typeof saveOpeningInputModel>;
 // what money comes in for: a customer's payment, a loan received or a loan repaid to us (all three credit the party's
 // own ledger), the owner putting money in (Capital), a refund (an asset or expense of our own: TDS receivable, a
 // deposit), or other income (scrap sale, insurance claim, interest). A receipt keeps which it was
-export const receiptKindModel = z.enum(["customer", "loanTaken", "loanReturned", "capital", "refund", "otherIncome"]);
+export const receiptKindModel = z.enum(["customer", "loanTaken", "loanReturned", "interestReceived", "capital", "refund", "otherIncome"]);
 
 export type ReceiptKind = z.infer<typeof receiptKindModel>;
 
 // built-in ledgers that only their own screens post to (a sale, a purchase, their returns, salary), never a receipt
 export const OWN_SCREEN_LEDGERS = ["sale", "purchase", "saleReturn", "purchaseReturn", "salary"];
 
-// the kinds that come from a party (its own ledger, whatever its type)
-export const PARTY_RECEIPT_KINDS: ReceiptKind[] = ["customer", "loanTaken", "loanReturned"];
+// the kinds that come from a party (its own ledger, whatever its type); a loan returned and its interest come from the
+// party of the loan picked
+export const PARTY_RECEIPT_KINDS: ReceiptKind[] = ["customer", "loanTaken", "loanReturned", "interestReceived"];
+
+// the kinds that name a loan instead of a ledger: the loan given back, or the interest on it
+export const LOAN_RECEIPT_KINDS: ReceiptKind[] = ["loanReturned", "interestReceived"];
 
 // whether a ledger can take money in for a kind: a party's ledger for a payment or a loan; Capital for capital; any
 // income head of our own for other income; any asset or expense head of our own (not cash) for a refund
@@ -220,13 +224,17 @@ export function fitsReceiptKind(kind: ReceiptKind, l: { head: string; masterKey:
   return (l.head === "asset" || l.head === "expense") && l.key !== "cash";
 }
 
-// what a payment can be for: a supplier, a loan we repay, a loan we give, an expense, a tax, a customer refunded
-export const paymentKindModel = z.enum(["supplier", "loanRepaid", "loanGiven", "expense", "taxPaid", "refund"]);
+// what a payment can be for: a supplier, a loan we repay, the interest on one, a loan we give, an expense, a tax, a
+// customer refunded
+export const paymentKindModel = z.enum(["supplier", "loanRepaid", "interestPaid", "loanGiven", "expense", "taxPaid", "refund"]);
 
 export type PaymentKind = z.infer<typeof paymentKindModel>;
 
 // the payment kinds that go to a party's ledger
-export const PARTY_PAYMENT_KINDS: PaymentKind[] = ["supplier", "loanRepaid", "loanGiven", "refund"];
+export const PARTY_PAYMENT_KINDS: PaymentKind[] = ["supplier", "loanRepaid", "interestPaid", "loanGiven", "refund"];
+
+// the kinds that name a loan instead of a ledger: the loan we repay, or the interest on it
+export const LOAN_PAYMENT_KINDS: PaymentKind[] = ["loanRepaid", "interestPaid"];
 
 // the built-in ledgers a tax is paid into: TDS we deducted, TCS, and output GST (normal and reverse charge)
 export const TAX_LEDGERS = ["tdsPayable", "tcs", "outputCgst", "outputSgst", "outputIgst", "outputCgstRcm", "outputSgstRcm", "outputIgstRcm"];
