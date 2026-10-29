@@ -397,13 +397,19 @@ function DuesTable({ page, kind, partyName, actions }: { page: Page; kind: DueKi
                     <td className="py-3 pl-3 pr-2 sm:px-4">
                       {txn(x)}
                       <span className="tabular block text-xs opacity-60 sm:hidden">{dayText(new Date(x.dated))}</span>
-                      {/* how late (or how soon) sits here with the row's details: always on a phone, on a wider screen only
-                          when more than a day late */}
-                      <span className={cn("tabular flex items-center gap-1 text-xs", tone(x), !(x.overdue && lateBy(x) > 1) && "sm:hidden")}>
-                        {x.overdue && <CircleAlert className="size-3" aria-hidden />}
-                        {x.dueOn ? when(x) : tp("noDueDate")}
-                      </span>
+                      {/* how soon it's due, with the row's details on a phone */}
+                      {!x.overdue && <span className={cn("tabular block text-xs sm:hidden", tone(x))}>{x.dueOn ? when(x) : tp("noDueDate")}</span>}
                       {terms(x) && <span className="tabular block text-xs opacity-60">{terms(x)}</span>}
+                      {/* once overdue: a glowing red dot and how late, last in the row's details at every width */}
+                      {x.overdue && (
+                        <span className="tabular mt-1.5 inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-danger/10 px-2.5 py-1 text-xs font-bold text-danger">
+                          <span className="relative flex size-2.5" aria-hidden>
+                            <span className="absolute inline-flex size-full animate-ping rounded-full bg-danger opacity-75" />
+                            <span className="relative inline-flex size-2.5 rounded-full bg-danger shadow-[0_0_6px_2px_rgba(180,35,24,0.6)]" />
+                          </span>
+                          {when(x)}
+                        </span>
+                      )}
                     </td>
                     <td className="tabular hidden whitespace-nowrap px-2 py-3 sm:table-cell">{dayText(new Date(x.dated))}</td>
                     {/* a phone: one due cell; when overdue, three lines (what's overdue in red, "of", its total), else its

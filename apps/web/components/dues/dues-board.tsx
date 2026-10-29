@@ -145,6 +145,9 @@ export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
             />
           </div>
 
+          {/* on a phone, + Old due takes its own full-width line above the filters */}
+          <OldDueLink kind={kind} labelled className="mt-3 justify-center sm:hidden" />
+
           {/* the filters, under the tabs while the list scrolls */}
           <div className="sticky top-[8.5rem] z-10 -mx-4 mt-2 flex items-center gap-2 bg-chestnut px-4 py-2 sm:top-32 sm:-mx-6 sm:px-6">
             {/* status: all, overdue, or due within 2 days */}
@@ -239,7 +242,7 @@ export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
                   ))
                 }
               </Menu>
-              <OldDueLink kind={kind} />
+              <OldDueLink kind={kind} className="max-sm:hidden" />
             </div>
           </div>
 
@@ -259,13 +262,13 @@ export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
 }
 
 // + Old due, for a due from before the app of this tab's kind (its word hidden on a phone, unless asked for)
-function OldDueLink({ kind, labelled = false }: { kind: DueKind; labelled?: boolean }) {
+function OldDueLink({ kind, labelled = false, className }: { kind: DueKind; labelled?: boolean; className?: string }) {
   const t = useTranslations("dues");
   return (
     <Link
       href={`/dues/old?kind=${kind}`}
       aria-label={t("oldDue")}
-      className="on-ivory flex min-h-9 shrink-0 items-center gap-1.5 rounded-control bg-ivory px-3 text-sm font-semibold text-chestnut"
+      className={cn("on-ivory flex min-h-9 shrink-0 items-center gap-1.5 rounded-control bg-ivory px-3 text-sm font-semibold text-chestnut", className)}
     >
       <Plus className="size-4" aria-hidden /> <span className={labelled ? undefined : "max-sm:sr-only"}>{t("oldDue")}</span>
     </Link>
@@ -273,7 +276,8 @@ function OldDueLink({ kind, labelled = false }: { kind: DueKind; labelled?: bool
 }
 
 // one party: its short name, red when overdue and ivory otherwise; the full name, phone and town; total due and overdue
-// (or how soon it's due) on the right. Tapping it opens the party's dues page
+// (or how soon it's due) on the right. On a phone the short name and the due share the top line, and the name, phone
+// and town sit below. Tapping it opens the party's dues page
 function PartyCard({ kind, party: p }: { kind: DueKind; party: Party }) {
   const t = useTranslations("dues");
   const tf = useTranslations("dues.filters");
@@ -282,10 +286,10 @@ function PartyCard({ kind, party: p }: { kind: DueKind; party: Party }) {
 
   return (
     <li>
-      <Link href={`/dues/${kind}/${p.partyId}`} className="on-ivory flex items-center gap-3 rounded-2xl bg-ivory p-4 text-chestnut hover:bg-[#fbf7ee]">
+      <Link href={`/dues/${kind}/${p.partyId}`} className="on-ivory flex flex-wrap items-center gap-3 rounded-2xl bg-ivory p-4 text-chestnut hover:bg-[#fbf7ee] sm:flex-nowrap">
         <ShortNameBadge shortName={p.shortName} name={p.partyName} late={p.overdue > 0} title={p.overdue > 0 ? tf("overdue") : undefined} />
 
-        <span className="min-w-0 flex-1">
+        <span className="order-last min-w-0 basis-full sm:order-none sm:basis-auto sm:flex-1">
           {/* a roomy line, so the marks above Kannada and Hindi letters aren't cut off by the truncation */}
           <span className="block truncate py-1 font-heading text-xl font-bold leading-[1.45]">{local(p.partyName)}</span>
           <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs opacity-70">
@@ -302,7 +306,7 @@ function PartyCard({ kind, party: p }: { kind: DueKind; party: Party }) {
           </span>
         </span>
 
-        <span className="flex shrink-0 flex-col items-end gap-1">
+        <span className="ml-auto flex shrink-0 flex-col items-end gap-1 sm:ml-0">
           <span className="tabular font-heading text-xl font-bold leading-6">{rupees(p.left)}</span>
           {p.overdue > 0 ? (
             <span className="tabular inline-flex items-center gap-1 rounded-full bg-danger/10 px-2 py-0.5 text-xs font-semibold text-danger">
