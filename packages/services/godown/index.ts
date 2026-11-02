@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, count, db, eq, gt, inArray, ne, sql } from "@repo/database";
-import { godownsTable, productGodownsTable, productsTable, stockCountGodownsTable } from "@repo/database/schema";
+import { godownsTable, landlordsTable, productGodownsTable, productsTable, stockCountGodownsTable } from "@repo/database/schema";
 
 import StockEngine from "../stock/engine";
 
@@ -68,9 +68,7 @@ export default class GodownService {
       rent: num(row.rent),
       rentTimingInMonths: row.rentTimingInMonths,
       usedFrom: row.usedFrom,
-      landlordName: row.landlordName,
-      landlordCountryCode: row.landlordCountryCode,
-      landlordNumber: row.landlordNumber,
+      landlordId: row.landlordId,
     };
   }
 
@@ -96,6 +94,13 @@ export default class GodownService {
     if (clash) throw nameTaken();
   }
 
+  // a rented godown's landlord must be an active one
+  private async assertLandlord(id: string | null) {
+    if (!id) return;
+    const [landlord] = await db.select({ isActive: landlordsTable.isActive }).from(landlordsTable).where(eq(landlordsTable.id, id));
+    if (!landlord?.isActive) throw new TRPCError({ code: "BAD_REQUEST", message: "Pick a landlord." });
+  }
+
   private values(details: ReturnType<typeof createGodownInputModel.parse>["details"]) {
     return { ...details, rent: details.rent == null ? null : details.rent.toFixed(2) };
   }
@@ -104,6 +109,7 @@ export default class GodownService {
   async create(rawInput: CreateGodownInputModel): Promise<GodownModel> {
     const { details, openingStock } = createGodownInputModel.parse(rawInput);
     await this.assertNameFree(details.godownName);
+    await this.assertLandlord(details.landlordId);
 
     // opening stock only for active pack sizes that exist
     if (openingStock.length > 0) {
@@ -137,6 +143,7 @@ export default class GodownService {
   async update(rawInput: UpdateGodownInputModel): Promise<GodownModel> {
     const { id, details } = updateGodownInputModel.parse(rawInput);
     await this.assertNameFree(details.godownName, id);
+    await this.assertLandlord(details.landlordId);
     try {
       const updated = await db.update(godownsTable).set(this.values(details)).where(eq(godownsTable.id, id)).returning({ id: godownsTable.id });
       if (updated.length === 0) throw notFound();

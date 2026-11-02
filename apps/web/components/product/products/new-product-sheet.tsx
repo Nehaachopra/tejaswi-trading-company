@@ -4,6 +4,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { addSquare } from "~/components/ui/page-styles";
 import { SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { NumberInput } from "~/components/ui/number-input";
@@ -267,7 +268,7 @@ export function NewProductSheet({ open, onClose }: { open: boolean; onClose: () 
             aria-label={t("addPack")}
             title={t("addPack")}
             onClick={addPack}
-            className="grid size-8 shrink-0 place-items-center rounded-control border border-dashed border-chestnut/60 hover:border-chestnut"
+            className={addSquare("size-8")}
           >
             <Plus className="size-4" aria-hidden />
           </button>
@@ -325,14 +326,13 @@ export function NewProductSheet({ open, onClose }: { open: boolean; onClose: () 
             </table>
           </section>
 
-          {/* what to fix: the highlighted fields, or the server's reason */}
-          {duplicates.length > 0 && <FieldMessage>{t("form.errors.duplicate", { packs: duplicates.join(", ") })}</FieldMessage>}
-          {tried && (!detailsOk || !packs.every(packOk)) && <FieldMessage>{t("form.errors.fill")}</FieldMessage>}
-          {serverError && <FieldMessage>{serverError}</FieldMessage>}
         </div>
 
-        {/* the save button stays at the bottom of the sheet */}
-        <footer className="flex shrink-0 flex-col border-t border-chestnut/15 px-5 py-4">
+        {/* what to fix, and the save button, stay at the bottom of the sheet */}
+        <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
+          {duplicates.length > 0 && <FieldMessage className="mt-0">{t("form.errors.duplicate", { packs: duplicates.join(", ") })}</FieldMessage>}
+          {tried && (!detailsOk || !packs.every(packOk)) && <FieldMessage className="mt-0">{t("form.errors.fill")}</FieldMessage>}
+          {serverError && <FieldMessage className="mt-0">{serverError}</FieldMessage>}
           <SubmitButton busy={create.isPending || uploading}>{t("form.save")}</SubmitButton>
         </footer>
       </form>

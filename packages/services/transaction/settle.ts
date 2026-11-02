@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { and, eq } from "@repo/database";
-import { bankDetailsTable, ledgersTable, partiesTable } from "@repo/database/schema";
+import { bankDetailsTable, ledgersTable, lendersTable, partiesTable } from "@repo/database/schema";
 
 import type AccountsService from "../accounts";
 import type { Tx } from "../stock/engine";
@@ -16,7 +16,7 @@ export async function settleLedger(tx: Tx, accounts: AccountsService, settledIn:
 }
 
 // the other side of a receipt or payment: any active ledger but cash and the bank accounts (money between those is a
-// deposit, withdrawal or transfer), with the party behind it when there is one
+// deposit, withdrawal or transfer), with the party or lender behind it when there is one
 export async function counterLedger(tx: Tx, accounts: AccountsService, ledgerId: string) {
   const [ledger] = await tx.select().from(ledgersTable).where(eq(ledgersTable.id, ledgerId));
   if (!ledger) throw new TRPCError({ code: "NOT_FOUND", message: "Ledger not found." });
@@ -29,5 +29,9 @@ export async function counterLedger(tx: Tx, accounts: AccountsService, ledgerId:
     ledger.referenceTable === "parties" && ledger.referenceId
       ? (await tx.select().from(partiesTable).where(and(eq(partiesTable.id, ledger.referenceId))))[0] ?? null
       : null;
-  return { ledger, party };
+  const lender =
+    ledger.referenceTable === "lenders" && ledger.referenceId
+      ? (await tx.select().from(lendersTable).where(eq(lendersTable.id, ledger.referenceId)))[0] ?? null
+      : null;
+  return { ledger, party, lender };
 }

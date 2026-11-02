@@ -4,6 +4,7 @@ import { CircleAlert, Ellipsis, Pencil, Plus, Power, Search } from "lucide-react
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { ADD_BUTTON, FILTER_BAR, PAGE } from "~/components/ui/page-styles";
 import { ClearButton } from "~/components/ui/clear-button";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
@@ -49,19 +50,19 @@ export function BanksManager() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6">
+    <main className={`${PAGE} pb-16`}>
       <h1 className="sr-only">{t("title")}</h1>
 
       <button
         type="button"
         onClick={() => setOpen("new")}
-        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-ivory px-5 font-heading text-lg font-bold text-chestnut sm:w-auto"
+        className={ADD_BUTTON}
       >
         <Plus className="size-5" aria-hidden /> {tb("add")}
       </button>
 
       {/* search and Show inactive, under the header while the list scrolls */}
-      <div className="sticky top-16 z-20 -mx-4 mt-3 flex items-center gap-2 bg-chestnut px-4 py-2 sm:-mx-6 sm:px-6">
+      <div className={`mt-3 ${FILTER_BAR}`}>
         <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory">
           <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
           <span className="sr-only">{tb("search")}</span>
@@ -92,7 +93,7 @@ export function BanksManager() {
       ) : shown.length === 0 ? (
         <p className="mt-16 text-center text-ivory/70">{needle ? tb("noMatch") : tb("empty")}</p>
       ) : (
-        <ul className="mt-2 flex flex-col gap-3">
+        <ul className="mt-2 grid gap-3 lg:grid-cols-2">
           {shown.map((b) => {
             const name = `${titleCase(b.bankName)} ••${b.last4}`;
             return (

@@ -32,13 +32,33 @@ import {
   partyIdInputModel,
   partyModel,
   partySummaryModel,
+  partyNameCheckInputModel,
+  partyNameCheckModel,
   pinPlaceInputModel,
   pinPlaceModel,
+  townPinInputModel,
+  townPinModel,
   setPartyActiveInputModel,
   updatePartyInputModel,
 } from "@repo/services/party/model";
+import {
+  landlordIdInputModel,
+  landlordInputModel,
+  landlordModel,
+  landlordPickModel,
+  listLandlordsInputModel,
+  setLandlordActiveInputModel,
+  updateLandlordInputModel,
+} from "@repo/services/landlord/model";
+import {
+  lenderInputModel,
+  lenderModel,
+  listLendersInputModel,
+  setLenderActiveInputModel,
+  updateLenderInputModel,
+} from "@repo/services/lender/model";
 
-import { accountsService, bankService, partyService } from "../../services";
+import { accountsService, bankService, landlordService, lenderService, partyService } from "../../services";
 import { adminProcedure, protectedProcedure, router } from "../../trpc";
 
 // bank accounts: only the admin sees or changes them (and their balances)
@@ -136,12 +156,92 @@ const partyRouter = router({
     .output(partyModel)
     .mutation(({ input }) => partyService.setActive(input)),
 
+  // before a party is added or renamed: the same name in the same town, and a free short name
+  nameCheck: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/accounts/parties/name-check", tags: ["accounts"] } })
+    .input(partyNameCheckInputModel)
+    .output(partyNameCheckModel)
+    .query(({ input }) => partyService.nameCheck(input)),
+
   // a PIN code already on a saved address: its town, district and state, filled into a new address
   pinPlace: adminProcedure
     .meta({ openapi: { method: "GET", path: "/accounts/parties/pin/{postalCode}", tags: ["accounts"] } })
     .input(pinPlaceInputModel)
     .output(pinPlaceModel)
     .query(({ input }) => partyService.pinPlace(input)),
+
+  // a town already on a saved address: the PIN used with it, filled in when no PIN is typed
+  townPin: adminProcedure
+    .input(townPinInputModel)
+    .output(townPinModel)
+    .query(({ input }) => partyService.townPin(input)),
+});
+
+// the people we pay rent to, for the admin
+const landlordRouter = router({
+  list: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/accounts/landlords", tags: ["accounts"] } })
+    .input(listLandlordsInputModel)
+    .output(z.array(landlordModel))
+    .query(({ input }) => landlordService.list(input)),
+
+  // who can be picked on a rent payment, which staff record too: names only
+  pick: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/accounts/landlords/pick", tags: ["accounts"] } })
+    .output(z.array(landlordPickModel))
+    .query(async ({ ctx }) => {
+      const landlords = await landlordService.pick();
+      return ctx.session.user.role === "admin" ? landlords : landlords.map((l) => ({ ...l, godowns: [] }));
+    }),
+
+  get: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/accounts/landlords/{id}", tags: ["accounts"] } })
+    .input(landlordIdInputModel)
+    .output(landlordModel)
+    .query(({ input }) => landlordService.get(input)),
+
+  create: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/accounts/landlords", tags: ["accounts"] } })
+    .input(landlordInputModel)
+    .output(landlordModel)
+    .mutation(({ input }) => landlordService.create(input)),
+
+  update: adminProcedure
+    .meta({ openapi: { method: "PATCH", path: "/accounts/landlords/{id}", tags: ["accounts"] } })
+    .input(updateLandlordInputModel)
+    .output(landlordModel)
+    .mutation(({ input }) => landlordService.update(input)),
+
+  // inactive only once no active godown is rented from them
+  setActive: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/accounts/landlords/{id}/active", tags: ["accounts"] } })
+    .input(setLandlordActiveInputModel)
+    .output(landlordModel)
+    .mutation(({ input }) => landlordService.setActive(input)),
+});
+
+// banks and NBFCs we took term loans from: added with a loan or in Entities; staff pick them on a loan received
+const lenderRouter = router({
+  list: protectedProcedure
+    .input(listLendersInputModel)
+    .output(z.array(lenderModel))
+    .query(({ input }) => lenderService.list(input)),
+
+  create: adminProcedure
+    .input(lenderInputModel)
+    .output(lenderModel)
+    .mutation(({ input }) => lenderService.create(input)),
+
+  update: adminProcedure
+    .input(updateLenderInputModel)
+    .output(lenderModel)
+    .mutation(({ input }) => lenderService.update(input)),
+
+  // inactive only once it has no loan left to repay
+  setActive: adminProcedure
+    .input(setLenderActiveInputModel)
+    .output(lenderModel)
+    .mutation(({ input }) => lenderService.setActive(input)),
 });
 
 // any ledger and its statement, for the admin; ledgers of its own (a loan, other income, an expense head) added,
@@ -216,5 +316,7 @@ export const accountsRouter = router({
 
   bank: bankRouter,
   party: partyRouter,
+  landlord: landlordRouter,
+  lender: lenderRouter,
   ledger: ledgerRouter,
 });

@@ -6,9 +6,10 @@ import LedgerEngine from "../accounts/engine";
 import type { ActorModel, PostingLine } from "../accounts/model";
 import { fromPaise } from "../accounts/money";
 import { LEDGERS } from "../accounts/structure";
+import { queueCancelled } from "../document/queue";
 import type { Tx } from "../stock/engine";
 import AssignedIdCounter, { type Prefix } from "./assigned-id";
-import { COMPANY } from "./company";
+import SettingService from "../setting";
 import {
   type CancelTransactionInputModel,
   cancelTransactionInputModel,
@@ -46,6 +47,9 @@ const LOCKED_BY: Partial<Record<TransactionType, "gstr1" | "gstr3b">> = {
   purchase_return: "gstr3b",
 };
 
+// the ledgers reverse-charge GST is owed in until it's paid
+const RCM_PAYABLES = [LEDGERS.rcmCgstPayable.name, LEDGERS.rcmSgstPayable.name, LEDGERS.rcmIgstPayable.name];
+
 // a built-in ledger's key from its stored name, so screens can show it in the reader's language
 const LEDGER_KEY = new Map<string, string>(Object.entries(LEDGERS).map(([key, l]) => [l.name, key]));
 
@@ -63,6 +67,7 @@ export default class TransactionService {
   constructor(
     private readonly engine = new LedgerEngine(),
     private readonly counter = new AssignedIdCounter(),
+    private readonly settings = new SettingService(),
   ) {}
 
   // whether the month a date falls in is locked by a filed return
@@ -107,7 +112,8 @@ export default class TransactionService {
         remarks: input.remarks,
         createdById: actor.id,
         createdByName: actor.name.slice(0, 30),
-        companySnapshot: COMPANY,
+        // our details as they are now, so its invoice or voucher reads the same on any later date
+        companySnapshot: await this.settings.get("company", tx),
       })
       .returning({ id: transactionsTable.id });
     await this.engine.post(tx, { transactionId: created!.id, dateTime: input.dateTime, lines: input.lines, isContra: input.isContra });
@@ -115,12 +121,29 @@ export default class TransactionService {
   }
 
   // why a transaction can't be cancelled, if it can't
-  private async cancelBlockedBy(q: Pick<Tx, "select">, t: { type: TransactionType; status: string; dateTime: Date }): Promise<TransactionModel["cancelBlockedBy"]> {
+  private async cancelBlockedBy(q: Pick<Tx, "select">, t: { id: string; type: TransactionType; status: string; dateTime: Date }): Promise<TransactionModel["cancelBlockedBy"]> {
     if (t.status === "cancelled") return "cancelled";
     // an opening balance is changed on the Opening balances page, not cancelled
     if (t.type === "opening_balance") return "openingBalance";
     const lockedBy = LOCKED_BY[t.type];
     if (lockedBy && (await this.filed(q, lockedBy, t.dateTime))) return "gstFiled";
+    // reverse-charge GST it booked (rent from a landlord with no GSTIN) that's since been paid: taking it back would
+    // leave more paid than owed, so the Tax paid payment is cancelled first
+    if (t.type === "payment") {
+      const owed = await q
+        .select({ booked: ledgerEntriesTable.amount, left: ledgersTable.balance, side: ledgersTable.balanceType })
+        .from(ledgerEntriesTable)
+        .innerJoin(ledgersTable, eq(ledgersTable.id, ledgerEntriesTable.ledgerId))
+        .where(
+          and(
+            eq(ledgerEntriesTable.transactionId, t.id),
+            eq(ledgerEntriesTable.transactionType, "credit"),
+            eq(ledgerEntriesTable.isReversal, false),
+            inArray(ledgersTable.name, RCM_PAYABLES),
+          ),
+        );
+      if (owed.some((o) => Number(o.booked) > (o.side === "credit" ? Number(o.left) : 0))) return "rcmPaid";
+    }
     return null;
   }
 
@@ -135,12 +158,15 @@ export default class TransactionService {
       if (blocked === "cancelled") throw new TRPCError({ code: "CONFLICT", message: "This transaction is already cancelled." });
       if (blocked === "openingBalance") throw new TRPCError({ code: "BAD_REQUEST", message: "Change opening balances on the Opening balances page." });
       if (blocked === "gstFiled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That month's GST return is filed. Use a return instead." });
+      if (blocked === "rcmPaid") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Its reverse-charge GST is already paid. Cancel that Tax paid payment first." });
       const now = new Date();
       await this.engine.reverse(tx, { transactionId: t.id, dateTime: now });
       await tx
         .update(transactionsTable)
         .set({ status: "cancelled", cancelledAt: now, cancelledById: actor.id, cancelledByName: actor.name.slice(0, 30), cancelReason: input.reason })
         .where(eq(transactionsTable.id, t.id));
+      // anything stored for it gets a cancelled version; the first stays as issued
+      await queueCancelled(tx, t.id);
     });
     return this.get({ id: input.id });
   }

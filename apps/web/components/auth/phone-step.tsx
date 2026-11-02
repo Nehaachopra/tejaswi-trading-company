@@ -11,6 +11,9 @@ export function PhoneStep() {
   const t = useTranslations("login");
   const { phone, changePhone, error, sending, sendCode } = useLogin();
 
+  // a mobile starts 6 to 9: told at the first digit
+  const cantBeMobile = /^[0-5]/.test(phone);
+
   return (
     <form
       className="mt-8 flex flex-col gap-6"
@@ -24,9 +27,9 @@ export function PhoneStep() {
         <p className="mt-1 text-sm text-chestnut/80">{t("subtitle")}</p>
       </div>
 
-      <label className="flex flex-col gap-1.5">
+      <label className="flex flex-col gap-2.5">
         <span className="text-sm">{t("phoneLabel")}</span>
-        <span className={`flex min-h-12 items-center gap-2 px-3 focus-within:border-chestnut ${fieldClass(!!error)}`}>
+        <span className={`flex min-h-12 items-center gap-2 px-3 focus-within:border-chestnut ${fieldClass(!!error || cantBeMobile)}`}>
           <span className="text-chestnut/80 tabular">+91</span>
           <input
             id="login-phone"
@@ -38,13 +41,13 @@ export function PhoneStep() {
             value={phone}
             onChange={(e) => changePhone(e.target.value)}
             placeholder="98765 43210"
-            aria-invalid={error ? true : undefined}
+            aria-invalid={error || cantBeMobile ? true : undefined}
             aria-describedby="login-phone-hint"
             className="tabular min-w-0 flex-1 bg-transparent text-lg tracking-wide outline-none placeholder:text-chestnut/50"
           />
         </span>
-        <span id="login-phone-hint" className="text-xs text-chestnut/80">
-          {t("phoneHint")}
+        <span id="login-phone-hint" className={cantBeMobile ? "text-xs text-danger" : "text-xs text-chestnut/80"}>
+          {t(cantBeMobile ? "phoneStart" : "phoneHint")}
         </span>
       </label>
 

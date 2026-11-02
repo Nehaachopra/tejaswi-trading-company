@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { boss } from "./boss";
 import type { JobModel, JobStateModel, ListJobsInputModel, ListJobsOutputModel, RetryJobInputModel } from "./model";
 import { sendOtpQueue } from "./queues/send-otp";
+import { storeDocumentsQueue } from "./queues/store-documents";
 
 type JobData = Record<string, unknown>;
 
@@ -16,6 +17,7 @@ const QUEUES: Record<string, { title: string; summarize: (data: JobData) => stri
       return `${String(data.countryCode ?? "")} ${phone.slice(0, 5)} ${phone.slice(5)}`;
     },
   },
+  [storeDocumentsQueue.name]: { title: "Store GST documents", summarize: () => "" },
 };
 
 const STATES: JobStateModel[] = ["failed", "retry", "active", "created", "completed", "cancelled"];

@@ -60,7 +60,7 @@ export const moveStockInputModel = z
     vehicleNumber: z
       .string()
       .transform((v) => v.replace(/\s+/g, "").toUpperCase())
-      .pipe(z.string().max(15))
+      .pipe(z.string().max(15).regex(/^[A-Z0-9]*$/, "A vehicle number is letters and digits."))
       .transform((v) => (v === "" ? null : v))
       .nullable()
       .default(null),

@@ -22,6 +22,7 @@
       "accounts": "खाते",
       "gst": "GST",
       "jobs": "काम",
+      "settings": "सेटिंग्स",
       "heads": {
         "asset": "संपत्ति",
         "liability": "देनदारी",
@@ -31,7 +32,9 @@
         "loss": "हानि",
         "opening": "प्रारंभिक शेष",
         "parties": "पार्टियाँ",
-        "banks": "बैंक खाते"
+        "landlords": "मकान मालिक",
+        "banks": "बैंक खाते",
+        "lenders": "ऋणदाता"
       },
       "debit": "नामे",
       "credit": "जमा",
@@ -57,6 +60,7 @@
     "title": "लॉग इन",
     "subtitle": "वह मोबाइल नंबर डालें जो आपके एडमिन ने रजिस्टर किया है।",
     "phoneLabel": "मोबाइल नंबर",
+    "phoneStart": "मोबाइल नंबर 6, 7, 8 या 9 से शुरू होता है।",
     "phoneHint": "हम SMS से 6 अंकों का कोड भेजेंगे।",
     "continue": "कोड भेजें",
     "otpTitle": "कोड डालें",
@@ -337,6 +341,16 @@
       "rateLabel": "दर / {unit}"
     }
   },
+  "settings": {
+    "adminOnly": "सेटिंग्स केवल एडमिन के लिए हैं।",
+    "title": "सेटिंग्स",
+    "tds": "TDS",
+    "turnover": "{lastYear} में टर्नओवर ₹10 करोड़ से ऊपर",
+    "tdsHint": "{year} में ₹50 लाख से अधिक भुगतान वाले सप्लायर से 0.1% TDS कटेगा (PAN न हो तो 5%)।",
+    "saveError": "सेव नहीं हुआ। फिर से कोशिश करें।",
+    "turnoverAudit": "{lastYear} में टर्नओवर ₹1 करोड़ से ऊपर",
+    "auditHint": "{year} में किराया, ढुलाई, मज़दूरी और दलाली पर TDS कटेगा।"
+  },
   "jobs": {
     "adminOnly": "काम केवल एडमिन के लिए हैं।",
     "eyebrow": "सिस्टम",
@@ -365,7 +379,8 @@
     "runAgain": "फिर से चलाएँ",
     "queued": "काम फिर से चलने के लिए कतार में है",
     "queues": {
-      "send-otp": "SMS से OTP भेजना"
+      "send-otp": "SMS से OTP भेजना",
+      "store-documents": "GST दस्तावेज़ सहेजना"
     }
   },
   "notFound": {
@@ -426,8 +441,10 @@
       "rent": "किराया (₹)",
       "rentEvery": "हर कितने महीने में",
       "usedFrom": "कब से इस्तेमाल में",
-      "landlord": "मकान मालिक का नाम",
-      "landlordPhone": "मकान मालिक का फ़ोन (वैकल्पिक)",
+      "landlord": "मकान मालिक",
+      "newLandlord": "नया मकान मालिक",
+      "noLandlord": "अभी कोई मकान मालिक नहीं",
+      "pick": "चुनें",
       "openingHint": "इस गोदाम में पहले से रखे पैक। न हों तो खाली छोड़ें।",
       "allCategories": "सभी श्रेणियाँ",
       "allSubCategories": "सभी उप-श्रेणियाँ",
@@ -448,7 +465,9 @@
         "check": "चिह्नित फ़ील्ड जाँचें।",
         "hasProducts": "इस गोदाम में अभी स्टॉक है। पहले उसे दूसरी जगह भेजें।",
         "counting": "इस गोदाम की गिनती चल रही है। गिनती पूरी होने के बाद कोशिश करें।"
-      }
+      },
+      "change": "बदलें",
+      "searchLandlord": "मकान मालिक खोजें"
     },
     "move": {
       "title": "स्टॉक भेजें",
@@ -670,7 +689,8 @@
         "bank": "बैंक",
         "creditors": "सप्लायर",
         "employees": "कर्मचारी",
-        "parties": "पार्टियाँ"
+        "parties": "पार्टियाँ",
+        "lenders": "बैंक ऋण"
       },
       "ledgers": "{count, plural, =0 {अभी कोई खाता नहीं} one {# खाता} other {# खाते}}",
       "postDated": "{amount} आगे की तारीख का",
@@ -688,12 +708,12 @@
       "inputSgst": "इनपुट SGST",
       "inputIgst": "इनपुट IGST",
       "tdsReceivable": "TDS प्राप्य",
-      "outputCgst": "आउटपुट CGST",
-      "outputSgst": "आउटपुट SGST",
-      "outputIgst": "आउटपुट IGST",
-      "outputCgstRcm": "आउटपुट CGST (RCM)",
-      "outputSgstRcm": "आउटपुट SGST (RCM)",
-      "outputIgstRcm": "आउटपुट IGST (RCM)",
+      "outputCgst": "आउटपुट CGST देय",
+      "outputSgst": "आउटपुट SGST देय",
+      "outputIgst": "आउटपुट IGST देय",
+      "rcmCgstPayable": "इनपुट CGST देय (RCM)",
+      "rcmSgstPayable": "इनपुट SGST देय (RCM)",
+      "rcmIgstPayable": "इनपुट IGST देय (RCM)",
       "tdsPayable": "TDS देय",
       "tcs": "TCS",
       "drawings": "मालिक की निकासी",
@@ -706,6 +726,11 @@
       "purchaseReturn": "खरीद वापसी",
       "discountGiven": "दी गई छूट",
       "rent": "किराया",
+      "transport": "परिवहन",
+      "labour": "मज़दूरी",
+      "brokerage": "दलाली",
+      "professionalFees": "पेशेवर शुल्क",
+      "legalFees": "क़ानूनी शुल्क",
       "electricity": "बिजली",
       "wifi": "वाई-फाई खर्च",
       "scrapSale": "स्क्रैप बिक्री",
@@ -752,6 +777,7 @@
         "editTitle": "पार्टी बदलें",
         "close": "बंद करें",
         "save": "पार्टी सेव करें",
+        "saveLandlord": "मकान मालिक सहेजें",
         "saveDetails": "विवरण सेव करें",
         "type": "प्रकार",
         "types": {
@@ -765,6 +791,7 @@
         "email": "ईमेल (वैकल्पिक)",
         "pan": "PAN (वैकल्पिक)",
         "remarks": "टिप्पणी (वैकल्पिक)",
+        "personal": "व्यक्तिगत विवरण",
         "addresses": "पते",
         "addressN": "पता {n}",
         "addAddress": "पता जोड़ें",
@@ -774,7 +801,7 @@
         "pin": "पिन कोड",
         "lookingUp": "पिन खोजा जा रहा है…",
         "pinNotFound": "सूची में पिन नहीं मिला। शहर, ज़िला और राज्य लिखें।",
-        "line1": "पता पंक्ति 1",
+        "line1": "पता पंक्ति 1 (वैकल्पिक)",
         "line2": "पता पंक्ति 2 (वैकल्पिक)",
         "landmark": "लैंडमार्क (वैकल्पिक)",
         "city": "शहर",
@@ -804,14 +831,42 @@
           "network": "सर्वर से जुड़ नहीं पा रहे। कनेक्शन जाँचें।",
           "failed": "कुछ गलत हुआ। फिर से कोशिश करें।",
           "shortNameTaken": "यह छोटा नाम किसी और पार्टी का है।",
-          "phoneTaken": "यह फ़ोन नंबर पहले से किसी दूसरी पार्टी का है।"
+          "phoneTaken": "यह फ़ोन नंबर पहले से किसी दूसरी पार्टी का है।",
+          "landlordPhoneTaken": "यह फ़ोन नंबर पहले से किसी दूसरे मकान मालिक का है।",
+          "landlordGstinTaken": "यह GSTIN पहले से किसी दूसरे मकान मालिक का है।"
         },
         "shortName": "छोटा नाम (वैकल्पिक)",
         "shortNameHint": "खाता बही और सूचियों में यही दिखता है, जैसे श्री रामस्वामी ट्रेडर्स के लिए SRT।",
         "searchState": "राज्य खोजें",
+        "searchDistrict": "ज़िला खोजें",
+        "noDistrict": "ऐसा कोई ज़िला नहीं",
+        "useTyped": "“{text}” इस्तेमाल करें",
+        "stillNeeded": "अभी बाकी: {fields}",
         "noState": "इस नाम का कोई राज्य नहीं।",
         "phoneRequired": "फ़ोन",
-        "phoneHint": "मोबाइल, या STD कोड के साथ लैंडलाइन"
+        "shortNameTaken": "यह छोटा नाम किसी और पार्टी का है।",
+        "sameName": {
+          "title": "पहले से जुड़ी है?",
+          "body": "{city} में {name} पहले से जुड़ी है। इसी नाम से एक और पार्टी जोड़ें?",
+          "add": "फिर भी जोड़ें",
+          "back": "वापस जाएं"
+        },
+        "required": "यह भरें।",
+        "pinBad": "पिन कोड 6 अंकों का होता है।",
+        "phoneHint": "मोबाइल, या STD कोड के साथ लैंडलाइन",
+        "transportDeclaration": "10 या कम ट्रक के मालिक",
+        "transportDeclarationHint": "PAN के साथ लिखित में लें। तब TDS नहीं कटेगा।",
+        "paidBefore": "इस साल अब तक भुगतान",
+        "paidBeforeHint": "1 अप्रैल से इस ऐप के बाहर दिया गया, TDS सहित।",
+        "tdsBefore": "पहले से कटा TDS",
+        "tdsOver": "TDS दिए गए भुगतान से ज़्यादा नहीं हो सकता।",
+        "addLandlord": "मकान मालिक जोड़ें",
+        "gstinRequired": "GSTIN",
+        "unregisteredNote": "हमें मकान मालिक की ओर से GST भरना होगा।",
+        "gstRegistered": "GST पंजीकृत",
+        "unregistered": "अपंजीकृत",
+        "editLandlord": "मकान मालिक बदलें",
+        "phoneBad": "मोबाइल 6, 7, 8 या 9 से शुरू होता है। लैंडलाइन 0 से, STD कोड के साथ।"
       },
       "showDetails": "विवरण दिखाएँ या छिपाएँ",
       "place": "जगह",
@@ -915,6 +970,36 @@
       "failed": "कुछ गलत हुआ। फिर से कोशिश करें।"
     }
   },
+  "landlords": {
+    "title": "मकान मालिक",
+    "add": "मकान मालिक जोड़ें",
+    "search": "छोटा नाम, नाम या फ़ोन",
+    "type": "प्रकार",
+    "allTypes": "सभी प्रकार",
+    "place": "जगह",
+    "allPlaces": "सभी जगह",
+    "showInactive": "निष्क्रिय दिखाएँ",
+    "loading": "मकान मालिक लोड हो रहे हैं",
+    "loadError": "मकान मालिक लोड नहीं हो सके। कनेक्शन जाँचकर फिर कोशिश करें।",
+    "empty": "अभी कोई मकान मालिक नहीं। पहला जोड़ें।",
+    "noMatch": "इन फ़िल्टरों से कोई नहीं मिला।",
+    "inactive": "निष्क्रिय",
+    "menu": "मकान मालिक के विकल्प",
+    "edit": "विवरण बदलें",
+    "deactivate": "निष्क्रिय करें",
+    "reactivate": "सक्रिय करें",
+    "toast": {
+      "deactivated": "{name} निष्क्रिय किया गया",
+      "reactivated": "{name} सक्रिय किया गया"
+    },
+    "errors": {
+      "hasBalance": "इस पार्टी का अभी शेष है। पहले इसे चुकता करें।",
+      "hasOrders": "इस पार्टी के ऑर्डर बाकी हैं। पहले उन्हें पूरा या रद्द करें।",
+      "network": "सर्वर से जुड़ नहीं पा रहे। कनेक्शन जाँचें।",
+      "failed": "कुछ गलत हुआ। फिर से कोशिश करें।",
+      "hasGodowns": "इस मकान मालिक से अभी भी एक गोदाम किराए पर है।"
+    }
+  },
   "entities": {
     "adminOnly": "इकाइयाँ केवल एडमिन के लिए हैं।"
   },
@@ -922,6 +1007,8 @@
     "title": "बैंक खाते"
   },
   "common": {
+    "copy": "कॉपी करें",
+    "copied": "कॉपी हो गया",
     "clearSearch": "खोज साफ़ करें",
     "speech": {
       "speak": "बोलें",
@@ -935,6 +1022,12 @@
         "error": "सुन नहीं पाए। फिर कोशिश करें।"
       },
       "starting": "तैयार हो रहे हैं…"
+    },
+    "leave": {
+      "title": "यह लेन-देन छोड़ें?",
+      "body": "आपने जो भरा है वह मिट जाएगा।",
+      "stay": "लेन-देन पूरा करें",
+      "discard": "छोड़ें"
     }
   },
   "transactions": {
@@ -957,6 +1050,11 @@
       }
     },
     "picker": {
+      "taxGroups": {
+        "gst": "GST",
+        "rcm": "रिवर्स चार्ज मैकेनिज़्म",
+        "incomeTax": "आयकर"
+      },
       "search": "लेजर खोजें",
       "noMatch": "कोई लेजर नहीं मिला।",
       "new": "नया",
@@ -967,7 +1065,11 @@
       "typeToFind": "लेजर ढूँढने के लिए नाम लिखें।",
       "searching": "खोज रहे हैं…",
       "narrow": "पहले 20 दिख रहे हैं। और लिखकर छाँटें।",
-      "newParty": "नई पार्टी"
+      "newParty": "नई पार्टी",
+      "change": "बदलें",
+      "noTaxDue": "अभी कोई कर बकाया नहीं है।",
+      "edit": "विवरण बदलें",
+      "headTaken": "यह नाम पहले से उपयोग में है, या सहेजा नहीं जा सका।"
     },
     "receipt": {
       "title": "रसीद",
@@ -1021,6 +1123,7 @@
         "title": "रसीद सफलतापूर्वक बनी",
         "number": "लेनदेन ID",
         "voucher": "वाउचर",
+        "journal": "जर्नल एंट्री",
         "balances": "बैलेंस",
         "newTransaction": "नया लेनदेन",
         "loading": "लोड हो रहा है…",
@@ -1036,6 +1139,7 @@
       }
     },
     "voucher": {
+      "shareOn": "शेयर करें",
       "whatsApp": "WhatsApp पर भेजें",
       "whatsAppMessage": "{company} से ₹{amount} की रसीद {number}: {url}",
       "title": "रसीद वाउचर",
@@ -1082,6 +1186,12 @@
     },
     "loan": {
       "rate": "ब्याज % सालाना",
+      "lender": "ऋण किसने दिया",
+      "lenders": {
+        "bank": "बैंक",
+        "nbfc": "NBFC",
+        "individual": "व्यक्ति"
+      },
       "frequency": "ब्याज भुगतान",
       "frequencies": {
         "monthly": "मासिक",
@@ -1111,6 +1221,7 @@
         "tdsRate": "TDS दर %",
         "loanRate": "ब्याज % सालाना",
         "loanFrequency": "ब्याज भुगतान",
+        "loanLender": "ऋण किसने दिया",
         "into": "कहाँ मिला",
         "bank": "बैंक खाता",
         "reference": "रेफ़रेंस / UTR",
@@ -1118,7 +1229,8 @@
         "remarks": "टिप्पणी",
         "summary": "रसीद",
         "loan": "कौन सा ऋण",
-        "dueOn": "कब तक लौटाना है"
+        "dueOn": "कब तक लौटाना है",
+        "lenderPick": "कौन सा ऋणदाता?"
       },
       "hints": {
         "amount": "10,000",
@@ -1141,7 +1253,7 @@
       "problems": {
         "amount": "यह राशि नहीं लगती।",
         "required": "यह ज़रूरी है।",
-        "phone": "10 अंकों का मोबाइल, या STD कोड के साथ लैंडलाइन।",
+        "phone": "मोबाइल 6, 7, 8 या 9 से शुरू होता है। लैंडलाइन 0 से, STD कोड के साथ।",
         "pin": "पिन कोड 6 अंकों का होता है।",
         "rate": "दर 0 से 100 के बीच होती है।",
         "date": "दिन चुनें।",
@@ -1193,7 +1305,16 @@
       "left": "{left} बाकी",
       "dueBy": "{day} तक",
       "noLoans": "कोई खुला ऋण नहीं।",
-      "oldLoan": "पुराना ऋण"
+      "oldLoanFrom": "किससे लिया",
+      "oldLoanTaken": "लेने की तारीख",
+      "oldLoanLender": "चुनें कि ऋण किसने दिया।",
+      "oldLoanFill": "हाइलाइट किए गए फ़ील्ड भरें।",
+      "oldLoanCancel": "रद्द करें",
+      "oldLoanAdd": "ऋण जोड़ें",
+      "oldLoan": "पुराना ऋण",
+      "oldLoanOutstanding": "बकाया राशि",
+      "oldLoanLastEmi": "आखिरी EMI की तारीख",
+      "lenderNext": "आगे"
     },
     "payment": {
       "kinds": {
@@ -1214,6 +1335,7 @@
         },
         "problems": {
           "overBalance": "{where} में इतना नहीं है।",
+          "overBalanceTds": "TDS मिलाकर {total} है। {where} में सिर्फ़ {held} है।",
           "overBalanceBy": "{where} में सिर्फ़ {held} है।"
         },
         "sum": {
@@ -1242,6 +1364,28 @@
         "amountReceived": "दी गई राशि रु.",
         "receivedBy": "देने वाला",
         "receiverSign": "लेने वाले के हस्ताक्षर",
+        "selfInvoiceTitle": "भुगतान वाउचर और सेल्फ-इनवॉइस",
+        "selfInvoiceNo": "सेल्फ-इनवॉइस नं.",
+        "yes": "हाँ",
+        "placeOfSupply": "आपूर्ति का स्थान",
+        "unregistered": "अपंजीकृत, GSTIN नहीं",
+        "taxableValue": "कर योग्य मूल्य (₹)",
+        "billRow": "बिल पर GST {rate}%",
+        "lessTds": "घटाएँ TDS {rate}%",
+        "taxBreakdown": "कर का ब्योरा",
+        "tax": "कर",
+        "basis": "आधार",
+        "rate": "दर",
+        "on": "पर (₹)",
+        "goesTo": "कहाँ जाता है",
+        "toIncomeTax": "आयकर",
+        "toGst": "GST, भरने पर इनपुट क्रेडिट",
+        "reverseCharge": "रिवर्स चार्ज",
+        "taxToDeposit": "जमा करने योग्य कर",
+        "paidToLandlord": "मकान मालिक को दिया",
+        "amountPaid": "दी गई राशि",
+        "total": "कुल",
+        "billGst": "बिल {number}, GSTIN {gstin} पर GST: {rate}% पर {gst}।",
         "particulars": {
           "supplier": "खाते में भुगतान",
           "loan": "कर्ज़ दिया @ {rate}% सालाना, ब्याज {frequency}",
@@ -1251,7 +1395,86 @@
           "refund": "रिफ़ंड दिया",
           "taxPaid": "टैक्स भरा"
         }
+      },
+      "form": {
+        "steps": {
+          "source": "किससे भुगतान",
+          "kind": "किस लिए",
+          "to": "किसे भुगतान",
+          "tds": "TDS काटा",
+          "terms": "कर्ज़ की शर्तें",
+          "details": "संदर्भ और टिप्पणी",
+          "remarks": "टिप्पणी",
+          "head": "खर्च का खाता",
+          "tax": "कर",
+          "gst": "GST",
+          "payee": "किसे भुगतान",
+          "amount": "राशि",
+          "rent": "किराये का ब्योरा"
+        },
+        "available": "{held} उपलब्ध",
+        "missing": {
+          "source": "चुनें कि कहाँ से भुगतान हुआ।",
+          "kind": "चुनें कि भुगतान किस लिए था।",
+          "to": "चुनें कि भुगतान किसे हुआ, या लाल में दिखी जानकारी भरें।",
+          "terms": "कर्ज़ का ब्याज और उसकी अवधि भरें।",
+          "details": "तारीख चुनें।",
+          "gst": "बिल के GST की जानकारी भरें।",
+          "payee": "चुनें कि भुगतान किसे हुआ, या लाल में दिखी जानकारी भरें।",
+          "amount": "राशि दर्ज करें और चुनें कि कहाँ से भुगतान हुआ।",
+          "rent": "हर गोदाम का किराया और महीने दर्ज करें।"
+        },
+        "summary": "सारांश",
+        "noPan": "PAN नहीं",
+        "underLimit": "TDS सीमा से कम है, इसलिए TDS नहीं।",
+        "total": "कुल",
+        "nothingToPay": "भुगतान के लिए नकद या किसी बैंक खाते में पैसा नहीं है।",
+        "leftAfter": "इसके बाद {left} बचेगा",
+        "useThem": "इन्हें चुनें",
+        "searchLedger": "लेजर खोजें",
+        "declaredNoTds": "TDS नहीं: छोटे ट्रांसपोर्टर का घोषणा पत्र",
+        "rcmRow": "रिवर्स चार्ज GST {rate}%",
+        "rcmNote": "{on} पर। हम सरकार को भरेंगे और वापस क्लेम करेंगे।",
+        "billNote": "इसमें {rate}% पर GST {gst} शामिल है, वापस क्लेम होगा।",
+        "billNumber": "बिल नंबर",
+        "billDate": "बिल की तारीख",
+        "gstRate": "GST दर",
+        "panHint": "PAN दर्ज नहीं: TDS {rate}% होगा। कम करने के लिए जोड़ें।",
+        "gstModes": {
+          "none": "GST नहीं",
+          "bill": "बिल पर GST"
+        },
+        "payEmi": "EMI चुकाएँ · {amount}",
+        "months": "महीने",
+        "tooMuch": "किसी एक खाते में इतनी राशि नहीं है। अधिकतम उपलब्ध {amount} है।",
+        "interestDue": "ब्याज",
+        "rentDue": "कुल किराया",
+        "rentPerMonth": "मासिक किराया",
+        "godown": "गोदाम",
+        "due": "बकाया"
       }
+    },
+    "tdsTypes": {
+      "label": "इस खाते पर TDS",
+      "none": "कोई नहीं",
+      "rent": "किराया",
+      "contract": "ढुलाई और मज़दूरी",
+      "brokerage": "दलाली",
+      "hint": "एक बार चुनें; हर भुगतान का TDS वेबसाइट निकालेगी।"
+    },
+    "lender": {
+      "name": "ऋणदाता का नाम",
+      "namePlaceholder": "Bajaj Finance",
+      "branch": "शाखा (वैकल्पिक)",
+      "pan": "PAN (वैकल्पिक)",
+      "search": "ऋणदाता खोजें",
+      "none": "अभी कोई ऋणदाता नहीं।",
+      "new": "नया ऋणदाता",
+      "account": "ऋण खाता संख्या",
+      "emi": "EMI (वैकल्पिक)",
+      "pickBank": "बैंक चुनें",
+      "searchBank": "बैंक खोजें",
+      "saveFailed": "ऋणदाता सहेजा नहीं जा सका। फिर कोशिश करें।"
     }
   },
   "dues": {
@@ -1390,5 +1613,26 @@
       "fromDue": "देय तिथि से भुगतान तक",
       "of": "में से"
     }
+  },
+  "lenders": {
+    "title": "ऋणदाता",
+    "add": "ऋणदाता जोड़ें",
+    "search": "नाम या शाखा",
+    "showInactive": "निष्क्रिय दिखाएँ",
+    "loading": "ऋणदाता लोड हो रहे हैं",
+    "failed": "कुछ गलत हुआ। फिर कोशिश करें।",
+    "noMatch": "कोई ऋणदाता नहीं मिला।",
+    "empty": "अभी कोई ऋणदाता नहीं। पहला जोड़ें।",
+    "inactive": "निष्क्रिय",
+    "menu": "ऋणदाता विकल्प",
+    "edit": "विवरण बदलें",
+    "deactivate": "निष्क्रिय करें",
+    "reactivate": "सक्रिय करें",
+    "hasLoans": "इस ऋणदाता का ऋण अभी बाकी है।",
+    "duplicate": "यह ऋणदाता और शाखा पहले से जोड़े गए हैं।",
+    "addTitle": "ऋणदाता जोड़ें",
+    "editTitle": "ऋणदाता बदलें",
+    "close": "बंद करें",
+    "save": "ऋणदाता सहेजें"
   }
 }

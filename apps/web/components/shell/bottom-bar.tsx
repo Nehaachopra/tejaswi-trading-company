@@ -64,7 +64,7 @@ export function BottomBar({ role }: { role: Role }) {
           {/* More: opens the sheet with the admin's remaining pages */}
           {more.length > 0 && (
             <li>
-              <button type="button" aria-expanded={moreOpen} onClick={() => setMoreOpen(true)} className={cn(slot, tone(inMore))}>
+              <button type="button" data-asks-first aria-expanded={moreOpen} onClick={() => setMoreOpen(true)} className={cn(slot, tone(inMore))}>
                 <MenuIcon className="size-5" aria-hidden />
                 {t("more")}
               </button>

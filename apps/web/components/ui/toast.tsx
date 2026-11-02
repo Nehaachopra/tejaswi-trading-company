@@ -17,7 +17,7 @@ function Toast({ id, tone, message }: { id: string | number; tone: Tone; message
   return (
     <div
       className={cn(
-        "flex min-h-13 w-full items-center gap-2.5 rounded-control pl-4 pr-1 text-sm font-semibold text-ivory",
+        "flex min-h-13 w-[356px] max-w-full items-center gap-2.5 rounded-control pl-4 pr-1 text-sm font-semibold text-ivory",
         tone === "success" ? "bg-success" : tone === "info" ? "border border-ivory/60 bg-chestnut" : "bg-danger",
       )}
     >
@@ -46,12 +46,12 @@ export const toast = {
     sonner.custom((id) => <Toast id={id} tone="error" message={message} />, { duration: Infinity }),
 };
 
-// just below the 64px header: full width on phones, top-right from 600px
+// just below the 64px header: full width on phones, in the middle from 600px
 export function Toaster() {
   return (
     <SonnerToaster
-      position="top-right"
-      offset={{ top: 64 + 16, right: 24 }}
+      position="top-center"
+      offset={{ top: 64 + 16 }}
       mobileOffset={{ top: 64 + 12, left: 16, right: 16 }}
       gap={8}
       visibleToasts={3}

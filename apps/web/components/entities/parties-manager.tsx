@@ -4,6 +4,7 @@ import { ChevronDown, CircleAlert, Ellipsis, Pencil, Plus, Power, Search } from 
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { ADD_BUTTON, FILTER_BAR, FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
 import { ClearButton } from "~/components/ui/clear-button";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
@@ -22,7 +23,8 @@ function Filter<T extends string | null>({ label, current, options, picked, onPi
       label={label}
       surface="chestnut"
       align="left"
-      triggerClassName="min-h-9 max-w-44 gap-1.5 px-3 text-sm"
+      boxed
+      triggerClassName={FILTER_TRIGGER}
       trigger={
         <>
           <span className="truncate">{current}</span>
@@ -48,7 +50,7 @@ function Filter<T extends string | null>({ label, current, options, picked, onPi
   );
 }
 
-// /party, admin only: where parties are added, edited and made inactive (Accounts only shows their ledgers).
+// /entities/parties, admin only: where parties are added, edited and made inactive (Accounts only shows their ledgers).
 // + Add party, then a search over short name, name and phone with type and place filters and Show inactive (all
 // staying under the header), then a row per party: short name and type, full name, phone and city; tapping a row
 // edits it, its ⋯ menu also marks it inactive or active
@@ -90,20 +92,20 @@ export function PartiesManager() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6">
+    <main className={`${PAGE} pb-16`}>
       <h1 className="sr-only">{t("title")}</h1>
 
       <button
         type="button"
         onClick={() => setOpen({ id: "new", type: "none" })}
-        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-ivory px-5 font-heading text-lg font-bold text-chestnut sm:w-auto"
+        className={ADD_BUTTON}
       >
         <Plus className="size-5" aria-hidden /> {t("add")}
       </button>
 
       {/* search, then the filters, under the header while the list scrolls */}
-      <div className="sticky top-16 z-20 -mx-4 mt-3 flex flex-wrap items-center gap-2 bg-chestnut px-4 py-2 sm:-mx-6 sm:px-6">
-        <label className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory">
+      <div className={`mt-3 ${FILTER_BAR}`}>
+        <label className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory sm:w-auto sm:flex-1">
           <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
           <span className="sr-only">{t("search")}</span>
           <input
@@ -141,7 +143,7 @@ export function PartiesManager() {
       ) : shown.length === 0 ? (
         <p className="mt-16 text-center text-ivory/70">{search || city || type ? t("noMatch") : t("empty")}</p>
       ) : (
-        <ul className="mt-2 flex flex-col gap-3">
+        <ul className="mt-2 grid gap-3 lg:grid-cols-2">
           {shown.map((p) => (
             <li
               key={p.id}
@@ -154,9 +156,11 @@ export function PartiesManager() {
                   <span className="shrink-0 rounded-control border border-current/40 px-2 py-0.5 text-xs">{tf(`types.${kindOf(p.type)}`)}</span>
                   {!p.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
                 </span>
-                <span className="block truncate text-sm" title={p.name}>
-                  {p.name}
-                </span>
+                {p.shortName && (
+                  <span className="block truncate text-sm" title={p.name}>
+                    {p.name}
+                  </span>
+                )}
                 <span className="tabular block truncate text-xs opacity-70">{[p.phone && `+91 ${p.phone}`, p.city].filter(Boolean).join(" · ") || "—"}</span>
               </button>
 

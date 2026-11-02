@@ -7,6 +7,7 @@ import { healthRouter } from "./routes/health/route";
 import { inventoryRouter } from "./routes/inventory/route";
 import { jobsRouter } from "./routes/jobs/route";
 import { liveRouter } from "./routes/live/route";
+import { settingsRouter } from "./routes/settings/route";
 
 export const serverRouter = router({
   health: healthRouter,
@@ -16,6 +17,7 @@ export const serverRouter = router({
   transactions: transactionsRouter,
   jobs: jobsRouter,
   live: liveRouter,
+  settings: settingsRouter,
 });
 
 export { createContext, sessionFromRequest } from "./context";

@@ -62,11 +62,14 @@ export function EditGodownSheet({ godownId, onClose }: { godownId: string | null
       ) : (
         <form onSubmit={save} noValidate className="flex min-h-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
-            <GodownFields draft={draft} onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} tried={tried} />
-            {tried && !draftOk(draft) && <FieldMessage>{t("errors.fill")}</FieldMessage>}
-            {error && <FieldMessage>{error}</FieldMessage>}
+            <GodownFields draft={draft} onChange={(patch) => {
+                setError(null);
+                setDraft((d) => ({ ...d, ...patch }));
+              }} tried={tried} />
           </div>
-          <footer className="flex shrink-0 flex-col border-t border-chestnut/15 px-5 py-4">
+          <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
+            {tried && !draftOk(draft) && <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>}
+            {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
             <SubmitButton busy={update.isPending}>{t("saveDetails")}</SubmitButton>
           </footer>
         </form>

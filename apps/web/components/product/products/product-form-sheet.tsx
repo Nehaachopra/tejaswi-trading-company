@@ -4,6 +4,7 @@ import { Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { ADD_ON_IVORY } from "~/components/ui/page-styles";
 import { fieldClass, SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { NumberInput } from "~/components/ui/number-input";
@@ -168,20 +169,19 @@ export function ProductFormSheet({ group, onClose }: { group: ProductGroup | nul
             <button
               type="button"
               onClick={() => setPacks((all) => [...all, emptyPack(Math.max(...all.map((x) => x.key)) + 1)])}
-              className="flex min-h-11 items-center justify-center gap-1.5 rounded-control border border-dashed border-chestnut/60 text-sm font-medium hover:border-chestnut"
+              className={ADD_ON_IVORY}
             >
               <Plus className="size-4" aria-hidden /> {t("anotherPack")}
             </button>
           </fieldset>
 
-          {/* what to fix: the highlighted fields, or the server's reason */}
-          {duplicates.length > 0 && <FieldMessage>{t("errors.duplicate", { packs: duplicates.join(", ") })}</FieldMessage>}
-          {tried && !filled && <FieldMessage>{t("errors.fill")}</FieldMessage>}
-          {serverError && <FieldMessage>{serverError}</FieldMessage>}
         </div>
 
-        {/* the save button stays at the bottom of the sheet */}
-        <footer className="flex shrink-0 flex-col border-t border-chestnut/15 px-5 py-4">
+        {/* what to fix, and the save button, stay at the bottom of the sheet */}
+        <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
+          {duplicates.length > 0 && <FieldMessage className="mt-0">{t("errors.duplicate", { packs: duplicates.join(", ") })}</FieldMessage>}
+          {tried && !filled && <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>}
+          {serverError && <FieldMessage className="mt-0">{serverError}</FieldMessage>}
           <SubmitButton busy={create.isPending}>{t("save")}</SubmitButton>
         </footer>
       </form>

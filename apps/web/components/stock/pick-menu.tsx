@@ -13,28 +13,46 @@ import { cn } from "~/lib/utils";
 export function PickMenu<T extends string | null>({
   label,
   current,
+  currentHint,
   options,
   picked,
   onPick,
   disabled,
   invalid,
   className,
+  align = "left",
+  matchWidth = false,
+  inFlow = false,
   searchable = false,
   searchLabel,
   noMatch,
+  onTyped,
+  typedLabel,
 }: {
   label: string;
   current: string;
-  options: { id: T; name: string; hint?: string }[];
+  // beside the current choice, before the arrow
+  currentHint?: string;
+  // `sub` is a second line under the name, `hint` sits on the right
+  options: { id: T; name: string; sub?: string; hint?: string }[];
   picked: T;
   onPick: (id: T) => void;
   disabled?: boolean;
   invalid?: boolean;
   className?: string;
+  // which edge of the trigger the panel lines up with
+  align?: "left" | "right";
+  // the panel exactly as wide as the trigger
+  matchWidth?: boolean;
+  // the panel pushes what's below it down instead of opening over it
+  inFlow?: boolean;
   searchable?: boolean;
   // the search box's placeholder, and what shows when nothing matches
   searchLabel?: string;
   noMatch?: string;
+  // a name the list doesn't have: what's typed in the search can be used as it is
+  onTyped?: (text: string) => void;
+  typedLabel?: (text: string) => string;
 }) {
   const tc = useTranslations("common");
   const [search, setSearch] = useState("");
@@ -44,12 +62,18 @@ export function PickMenu<T extends string | null>({
   return (
     <Menu
       label={label}
-      align="left"
+      align={align}
+      boxed
+      matchWidth={matchWidth}
+      inFlow={inFlow}
+      // a list that narrows as you search keeps one width, whatever names are showing
+      panelClassName={searchable && !matchWidth ? "w-72 max-w-[calc(100vw-2rem)]" : undefined}
       disabled={disabled}
-      triggerClassName={cn("min-h-11 w-full min-w-0 justify-between px-3 text-sm", invalid && "border-2 border-danger", className)}
+      triggerClassName={cn("min-h-11 w-full min-w-0 justify-between border-0 px-3 text-sm shadow-[0_0_5px_0] shadow-chestnut/40", invalid && "shadow-danger/80", className)}
       trigger={
         <>
-          <span className="truncate">{current}</span>
+          <span className="min-w-0 flex-1 truncate text-left">{current}</span>
+          {currentHint && <span className="tabular shrink-0 font-semibold">{currentHint}</span>}
           <ChevronDown className="size-4 shrink-0" aria-hidden />
         </>
       }
@@ -93,11 +117,25 @@ export function PickMenu<T extends string | null>({
                 close();
               }}
             >
-              <span className="flex-1 truncate">{option.name}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate">{option.name}</span>
+                {option.sub && <span className="tabular block text-xs opacity-70">{option.sub}</span>}
+              </span>
               {option.hint && <span className="tabular shrink-0 text-xs opacity-70">{option.hint}</span>}
             </MenuItem>
           ))}
-          {shown.length === 0 && <p className="px-3 py-3 text-sm">{noMatch ?? "—"}</p>}
+          {shown.length === 0 && !onTyped && <p className="px-3 py-3 text-sm">{noMatch ?? "—"}</p>}
+          {onTyped && needle !== "" && !options.some((o) => o.name.toLowerCase() === needle) && (
+            <MenuItem
+              onClick={() => {
+                onTyped(search.trim());
+                setSearch("");
+                close();
+              }}
+            >
+              <span className="flex-1 truncate font-semibold">{typedLabel?.(search.trim()) ?? search.trim()}</span>
+            </MenuItem>
+          )}
           {shown.length > 100 && <p className="px-3 py-2 text-xs">{`+${shown.length - 100}`}</p>}
         </>
       )}

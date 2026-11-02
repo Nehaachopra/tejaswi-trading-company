@@ -59,7 +59,7 @@ function Group({ item, current, pathname, label }: { item: NavItem; current: boo
 
   return (
     <li>
-      <button type="button" aria-expanded={open} aria-controls={listId} onClick={() => setOpen((v) => !v)} className={cn(row(current), "w-full text-left")}>
+      <button type="button" data-asks-first aria-expanded={open} aria-controls={listId} onClick={() => setOpen((v) => !v)} className={cn(row(current), "w-full text-left")}>
         <item.icon className="size-5" aria-hidden /> <span className="flex-1">{label}</span>
         <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} aria-hidden />
       </button>

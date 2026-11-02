@@ -38,6 +38,10 @@ export const partiesTable = pgTable(
 
     pan: varchar("pan", { length: 10 }),
 
+    // a transporter with 10 or fewer goods carriages who gave their PAN and a declaration: no TDS on transport
+    // (section 194C(6))
+    transportDeclaration: boolean("transport_declaration").notNull().default(false),
+
     isActive: boolean("is_active")
       .notNull()
       .default(true),

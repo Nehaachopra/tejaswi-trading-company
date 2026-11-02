@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { ADD_BUTTON, PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { trpc } from "~/trpc/client";
@@ -25,6 +26,7 @@ const MASTER_PAGE: Record<string, string | undefined> = {
   creditors: "/account/creditor",
   debtorCreditors: "/account/debtor-creditor",
   parties: "/account/parties",
+  lenders: "/entities/lenders",
 };
 
 // /account, admin only: every ledger account under its head (Asset, Liability, Income, Expense, Profit, Loss),
@@ -46,7 +48,7 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
   const fits = (name: string) => needle === "" || name.toLowerCase().includes(needle);
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 sm:px-6">
+    <main className={`${PAGE} pb-16`}>
       <h1 className="sr-only">{only ? t(`heads.${only}`) : t("title")}</h1>
 
       {/* + New ledger, under this head */}
@@ -54,7 +56,7 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
         <button
           type="button"
           onClick={() => setSheet({ kind: "new", head: addable })}
-          className="mb-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-ivory px-5 font-heading text-lg font-bold text-chestnut sm:w-auto"
+          className={`mb-6 ${ADD_BUTTON}`}
         >
           <Plus className="size-5" aria-hidden /> {t("newLedger")}
         </button>

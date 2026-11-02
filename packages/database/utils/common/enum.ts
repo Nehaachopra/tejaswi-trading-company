@@ -120,6 +120,10 @@ export const receivedForEnum = pgEnum("received_for", ["customer", "loan_receive
 
 // what a payment was for: a supplier, a loan we repay, the interest on one, a loan we give, an expense, a tax, a refund
 // to a customer
+// which TDS an expense head's payments carry (none when null): rent (194I), contract work such as transport,
+// labour and loading (194C), brokerage or commission (194H)
+export const tdsTypeEnum = pgEnum("tds_type", ["rent", "contract", "brokerage"]);
+
 export const paidForEnum = pgEnum("paid_for", ["supplier", "loan_repaid", "interest_paid", "loan_given", "expense", "tax_paid", "refund"]);
 
 export const paymentModeEnum = pgEnum("payment_mode", ["cash", "upi", "net_banking", "card"]);

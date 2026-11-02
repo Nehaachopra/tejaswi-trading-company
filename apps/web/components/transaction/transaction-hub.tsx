@@ -18,6 +18,7 @@ import {
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
+import { PAGE } from "~/components/ui/page-styles";
 import { toast } from "~/components/ui/toast";
 
 type Kind = { key: string; icon: LucideIcon; href?: string; adminOnly?: boolean };
@@ -46,7 +47,7 @@ export function TransactionHub({ isAdmin }: { isAdmin: boolean }) {
   const t = useTranslations("transactions.hub");
 
   return (
-    <main className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6">
+    <main className={`${PAGE} pb-16`}>
       <h1 className="sr-only">{t("title")}</h1>
       <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {KINDS.filter((k) => isAdmin || !k.adminOnly).map((k) => (

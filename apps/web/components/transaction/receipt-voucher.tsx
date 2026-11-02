@@ -20,6 +20,11 @@ type Voucher = Omit<Receipt, "receivedFor" | "receivedFromName" | "receivedFromL
   flow: "receipt" | "payment";
   kind: string;
   counterName: string;
+  // the PAN of whoever a payment's TDS was taken from
+  tdsPan?: Payment["tdsPan"];
+  // reverse charge, where the voucher is also our self-invoice; and the GST on a supplier's bill
+  rcm?: Payment["rcm"];
+  bill?: Payment["bill"];
 };
 
 const fromReceipt = ({ receivedFor, receivedFromName, receivedFromLedgerId: _l, ...r }: Receipt): Voucher => ({
@@ -41,6 +46,9 @@ const dated = (d: Date | string) => new Intl.DateTimeFormat("en-GB", { timeZone:
 
 // an amount with paise, Indian grouping: 10,204.08
 const money = (n: number) => n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// a figure in the strip that adds up to Total
+const total = "tabular font-heading text-base font-bold sm:text-lg";
 
 // the voucher's lines and boxes
 const cell = "border-chestnut/40 px-2 py-1.5";
@@ -144,6 +152,9 @@ export function ReceiptVoucher({ id, shareKey, flow = "receipt" }: { id: string;
   const receiptLink = trpc.transactions.receipt.shareKey.useQuery({ transactionId: id }, { enabled: !shared && !isPayment });
   const paymentLink = trpc.transactions.payment.shareKey.useQuery({ transactionId: id }, { enabled: !shared && isPayment });
   const link = isPayment ? paymentLink : receiptLink;
+  // a payment under reverse charge has a copy kept as a file, once the job has stored it; the newest version comes first
+  const documents = trpc.transactions.history.documents.useQuery({ transactionId: id }, { enabled: !shared && !!paymentOwn.data?.rcm, retry: false });
+  const storedCopy = documents.data?.[0];
 
   if (receipt.isPending)
     return (
@@ -160,9 +171,28 @@ export function ReceiptVoucher({ id, shareKey, flow = "receipt" }: { id: string;
 
   const r = isPayment ? fromPayment(receipt.data as Payment) : fromReceipt(receipt.data as Receipt);
   const p = r.party;
-  const settled = Math.round((r.amount + (r.tdsAmount ?? 0)) * 100) / 100;
+  // what it comes to with TDS and reverse-charge GST, as on the payment form
+  const settled = Math.round((r.amount + (r.tdsAmount ?? 0) + (r.rcm?.gst ?? 0)) * 100) / 100;
   const fromName = p ? (p.shortName ?? titleCase(p.name.toLowerCase())) : titleCase(r.counterName);
   const lines = particulars(r);
+  // a payment as the template lays it out: its value before tax, what came off or went on, and each tax
+  const tds = r.tdsAmount ?? 0;
+  const value = r.rcm?.taxable ?? r.bill?.taxable ?? Math.round((r.amount + tds) * 100) / 100;
+  const taxed = isPayment && (tds > 0 || !!r.rcm);
+  const worked = taxed || !!r.bill;
+  // taxable value only where there's GST
+  const valueWord = r.rcm || r.bill ? ownWords("taxableValue") : t("amount");
+  const half = r.rcm ? Math.round((r.rcm.gst / 2) * 100) / 100 : 0;
+  // the TDS row's base: what its rate is on, the period's whole once past a limit
+  const tdsOn = r.tdsRate ? Math.round((tds / r.tdsRate) * 10000) / 100 : 0;
+  const taxRows: [string, string, number, number, number, string][] = [
+    ...(tds > 0 ? ([["TDS", "", r.tdsRate ?? 0, tdsOn, tds, ownWords("toIncomeTax")]] as [string, string, number, number, number, string][]) : []),
+    ...(r.rcm
+      ? r.rcm.otherState
+        ? ([["IGST", ownWords("reverseCharge"), r.rcm.rate, r.rcm.taxable, r.rcm.gst, ownWords("toGst")]] as [string, string, number, number, number, string][])
+        : (["CGST", "SGST"].map((tax) => [tax, ownWords("reverseCharge"), r.rcm!.rate / 2, r.rcm!.taxable, half, ownWords("toGst")]) as [string, string, number, number, number, string][])
+      : []),
+  ];
 
   return (
     <main className="mx-auto max-w-4xl px-4 pb-28 pt-6 sm:px-6">
@@ -184,23 +214,30 @@ export function ReceiptVoucher({ id, shareKey, flow = "receipt" }: { id: string;
               type="button"
               disabled={!link.data}
               onClick={() => window.open(whatsAppLink(r, link.data!.key, t), "_blank", "noopener")}
+              aria-label={t("whatsApp")}
               className="on-ivory flex min-h-11 items-center justify-center gap-2 rounded-control bg-ivory px-3 text-sm font-semibold text-chestnut disabled:opacity-50 sm:px-4"
             >
+              {/* "Share on", then the icon that says where */}
+              <span className="whitespace-nowrap">{base("shareOn")}</span>
               <WhatsAppIcon className="size-4 shrink-0" />
-              {/* just the name on a phone, so both buttons fit on one line */}
-              <span className="whitespace-nowrap sm:hidden">WhatsApp</span>
-              <span className="hidden whitespace-nowrap sm:inline">{t("whatsApp")}</span>
             </button>
           )}
-          <button type="button" onClick={() => window.print()} className="on-ivory flex min-h-11 items-center justify-center gap-2 rounded-control bg-ivory px-3 text-sm font-semibold text-chestnut sm:px-4">
-            <Download className="size-4" aria-hidden /> {t("download")}
-          </button>
+          {/* the download: the GST copy kept as a file where there is one (the admin's), or the page printed as a PDF */}
+          {storedCopy?.url ? (
+            <a href={storedCopy.url} target="_blank" rel="noreferrer" className="on-ivory flex min-h-11 items-center justify-center gap-2 rounded-control bg-ivory px-3 text-sm font-semibold text-chestnut sm:px-4">
+              <Download className="size-4" aria-hidden /> {t("download")}
+            </a>
+          ) : (
+            <button type="button" onClick={() => window.print()} className="on-ivory flex min-h-11 items-center justify-center gap-2 rounded-control bg-ivory px-3 text-sm font-semibold text-chestnut sm:px-4">
+              <Download className="size-4" aria-hidden /> {t("download")}
+            </button>
+          )}
         </div>
       </div>
 
       {/* the voucher itself */}
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
-        <p className="pb-2 text-center font-heading text-2xl font-bold">{t("title")}</p>
+        <p className="pb-2 text-center font-heading text-2xl font-bold">{r.rcm ? ownWords("selfInvoiceTitle") : t("title")}</p>
 
         <div className="border border-chestnut/40">
           {/* our details, and the voucher's */}
@@ -230,6 +267,15 @@ export function ReceiptVoucher({ id, shareKey, flow = "receipt" }: { id: string;
               <Detail label={t("mode")} value={r.settledIn === "cash" ? t("cash") : t("bank")} />
               <Detail label={t("reference")} value={r.referenceNumber} />
               <Detail label={t("dated")} value={r.referenceNumber ? dated(r.dateTime) : null} />
+              {/* reverse charge: this is also our self-invoice */}
+              {r.rcm && (
+                <>
+                  <Detail label={ownWords("selfInvoiceNo")} value={r.assignedId} />
+                  <Detail label="RCM" value={ownWords("yes")} />
+                  <Detail label={ownWords("placeOfSupply")} value={`${r.company.state} (${r.company.stateCode})`} />
+                  <Detail label="SAC" value={r.rcm.sac} />
+                </>
+              )}
             </div>
           </div>
 
@@ -241,6 +287,7 @@ export function ReceiptVoucher({ id, shareKey, flow = "receipt" }: { id: string;
               </p>
               <div className={cn(cell, "flex flex-col gap-0.5")}>
                 {p?.shortName && <span className="font-medium">{p.name}</span>}
+                {r.rcm && !p?.address?.gstin && <span>{r.rcm.supplierGstin ? `GSTIN : ${r.rcm.supplierGstin}` : ownWords("unregistered")}</span>}
                 {p?.address && (
                   <>
                     <span className="flex items-start gap-1.5">
@@ -252,6 +299,7 @@ export function ReceiptVoucher({ id, shareKey, flow = "receipt" }: { id: string;
                     </span>
                   </>
                 )}
+                {r.tdsPan && <span>PAN : {r.tdsPan}</span>}
                 {(p?.address?.gstin || r.partyPhone) && (
                   <span className="flex flex-wrap gap-x-4">
                     {p?.address?.gstin && <span>GSTIN : {p.address.gstin}</span>}
@@ -279,7 +327,8 @@ export function ReceiptVoucher({ id, shareKey, flow = "receipt" }: { id: string;
               <tr className="border-b border-chestnut/40 text-left">
                 <th className={cn(cell, "w-12 border-r font-semibold")}>{t("sl")}</th>
                 <th className={cn(cell, "border-r font-semibold")}>{t("particularsHead")}</th>
-                <th className={cn(cell, "w-36 text-right font-semibold")}>{t("amount")}</th>
+                {r.rcm && <th className={cn(cell, "w-20 border-r font-semibold")}>SAC</th>}
+                <th className={cn(cell, "w-40 text-right font-semibold")}>{worked ? valueWord : t("amount")}</th>
               </tr>
             </thead>
             <tbody>
@@ -287,10 +336,11 @@ export function ReceiptVoucher({ id, shareKey, flow = "receipt" }: { id: string;
                 <tr key={i} className="align-top">
                   <td className={cn(cell, "border-r")}>{i + 1}</td>
                   <td className={cn(cell, "border-r")}>{words}</td>
-                  <td className={cn(cell, "tabular text-right")}>{money(amount)}</td>
+                  {r.rcm && <td className={cn(cell, "tabular border-r")}>{r.rcm.sac}</td>}
+                  <td className={cn(cell, "tabular text-right")}>{money(isPayment && worked ? value : amount)}</td>
                 </tr>
               ))}
-              {r.tdsAmount !== null && (
+              {!isPayment && r.tdsAmount !== null && (
                 <tr className="align-top">
                   <td className={cn(cell, "border-r")}>{lines.length + 1}</td>
                   <td className={cn(cell, "border-r")}>{t("tdsLine", { rate: r.tdsRate ?? 0 })}</td>
@@ -301,6 +351,7 @@ export function ReceiptVoucher({ id, shareKey, flow = "receipt" }: { id: string;
               <tr aria-hidden>
                 <td className="h-16 border-r border-chestnut/40" />
                 <td className="border-r border-chestnut/40" />
+                {r.rcm && <td className="border-r border-chestnut/40" />}
                 <td />
               </tr>
             </tbody>
@@ -310,9 +361,29 @@ export function ReceiptVoucher({ id, shareKey, flow = "receipt" }: { id: string;
           <div className="grid border-t border-chestnut/40 sm:grid-cols-[1fr_1.5fr]">
             <ReceivedIn r={r} label={t("receivedIn")} className="hidden sm:grid sm:border-r" />
             <div className="grid grid-cols-[1fr_9rem] content-start">
-              <span className={cn(cell, "border-b border-r text-right font-semibold")}>{t("amountReceived")}</span>
-              <span className={cn(cell, "border-b tabular text-right font-semibold")}>{money(r.amount)}</span>
-              {r.tdsAmount !== null && (
+              {/* a payment: its value, what came off it, and what was paid */}
+              {isPayment && (tds > 0 || r.bill) && (
+                <>
+                  <span className={cn(cell, "border-b border-r text-right")}>{valueWord}</span>
+                  <span className={cn(cell, "border-b tabular text-right")}>{money(value)}</span>
+                </>
+              )}
+              {r.bill && (
+                <>
+                  <span className={cn(cell, "border-b border-r text-right")}>{ownWords("billRow", { rate: r.bill.rate })}</span>
+                  <span className={cn(cell, "border-b tabular text-right")}>{money(r.bill.gst)}</span>
+                </>
+              )}
+              {isPayment && tds > 0 && (
+                <>
+                  <span className={cn(cell, "border-b border-r text-right")}>{ownWords("lessTds", { rate: r.tdsRate ?? 0 })}</span>
+                  <span className={cn(cell, "border-b tabular text-right")}>({money(tds)})</span>
+                </>
+              )}
+              <span className={cn(cell, "border-r text-right font-semibold", !isPayment && "border-b")}>{t("amountReceived")}</span>
+              <span className={cn(cell, "tabular text-right font-semibold", !isPayment && "border-b")}>{money(r.amount)}</span>
+              {/* a receipt: the TDS the customer took, and what it settled */}
+              {!isPayment && r.tdsAmount !== null && (
                 <>
                   <span className={cn(cell, "border-b border-r text-right font-semibold")}>{t("tdsDeducted")}</span>
                   <span className={cn(cell, "border-b tabular text-right")}>{money(r.tdsAmount)}</span>
@@ -323,11 +394,80 @@ export function ReceiptVoucher({ id, shareKey, flow = "receipt" }: { id: string;
             </div>
           </div>
 
+          {/* each tax: its basis, rate, what it's on, and where it goes */}
+          {taxed && (
+            <div className="border-t border-chestnut/40">
+              <p className={cn(cell, "border-b bg-chestnut/[0.06] font-semibold")}>{ownWords("taxBreakdown")}</p>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[34rem] border-collapse">
+                  <thead>
+                    <tr className="border-b border-chestnut/40 text-left">
+                      <th className={cn(cell, "border-r font-semibold")}>{ownWords("tax")}</th>
+                      <th className={cn(cell, "border-r font-semibold")}>{ownWords("basis")}</th>
+                      <th className={cn(cell, "border-r text-right font-semibold")}>{ownWords("rate")}</th>
+                      <th className={cn(cell, "border-r text-right font-semibold")}>{ownWords("on")}</th>
+                      <th className={cn(cell, "border-r text-right font-semibold")}>{t("amount")}</th>
+                      <th className={cn(cell, "font-semibold")}>{ownWords("goesTo")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {taxRows.map(([tax, basis, rate, on, amount, goes]) => (
+                      <tr key={tax} className="align-top">
+                        <td className={cn(cell, "border-r")}>{tax}</td>
+                        <td className={cn(cell, "border-r")}>{basis}</td>
+                        <td className={cn(cell, "tabular border-r text-right")}>{rate}%</td>
+                        <td className={cn(cell, "tabular border-r text-right")}>{money(on)}</td>
+                        <td className={cn(cell, "tabular border-r text-right")}>{money(amount)}</td>
+                        <td className={cell}>{goes}</td>
+                      </tr>
+                    ))}
+                    <tr className="border-t border-chestnut/40 font-bold">
+                      <td colSpan={4} className={cn(cell, "border-r")}>{ownWords("taxToDeposit")}</td>
+                      <td className={cn(cell, "tabular border-r text-right")}>{money(tds + (r.rcm?.gst ?? 0))}</td>
+                      <td />
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* what it all comes to: on a phone the parts share a row and Total takes the full width below them */}
+              <div className="flex flex-col border-t border-chestnut/40 sm:flex-row">
+                <div className="flex min-w-0 border-b border-chestnut/40 sm:contents">
+                  <p className={cn(cell, "flex min-w-0 flex-1 flex-col border-r last:border-r-0 sm:last:border-r")}>
+                    <span className="text-xs">{ownWords(r.rcm?.service === "rent" ? "paidToLandlord" : "amountPaid")}</span>
+                    <span className={total}>₹{money(r.amount)}</span>
+                  </p>
+                  {tds > 0 && (
+                    <p className={cn(cell, "flex min-w-0 flex-1 flex-col border-r last:border-r-0 sm:last:border-r")}>
+                      <span className="text-xs">TDS {r.tdsRate}%</span>
+                      <span className={total}>₹{money(tds)}</span>
+                    </p>
+                  )}
+                  {r.rcm && (
+                    <p className={cn(cell, "flex min-w-0 flex-1 flex-col border-r last:border-r-0 sm:last:border-r")}>
+                      <span className="text-xs">RCM GST {r.rcm.rate}%</span>
+                      <span className={total}>₹{money(r.rcm.gst)}</span>
+                    </p>
+                  )}
+                </div>
+                <p className={cn(cell, "flex min-w-0 flex-1 flex-col bg-chestnut text-ivory print:bg-[#3b1f14]")}>
+                  <span className="text-xs">{ownWords("total")}</span>
+                  <span className={total}>₹{money(settled)}</span>
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* the amount in words */}
           <div className="grid border-t border-chestnut/40 sm:grid-cols-[12rem_1fr]">
             <span className={cn(cell, "font-semibold sm:border-r")}>{t("inWords")}</span>
-            <span className={cell}>{amountInWords(r.amount)}</span>
+            <span className={cell}>{amountInWords(isPayment ? settled : r.amount)}</span>
           </div>
+
+          {/* the GST on the supplier's bill */}
+          {r.bill && (
+            <p className={cn(cell, "border-t")}>{ownWords("billGst", { number: r.bill.number, gstin: r.bill.gstin, rate: r.bill.rate, gst: `₹${money(r.bill.gst)}` })}</p>
+          )}
         </div>
 
         {/* computer generated, and the signatures */}
@@ -336,6 +476,7 @@ export function ReceiptVoucher({ id, shareKey, flow = "receipt" }: { id: string;
           <p>
             {t("receivedBy")}: {r.createdByName}
           </p>
+          {r.rcm && <p className="font-semibold">{t("signatory")}</p>}
           <p className="font-semibold">{isPayment ? t("receiverSign") : t("signatory")}</p>
         </div>
 

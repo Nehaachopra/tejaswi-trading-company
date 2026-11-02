@@ -38,7 +38,7 @@ export function LoanTerms({ draft, onChange, tried }: { draft: LoanDraft; onChan
   return (
     <div className="flex flex-col gap-4">
       {/* the rate */}
-      <label className="flex w-40 flex-col gap-1.5 text-sm font-medium">
+      <label className="flex w-40 flex-col gap-2.5 text-xs font-semibold">
         <span>
           {t("rate")}
           <RequiredMark />
@@ -56,7 +56,7 @@ export function LoanTerms({ draft, onChange, tried }: { draft: LoanDraft; onChan
 
       {/* how often it's paid */}
       <div role="radiogroup" aria-label={t("frequency")} className="flex flex-col gap-2">
-        <span className="text-sm font-medium">
+        <span className="text-xs font-semibold">
           {t("frequency")}
           <RequiredMark />
         </span>

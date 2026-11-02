@@ -105,11 +105,14 @@ export function AddGodownSheet({ open, onClose }: { open: boolean; onClose: () =
         // step 1: the details
         <form onSubmit={next} noValidate className="flex min-h-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
-            <GodownFields draft={draft} onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} tried={tried} />
-            {tried && !draftOk(draft) && <FieldMessage>{t("errors.fill")}</FieldMessage>}
-            {error && <FieldMessage>{error}</FieldMessage>}
+            <GodownFields draft={draft} onChange={(patch) => {
+                setError(null);
+                setDraft((d) => ({ ...d, ...patch }));
+              }} tried={tried} />
           </div>
-          <footer className="flex shrink-0 flex-col border-t border-chestnut/15 px-5 py-4">
+          <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
+            {tried && !draftOk(draft) && <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>}
+            {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
             <SubmitButton busy={false}>{t("next")}</SubmitButton>
           </footer>
         </form>
@@ -194,7 +197,7 @@ export function AddGodownSheet({ open, onClose }: { open: boolean; onClose: () =
           {/* the totals, Back, and Save */}
           <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
             <p className="tabular text-center text-sm text-chestnut/80">{t("summary", { packs: typed.length - wrong.size, units })}</p>
-            {error && <FieldMessage>{error}</FieldMessage>}
+            {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
             <div className="flex gap-2">
               <button
                 type="button"

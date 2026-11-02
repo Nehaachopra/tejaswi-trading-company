@@ -18,6 +18,8 @@ export const MASTERS = {
   bank: { group: "asset", name: "Bank" },
   creditors: { group: "liability", name: "Creditors" },
   employees: { group: "liability", name: "Employees" },
+  // banks and NBFCs we took term loans from, one ledger each
+  lenders: { group: "liability", name: "Bank loans" },
   // parties with no sale or purchase yet (added from a receipt or in Entities); their first sale or purchase moves
   // them to Debtors or Creditors
   parties: { group: "asset", name: "Parties" },
@@ -34,13 +36,14 @@ export const LEDGERS = {
   // TDS customers deduct from us
   tdsReceivable: { group: "asset", name: "tds receivable" },
 
-  outputCgst: { group: "liability", name: "output cgst" },
-  outputSgst: { group: "liability", name: "output sgst" },
-  outputIgst: { group: "liability", name: "output igst" },
-  // reverse-charge GST stays apart from normal output GST, for GSTR-3B
-  outputCgstRcm: { group: "liability", name: "output cgst (rcm)" },
-  outputSgstRcm: { group: "liability", name: "output sgst (rcm)" },
-  outputIgstRcm: { group: "liability", name: "output igst (rcm)" },
+  // GST collected, until it's paid
+  outputCgst: { group: "liability", name: "output cgst payable" },
+  outputSgst: { group: "liability", name: "output sgst payable" },
+  outputIgst: { group: "liability", name: "output igst payable" },
+  // reverse-charge GST owed, until it's paid; apart from output GST, which it never touches
+  rcmCgstPayable: { group: "liability", name: "input cgst payable (rcm)" },
+  rcmSgstPayable: { group: "liability", name: "input sgst payable (rcm)" },
+  rcmIgstPayable: { group: "liability", name: "input igst payable (rcm)" },
   // TDS we deduct from others
   tdsPayable: { group: "liability", name: "tds payable" },
   tcs: { group: "liability", name: "tcs" },
@@ -62,6 +65,13 @@ export const LEDGERS = {
   saleReturn: { group: "expense", name: "sale return" },
   discountGiven: { group: "expense", name: "discount given" },
   rent: { group: "expense", name: "rent" },
+  // paid to truck owners: TDS as contract work, and no GST where there's no consignment note
+  transport: { group: "expense", name: "transport" },
+  // the other heads whose tax follows from what they are: people never pick a TDS type or a GST treatment for these
+  labour: { group: "expense", name: "labour" },
+  brokerage: { group: "expense", name: "brokerage" },
+  professionalFees: { group: "expense", name: "professional fees" },
+  legalFees: { group: "expense", name: "legal fees" },
   electricity: { group: "expense", name: "electricity" },
   wifi: { group: "expense", name: "wifi expense" },
   // the interest part of a loan we repay

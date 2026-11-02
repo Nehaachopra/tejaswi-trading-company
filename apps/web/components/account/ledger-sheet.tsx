@@ -10,10 +10,13 @@ import { toast } from "~/components/ui/toast";
 import { titleCase } from "~/lib/format";
 import { trpc } from "~/trpc/client";
 
+import { type TdsType, TdsTypePicker } from "../transaction/tds-type-picker";
 import { type Head, usualSide } from "./balance";
 
 // what the sheet is for: a new ledger under a head, or a new name for one the admin added
-export type LedgerSheetFor = { kind: "new"; head: Exclude<Head, "profit" | "loss"> } | { kind: "rename"; id: string; head: Head; name: string };
+export type LedgerSheetFor =
+  | { kind: "new"; head: Exclude<Head, "profit" | "loss"> }
+  | { kind: "rename"; id: string; head: Head; name: string; tdsType: TdsType | null };
 
 const NAME_MAX = 150;
 
@@ -28,6 +31,8 @@ export function LedgerSheet({ open, onClose }: { open: LedgerSheetFor | null; on
   const create = trpc.accounts.ledger.create.useMutation();
   const update = trpc.accounts.ledger.update.useMutation();
   const [name, setName] = useState("");
+  // an expense head's TDS (rent, transport and labour, brokerage)
+  const [tdsType, setTdsType] = useState<TdsType | null>(null);
   const [tried, setTried] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +40,7 @@ export function LedgerSheet({ open, onClose }: { open: LedgerSheetFor | null; on
   useEffect(() => {
     if (!open) return;
     setName(open.kind === "rename" ? titleCase(open.name) : "");
+    setTdsType(open.kind === "rename" ? open.tdsType : null);
     setTried(false);
     setError(null);
   }, [open]);
@@ -46,9 +52,13 @@ export function LedgerSheet({ open, onClose }: { open: LedgerSheetFor | null; on
     e.preventDefault();
     setTried(true);
     setError(null);
-    if (bad) return setError(t("errors.fill"));
+    if (bad) return;
     try {
-      const saved = open!.kind === "new" ? await create.mutateAsync({ head: open!.head, name: name.trim() }) : await update.mutateAsync({ id: open!.id, name: name.trim() });
+      const tds = open!.head === "expense" ? tdsType : null;
+      const saved =
+        open!.kind === "new"
+          ? await create.mutateAsync({ head: open!.head, name: name.trim(), tdsType: tds })
+          : await update.mutateAsync({ id: open!.id, name: name.trim(), ...(open!.head === "expense" ? { tdsType: tds } : {}) });
       toast.success(t(open!.kind === "new" ? "toast.added" : "toast.saved", { name: titleCase(saved.name) }));
       void utils.accounts.invalidate();
       onClose();
@@ -63,7 +73,7 @@ export function LedgerSheet({ open, onClose }: { open: LedgerSheetFor | null; on
       <form onSubmit={save} noValidate className="flex min-h-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
           {/* the name, and the kind of account its head makes it */}
-          <label className="flex flex-col gap-1.5">
+          <label className="flex flex-col gap-2.5">
             <span className="flex items-center gap-2 text-sm">
               {t("name")}
               <span className="rounded-control bg-chestnut px-2 py-0.5 text-xs font-semibold text-ivory">{t(usualSide(open.head) === "debit" ? "debitAccount" : "creditAccount")}</span>
@@ -78,10 +88,13 @@ export function LedgerSheet({ open, onClose }: { open: LedgerSheetFor | null; on
               className={input(tried && bad)}
             />
           </label>
+          {/* an expense head: the TDS its payments carry */}
+          {open.head === "expense" && <TdsTypePicker value={tdsType} onChange={setTdsType} />}
           {open.kind === "new" && <p className="text-xs">{t("openingLater")}</p>}
-          {error && <FieldMessage>{error}</FieldMessage>}
         </div>
-        <footer className="flex shrink-0 flex-col border-t border-chestnut/15 px-5 py-4">
+        <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
+          {tried && bad && <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>}
+          {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
           <SubmitButton busy={create.isPending || update.isPending}>{t(open.kind === "new" ? "save" : "saveName")}</SubmitButton>
         </footer>
       </form>

@@ -14,7 +14,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { money, timestamps } from "../../utils/common/column-type";
-import { partiesTable } from "../party/party";
+import { landlordsTable } from "../landlord/landlord";
 import { sql } from "drizzle-orm";
 
 export const godownOwnershipEnum = pgEnum("godown_ownership", ["rented", "owned"]);
@@ -39,14 +39,10 @@ export const godownsTable = pgTable("godowns", {
     withTimezone: true,
   }),
 
-  landlordId: uuid("landlord_id").references(() => partiesTable.id, {
+  // who it's rented from; their details live with them, in Entities. The service asks for one on a rented godown
+  landlordId: uuid("landlord_id").references(() => landlordsTable.id, {
     onDelete: "set null"
   }),
-
- landlordName: varchar("landlord_name", {length: 255}),
-
- landlordCountryCode: varchar("landlord_country_code", { length: 5 }),
-landlordNumber: varchar("landlord_number", { length: 20 }),
 
   ...timestamps,
 }, 
@@ -57,7 +53,7 @@ landlordNumber: varchar("landlord_number", { length: 20 }),
   check(
     "godowns_rented_requires_rent",
     sql`${table.ownership} <> 'rented'
-      OR (${table.rent} IS NOT NULL AND ${table.rent} > 0 AND ${table.landlordName} IS NOT NULL)`,
+      OR (${table.rent} IS NOT NULL AND ${table.rent} > 0)`,
   ),
 
   check(
@@ -67,7 +63,6 @@ landlordNumber: varchar("landlord_number", { length: 20 }),
         ${table.rent} IS NULL
         AND ${table.rentTimingInMonths} IS NULL
         AND ${table.landlordId} IS NULL
-        AND ${table.landlordName} IS NULL
       )`,
   ),
 
@@ -76,14 +71,6 @@ landlordNumber: varchar("landlord_number", { length: 20 }),
     sql`${table.rentTimingInMonths} IS NULL
       OR ${table.rentTimingInMonths} > 0`,
   ),
-
-  check(
-  "landlord_contact_fields_together",
-  sql`
-    (${table.landlordCountryCode} IS NULL)
-    = (${table.landlordNumber} IS NULL)
-  `,
-),
 ]
 );
 

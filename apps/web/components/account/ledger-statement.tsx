@@ -14,6 +14,7 @@ import { trpc } from "~/trpc/client";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { type Balance, type Head, indiaDay, postDatedText, startOfIndiaDay } from "./balance";
+import { useLedgerName } from "./ledger-name";
 import { SignedAmount } from "./signed-amount";
 
 type Line = RouterOutputs["accounts"]["ledger"]["statement"]["lines"][number];
@@ -35,17 +36,19 @@ function rangeStart(range: Exclude<Range, "custom">) {
 const monthBar = "sticky top-0 z-10 bg-[color-mix(in_srgb,var(--color-ivory)_90%,var(--color-chestnut))] px-4 py-1.5 text-xs font-semibold";
 
 // the columns of one side from 768px: day, particulars, amount; and of a phone line: day, particulars, debit, credit
-const sideCols = "grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 px-4";
+const sideCols = "grid grid-cols-[2.5rem_minmax(0,1fr)_7rem] items-center gap-3 px-4";
+// a debit entry on a phone, where the two sides share one list; a credit entry stays plain
+const debitShade = "bg-chestnut/[0.045]";
 const phoneCols = "grid grid-cols-[1.75rem_4.75rem_minmax(0,1fr)_minmax(0,1fr)] items-center gap-x-2 px-4";
 
 // a field in the filters
 const filterInput = "min-h-10 min-w-0 rounded-control border border-chestnut/70 bg-transparent px-3 text-sm outline-none focus:border-chestnut";
 
 const chip = (on: boolean) =>
-  cn("min-h-9 shrink-0 rounded-control border px-4 text-sm transition-colors", on ? "border-chestnut bg-chestnut font-medium text-ivory" : "border-chestnut/50 hover:border-chestnut");
+  cn("min-h-9 shrink-0 rounded-control border px-3 text-sm transition-colors", on ? "border-chestnut bg-chestnut font-medium text-ivory" : "border-chestnut/50 hover:border-chestnut");
 
 // one row on a side of the ledger: the day, what it was, the amount (b/f and c/d carry no number and open nothing)
-type Row = { key: string; at: Date | null; what: string; number: string | null; amount: number; opens: boolean };
+type Row = { key: string; at: Date | null; what: string; number: string | null; amount: number; opens: boolean; contras?: Line["contras"] };
 
 // the day of the month and the month an entry falls in, in India
 const indiaParts = (d: Date | string) => {
@@ -91,6 +94,7 @@ export function LedgerStatement({
 }) {
   const tc = useTranslations("common");
   const t = useTranslations("accounts.ledger");
+  const nameOf = useLedgerName();
   const tt = useTranslations("accounts.types");
   const format = useFormatter();
   const tf = useTranslations("accounts.ledger.filters");
@@ -151,6 +155,7 @@ export function LedgerStatement({
       number: opening ? null : l.assignedId,
       amount: l.amount,
       opens: !opening,
+      contras: l.contras,
     };
   });
 
@@ -169,12 +174,21 @@ export function LedgerStatement({
     return { debit, credit, foot: narrowed ? { debit: narrowed.debit, credit: narrowed.credit } : { debit: total, credit: total } };
   })();
 
-  // what an entry says: its type and number, or b/f and c/d in italics
-  const particulars = (r: { what: string; number: string | null; opens: boolean }) =>
+  // the other side of an entry: each ledger, and how much when there's more than one (one is the entry's own amount)
+  const contraLines = (contras: Line["contras"] = []) =>
+    contras.map((c) => (
+      <span key={c.name} className="tabular flex min-w-0 justify-between gap-2 text-sm">
+        <span className="truncate">{nameOf(c)}</span>
+        {contras.length > 1 && <span className="shrink-0">{rupees(c.amount)}</span>}
+      </span>
+    ));
+
+  // what an entry says: its number on top, then the other side of it; or b/f and c/d in italics
+  const particulars = (r: Pick<Row, "what" | "number" | "opens" | "contras">) =>
     r.opens ? (
-      <span className="min-w-0" title={`${r.what} · ${r.number}`}>
-        <span className="block truncate text-sm font-medium">{r.what}</span>
-        <span className="tabular block truncate text-xs text-chestnut/70">{r.number}</span>
+      <span className="flex min-w-0 flex-col gap-0.5" title={`${r.what} · ${r.number}`}>
+        <span className="tabular truncate text-xs font-medium text-chestnut/70">{r.number}</span>
+        {contraLines(r.contras)}
       </span>
     ) : (
       <span className="truncate pr-0.5 text-sm italic text-chestnut/70" title={r.what}>
@@ -292,16 +306,17 @@ export function LedgerStatement({
             <div className={cn(phoneCols, "shrink-0 border-b border-chestnut/15 py-2 text-xs text-chestnut/70")}>
               <span className="text-center">{t("day")}</span>
               <span>{t("particulars")}</span>
-              <span className="text-right">{t("debit")}</span>
-              <span className="text-right">{t("credit")}</span>
+              <span className="col-span-2 flex items-center justify-end gap-1.5">
+                <span className={cn("rounded-control px-1.5 py-px", debitShade)}>{t("debit")}</span>
+                <span className="px-1.5 py-px">{t("credit")}</span>
+              </span>
             </div>
             <ol className="min-h-0 flex-1 divide-y divide-chestnut/10 overflow-y-auto">
               {!narrowed && statement.data.broughtForward.amount !== 0 && (
-                <li className={cn(phoneCols, "py-2.5")}>
+                <li className={cn(phoneCols, "py-2.5", statement.data.broughtForward.side === "debit" && debitShade)}>
                   <span />
                   <span className="whitespace-nowrap pr-0.5 text-sm italic text-chestnut/70">{t("balanceBf")}</span>
-                  <span className="tabular text-right text-sm text-chestnut/70">{statement.data.broughtForward.side === "debit" ? rupees(statement.data.broughtForward.amount) : ""}</span>
-                  <span className="tabular text-right text-sm text-chestnut/70">{statement.data.broughtForward.side === "credit" ? rupees(statement.data.broughtForward.amount) : ""}</span>
+                  <span className="tabular col-span-2 text-right text-sm text-chestnut/70">{rupees(statement.data.broughtForward.amount)}</span>
                 </li>
               )}
               {byMonth(rows).map((run) => (
@@ -313,16 +328,15 @@ export function LedgerStatement({
                         <button
                           type="button"
                           onClick={item.opens ? open : undefined}
-                          className={cn(phoneCols, "w-full gap-y-0.5 py-2.5 text-left", item.opens ? "hover:bg-chestnut/5" : "cursor-default")}
+                          className={cn(phoneCols, "w-full gap-y-0.5 py-2.5 text-left", !item.opens && "cursor-default", item.side === "debit" && debitShade)}
                         >
-                          <span className="tabular row-span-2 text-center font-heading text-lg font-bold">{indiaParts(item.at).day}</span>
-                          {/* first line: what it was; second: its number, and the amount under Debit or Credit */}
-                          <span className={cn("col-span-3 min-w-0 truncate text-sm", item.opens ? "font-medium" : "pr-0.5 italic text-chestnut/70")} title={item.what}>
-                            {item.what}
+                          <span className="tabular row-span-2 self-start text-center font-heading text-lg font-bold">{indiaParts(item.at).day}</span>
+                          {/* first line: its number; then the other side of it; then the amount at the right. A debit entry is shaded */}
+                          <span className={cn("tabular col-span-3 min-w-0 truncate", item.opens ? "text-xs font-medium text-chestnut/70" : "pr-0.5 text-sm italic text-chestnut/70")} title={item.what}>
+                            {item.number ?? item.what}
                           </span>
-                          <span className="tabular text-xs text-chestnut/70">{item.number}</span>
-                          <span className={cn("tabular text-right text-sm", item.opens && "font-medium")}>{item.side === "debit" ? rupees(item.amount) : ""}</span>
-                          <span className={cn("tabular text-right text-sm", item.opens && "font-medium")}>{item.side === "credit" ? rupees(item.amount) : ""}</span>
+                          {item.contras?.length ? <span className="col-span-3 col-start-2 flex min-w-0 flex-col gap-0.5">{contraLines(item.contras)}</span> : null}
+                          <span className={cn("tabular col-span-3 col-start-2 pt-0.5 text-right text-sm", item.opens && "font-semibold")}>{rupees(item.amount)}</span>
                         </button>
                       </li>
                     ))}
@@ -334,8 +348,8 @@ export function LedgerStatement({
             {narrowed ? (
               <p className={cn(phoneCols, "shrink-0 border-t-2 border-chestnut/30 py-3 font-medium")}>
                 <span className="col-span-2 text-sm">{t("shownTotal")}</span>
-                <span className="tabular text-right text-sm font-bold">{rupees(narrowed.debit)}</span>
-                <span className="tabular text-right text-sm font-bold">{rupees(narrowed.credit)}</span>
+                <span className="tabular text-right text-sm font-bold">{rupees(narrowed.debit)} Dr</span>
+                <span className="tabular text-right text-sm font-bold">{rupees(narrowed.credit)} Cr</span>
               </p>
             ) : (
               <p className="flex shrink-0 items-center justify-between gap-3 border-t-2 border-chestnut/30 px-4 py-3 font-medium">
@@ -371,9 +385,10 @@ export function LedgerStatement({
                         {run.rows.map((r) => (
                           <li key={r.key}>
                             <button type="button" onClick={r.opens ? open : undefined} className={cn(sideCols, "w-full py-2.5 text-left", r.opens ? "hover:bg-chestnut/5" : "cursor-default")}>
-                              <span className="tabular text-center font-heading text-base font-bold">{r.at ? indiaParts(r.at).day : ""}</span>
+                              <span className="tabular self-start text-center font-heading text-base font-bold">{r.at ? indiaParts(r.at).day : ""}</span>
                               {particulars(r)}
-                              <span className={cn("tabular whitespace-nowrap text-right text-sm", !r.opens && "text-chestnut/70")}>{rupees(r.amount)}</span>
+                              {/* the amount sits level with the last account, set apart from their amounts by a line */}
+                              <span className={cn("tabular whitespace-nowrap text-right text-sm", r.opens ? "flex items-end justify-end self-stretch border-l border-chestnut/15 pl-3" : "text-chestnut/70")}>{rupees(r.amount)}</span>
                             </button>
                           </li>
                         ))}

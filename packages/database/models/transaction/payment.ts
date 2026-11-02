@@ -8,6 +8,8 @@ import { bankDetailsTable } from "../bank-detail";
 import { ledgersTable } from "../accounting/ledger";
 import { transactionsTable } from "./transaction";
 import { duesTable } from "../due/due";
+import { partiesTable } from "../party/party";
+import { landlordsTable } from "../landlord/landlord";
 import { gstPlaceOfSupplyEnum, paidForEnum, settledInEnum, supplyTypeEnum } from "../../utils/common/enum";
 import { uniqueIndex } from "drizzle-orm/pg-core";
 import { index } from "drizzle-orm/pg-core";
@@ -61,6 +63,12 @@ export const paymentsTable = pgTable("payments", {
     partyStateCodeSnapshot: gstPlaceOfSupplyEnum("party_state_code_snapshot"),
 
     partyGstinSnapshot: varchar("party_gstin_snapshot", { length: 15 }),
+
+  // an expense to a head with TDS: who it was paid to, whose PAN and payments so far decide the TDS. A party for
+  // transport and brokerage, a landlord for rent
+  payeePartyId: uuid("payee_party_id").references(() => partiesTable.id, { onDelete: "restrict" }),
+
+  payeeLandlordId: uuid("payee_landlord_id").references(() => landlordsTable.id, { onDelete: "restrict" }),
 
   // what it was for (the voucher's "Paid for" and its particulars)
   paidFor: paidForEnum("paid_for").notNull(),

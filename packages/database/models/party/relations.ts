@@ -2,7 +2,7 @@ import { relations } from "drizzle-orm";
 
 import { partiesTable } from "./party";
 import { partyAddressesTable } from "./party-address";
-import { godownsTable } from "../godown/godown";
+import { partyPaidBeforeTable } from "./party-paid-before";
 import { purchaseOrdersTable } from "../order/purchase/purchase-order";
 import { saleOrdersTable } from "../order/sale/sale-order";
 import { purchasesTable } from "../transaction/purchase/purchase";
@@ -10,11 +10,18 @@ import { salesTable } from "../transaction/sale/sale";
 
 export const partiesRelations = relations(partiesTable, ({ many }) => ({
   partyAddresses: many(partyAddressesTable),
-  godowns: many(godownsTable),
+  paidBefore: many(partyPaidBeforeTable),
   purchaseOrders: many(purchaseOrdersTable),
   saleOrders: many(saleOrdersTable),
   purchases: many(purchasesTable),
   sales: many(salesTable),
+}));
+
+export const partyPaidBeforeRelations = relations(partyPaidBeforeTable, ({ one }) => ({
+  party: one(partiesTable, {
+    fields: [partyPaidBeforeTable.partyId],
+    references: [partiesTable.id],
+  }),
 }));
 
 export const partyAddressesRelations = relations(partyAddressesTable, ({ one, many }) => ({

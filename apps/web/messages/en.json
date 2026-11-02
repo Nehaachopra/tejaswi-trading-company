@@ -22,6 +22,7 @@
       "accounts": "Accounts",
       "gst": "GST",
       "jobs": "Jobs",
+      "settings": "Settings",
       "heads": {
         "asset": "Asset",
         "liability": "Liability",
@@ -31,7 +32,9 @@
         "loss": "Loss",
         "opening": "Opening balances",
         "parties": "Parties",
-        "banks": "Bank accounts"
+        "landlords": "Landlords",
+        "banks": "Bank accounts",
+        "lenders": "Lenders"
       },
       "debit": "Debit",
       "credit": "Credit",
@@ -57,6 +60,7 @@
     "title": "Log in",
     "subtitle": "Enter the mobile number your admin registered.",
     "phoneLabel": "Mobile number",
+    "phoneStart": "A mobile number starts with 6, 7, 8 or 9.",
     "phoneHint": "We'll send a 6-digit code by SMS.",
     "continue": "Send code",
     "otpTitle": "Enter the code",
@@ -337,6 +341,16 @@
       "rateLabel": "Rate / {unit}"
     }
   },
+  "settings": {
+    "adminOnly": "Settings are for the admin only.",
+    "title": "Settings",
+    "tds": "TDS",
+    "turnover": "Turnover above ₹10 crore in {lastYear}",
+    "tdsHint": "Suppliers paid over ₹50 lakh in {year} have 0.1% TDS taken (5% without PAN).",
+    "saveError": "Couldn't save. Try again.",
+    "turnoverAudit": "Turnover above ₹1 crore in {lastYear}",
+    "auditHint": "Rent, transport, labour and brokerage have TDS taken in {year}."
+  },
   "jobs": {
     "adminOnly": "Jobs are for the admin only.",
     "eyebrow": "System",
@@ -365,7 +379,8 @@
     "runAgain": "Run again",
     "queued": "Job queued to run again",
     "queues": {
-      "send-otp": "Send OTP by SMS"
+      "send-otp": "Send OTP by SMS",
+      "store-documents": "Store GST documents"
     }
   },
   "notFound": {
@@ -426,8 +441,10 @@
       "rent": "Rent (₹)",
       "rentEvery": "Paid every (months)",
       "usedFrom": "In use from",
-      "landlord": "Landlord's name",
-      "landlordPhone": "Landlord's phone (optional)",
+      "landlord": "Landlord",
+      "newLandlord": "New landlord",
+      "noLandlord": "No landlords yet",
+      "pick": "Pick",
       "openingHint": "Packs already in this godown. Leave blank for none.",
       "allCategories": "All categories",
       "allSubCategories": "All sub-categories",
@@ -448,7 +465,9 @@
         "check": "Check the highlighted fields.",
         "hasProducts": "This godown still holds stock. Move it out first.",
         "counting": "This godown is being counted. Try again once its count is submitted."
-      }
+      },
+      "change": "Change",
+      "searchLandlord": "Search landlord"
     },
     "move": {
       "title": "Move stock",
@@ -670,7 +689,8 @@
         "bank": "Bank",
         "creditors": "Suppliers",
         "employees": "Employees",
-        "parties": "Parties"
+        "parties": "Parties",
+        "lenders": "Bank loans"
       },
       "ledgers": "{count, plural, =0 {No accounts yet} one {# account} other {# accounts}}",
       "postDated": "{amount} post-dated",
@@ -688,12 +708,12 @@
       "inputSgst": "Input SGST",
       "inputIgst": "Input IGST",
       "tdsReceivable": "TDS receivable",
-      "outputCgst": "Output CGST",
-      "outputSgst": "Output SGST",
-      "outputIgst": "Output IGST",
-      "outputCgstRcm": "Output CGST (RCM)",
-      "outputSgstRcm": "Output SGST (RCM)",
-      "outputIgstRcm": "Output IGST (RCM)",
+      "outputCgst": "Output CGST Payable",
+      "outputSgst": "Output SGST Payable",
+      "outputIgst": "Output IGST Payable",
+      "rcmCgstPayable": "Input CGST Payable (RCM)",
+      "rcmSgstPayable": "Input SGST Payable (RCM)",
+      "rcmIgstPayable": "Input IGST Payable (RCM)",
       "tdsPayable": "TDS payable",
       "tcs": "TCS",
       "drawings": "Drawings",
@@ -706,6 +726,11 @@
       "purchaseReturn": "Purchase return",
       "discountGiven": "Discount given",
       "rent": "Rent",
+      "transport": "Transport",
+      "labour": "Labour",
+      "brokerage": "Brokerage",
+      "professionalFees": "Professional fees",
+      "legalFees": "Legal fees",
       "electricity": "Electricity",
       "wifi": "Wifi expense",
       "scrapSale": "Scrap sale",
@@ -752,6 +777,7 @@
         "editTitle": "Edit party",
         "close": "Close",
         "save": "Save party",
+        "saveLandlord": "Save landlord",
         "saveDetails": "Save details",
         "type": "Type",
         "types": {
@@ -765,6 +791,7 @@
         "email": "Email (optional)",
         "pan": "PAN (optional)",
         "remarks": "Remarks (optional)",
+        "personal": "Personal details",
         "addresses": "Addresses",
         "addressN": "Address {n}",
         "addAddress": "Add address",
@@ -774,7 +801,7 @@
         "pin": "PIN code",
         "lookingUp": "Looking up the PIN…",
         "pinNotFound": "PIN not found in the directory. Type the city, district and state.",
-        "line1": "Address line 1",
+        "line1": "Address line 1 (optional)",
         "line2": "Address line 2 (optional)",
         "landmark": "Landmark (optional)",
         "city": "City",
@@ -804,14 +831,42 @@
           "network": "Can't reach the server. Check your connection.",
           "failed": "Something went wrong. Try again.",
           "shortNameTaken": "Another party already uses this short name.",
-          "phoneTaken": "That phone number is already another party's."
+          "phoneTaken": "That phone number is already another party's.",
+          "landlordPhoneTaken": "That phone number is already another landlord's.",
+          "landlordGstinTaken": "That GSTIN is already another landlord's."
         },
         "shortName": "Short name (optional)",
         "shortNameHint": "What ledgers and lists show, e.g. SRT for Sri Ramswamy Traders.",
         "searchState": "Search states",
+        "searchDistrict": "Search district",
+        "noDistrict": "No such district",
+        "useTyped": "Use “{text}”",
+        "stillNeeded": "Still needed: {fields}",
         "noState": "No state by that name.",
         "phoneRequired": "Phone",
-        "phoneHint": "Mobile, or landline with STD code"
+        "shortNameTaken": "Another party already has this short name.",
+        "sameName": {
+          "title": "Already added?",
+          "body": "{name} in {city} is already added. Add another party with the same name?",
+          "add": "Add anyway",
+          "back": "Go back"
+        },
+        "required": "Fill this in.",
+        "pinBad": "A PIN code has 6 digits.",
+        "phoneHint": "Mobile, or landline with STD code",
+        "transportDeclaration": "Owns 10 or fewer trucks",
+        "transportDeclarationHint": "Take this in writing with their PAN. No TDS is then taken.",
+        "paidBefore": "Paid so far this year",
+        "paidBeforeHint": "Paid outside this app since 1 April, with any TDS.",
+        "tdsBefore": "TDS already taken",
+        "tdsOver": "TDS can't be more than what was paid.",
+        "addLandlord": "Add landlord",
+        "gstinRequired": "GSTIN",
+        "unregisteredNote": "We must pay GST on behalf of the landlord.",
+        "gstRegistered": "GST registered",
+        "unregistered": "Unregistered",
+        "editLandlord": "Edit landlord",
+        "phoneBad": "A mobile starts with 6, 7, 8 or 9. A landline starts with 0, with its STD code."
       },
       "showDetails": "Show or hide details",
       "place": "Place",
@@ -915,6 +970,36 @@
       "failed": "Something went wrong. Try again."
     }
   },
+  "landlords": {
+    "title": "Landlords",
+    "add": "Add landlord",
+    "search": "Short name, name or phone",
+    "type": "Type",
+    "allTypes": "All types",
+    "place": "Place",
+    "allPlaces": "All places",
+    "showInactive": "Show inactive",
+    "loading": "Loading landlords",
+    "loadError": "Couldn't load the landlords. Check your connection and try again.",
+    "empty": "No landlords yet. Add the first one.",
+    "noMatch": "No one matches these filters.",
+    "inactive": "Inactive",
+    "menu": "Landlord options",
+    "edit": "Edit details",
+    "deactivate": "Mark inactive",
+    "reactivate": "Mark active",
+    "toast": {
+      "deactivated": "{name} marked inactive",
+      "reactivated": "{name} marked active"
+    },
+    "errors": {
+      "hasBalance": "This party still has a balance. Settle it first.",
+      "hasOrders": "This party has pending orders. Complete or cancel them first.",
+      "network": "Can't reach the server. Check your connection.",
+      "failed": "Something went wrong. Try again.",
+      "hasGodowns": "A godown is still rented from this landlord."
+    }
+  },
   "entities": {
     "adminOnly": "Entities are for the admin only."
   },
@@ -922,6 +1007,8 @@
     "title": "Bank accounts"
   },
   "common": {
+    "copy": "Copy",
+    "copied": "Copied",
     "clearSearch": "Clear search",
     "speech": {
       "speak": "Speak",
@@ -935,6 +1022,12 @@
         "error": "Couldn't listen. Try again."
       },
       "starting": "Getting ready…"
+    },
+    "leave": {
+      "title": "Leave this transaction?",
+      "body": "What you have entered will be lost.",
+      "stay": "Complete transaction",
+      "discard": "Leave"
     }
   },
   "transactions": {
@@ -957,6 +1050,11 @@
       }
     },
     "picker": {
+      "taxGroups": {
+        "gst": "GST",
+        "rcm": "Reverse charge mechanism",
+        "incomeTax": "Income tax"
+      },
       "search": "Search ledgers",
       "noMatch": "No ledger matches.",
       "new": "new",
@@ -967,7 +1065,11 @@
       "typeToFind": "Type a name to find the ledger.",
       "searching": "Searching…",
       "narrow": "Showing the first 20. Type more to narrow.",
-      "newParty": "New party"
+      "newParty": "New party",
+      "change": "Change",
+      "noTaxDue": "No tax is due right now.",
+      "edit": "Edit details",
+      "headTaken": "That name is already used, or it couldn't be saved."
     },
     "receipt": {
       "title": "Receipt",
@@ -1021,6 +1123,7 @@
         "title": "Receipt successfully created",
         "number": "Transaction ID",
         "voucher": "Voucher",
+        "journal": "Journal entry",
         "balances": "Balances",
         "newTransaction": "New transaction",
         "loading": "Loading…",
@@ -1036,6 +1139,7 @@
       }
     },
     "voucher": {
+      "shareOn": "Share on",
       "whatsApp": "Share on WhatsApp",
       "whatsAppMessage": "Receipt {number} for ₹{amount} from {company}: {url}",
       "title": "Receipt Voucher",
@@ -1082,6 +1186,12 @@
     },
     "loan": {
       "rate": "Interest % a year",
+      "lender": "Who gave the loan",
+      "lenders": {
+        "bank": "Bank",
+        "nbfc": "NBFC",
+        "individual": "Individual"
+      },
       "frequency": "Interest paid",
       "frequencies": {
         "monthly": "Monthly",
@@ -1111,6 +1221,7 @@
         "tdsRate": "TDS rate %",
         "loanRate": "Interest % a year",
         "loanFrequency": "Interest paid",
+        "loanLender": "Who gave the loan",
         "into": "Received in",
         "bank": "Bank account",
         "reference": "Reference / UTR",
@@ -1118,7 +1229,8 @@
         "remarks": "Remarks",
         "summary": "Receipt",
         "loan": "Which loan",
-        "dueOn": "Due back by"
+        "dueOn": "Due back by",
+        "lenderPick": "Which lender?"
       },
       "hints": {
         "amount": "10,000",
@@ -1141,7 +1253,7 @@
       "problems": {
         "amount": "That doesn't look like an amount.",
         "required": "I need this one.",
-        "phone": "A 10-digit mobile, or a landline with its STD code.",
+        "phone": "A mobile starts with 6, 7, 8 or 9. A landline starts with 0, with its STD code.",
         "pin": "A PIN code has 6 digits.",
         "rate": "A rate is between 0 and 100.",
         "date": "Pick a day.",
@@ -1193,7 +1305,16 @@
       "left": "{left} left",
       "dueBy": "due {day}",
       "noLoans": "No open loans.",
-      "oldLoan": "Old loan"
+      "oldLoanFrom": "Taken from",
+      "oldLoanTaken": "Taken on",
+      "oldLoanLender": "Pick who gave the loan.",
+      "oldLoanFill": "Fill in the highlighted fields.",
+      "oldLoanCancel": "Cancel",
+      "oldLoanAdd": "Add loan",
+      "oldLoan": "Old loan",
+      "oldLoanOutstanding": "Amount outstanding",
+      "oldLoanLastEmi": "Last EMI date",
+      "lenderNext": "Next"
     },
     "payment": {
       "kinds": {
@@ -1214,6 +1335,7 @@
         },
         "problems": {
           "overBalance": "That's more than there is in {where}.",
+          "overBalanceTds": "With TDS that's {total}. Only {held} in {where}.",
           "overBalanceBy": "Only {held} in {where}."
         },
         "sum": {
@@ -1242,6 +1364,28 @@
         "amountReceived": "Amount paid Rs.",
         "receivedBy": "Paid by",
         "receiverSign": "Receiver's signature",
+        "selfInvoiceTitle": "Payment Voucher and Self-invoice",
+        "selfInvoiceNo": "Self-invoice No",
+        "yes": "Yes",
+        "placeOfSupply": "Place of supply",
+        "unregistered": "Unregistered, no GSTIN",
+        "taxableValue": "Taxable value (₹)",
+        "billRow": "GST on bill {rate}%",
+        "lessTds": "Less TDS {rate}%",
+        "taxBreakdown": "Tax breakdown",
+        "tax": "Tax",
+        "basis": "Basis",
+        "rate": "Rate",
+        "on": "On (₹)",
+        "goesTo": "Goes to",
+        "toIncomeTax": "Income tax",
+        "toGst": "GST, input credit once paid",
+        "reverseCharge": "Reverse charge",
+        "taxToDeposit": "Tax to deposit",
+        "paidToLandlord": "Paid to landlord",
+        "amountPaid": "Amount paid",
+        "total": "Total",
+        "billGst": "GST on bill {number}, GSTIN {gstin}: {gst} at {rate}%.",
         "particulars": {
           "supplier": "Paid towards account",
           "loan": "Loan given @ {rate}% a year, interest paid {frequency}",
@@ -1251,7 +1395,86 @@
           "refund": "Refund paid",
           "taxPaid": "Tax paid"
         }
+      },
+      "form": {
+        "steps": {
+          "source": "Paid from",
+          "kind": "Paid for",
+          "to": "Paid to",
+          "tds": "TDS deducted",
+          "terms": "Loan terms",
+          "details": "Reference and remarks",
+          "remarks": "Remarks",
+          "head": "Expense head",
+          "tax": "Tax",
+          "gst": "GST",
+          "payee": "Paid to",
+          "amount": "Amount",
+          "rent": "Rent breakdown"
+        },
+        "available": "{held} available",
+        "missing": {
+          "source": "Pick where it's paid from.",
+          "kind": "Pick what it was paid for.",
+          "to": "Pick who it was paid to, or fill in what's marked in red.",
+          "terms": "Fill in the loan's interest and how often it's paid.",
+          "details": "Pick the day.",
+          "gst": "Fill in the bill's GST details.",
+          "payee": "Pick who was paid, or fill in what's marked in red.",
+          "amount": "Enter the amount, and pick where it's paid from.",
+          "rent": "Enter each godown's rent and the months."
+        },
+        "summary": "Summary",
+        "noPan": "no PAN",
+        "underLimit": "Under the TDS limit, so no TDS.",
+        "total": "Total",
+        "nothingToPay": "There is no money in cash or any bank account to pay from.",
+        "leftAfter": "{left} left after this",
+        "useThem": "Use them",
+        "searchLedger": "Search ledgers",
+        "declaredNoTds": "No TDS: small transporter's declaration",
+        "rcmRow": "Reverse charge GST {rate}%",
+        "rcmNote": "On {on}. We pay it to the government and claim it back.",
+        "billNote": "Includes GST {gst} at {rate}%, claimed back.",
+        "billNumber": "Bill number",
+        "billDate": "Bill date",
+        "gstRate": "GST rate",
+        "panHint": "No PAN on record: TDS will be {rate}%. Add it to lower this.",
+        "gstModes": {
+          "none": "No GST",
+          "bill": "GST on bill"
+        },
+        "payEmi": "Pay EMI · {amount}",
+        "months": "Months",
+        "tooMuch": "No one account holds this. The most available is {amount}.",
+        "interestDue": "Interest",
+        "rentDue": "Total rent",
+        "rentPerMonth": "Rent per month",
+        "godown": "Godown",
+        "due": "Due"
       }
+    },
+    "tdsTypes": {
+      "label": "TDS on this head",
+      "none": "None",
+      "rent": "Rent",
+      "contract": "Transport & labour",
+      "brokerage": "Brokerage",
+      "hint": "Picked once; the website works out each payment's TDS."
+    },
+    "lender": {
+      "name": "Lender name",
+      "namePlaceholder": "Bajaj Finance",
+      "branch": "Branch (optional)",
+      "pan": "PAN (optional)",
+      "search": "Search lender",
+      "none": "No lenders yet.",
+      "new": "New lender",
+      "account": "Loan account number",
+      "emi": "EMI (optional)",
+      "pickBank": "Pick the bank",
+      "searchBank": "Search bank",
+      "saveFailed": "Couldn't save the lender. Try again."
     }
   },
   "dues": {
@@ -1390,5 +1613,26 @@
       "fromDue": "from due date to paid",
       "of": "of"
     }
+  },
+  "lenders": {
+    "title": "Lenders",
+    "add": "Add lender",
+    "search": "Name or branch",
+    "showInactive": "Show inactive",
+    "loading": "Loading lenders",
+    "failed": "Something went wrong. Try again.",
+    "noMatch": "No lender matches.",
+    "empty": "No lenders yet. Add the first one.",
+    "inactive": "Inactive",
+    "menu": "Lender options",
+    "edit": "Edit details",
+    "deactivate": "Mark inactive",
+    "reactivate": "Mark active",
+    "hasLoans": "This lender still has a loan to repay.",
+    "duplicate": "This lender and branch are already added.",
+    "addTitle": "Add lender",
+    "editTitle": "Edit lender",
+    "close": "Close",
+    "save": "Save lender"
   }
 }

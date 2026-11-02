@@ -3,9 +3,11 @@
 import { ArrowDownLeft, ArrowDownUp, ArrowUpRight, ChevronDown, ChevronRight, CircleAlert, Clock, HandCoins, Landmark, type LucideIcon, MapPin, Phone, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
+import { ADD_BUTTON, FILTER_BAR_UNDER_TABS, FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
 import { Menu, MenuItem } from "~/components/ui/menu";
+import { PageTabs } from "~/components/ui/page-tabs";
 import { Spinner } from "~/components/ui/spinner";
 import { rupees } from "~/lib/format";
 import { useLocalLetters } from "~/lib/use-local-letters";
@@ -38,8 +40,8 @@ function Swatch({ status }: { status: Status }) {
   return <span className="size-2.5 shrink-0 rounded-sm" style={{ background: STATUS_FILL[status] }} aria-hidden />;
 }
 
-// /dues, admin only: what's owed both ways. Under the header stay the four tabs. Then what's due and what's overdue
-// with a money potli between them, then the filters (status, town, order, + Old due; they stay under the tabs too),
+// /dues, admin only: what's owed both ways. Under the header stay the four tabs, then + Old due, what's due and what's
+// overdue with a money potli between them, then the filters (status, town, order; they stay under the tabs too),
 // then a card per party, its short name red when overdue; tapping one opens that party's dues page
 export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
   const t = useTranslations("dues");
@@ -52,11 +54,6 @@ export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
   const [town, setTown] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>("overdue");
   const dues = trpc.transactions.due.list.useQuery({ kind }, { placeholderData: (previous) => previous });
-  // the tab picked stays in view on a phone
-  const tabs = useRef<Partial<Record<DueKind, HTMLButtonElement | null>>>({});
-  useEffect(() => {
-    tabs.current[kind]?.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [kind]);
 
   // a tab picked: it's kept in the link, so a reload or the way back lands on it; its filters start afresh
   function pick(k: DueKind) {
@@ -86,38 +83,14 @@ export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
   const late = inTown.filter((p) => p.overdue > 0).length;
 
   return (
-    <main className="mx-auto max-w-3xl px-4 pb-16 pt-4 sm:px-6">
+    <main className={`${PAGE} pb-16`}>
       <h1 className="sr-only">{t("title")}</h1>
 
-      {/* the four kinds as one switch, unlike the filters below: equal parts in a darker bar, the one picked filled
-          ivory, each with its sign (on a phone the sign sits above a short label); it stays under the header */}
-      <div className="sticky top-16 z-20 -mx-4 bg-chestnut px-4 py-2 sm:-mx-6 sm:px-6">
-        <div role="tablist" aria-label={t("title")} className="grid grid-cols-4 gap-1 rounded-xl bg-black/25 p-1">
-          {DUE_KINDS.map((k) => {
-            const Icon = TAB_ICON[k];
-            return (
-              <button
-                key={k}
-                ref={(el) => {
-                  tabs.current[k] = el;
-                }}
-                type="button"
-                role="tab"
-                aria-selected={kind === k}
-                onClick={() => pick(k)}
-                className={cn(
-                  "flex h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[0.7rem] font-semibold leading-tight transition-colors sm:h-10 sm:flex-row sm:gap-2 sm:text-sm",
-                  kind === k ? "on-ivory bg-ivory text-chestnut shadow-sm" : "text-ivory/75 hover:bg-ivory/10 hover:text-ivory",
-                )}
-              >
-                <Icon className="size-4 shrink-0" aria-hidden />
-                <span className="max-w-full truncate sm:hidden">{t(`tabsShort.${k}`)}</span>
-                <span className="hidden truncate sm:inline">{t(`tabs.${k}`)}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {/* Debtors · Creditors · Loans given · Loans taken */}
+      <PageTabs label={t("title")} tabs={DUE_KINDS.map((k) => ({ key: k, label: t(`tabs.${k}`), short: t(`tabsShort.${k}`), current: kind === k, onPick: () => pick(k) }))} />
+
+      {/* + Old due */}
+      <OldDueLink kind={kind} />
 
       {dues.isPending ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
@@ -128,10 +101,7 @@ export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
       ) : board.list.length === 0 ? (
-        <div className="mt-16 flex flex-col items-center gap-4 text-center text-ivory/70">
-          <p>{t(`empty.${kind}`)}</p>
-          <OldDueLink kind={kind} labelled />
-        </div>
+        <p className="mt-16 text-center text-ivory/70">{t(`empty.${kind}`)}</p>
       ) : (
         <div className={cn("transition-opacity", dues.isPlaceholderData && "opacity-60")}>
           <div className="mt-3">
@@ -145,17 +115,15 @@ export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
             />
           </div>
 
-          {/* on a phone, + Old due takes its own full-width line above the filters */}
-          <OldDueLink kind={kind} labelled className="mt-3 justify-center sm:hidden" />
-
           {/* the filters, under the tabs while the list scrolls */}
-          <div className="sticky top-[8.5rem] z-10 -mx-4 mt-2 flex items-center gap-2 bg-chestnut px-4 py-2 sm:top-32 sm:-mx-6 sm:px-6">
+          <div className={`mt-2 ${FILTER_BAR_UNDER_TABS}`}>
             {/* status: all, overdue, or due within 2 days */}
             <Menu
               label={tf("status")}
               surface="chestnut"
               align="left"
-              triggerClassName="min-h-9 max-w-44 gap-1.5 px-3 text-sm"
+              boxed
+              triggerClassName={FILTER_TRIGGER}
               trigger={
                 <>
                   {status && <Swatch status={status} />}
@@ -188,7 +156,8 @@ export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
                 label={tf("town")}
                 surface="chestnut"
                 align="left"
-                triggerClassName="min-h-9 max-w-40 gap-1.5 px-3 text-sm"
+                boxed
+                triggerClassName={FILTER_TRIGGER}
                 trigger={
                   <>
                     <MapPin className="size-3.5 shrink-0" aria-hidden />
@@ -213,13 +182,14 @@ export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
                 }
               </Menu>
             )}
-            {/* the order and + Old due, on the right */}
-            <div className="ml-auto flex items-center gap-2">
+            {/* the order, on the right */}
+            <div className="ml-auto">
               <Menu
                 label={tf("sort")}
                 surface="chestnut"
                 align="right"
-                triggerClassName="min-h-9 gap-1.5 px-3 text-sm"
+                boxed
+                triggerClassName={FILTER_TRIGGER}
                 trigger={
                   <>
                     <ArrowDownUp className="size-3.5 shrink-0" aria-hidden />
@@ -242,14 +212,13 @@ export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
                   ))
                 }
               </Menu>
-              <OldDueLink kind={kind} className="max-sm:hidden" />
             </div>
           </div>
 
           {shown.length === 0 ? (
             <p className="mt-10 text-center text-ivory/70">{tf("noMatch")}</p>
           ) : (
-            <ul className="mt-2 flex flex-col gap-3">
+            <ul className="mt-2 grid gap-3 lg:grid-cols-2">
               {shown.map((p) => (
                 <PartyCard key={p.partyId} kind={kind} party={p} />
               ))}
@@ -261,16 +230,12 @@ export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
   );
 }
 
-// + Old due, for a due from before the app of this tab's kind (its word hidden on a phone, unless asked for)
-function OldDueLink({ kind, labelled = false, className }: { kind: DueKind; labelled?: boolean; className?: string }) {
+// + Old due, for a due from before the app of this tab's kind
+function OldDueLink({ kind }: { kind: DueKind }) {
   const t = useTranslations("dues");
   return (
-    <Link
-      href={`/dues/old?kind=${kind}`}
-      aria-label={t("oldDue")}
-      className={cn("on-ivory flex min-h-9 shrink-0 items-center gap-1.5 rounded-control bg-ivory px-3 text-sm font-semibold text-chestnut", className)}
-    >
-      <Plus className="size-4" aria-hidden /> <span className={labelled ? undefined : "max-sm:sr-only"}>{t("oldDue")}</span>
+    <Link href={`/dues/old?kind=${kind}`} className={`mt-6 ${ADD_BUTTON}`}>
+      <Plus className="size-5" aria-hidden /> {t("oldDue")}
     </Link>
   );
 }

@@ -4,6 +4,7 @@ import { Plus, RotateCcw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { addSquare } from "~/components/ui/page-styles";
 import { fieldClass } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { Sheet } from "~/components/ui/sheet";
@@ -109,7 +110,7 @@ export function CategoryDrawer({ category, onClose }: { category: Category | nul
                   aria-label={t("add")}
                   disabled={create.isPending}
                   aria-busy={create.isPending}
-                  className="grid size-11 shrink-0 place-items-center rounded-control bg-chestnut text-ivory aria-busy:opacity-80"
+                  className={addSquare("size-11")}
                 >
                   {create.isPending ? <Spinner /> : <Plus className="size-5" aria-hidden />}
                 </button>

@@ -1,4 +1,7 @@
 // names are stored lowercase and shown in Title Case: "sona masoori" → "Sona Masoori"
+// a name of a person or place has no digits: they're dropped as it's typed or spoken
+export const noDigits = (v: string) => v.replace(/\d/g, "");
+
 export const titleCase = (name: string) => name.replace(/(^|[\s-])(\p{L})/gu, (_, gap: string, letter: string) => gap + letter.toUpperCase());
 
 // rupees with Indian grouping; paise only when there are some: ₹1,45,000 · ₹620.50

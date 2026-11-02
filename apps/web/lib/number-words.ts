@@ -274,6 +274,16 @@ export function spokenDigits(spoken: string): string {
 
 // whether what's been heard so far is a whole phone number: 10 digits, or 12 with +91 in front, or 11 with a 0 (a
 // number that itself starts 91 or 0 is taken once a quiet spell ends the listening)
+// a phone as typed, kept to digits and cut at its length: a mobile 10 digits, a landline with its STD code (it
+// starts with 0) 12
+export const capPhone = (typed: string) => {
+  const digits = typed.replace(/\D/g, "");
+  return digits.slice(0, digits.startsWith("0") ? 12 : 10);
+};
+
+// a phone that can't be one from its first digit: a mobile starts 6 to 9, a landline 0
+export const phoneStartsBad = (phone: string) => /^[1-5]/.test(phone);
+
 export function wholePhone(heard: string, soFar = "") {
   let raw = "";
   for (const w of asciiDigits(heard).toLowerCase().replace(/[-,.+()]/g, " ").split(/\s+/)) {

@@ -81,7 +81,7 @@ export function MoveStockSheet({ start, cards, onClose }: { start: MoveStart | n
     setTried(true);
     setError(null);
     if (!from || !group || !pack || locked || pack.quantity === 0) return;
-    if (bad.to || bad.quantity) return setError(over ? null : t("errors.fill"));
+    if (bad.to || bad.quantity) return;
     try {
       await move.mutateAsync({
         productId: pack.productId,
@@ -148,7 +148,7 @@ export function MoveStockSheet({ start, cards, onClose }: { start: MoveStart | n
             {receivers.length === 0 ? (
               <FieldMessage>{t("noOther")}</FieldMessage>
             ) : (
-              <label className="flex flex-col gap-1.5">
+              <label className="flex flex-col gap-2.5">
                 <span className="text-sm">{t("to")}</span>
                 <PickMenu
                   label={t("to")}
@@ -165,7 +165,7 @@ export function MoveStockSheet({ start, cards, onClose }: { start: MoveStart | n
             )}
 
             {/* how many, up to what From holds */}
-            <label className="flex flex-col gap-1.5">
+            <label className="flex flex-col gap-2.5">
               <span className="flex items-baseline justify-between gap-2 text-sm">
                 {t("quantity")}
                 <span className="tabular text-xs text-chestnut/70">{t("max", { count: pack.quantity.toLocaleString("en-IN") })}</span>
@@ -188,25 +188,26 @@ export function MoveStockSheet({ start, cards, onClose }: { start: MoveStart | n
             {locked && <FieldMessage>{t("errors.counting")}</FieldMessage>}
 
             {/* vehicle number and remarks, both optional */}
-            <label className="flex flex-col gap-1.5">
+            <label className="flex flex-col gap-2.5">
               <span className="text-sm">{t("vehicle")}</span>
               <input
                 value={vehicle}
                 maxLength={VEHICLE_MAX}
                 autoCapitalize="characters"
-                onChange={(e) => setVehicle(e.target.value.toUpperCase().replace(/\s+/g, ""))}
+                onChange={(e) => setVehicle(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
                 placeholder="KA01AB1234"
                 className={cn("min-h-11 px-3 text-base uppercase placeholder:text-chestnut/50", fieldClass(false))}
               />
             </label>
-            <label className="flex flex-col gap-1.5">
+            <label className="flex flex-col gap-2.5">
               <span className="text-sm">{t("remarks")}</span>
               <input value={remarks} maxLength={REMARKS_MAX} onChange={(e) => setRemarks(e.target.value)} className={cn("min-h-11 px-3 text-base", fieldClass(false))} />
             </label>
 
-            {error && <FieldMessage>{error}</FieldMessage>}
           </div>
-          <footer className="flex shrink-0 flex-col border-t border-chestnut/15 px-5 py-4">
+          <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
+            {tried && (bad.to || bad.quantity) && !over && <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>}
+            {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
             <SubmitButton busy={move.isPending} disabled={receivers.length === 0 || locked || pack.quantity === 0}>
               {t("save")}
             </SubmitButton>

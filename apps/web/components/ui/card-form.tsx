@@ -1,12 +1,12 @@
 import { Spinner } from "~/components/ui/spinner";
 import { cn } from "~/lib/utils";
 
-// fields and the primary button on an ivory card or sheet (chestnut ink): a field has no fill, only a chestnut edge,
-// so what's typed reads clearly; it turns red and thicker while it has an error
+// fields and the primary button on an ivory card or sheet (chestnut ink): a field has no fill or edge, only a soft shadow all round it,
+// so what's typed reads clearly; it turns red while it has an error
 export const fieldClass = (invalid: boolean) =>
   cn(
-    "rounded-control border border-chestnut/70 bg-transparent text-chestnut outline-none transition-colors focus:border-chestnut",
-    invalid && "border-2 border-danger focus:border-danger focus-within:border-danger",
+    "rounded-control bg-transparent text-chestnut shadow-[0_0_5px_0] shadow-chestnut/40 outline-none transition-shadow focus:shadow-chestnut/80 focus-within:shadow-chestnut/80",
+    invalid && "shadow-danger/80 focus:shadow-danger focus-within:shadow-danger",
   );
 
 export function SubmitButton({ busy, disabled, children }: { busy: boolean; disabled?: boolean; children: React.ReactNode }) {

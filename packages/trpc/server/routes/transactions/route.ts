@@ -1,6 +1,9 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
+import { storeDocumentsSoon } from "@repo/jobs";
+import { storedDocumentModel, storedDocumentsInputModel } from "@repo/services/document/model";
+
 import {
   cancelTransactionInputModel,
   listTransactionsInputModel,
@@ -13,11 +16,17 @@ import { ledgerSummaryModel } from "@repo/services/accounts/model";
 import { createReceiptInputModel, receiptIdInputModel, receiptModel, receiptShareKeyModel, savedReceiptModel, sharedReceiptInputModel } from "@repo/services/receipt/model";
 import {
   createPaymentInputModel,
+  interestTdsInputModel,
+  interestTdsModel,
   paymentFitsInputModel,
   paymentIdInputModel,
   paymentModel,
   paymentShareKeyModel,
   paymentSourcesModel,
+  supplierTdsInputModel,
+  supplierTdsModel,
+  expenseTaxInputModel,
+  expenseTaxModel,
   savedPaymentModel,
   sharedPaymentInputModel,
 } from "@repo/services/payment/model";
@@ -33,7 +42,7 @@ import {
 } from "@repo/services/due/model";
 import { opensVoucher, voucherKey } from "@repo/services/transaction/share-link";
 
-import { dueService, paymentService, receiptService, transactionService } from "../../services";
+import { documentService, dueService, paymentService, receiptService, transactionService } from "../../services";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 
 // History: every past transaction of every type, one in full, and cancelling one; the admin only
@@ -55,7 +64,18 @@ const historyRouter = router({
     .meta({ openapi: { method: "POST", path: "/transactions/{id}/cancel", tags: ["transactions"] } })
     .input(cancelTransactionInputModel)
     .output(transactionModel)
-    .mutation(({ ctx, input }) => transactionService.cancel(input, ctx.session.user)),
+    .mutation(async ({ ctx, input }) => {
+      const cancelled = await transactionService.cancel(input, ctx.session.user);
+      storeDocumentsSoon();
+      return cancelled;
+    }),
+
+  // the GST documents kept for it, newest version first
+  documents: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/{transactionId}/documents", tags: ["transactions"] } })
+    .input(storedDocumentsInputModel)
+    .output(z.array(storedDocumentModel))
+    .query(({ input }) => documentService.list(input)),
 });
 
 // receipts: money coming in, recorded by the admin or staff
@@ -111,8 +131,11 @@ const paymentRouter = router({
     .output(savedPaymentModel)
     .mutation(({ ctx, input }) => {
       // only the admin adds a new ledger or party while recording one
-      if ((input.newLedger || input.newParty) && ctx.session.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only the admin adds ledgers." });
-      return paymentService.create(input, ctx.session.user).then((p) => (ctx.session.user.role === "admin" ? p : { ...p, balances: null }));
+      if ((input.newLedger || input.newParty || input.newPayee) && ctx.session.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only the admin adds ledgers." });
+      return paymentService.create(input, ctx.session.user).then((p) => {
+        if (p.rcm) storeDocumentsSoon();
+        return ctx.session.user.role === "admin" ? p : { ...p, balances: null };
+      });
     }),
 
   // cash and the bank accounts it can come from, with what each holds (the admin's only)
@@ -127,6 +150,27 @@ const paymentRouter = router({
     .input(paymentFitsInputModel)
     .output(z.object({ fits: z.boolean() }))
     .query(({ input }) => paymentService.fits(input)),
+
+  // (not in the OpenAPI document: its GST is an object, which a GET's query string can't carry)
+  // an expense's tax as it's filled in: TDS on rent, contract work or brokerage, and reverse-charge GST on rent from a
+  // landlord without a GSTIN; the website works both out, never typed
+  expenseTax: protectedProcedure
+    .input(expenseTaxInputModel)
+    .output(expenseTaxModel)
+    .query(({ input }) => paymentService.expenseTax(input)),
+
+  // TDS on a loan's interest as it's filled in; the website works it out, never typed
+  interestTds: protectedProcedure
+    .input(interestTdsInputModel)
+    .output(interestTdsModel)
+    .query(({ input }) => paymentService.interestTds(input)),
+
+  // a supplier's TDS for a payment being filled in: the website works it out (section 194Q), never typed
+  supplierTds: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/payments/supplier-tds", tags: ["transactions"] } })
+    .input(supplierTdsInputModel)
+    .output(supplierTdsModel)
+    .query(({ input }) => paymentService.supplierTds(input)),
 
   // the ledgers it moved with their balances now, for the page after a save; the admin's only
   balances: protectedProcedure

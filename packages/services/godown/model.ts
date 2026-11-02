@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const idModel = z.string().uuid();
 
-// lengths follow the godowns table: name 20, landlord name 255, country code 5, number 20
+// lengths follow the godowns table: name 20
 const godownNameModel = z.string().trim().min(1).max(20);
 
 const optionalText = (max: number) =>
@@ -25,32 +25,16 @@ export const godownDetailsInputModel = z
     rent: rentModel.nullable().default(null),
     rentTimingInMonths: z.number().int().positive().max(120).nullable().default(null),
     usedFrom: z.coerce.date().nullable().default(null),
-    landlordName: optionalText(255),
-    landlordCountryCode: optionalText(5),
-    landlordNumber: z
-      .string()
-      .trim()
-      .regex(/^\d{0,20}$/, "Digits only, up to 20.")
-      .transform((v) => (v === "" ? null : v))
-      .nullable()
-      .default(null),
+    landlordId: idModel.nullable().default(null),
   })
   .superRefine((g, ctx) => {
     if (g.ownership === "rented") {
       if (g.rent == null) ctx.addIssue({ code: "custom", path: ["rent"], message: "A rented godown needs its rent." });
-      if (g.landlordName == null) ctx.addIssue({ code: "custom", path: ["landlordName"], message: "A rented godown needs its landlord." });
-    }
-    // the country code and the number go together
-    if ((g.landlordCountryCode == null) !== (g.landlordNumber == null)) {
-      ctx.addIssue({ code: "custom", path: ["landlordNumber"], message: "Give the landlord's country code and number together." });
+      if (g.landlordId == null) ctx.addIssue({ code: "custom", path: ["landlordId"], message: "A rented godown needs its landlord." });
     }
   })
   // an owned godown keeps no rental details
-  .transform((g) =>
-    g.ownership === "owned"
-      ? { ...g, rent: null, rentTimingInMonths: null, landlordName: null, landlordCountryCode: null, landlordNumber: null }
-      : g,
-  );
+  .transform((g) => (g.ownership === "owned" ? { ...g, rent: null, rentTimingInMonths: null, landlordId: null } : g));
 
 export type GodownDetailsInputModel = z.input<typeof godownDetailsInputModel>;
 
@@ -99,9 +83,7 @@ export const godownModel = godownSummaryModel.extend({
   rent: z.number().nullable(),
   rentTimingInMonths: z.number().int().nullable(),
   usedFrom: z.date().nullable(),
-  landlordName: z.string().nullable(),
-  landlordCountryCode: z.string().nullable(),
-  landlordNumber: z.string().nullable(),
+  landlordId: idModel.nullable(),
 });
 
 export type GodownModel = z.infer<typeof godownModel>;

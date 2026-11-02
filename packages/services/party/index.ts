@@ -5,6 +5,7 @@ import {
   ledgersTable,
   partiesTable,
   partyAddressesTable,
+  partyPaidBeforeTable,
   purchaseOrdersTable,
   saleOrdersTable,
   transactionsTable,
@@ -13,10 +14,13 @@ import {
 import AccountsService from "../accounts";
 import { toPaise } from "../accounts/money";
 import type { ActorModel } from "../accounts/model";
+import { financialYear } from "../setting/model";
 import type { Tx } from "../stock/engine";
 import {
   type CreatePartyInputModel,
   createPartyInputModel,
+  type CreatePayeeInputModel,
+  createPayeeInputModel,
   type ListPartiesInputModel,
   listPartiesInputModel,
   type PartyAddressInputModel,
@@ -26,11 +30,17 @@ import {
   type PartyTypeModel,
   type PinPlaceInputModel,
   type PinPlaceModel,
+  type TownPinInputModel,
+  townPinInputModel,
+  type TownPinModel,
   type SetPartyActiveInputModel,
   setPartyActiveInputModel,
   type UpdatePartyInputModel,
   updatePartyInputModel,
   settledDetails,
+  partyNameCheckInputModel,
+  type PartyNameCheckInputModel,
+  type PartyNameCheckModel,
 } from "./model";
 
 const REFERENCE = "parties";
@@ -116,6 +126,21 @@ export default class PartyService {
       .from(partiesTable)
       .where(and(eq(partiesTable.shortName, shortName), partyId ? ne(partiesTable.id, partyId) : undefined));
     if (clash) throw shortNameTaken(shortName);
+  }
+
+  // what was paid this financial year outside this website: kept, replaced, or gone when it's cleared to nothing
+  private async savePaidBefore(tx: Tx, partyId: string, paidBefore: CreatePartyInputModel["paidBefore"]) {
+    if (!paidBefore) return;
+    const year = financialYear(new Date()).name;
+    if (paidBefore.paid === 0) {
+      await tx.delete(partyPaidBeforeTable).where(and(eq(partyPaidBeforeTable.partyId, partyId), eq(partyPaidBeforeTable.financialYear, year)));
+      return;
+    }
+    const amounts = { paid: paidBefore.paid.toFixed(2), tds: paidBefore.tds.toFixed(2) };
+    await tx
+      .insert(partyPaidBeforeTable)
+      .values({ partyId, financialYear: year, ...amounts })
+      .onConflictDoUpdate({ target: [partyPaidBeforeTable.partyId, partyPaidBeforeTable.financialYear], set: { ...amounts, updatedAt: new Date() } });
   }
 
   // the parties with their ledgers and balances
@@ -228,7 +253,36 @@ export default class PartyService {
     };
   }
 
-  // the town, district and state last saved with this PIN code, if any address has it
+  // others with this name in this town (any case), and whether the short name is free with the first free one like it
+  async nameCheck(rawInput: PartyNameCheckInputModel): Promise<PartyNameCheckModel> {
+    const input = partyNameCheckInputModel.parse(rawInput);
+    const notThis = input.exceptId ? ne(partiesTable.id, input.exceptId) : undefined;
+    const sameInTown =
+      input.name && input.city
+        ? await db
+            .selectDistinct({ name: partiesTable.name, shortName: partiesTable.shortName, phone: partiesTable.phone, city: partyAddressesTable.city })
+            .from(partiesTable)
+            .innerJoin(partyAddressesTable, and(eq(partyAddressesTable.partyId, partiesTable.id), eq(partyAddressesTable.isActive, true)))
+            .where(and(sql`lower(${partiesTable.name}) = lower(${input.name})`, sql`lower(${partyAddressesTable.city}) = lower(${input.city})`, notThis))
+            .limit(3)
+        : [];
+    // the short names already used that start like this one
+    let freeShortName = input.shortName;
+    let shortNameTaken = false;
+    if (input.shortName) {
+      const like = await db
+        .select({ shortName: partiesTable.shortName })
+        .from(partiesTable)
+        .where(and(ilike(partiesTable.shortName, `${input.shortName.slice(0, 18)}%`), notThis));
+      const taken = new Set(like.map((r) => r.shortName));
+      shortNameTaken = taken.has(input.shortName);
+      for (let n = 2; taken.has(freeShortName) && n < 1000; n++) freeShortName = input.shortName.slice(0, 20 - String(n).length) + n;
+    }
+    return { sameInTown, shortNameTaken, freeShortName };
+  }
+
+  // the town, district and state saved with this PIN code: the one most addresses with it agree on (the latest of
+  // those on a tie), so one odd address doesn't win; null when no address has it
   async pinPlace(input: PinPlaceInputModel): Promise<PinPlaceModel> {
     const [place] = await db
       .select({
@@ -239,16 +293,35 @@ export default class PartyService {
       })
       .from(partyAddressesTable)
       .where(and(eq(partyAddressesTable.postalCode, input.postalCode), eq(partyAddressesTable.isActive, true)))
-      .orderBy(desc(partyAddressesTable.updatedAt))
+      .groupBy(partyAddressesTable.city, partyAddressesTable.district, partyAddressesTable.state, partyAddressesTable.stateCode)
+      .orderBy(desc(count()), desc(sql`max(${partyAddressesTable.updatedAt})`))
       .limit(1);
     return place ?? null;
+  }
+
+  // the other way round: the PIN a town was saved with most often, with its district and state
+  async townPin(rawInput: TownPinInputModel): Promise<TownPinModel> {
+    const input = townPinInputModel.parse(rawInput);
+    const [place] = await db
+      .select({
+        postalCode: partyAddressesTable.postalCode,
+        district: partyAddressesTable.district,
+        state: partyAddressesTable.state,
+        stateCode: partyAddressesTable.stateCode,
+      })
+      .from(partyAddressesTable)
+      .where(and(sql`lower(${partyAddressesTable.city}) = ${input.city.toLowerCase()}`, eq(partyAddressesTable.isActive, true)))
+      .groupBy(partyAddressesTable.postalCode, partyAddressesTable.district, partyAddressesTable.state, partyAddressesTable.stateCode)
+      .orderBy(desc(count()), desc(sql`max(${partyAddressesTable.updatedAt})`))
+      .limit(1);
+    return place ? { ...place, stateCode: place.stateCode as NonNullable<TownPinModel>["stateCode"] } : null;
   }
 
   async get(input: PartyIdInputModel): Promise<PartyModel> {
     const [found] = await this.summaries(eq(partiesTable.id, input.id));
     if (!found) throw notFound();
     const { row: p, summary } = found;
-    const [addresses, openingBalance, withEntries, pendingOrders] = await Promise.all([
+    const [addresses, openingBalance, withEntries, pendingOrders, [paidBefore]] = await Promise.all([
       db
         .select()
         .from(partyAddressesTable)
@@ -257,6 +330,10 @@ export default class PartyService {
       this.accounts.savedOpening(summary.ledgerId),
       this.accounts.withEntries([summary.ledgerId]),
       this.pendingOrders(db, p.id),
+      db
+        .select({ paid: partyPaidBeforeTable.paid, tds: partyPaidBeforeTable.tds })
+        .from(partyPaidBeforeTable)
+        .where(and(eq(partyPaidBeforeTable.partyId, p.id), eq(partyPaidBeforeTable.financialYear, financialYear(new Date()).name))),
     ]);
     return {
       ...summary,
@@ -264,6 +341,7 @@ export default class PartyService {
       email: p.email,
       pan: p.pan,
       remarks: p.remarks,
+      transportDeclaration: p.transportDeclaration,
       addresses: addresses.map((a) => ({
         id: a.id,
         label: a.label,
@@ -279,6 +357,7 @@ export default class PartyService {
         gstin: a.gstin,
         isDefault: a.isDefault,
       })),
+      paidBefore: paidBefore ? { paid: Number(paidBefore.paid), tds: Number(paidBefore.tds) } : null,
       openingBalance,
       hasEntries: withEntries.has(summary.ledgerId),
       insights: await this.insights(summary.ledgerId, p.type, pendingOrders),
@@ -304,8 +383,8 @@ export default class PartyService {
 
   // the same, inside another save (a receipt from someone not in the app yet), so a failed save leaves no
   // party behind; gives the party and its ledger
-  async createIn(tx: Tx, rawInput: CreatePartyInputModel, type: PartyTypeModel | null = null) {
-    const parsed = createPartyInputModel.parse(rawInput);
+  async createIn(tx: Tx, rawInput: CreatePartyInputModel | CreatePayeeInputModel, type: PartyTypeModel | null = null, phoneOptional = false) {
+    const parsed = (phoneOptional ? createPayeeInputModel : createPartyInputModel).parse(rawInput);
     const details = settledDetails(parsed.details);
     const { addresses } = parsed;
     await this.assertShortNameFree(tx, details.shortName);
@@ -318,6 +397,7 @@ export default class PartyService {
       .values({ name: ledgerNameOf(details), ...(await this.placeFor(tx, type)), referenceTable: REFERENCE, referenceId: party!.id, balance: "0.00" })
       .returning({ id: ledgersTable.id });
     if (!ledger) throw notFound();
+    await this.savePaidBefore(tx, party!.id, parsed.paidBefore);
     return { partyId: party!.id, ledgerId: ledger.id };
   }
 
@@ -358,6 +438,7 @@ export default class PartyService {
       // its ledger's name follows (its place follows the type, which its transactions set)
       const ledger = await this.accounts.ledgerOf(tx, REFERENCE, id);
       await tx.update(ledgersTable).set({ name: ledgerNameOf(details) }).where(eq(ledgersTable.id, ledger.id));
+      await this.savePaidBefore(tx, id, parsed.paidBefore);
     }).catch((error: unknown) => {
       if (isUniqueViolation(error)) throw violated(error).includes("phone") ? phoneTaken(details.phone ?? "", "another party") : shortNameTaken(details.shortName);
       throw error;

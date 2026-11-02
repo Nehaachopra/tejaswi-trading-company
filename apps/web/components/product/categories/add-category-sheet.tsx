@@ -78,7 +78,7 @@ export function AddCategorySheet({ open, onClose }: { open: boolean; onClose: ()
       <form onSubmit={submit} className="flex flex-1 flex-col">
         <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-5 py-5">
           {/* the one field: Name */}
-          <label className="flex flex-col gap-1.5">
+          <label className="flex flex-col gap-2.5">
             <span className="text-sm">{t("nameLabel")}</span>
             <input
               autoFocus

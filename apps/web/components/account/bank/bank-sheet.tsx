@@ -50,7 +50,7 @@ export function BankSheet({ bankId, onClose }: { bankId: string | "new" | null; 
     e.preventDefault();
     setTried(true);
     setError(null);
-    if (!draftOk(draft)) return setError(t("errors.fill"));
+    if (!draftOk(draft)) return;
     try {
       const saved = editing ? await update.mutateAsync({ id: bankId, ...draftInput(draft) }) : await create.mutateAsync(draftInput(draft));
       toast.success(t(editing ? "toast.saved" : "toast.added", { name: `${saved.bankName} ••${saved.last4}` }));
@@ -70,10 +70,14 @@ export function BankSheet({ bankId, onClose }: { bankId: string | "new" | null; 
       ) : (
         <form onSubmit={save} noValidate className="flex min-h-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
-            <BankFields draft={draft} onChange={(patch) => setDraft((d) => ({ ...d, ...patch }))} tried={tried} />
-            {error && <FieldMessage>{error}</FieldMessage>}
+            <BankFields draft={draft} onChange={(patch) => {
+                setError(null);
+                setDraft((d) => ({ ...d, ...patch }));
+              }} tried={tried} />
           </div>
-          <footer className="flex shrink-0 flex-col border-t border-chestnut/15 px-5 py-4">
+          <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
+            {tried && !draftOk(draft) && <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>}
+            {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
             <SubmitButton busy={create.isPending || update.isPending}>{t(editing ? "saveDetails" : "save")}</SubmitButton>
           </footer>
         </form>

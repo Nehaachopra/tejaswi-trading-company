@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { FILTER_BAR, FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
 import { ClearButton } from "~/components/ui/clear-button";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
@@ -23,6 +24,7 @@ import { PARTY_KINDS, partyLabel, type PartyType } from "./party-kinds";
 export function PartiesBoard({ type }: { type: PartyType }) {
   const tc = useTranslations("common");
   const t = useTranslations("accounts.party");
+  const tf = useTranslations("accounts.party.form");
   const th = useTranslations("accounts.overview.heads");
   const kind = PARTY_KINDS[type];
   const [showInactive, setShowInactive] = useState(false);
@@ -43,7 +45,7 @@ export function PartiesBoard({ type }: { type: PartyType }) {
   const shown = (parties.data ?? []).filter((p) => city === null || p.city === city);
 
   return (
-    <main className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6">
+    <main className={`${PAGE} pb-16`}>
       <h1 className="sr-only">{t(`titles.${type}`)}</h1>
 
       {/* back to the head it sits under */}
@@ -52,7 +54,7 @@ export function PartiesBoard({ type }: { type: PartyType }) {
       </Link>
 
       {/* search, then the place filter and Show inactive, under the header while the list scrolls */}
-      <div className="sticky top-16 z-20 -mx-4 mt-2 flex flex-wrap items-center gap-2 bg-chestnut px-4 py-2 sm:-mx-6 sm:flex-nowrap sm:px-6">
+      <div className={`mt-3 ${FILTER_BAR}`}>
         <label className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory sm:w-auto sm:flex-1">
           <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
           <span className="sr-only">{t("search")}</span>
@@ -70,7 +72,8 @@ export function PartiesBoard({ type }: { type: PartyType }) {
           label={t("place")}
           surface="chestnut"
           align="left"
-          triggerClassName="min-h-9 max-w-48 gap-1.5 px-3 text-sm"
+          boxed
+          triggerClassName={FILTER_TRIGGER}
           trigger={
             <>
               <span className="truncate">{city ?? t("allPlaces")}</span>
@@ -122,7 +125,7 @@ export function PartiesBoard({ type }: { type: PartyType }) {
           )}
         </p>
       ) : (
-        <ul className="mt-2 flex flex-col gap-3">
+        <ul className="mt-2 grid gap-3 lg:grid-cols-2">
           {shown.map((p) => (
             <li key={p.id}>
               <Link

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Fragment, useState } from "react";
 
+import { FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
 import { WhatsAppIcon } from "~/components/ui/whatsapp-icon";
@@ -67,7 +68,7 @@ export function PartyDues({ kind, partyId }: { kind: DueKind; partyId: string })
 
   if (page.isPending || page.isError)
     return (
-      <main className="mx-auto max-w-3xl px-4 pb-16 pt-4 sm:px-6">
+      <main className={`${PAGE} pb-16`}>
         {back}
         {page.isPending ? (
           <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
@@ -90,7 +91,7 @@ export function PartyDues({ kind, partyId }: { kind: DueKind; partyId: string })
     "inline-flex min-h-10 items-center gap-2 rounded-control border-2 border-chestnut px-3.5 text-sm font-semibold transition-colors hover:bg-chestnut/[0.06]";
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-4 px-4 pb-16 pt-4 sm:px-6">
+    <main className={`${PAGE} flex flex-col gap-4 pb-16`}>
       <h1 className="sr-only">{name}</h1>
       {back}
 
@@ -119,9 +120,11 @@ export function PartyDues({ kind, partyId }: { kind: DueKind; partyId: string })
           <Link href={owedToUs ? "/transaction/receipt" : "/transaction/payment"} className={button}>
             <Plus className="size-4" aria-hidden /> {tp(owedToUs ? "recordReceipt" : "recordPayment")}
           </Link>
-          <Link href={ledger} className={button}>
-            <BookOpen className="size-4" aria-hidden /> {tp("ledger")}
-          </Link>
+          {!d.dues[0]?.lenderId && (
+            <Link href={ledger} className={button}>
+              <BookOpen className="size-4" aria-hidden /> {tp("ledger")}
+            </Link>
+          )}
         </div>
       </section>
 
@@ -316,7 +319,8 @@ function DuesTable({ page, kind, partyName, actions }: { page: Page; kind: DueKi
           label={tfl("status")}
           surface="chestnut"
           align="left"
-          triggerClassName="min-h-9 gap-1.5 px-3 text-sm"
+          boxed
+          triggerClassName={FILTER_TRIGGER}
           trigger={
             <>
               <span className="truncate">{status ? tfl(status) : tfl("allStatus")}</span>
@@ -344,7 +348,8 @@ function DuesTable({ page, kind, partyName, actions }: { page: Page; kind: DueKi
             label={tfl("sort")}
             surface="chestnut"
             align="right"
-            triggerClassName="min-h-9 gap-1.5 px-3 text-sm"
+            boxed
+            triggerClassName={FILTER_TRIGGER}
             trigger={
               <>
                 <ArrowDownUp className="size-3.5 shrink-0" aria-hidden />

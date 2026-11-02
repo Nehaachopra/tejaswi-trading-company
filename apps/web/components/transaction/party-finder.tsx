@@ -8,21 +8,20 @@ import { titleCase } from "~/lib/format";
 import { trpc } from "~/trpc/client";
 
 import { kindOf, partyLabel } from "../account/party/party-kinds";
-import { SignedAmount } from "../account/signed-amount";
 import type { Pickable, ReceiptKind } from "./ledger-picker";
 
 // a phone as shown everywhere: with its country code
 export const withCode = (phone: string) => `+91 ${phone}`;
 
-// a party ledger as a pick shows it, to tell people apart: short name (or full name) with the admin's balance, the
-// full name under it, then phone, town and type
-export function PartyPick({ ledger, party }: { ledger: Pickable; party: NonNullable<Pickable["party"]> }) {
+// a party ledger as a pick shows it, to tell people apart: short name (or full name) with its type beside it, the
+// full name under it, then phone and town (never its balance)
+export function PartyPick({ party }: { ledger: Pickable; party: NonNullable<Pickable["party"]> }) {
   const tt = useTranslations("accounts.party.form.types");
   return (
     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
       <span className="flex items-center gap-2">
-        <span className="min-w-0 flex-1 truncate font-heading text-base font-bold">{partyLabel(party)}</span>
-        {ledger.balance && <SignedAmount balance={ledger.balance.today} head={ledger.head} className="shrink-0 text-sm" />}
+        <span className="min-w-0 truncate font-heading text-base font-bold">{partyLabel(party)}</span>
+        <span className="shrink-0 rounded-control border border-current/40 px-1.5 py-0.5 text-xs">{tt(kindOf(party.type))}</span>
       </span>
       {party.shortName && <span className="truncate text-sm">{titleCase(party.name)}</span>}
       <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
@@ -36,7 +35,6 @@ export function PartyPick({ ledger, party }: { ledger: Pickable; party: NonNulla
             <MapPin className="size-3.5" aria-hidden /> {titleCase(party.city)}
           </span>
         )}
-        <span className="rounded-control border border-current/40 px-1.5 py-0.5">{tt(kindOf(party.type))}</span>
       </span>
     </span>
   );

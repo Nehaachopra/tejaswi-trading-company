@@ -1,14 +1,15 @@
 "use client";
 
-import { CircleAlert, ListFilter, Plus } from "lucide-react";
+import { CircleAlert, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 
+import { ADD_BUTTON, FILTER_BAR_UNDER_TABS, PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
-import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 
 import { ProductTabs } from "../product-tabs";
+import { chip } from "../row-styles";
 import { AddCategorySheet } from "./add-category-sheet";
 import { CategoryDrawer } from "./category-drawer";
 import { CategoryRow } from "./category-row";
@@ -27,7 +28,7 @@ export function CategoriesBoard() {
   const opened = list.data?.find((c) => c.id === openId) ?? null;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6">
+    <main className={`${PAGE} pb-16`}>
       {/* the page's name, for screen readers only: the tiles below say it visually */}
       <h1 className="sr-only">{t("title")}</h1>
 
@@ -38,22 +39,18 @@ export function CategoriesBoard() {
       <button
         type="button"
         onClick={() => setAdding(true)}
-        className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-ivory px-5 font-heading text-lg font-bold text-chestnut sm:w-auto"
+        className={`mt-6 ${ADD_BUTTON}`}
       >
         <Plus className="size-5" aria-hidden /> {t("add")}
       </button>
 
-      {/* filters: a filter icon, then the chips (plain text); for now only Show inactive */}
-      <div className="mt-4 flex items-center gap-2">
-        <ListFilter className="size-5 shrink-0 text-ivory/70" aria-hidden />
+      {/* the filters; for now only Show inactive */}
+      <div className={`mt-3 ${FILTER_BAR_UNDER_TABS}`}>
         <button
           type="button"
           aria-pressed={showInactive}
           onClick={() => setShowInactive((v) => !v)}
-          className={cn(
-            "min-h-9 rounded-control border px-4 text-sm transition-colors",
-            showInactive ? "border-ivory bg-ivory font-medium text-chestnut" : "hover:border-ivory/60",
-          )}
+          className={chip(showInactive)}
         >
           {t("showInactive")}
         </button>

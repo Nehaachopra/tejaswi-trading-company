@@ -4,6 +4,7 @@ import { Check, ChevronDown, CircleAlert, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { ADD_BUTTON, FILTER_BAR_UNDER_TABS, FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
@@ -53,7 +54,7 @@ export function ProductsBoard() {
   const [addingPack, setAddingPack] = useState<ProductGroup | null>(null);
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6">
+    <main className={`${PAGE} pb-16`}>
       {/* everything behind an open sheet is inert: no taps, focus or scrolling of tiles and filters */}
       <div inert={!!opened || adding || !!addingPack} className="contents">
         {/* the page's name, for screen readers only: the tabs say it visually */}
@@ -66,19 +67,20 @@ export function ProductsBoard() {
         <button
           type="button"
           onClick={() => setAdding(true)}
-          className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-ivory px-5 font-heading text-lg font-bold text-chestnut sm:w-auto"
+          className={`mt-6 ${ADD_BUTTON}`}
         >
           <Plus className="size-5" aria-hidden /> {t("add")}
         </button>
 
         {/* filters on one line: the category and sub-category dropdowns, then Show inactive;
             they stick under the header while the tiles scroll */}
-        <div className="sticky top-16 z-20 -mx-4 mt-2 flex flex-wrap items-center gap-2 bg-chestnut px-4 py-2 sm:-mx-6 sm:px-6">
+        <div className={`mt-3 ${FILTER_BAR_UNDER_TABS}`}>
           <Menu
             label={t("category")}
             surface="chestnut"
             align="left"
-            triggerClassName="min-h-9 min-w-0 max-w-full px-4 text-sm"
+            boxed
+            triggerClassName={FILTER_TRIGGER}
             trigger={
               <>
                 <span className="truncate">
@@ -117,7 +119,8 @@ export function ProductsBoard() {
             surface="chestnut"
             align="left"
             disabled={subs.length === 0}
-            triggerClassName="min-h-9 min-w-0 max-w-full px-4 text-sm"
+            boxed
+            triggerClassName={FILTER_TRIGGER}
             trigger={
               <>
                 <span className="truncate">

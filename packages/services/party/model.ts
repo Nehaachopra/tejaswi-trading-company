@@ -24,9 +24,12 @@ const optionalText = (max: number) =>
     .nullable()
     .default(null);
 
-const GSTIN = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+export const GSTIN_PATTERN = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 
-// one address; lengths follow party_addresses: label 100, lines 200, landmark 150, city, district and state 100,
+// the most a money column holds
+const MONEY_MAX = 9_999_999_999_999;
+
+// one address (line 1 may be empty; the town, district, state and PIN may not); lengths follow party_addresses: label 100, lines 200, landmark 150, city, district and state 100,
 // PIN 6, GSTIN 15. A GSTIN's first two digits are the state's code
 export const partyAddressInputModel = z
   .object({
@@ -34,11 +37,11 @@ export const partyAddressInputModel = z
     id: idModel.optional(),
     label: optionalText(100),
     addressType: z.enum(["billing", "shipping", "both", "registered"]).default("both"),
-    addressLine1: z.string().trim().min(1).max(200),
+    addressLine1: z.string().trim().max(200).default(""),
     addressLine2: optionalText(200),
     landmark: optionalText(150),
-    city: z.string().trim().min(1).max(100),
-    district: z.string().trim().min(1).max(100),
+    city: z.string().trim().min(1).max(100).regex(/^\D*$/, "A town has no numbers."),
+    district: z.string().trim().min(1).max(100).regex(/^\D*$/, "A district has no numbers."),
     state: z.string().trim().min(1).max(100),
     stateCode: stateCodeModel,
     postalCode: z.string().trim().regex(/^\d{6}$/, "A PIN code is 6 digits."),
@@ -47,7 +50,7 @@ export const partyAddressInputModel = z
       .trim()
       .toUpperCase()
       .regex(/^$|^.{15}$/, "A GSTIN is 15 characters.")
-      .refine((v) => v === "" || GSTIN.test(v), "That isn't a valid GSTIN.")
+      .refine((v) => v === "" || GSTIN_PATTERN.test(v), "That isn't a valid GSTIN.")
       .transform((v) => (v === "" ? null : v))
       .nullable()
       .default(null),
@@ -72,7 +75,8 @@ export const shortNameModel = z
 export const PHONE_PATTERN = /^([6-9]\d{9}|0\d{10,11})$/;
 
 export const partyDetailsInputModel = z.object({
-  name: z.string().trim().min(1).max(150),
+  // a full name has no digits (the short name may: "SRT2")
+  name: z.string().trim().min(1).max(150).regex(/^\D*$/, "A name has no numbers."),
   shortName: shortNameModel.nullable().default(null),
   phone: z.string().trim().regex(PHONE_PATTERN, "A 10-digit mobile, or a landline with its STD code."),
   email: z
@@ -92,23 +96,47 @@ export const partyDetailsInputModel = z.object({
     .nullable()
     .default(null),
   remarks: optionalText(500),
+  // a small transporter's declaration (10 or fewer goods carriages, PAN given): no TDS on its transport
+  transportDeclaration: z.boolean().default(false),
 });
 
 export type PartyDetailsInputModel = z.infer<typeof partyDetailsInputModel>;
 
 // the details as saved; `needsShortName` when the party is added from a sale or purchase
-export function settledDetails(d: PartyDetailsInputModel, needsShortName = false): PartyDetailsInputModel {
+export function settledDetails<T extends { shortName: string | null }>(d: T, needsShortName = false): T {
   if (needsShortName && !d.shortName) throw new TRPCError({ code: "BAD_REQUEST", message: "A party added from a sale or purchase needs a short name." });
   return d;
 }
 
-// a new party with its addresses (up to 10); its opening balance is set on the Opening balances page
+// what was paid this financial year outside this website, with the TDS taken from it; it counts towards TDS limits
+export const partyPaidBeforeModel = z
+  .object({ paid: z.number().nonnegative().max(MONEY_MAX), tds: z.number().nonnegative().max(MONEY_MAX) })
+  .refine((p) => p.tds <= p.paid, { path: ["tds"], message: "TDS can't be more than what was paid." });
+
+// a new party with its addresses (up to 10); its opening balance is set on the Opening balances page. Left out, what
+// was paid before stays as it is
 export const createPartyInputModel = z.object({
   details: partyDetailsInputModel,
   addresses: z.array(partyAddressInputModel).max(10).default([]),
+  paidBefore: partyPaidBeforeModel.optional(),
 });
 
 export type CreatePartyInputModel = z.infer<typeof createPartyInputModel>;
+
+// someone paid under a head where a phone isn't needed (legal and professional fees): the same, with the phone optional
+export const createPayeeInputModel = createPartyInputModel.extend({
+  details: partyDetailsInputModel.extend({
+    phone: z
+      .string()
+      .trim()
+      .refine((v) => v === "" || PHONE_PATTERN.test(v), "A 10-digit mobile, or a landline with its STD code.")
+      .transform((v) => (v === "" ? null : v))
+      .nullable()
+      .default(null),
+  }),
+});
+
+export type CreatePayeeInputModel = z.infer<typeof createPayeeInputModel>;
 
 // the full set of addresses replaces the old one: kept ones carry their id, new ones none, and the ones left out
 // are retired (kept for the sales and purchases that used them)
@@ -133,6 +161,26 @@ export type ListPartiesInputModel = z.infer<typeof listPartiesInputModel>;
 export const setPartyActiveInputModel = z.object({ id: idModel, isActive: z.boolean() });
 
 // a PIN code already saved on an address: its town, district and state, to fill a new address with
+// before a party is added or renamed: others with the same name in the same town (to confirm it isn't the same one
+// again), and whether its short name is free, with the first free one like it ("ST" taken → "ST2")
+export const partyNameCheckInputModel = z.object({
+  name: z.string().trim().max(150).default(""),
+  city: z.string().trim().max(100).default(""),
+  shortName: z.string().trim().toUpperCase().max(20).default(""),
+  // the party being edited, which doesn't clash with itself
+  exceptId: idModel.nullable().default(null),
+});
+
+export type PartyNameCheckInputModel = z.infer<typeof partyNameCheckInputModel>;
+
+export const partyNameCheckModel = z.object({
+  sameInTown: z.array(z.object({ name: z.string(), shortName: z.string().nullable(), phone: z.string().nullable(), city: z.string() })),
+  shortNameTaken: z.boolean(),
+  freeShortName: z.string(),
+});
+
+export type PartyNameCheckModel = z.infer<typeof partyNameCheckModel>;
+
 export const pinPlaceInputModel = z.object({ postalCode: z.string().trim().regex(/^\d{6}$/, "A PIN code is 6 digits.") });
 
 export type PinPlaceInputModel = z.infer<typeof pinPlaceInputModel>;
@@ -142,6 +190,15 @@ export const pinPlaceModel = z
   .nullable();
 
 export type PinPlaceModel = z.infer<typeof pinPlaceModel>;
+
+// a town already on a saved address: the PIN used with it most, to fill a new address with when no PIN is typed
+export const townPinInputModel = z.object({ city: z.string().trim().min(1).max(100) });
+
+export type TownPinInputModel = z.infer<typeof townPinInputModel>;
+
+export const townPinModel = z.object({ postalCode: z.string(), district: z.string(), state: z.string(), stateCode: stateCodeModel }).nullable();
+
+export type TownPinModel = z.infer<typeof townPinModel>;
 
 export type SetPartyActiveInputModel = z.infer<typeof setPartyActiveInputModel>;
 
@@ -184,7 +241,10 @@ export const partyModel = partySummaryModel.extend({
   email: z.string().nullable(),
   pan: z.string().nullable(),
   remarks: z.string().nullable(),
+  transportDeclaration: z.boolean(),
   addresses: z.array(partyAddressModel),
+  // this financial year's, null when none was typed
+  paidBefore: z.object({ paid: z.number(), tds: z.number() }).nullable(),
   openingBalance: savedOpeningBalanceModel.nullable(),
   // whether anything besides the opening balance has been posted (then the opening balance is fixed)
   hasEntries: z.boolean(),

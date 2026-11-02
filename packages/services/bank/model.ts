@@ -30,7 +30,7 @@ export const upiIdModel = z
 // from the list of banks; with it, the bank and branch come from the IFSC
 export const bankDetailsInputModel = z.object({
   bankName: z.string().trim().toLowerCase().min(1).max(100),
-  accountHolderName: z.string().trim().toLowerCase().min(1).max(255),
+  accountHolderName: z.string().trim().toLowerCase().min(1).max(255).regex(/^\D*$/, "A name has no numbers."),
   branchName: z.string().trim().toLowerCase().min(1).max(100),
   // Indian banks use 9 to 18 digits
   accountNumber: z

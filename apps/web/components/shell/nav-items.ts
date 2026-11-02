@@ -1,11 +1,11 @@
-import { Activity, ClipboardList, HandCoins, History, House, Landmark, type LucideIcon, Package, Receipt, Users, Warehouse } from "lucide-react";
+import { Activity, ClipboardList, HandCoins, History, House, Landmark, type LucideIcon, Package, Receipt, Settings, Users, Warehouse } from "lucide-react";
 
 export type Role = "admin" | "staff";
 
 export type NavItem = {
   href: string;
   // key under shell.nav in the translation files
-  label: "home" | "history" | "orders" | "stock" | "products" | "entities" | "accounts" | "dues" | "gst" | "jobs";
+  label: "home" | "history" | "orders" | "stock" | "products" | "entities" | "accounts" | "dues" | "gst" | "jobs" | "settings";
   icon: LucideIcon;
   adminOnly?: boolean;
   // on phones: in the bottom bar, in the More sheet, or not at all (Home: the logo goes there)
@@ -16,7 +16,7 @@ export type NavItem = {
 };
 
 // keys under shell.nav.heads
-export type SubLabel = HeadLabel | "opening" | "parties" | "banks";
+export type SubLabel = HeadLabel | "opening" | "parties" | "landlords" | "lenders" | "banks";
 
 // the six heads (each tagged Debit or Credit)
 export type HeadLabel = "asset" | "liability" | "income" | "expense" | "profit" | "loss";
@@ -50,6 +50,8 @@ export const NAV_ITEMS: NavItem[] = [
     place: "more",
     children: [
       { href: "/entities/parties", label: "parties" },
+      { href: "/entities/landlords", label: "landlords" },
+      { href: "/entities/lenders", label: "lenders" },
       { href: "/entities/banks", label: "banks" },
     ],
   },
@@ -74,6 +76,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/dues", label: "dues", icon: HandCoins, adminOnly: true, place: "more" },
   { href: "/gst", label: "gst", icon: Receipt, adminOnly: true, place: "more" },
   { href: "/jobs", label: "jobs", icon: Activity, adminOnly: true, place: "more" },
+  { href: "/settings", label: "settings", icon: Settings, adminOnly: true, place: "more" },
 ];
 
 export const NEW_TRANSACTION_HREF = "/transaction";

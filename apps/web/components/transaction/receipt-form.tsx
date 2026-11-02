@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { PAGE } from "~/components/ui/page-styles";
 import { fieldClass, SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { NumberInput } from "~/components/ui/number-input";
@@ -19,6 +20,7 @@ import { trpc } from "~/trpc/client";
 import { indiaDay } from "../account/balance";
 import { useLedgerName } from "../account/ledger-name";
 import { draftInput as partyInput, draftOk as partyOk, emptyDraft as emptyParty, PartyFields, type PartyDraft } from "../account/party/party-fields";
+import { useSameNameConfirm } from "../account/party/same-name";
 import { type LedgerChoice, LedgerPicker, type Pickable, type ReceiptKind } from "./ledger-picker";
 import { emptyLoan, type LoanDraft, loanInput, loanProblems, LoanTerms } from "./loan-terms";
 import { PartyPick, PhoneMatches, useNameMatches, usePhoneMatches } from "./party-finder";
@@ -68,6 +70,7 @@ function errorKey(err: unknown) {
 export function ReceiptForm({ isAdmin }: { isAdmin: boolean }) {
   const t = useTranslations("transactions.receipt");
   const utils = trpc.useUtils();
+  const sameName = useSameNameConfirm();
   const router = useRouter();
   const nameOf = useLedgerName();
   const banks = trpc.accounts.bank.pickable.useQuery();
@@ -126,7 +129,7 @@ export function ReceiptForm({ isAdmin }: { isAdmin: boolean }) {
   function next() {
     setTried(true);
     setError(null);
-    if (!stepOk(step)) return setError(t("errors.fill"));
+    if (!stepOk(step)) return;
     // the phone is someone already added: use them
     if (step === "party" && matched) return pickExisting(matched);
     setTried(false);
@@ -153,7 +156,9 @@ export function ReceiptForm({ isAdmin }: { isAdmin: boolean }) {
     if (at < steps.length - 1) return next();
     setTried(true);
     setError(null);
-    if (!steps.every(stepOk)) return setError(t("errors.fill"));
+    if (!steps.every(stepOk)) return;
+    // a new party with the same name in the same town: asked first
+    if (from?.kind === "party" && !(await sameName.confirm(newParty))) return;
     try {
       const r = await create.mutateAsync({
         dateTime: momentOf(day),
@@ -181,8 +186,9 @@ export function ReceiptForm({ isAdmin }: { isAdmin: boolean }) {
   }
 
   return (
-    <main className="mx-auto max-w-xl px-4 pb-28 pt-6 sm:px-6">
+    <main className={`${PAGE} pb-28`}>
       <h1 className="sr-only">{t("title")}</h1>
+      {sameName.dialog}
 
       <form onSubmit={submit} noValidate className="on-ivory flex flex-col gap-4 rounded-control bg-ivory p-4 text-chestnut sm:p-6">
         {/* where we are: numbered steps in a row, joined by a line; done ones show a tick, the ones reached are filled. It stays under the
@@ -211,7 +217,7 @@ export function ReceiptForm({ isAdmin }: { isAdmin: boolean }) {
         {step === "what" && (
           <>
             {/* how much came in */}
-            <label className="flex flex-col gap-1.5 text-sm font-medium">
+            <label className="flex flex-col gap-2.5 text-xs font-semibold">
               <span>
                 {t("amount")}
                 <RequiredMark />
@@ -257,7 +263,7 @@ export function ReceiptForm({ isAdmin }: { isAdmin: boolean }) {
               </div>
 
               {kind && (
-                <div className="flex flex-col gap-1.5 text-sm font-medium">
+                <div className="flex flex-col gap-1.5 text-xs font-semibold">
                   <span>
                     {t("from")}
                     <RequiredMark />
@@ -287,7 +293,7 @@ export function ReceiptForm({ isAdmin }: { isAdmin: boolean }) {
                   </label>
                   {tds && (
                     <div className="flex items-end gap-3">
-                      <label className="flex w-32 flex-col gap-1.5 text-sm font-medium">
+                      <label className="flex w-32 flex-col gap-2.5 text-xs font-semibold">
                         <span>
                           {t("tdsRate")}
                           <RequiredMark />
@@ -318,7 +324,6 @@ export function ReceiptForm({ isAdmin }: { isAdmin: boolean }) {
               onChange={(patch) => setNewParty((d) => ({ ...d, ...patch }))}
               tried={tried}
               strict
-              phoneFirst
               onlyPhone={!!matched}
               belowPhone={!matched && !dismissed && phoneMatches.length > 1 && <PhoneMatches matches={phoneMatches} onUse={setPicked} />}
               belowName={
@@ -392,10 +397,10 @@ export function ReceiptForm({ isAdmin }: { isAdmin: boolean }) {
                       searchLabel={t("searchBank")}
                       noMatch={t("noBankMatch")}
                     />
-                    <label className="flex flex-col gap-1.5 text-sm font-medium">
+                    <label className="flex flex-col gap-2.5 text-xs font-semibold">
                       {t("reference")}
                       <MicField onText={(said) => setReference((said.replace(/\s+/g, "").toUpperCase()).slice(0, REFERENCE_MAX))}>
-                        <input value={reference} maxLength={REFERENCE_MAX} onChange={(e) => setReference(e.target.value)} className={cn(input(false), "pr-11")} />
+                        <input value={reference} maxLength={REFERENCE_MAX} onChange={(e) => setReference(e.target.value.replace(/\s+/g, "").toUpperCase())} className={cn(input(false), "pr-11")} />
                       </MicField>
                     </label>
                   </>
@@ -404,14 +409,14 @@ export function ReceiptForm({ isAdmin }: { isAdmin: boolean }) {
 
             {/* the day, and any remarks */}
             <div className={cn(group, "sm:grid sm:grid-cols-[11rem_1fr]")}>
-              <label className="flex flex-col gap-1.5 text-sm font-medium">
+              <label className="flex flex-col gap-2.5 text-xs font-semibold">
                 <span>
                   {t("date")}
                   <RequiredMark />
                 </span>
                 <input type="date" value={day} onChange={(e) => setDay(e.target.value)} aria-invalid={(tried && bad.where.day) || undefined} className={input(tried && bad.where.day)} />
               </label>
-              <label className="flex flex-col gap-1.5 text-sm font-medium">
+              <label className="flex flex-col gap-2.5 text-xs font-semibold">
                 {t("remarks")}
                 <MicField onText={(said) => setRemarks((v) => (v.trim() ? `${v.trim()} ${said}` : said).slice(0, REMARKS_MAX))}>
                   <input value={remarks} maxLength={REMARKS_MAX} onChange={(e) => setRemarks(e.target.value)} className={cn(input(false), "pr-11")} />
@@ -421,6 +426,7 @@ export function ReceiptForm({ isAdmin }: { isAdmin: boolean }) {
           </>
         )}
 
+        {tried && !stepOk(step) && <FieldMessage>{t("errors.fill")}</FieldMessage>}
         {error && <FieldMessage>{error}</FieldMessage>}
 
         {/* back, and next or save */}

@@ -5,6 +5,7 @@ import { check, date, index, pgEnum, pgTable, uniqueIndex, uuid, varchar } from 
 
 import { money, percent, timestamps } from "../../utils/common/column-type";
 
+import { lendersTable, lenderTypeEnum } from "../lender/lender";
 import { partiesTable } from "../party/party";
 import { transactionsTable } from "../transaction/transaction";
 
@@ -26,9 +27,12 @@ export const duesTable = pgTable(
 
     kind: dueKindEnum("kind").notNull(),
 
+    // who it's with: a party, or for a bank or NBFC's loan a lender, never both
     partyId: uuid("party_id")
-      .notNull()
       .references(() => partiesTable.id, { onDelete: "restrict" }),
+
+    lenderId: uuid("lender_id")
+      .references(() => lendersTable.id, { onDelete: "restrict" }),
 
     partyName: varchar("party_name", { length: 150 }).notNull(),
 
@@ -49,6 +53,14 @@ export const duesTable = pgTable(
 
     frequency: loanFrequencyEnum("frequency"),
 
+    // a loan we took only: asked when it's registered
+    lenderType: lenderTypeEnum("lender_type"),
+
+    // a lender's loan: its account there, and its EMI if it has one
+    loanAccountNumber: varchar("loan_account_number", { length: 30 }),
+
+    emiAmount: money("emi_amount"),
+
     ...timestamps,
   },
   (table) => [
@@ -56,7 +68,17 @@ export const duesTable = pgTable(
 
     index("dues_party_id_idx").on(table.partyId),
 
+    index("dues_lender_id_idx").on(table.lenderId),
+
+    check("dues_party_or_lender", sql`(${table.partyId} IS NULL) <> (${table.lenderId} IS NULL)`),
+
+    check("dues_lender_account", sql`(${table.lenderId} IS NULL) = (${table.loanAccountNumber} IS NULL)`),
+
+    check("dues_emi_on_lender", sql`${table.emiAmount} IS NULL OR (${table.lenderId} IS NOT NULL AND ${table.emiAmount} > 0)`),
+
     check("dues_amount_positive", sql`${table.amount} > 0`),
+
+    check("dues_lender_on_loan_taken", sql`${table.lenderType} IS NULL OR ${table.kind} = 'loan_taken'`),
 
     check(
       "dues_loan_terms",

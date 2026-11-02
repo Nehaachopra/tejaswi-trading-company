@@ -32,6 +32,6 @@ export const iconButton =
 
 // a filter chip on the chestnut page
 export const chip = (pressed: boolean) =>
-  `min-h-9 shrink-0 rounded-control border px-4 text-sm transition-colors ${
-    pressed ? "border-ivory bg-ivory font-medium text-chestnut" : "hover:border-ivory/60"
+  `min-h-9 shrink-0 rounded-control border px-3 text-sm transition-colors ${
+    pressed ? "border-ivory bg-ivory font-medium text-chestnut" : "border-ivory/40 text-ivory hover:border-ivory/70"
   }`;

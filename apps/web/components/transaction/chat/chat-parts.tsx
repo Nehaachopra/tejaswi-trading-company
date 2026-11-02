@@ -68,14 +68,28 @@ export function Chips({ children }: { children: React.ReactNode }) {
   return <div className="chat-follow flex flex-wrap gap-2">{children}</div>;
 }
 
-export function Chip({ children, onClick, on = false, strong = false }: { children: React.ReactNode; onClick: () => void; on?: boolean; strong?: boolean }) {
+// a disabled chip can't be picked (a payment from cash or a bank holding nothing), shown faded
+export function Chip({
+  children,
+  onClick,
+  on = false,
+  strong = false,
+  disabled = false,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  on?: boolean;
+  strong?: boolean;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={on}
+      disabled={disabled}
       className={cn(
-        "min-h-10 rounded-full border px-4 text-sm font-medium transition-colors",
+        "min-h-10 rounded-full border px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:border-ivory/25 disabled:bg-transparent disabled:text-ivory/40",
         on || strong ? "border-ivory bg-ivory text-chestnut" : "border-ivory/50 text-ivory hover:border-ivory hover:bg-ivory/10",
       )}
     >

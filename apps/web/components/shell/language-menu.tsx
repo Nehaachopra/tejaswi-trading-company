@@ -23,6 +23,7 @@ export function LanguageMenu() {
   return (
     <Menu
       label={t("language")}
+      boxed
       triggerClassName="px-2.5"
       trigger={
         <>

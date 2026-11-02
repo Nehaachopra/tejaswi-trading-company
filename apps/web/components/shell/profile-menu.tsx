@@ -35,6 +35,8 @@ export function ProfileMenu({ name, role }: { name: string; role: Role }) {
   return (
     <Menu
       label={t("profile")}
+      boxed
+      asksFirst
       triggerClassName="size-11 font-heading text-base font-bold"
       trigger={<span aria-hidden>{initials(name)}</span>}
     >

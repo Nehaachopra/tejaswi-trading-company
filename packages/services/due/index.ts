@@ -1,10 +1,11 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, db, eq, inArray, type SQL, sql } from "@repo/database";
-import { duesTable, dueSettlementsTable, partiesTable, partyAddressesTable, transactionsTable } from "@repo/database/schema";
+import { and, asc, db, eq, inArray, or, type SQL, sql } from "@repo/database";
+import { duesTable, dueSettlementsTable, lendersTable, partiesTable, partyAddressesTable, transactionsTable } from "@repo/database/schema";
 
 import AccountsService from "../accounts";
 import type { ActorModel } from "../accounts/model";
 import { fromPaise, toPaise } from "../accounts/money";
+import LenderService from "../lender";
 import PartyService from "../party";
 import type { Tx } from "../stock/engine";
 import TransactionService from "../transaction";
@@ -12,6 +13,7 @@ import { counterLedger } from "../transaction/settle";
 import {
   type AddOldDueInputModel,
   addOldDueInputModel,
+  type LenderLoanInputModel,
   DUE_KIND_DB,
   type DueKind,
   type DueModel,
@@ -43,7 +45,7 @@ async function averageDays(kind: string, partyId: string | null) {
     join dues d on d.id = s.due_id
     join transactions st on st.id = s.transaction_id and st.status = 'active' and st.sub_type is distinct from 'bad_debt'
     join transactions dt on dt.id = d.transaction_id and dt.status = 'active'
-    where d.kind = ${kind} ${partyId ? sql`and d.party_id = ${partyId}` : sql``}`);
+    where d.kind = ${kind} ${partyId ? sql`and coalesce(d.party_id, d.lender_id) = ${partyId}` : sql``}`);
   const days = r.rows[0]?.days;
   return days == null ? null : Math.max(0, Math.round(Number(days)));
 }
@@ -52,6 +54,7 @@ async function averageDays(kind: string, partyId: string | null) {
 const settledPaise = sql<string>`(select coalesce(sum(s.amount), 0) from due_settlements s join transactions st on st.id = s.transaction_id where s.due_id = ${duesTable.id} and st.status = 'active')`;
 
 type Party = { id: string; name: string; phone: string | null };
+type DueLender = { id: string; name: string; type: "bank" | "nbfc" | "individual"; loanAccountNumber: string; emiAmount: number | null };
 
 // what's owed both ways: debtors, creditors, loans given and taken. A due is made by the transaction that creates it
 // (inside that save) or added as an old one from before the app. Debtors and creditors are one running amount per
@@ -61,22 +64,33 @@ export default class DueService {
     private readonly accounts = new AccountsService(),
     private readonly transactions = new TransactionService(),
     private readonly parties = new PartyService(accounts),
+    private readonly lenders = new LenderService(accounts),
   ) {}
 
-  // inside a save: a new due on a party, made by that transaction
-  async createIn(tx: Tx, input: { kind: DueKind; party: Party; transactionId: string; amount: number; dueOn: string | null; terms: Omit<LoanTermsInputModel, "dueOn"> | null }) {
+  // inside a save: a bank or NBFC's loan's lender, already added or made now, with what the due and its posting need
+  async lenderIn(tx: Tx, input: LenderLoanInputModel) {
+    const { lender, ledgerId } = input.newLender ? await this.lenders.createIn(tx, input.newLender) : await this.lenders.existingIn(tx, input.lenderId!);
+    return { ledgerId, due: { id: lender.id, name: lender.name, type: lender.type, loanAccountNumber: input.loanAccountNumber, emiAmount: input.emiAmount } };
+  }
+
+  // inside a save: a new due on a party or lender, made by that transaction
+  async createIn(tx: Tx, input: { kind: DueKind; party: Party | null; lender?: DueLender | null; transactionId: string; amount: number; dueOn: string | null; terms: Omit<LoanTermsInputModel, "dueOn"> | null }) {
     const [due] = await tx
       .insert(duesTable)
       .values({
         kind: DUE_KIND_DB[input.kind],
-        partyId: input.party.id,
-        partyName: input.party.name.slice(0, 150),
-        partyPhone: input.party.phone,
+        partyId: input.party?.id ?? null,
+        lenderId: input.lender?.id ?? null,
+        partyName: (input.party ?? input.lender)!.name.slice(0, 150),
+        partyPhone: input.party?.phone ?? null,
+        loanAccountNumber: input.lender?.loanAccountNumber ?? null,
+        emiAmount: input.lender?.emiAmount != null ? fromPaise(toPaise(input.lender.emiAmount)) : null,
         transactionId: input.transactionId,
         amount: fromPaise(toPaise(input.amount)),
         dueOn: input.dueOn,
         interestRate: input.terms ? input.terms.interestRate.toFixed(2) : null,
         frequency: input.terms?.frequency ?? null,
+        lenderType: input.kind === "loanTaken" ? (input.lender?.type ?? input.terms?.lenderType ?? null) : null,
       })
       .returning({ id: duesTable.id });
     return due!.id;
@@ -86,22 +100,27 @@ export default class DueService {
   // settle the same rupee
   private async open(q: Tx | typeof db, where: SQL | undefined, lock = false) {
     const query = q
-      .select({ d: duesTable, t: { assignedId: transactionsTable.assignedId, dateTime: transactionsTable.dateTime, subType: transactionsTable.subType }, settled: settledPaise })
+      .select({ d: duesTable, branch: lendersTable.branch, t: { assignedId: transactionsTable.assignedId, dateTime: transactionsTable.dateTime, subType: transactionsTable.subType }, settled: settledPaise })
       .from(duesTable)
       .innerJoin(transactionsTable, eq(transactionsTable.id, duesTable.transactionId))
+      .leftJoin(lendersTable, eq(lendersTable.id, duesTable.lenderId))
       .where(and(eq(transactionsTable.status, "active"), where))
       .orderBy(asc(transactionsTable.dateTime), asc(duesTable.createdAt));
     const rows = lock ? await query.for("update", { of: duesTable }) : await query;
     const today = todayInIndia();
     return rows
-      .map(({ d, t, settled }): DueModel => {
+      .map(({ d, t, settled, branch }): DueModel => {
         const left = Number(fromPaise(toPaise(d.amount) - toPaise(settled)));
         return {
           id: d.id,
           kind: KIND_OF[d.kind]!,
-          partyId: d.partyId,
+          partyId: (d.partyId ?? d.lenderId)!,
           partyName: d.partyName,
           partyPhone: d.partyPhone,
+          lenderId: d.lenderId,
+          branch,
+          loanAccountNumber: d.loanAccountNumber,
+          emiAmount: d.emiAmount === null ? null : Number(d.emiAmount),
           transactionId: d.transactionId,
           assignedId: t.assignedId,
           dated: t.dateTime,
@@ -110,6 +129,7 @@ export default class DueService {
           left,
           dueOn: d.dueOn,
           overdue: left > 0 && d.dueOn !== null && d.dueOn < today,
+          lenderType: d.lenderType,
           interestRate: d.interestRate === null ? null : Number(d.interestRate),
           frequency: d.frequency,
         };
@@ -134,7 +154,7 @@ export default class DueService {
   async loanIn(tx: Tx, dueId: string, kind: "loanGiven" | "loanTaken") {
     const [due] = await this.open(tx, and(eq(duesTable.id, dueId), eq(duesTable.kind, DUE_KIND_DB[kind])), true);
     if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "That loan isn't open." });
-    return { due, ledgerId: (await this.accounts.ledgerOf(tx, "parties", due.partyId)).id };
+    return { due, ledgerId: (await this.accounts.ledgerOf(tx, due.lenderId ? "lenders" : "parties", due.partyId)).id };
   }
 
   // inside a save: a loan settled by this much, never more than is left of it
@@ -148,7 +168,7 @@ export default class DueService {
   async list(input: ListDuesInputModel): Promise<DuesBoardModel> {
     const kind = DUE_KIND_DB[input.kind];
     const [dues, days] = await Promise.all([this.open(db, eq(duesTable.kind, kind)), averageDays(kind, null)]);
-    const ids = [...new Set(dues.map((d) => d.partyId))];
+    const ids = [...new Set(dues.filter((d) => !d.lenderId).map((d) => d.partyId))];
     const now = new Map(
       (ids.length
         ? await db
@@ -167,7 +187,7 @@ export default class DueService {
         partyName: party?.name ?? d.partyName,
         shortName: party?.shortName ?? null,
         partyPhone: party?.phone ?? d.partyPhone,
-        city: party?.city ?? null,
+        city: party?.city ?? d.branch,
         left: 0,
         overdue: 0,
         nextDueOn: null,
@@ -209,7 +229,7 @@ export default class DueService {
         .from(partiesTable)
         .leftJoin(partyAddressesTable, and(eq(partyAddressesTable.partyId, partiesTable.id), eq(partyAddressesTable.isDefault, true), eq(partyAddressesTable.isActive, true)))
         .where(eq(partiesTable.id, input.partyId)),
-      this.open(db, and(eq(duesTable.kind, kind), eq(duesTable.partyId, input.partyId))),
+      this.open(db, and(eq(duesTable.kind, kind), or(eq(duesTable.partyId, input.partyId), eq(duesTable.lenderId, input.partyId)))),
       averageDays(kind, input.partyId),
       db.execute<{ transaction_id: string; assigned_id: string; type: string; sub_type: string | null; date_time: string; amount: string; due_assigned_id: string }>(sql`
         select st.id as transaction_id, st.assigned_id, st.type, st.sub_type, st.date_time, s.amount, dt.assigned_id as due_assigned_id
@@ -217,10 +237,13 @@ export default class DueService {
         join dues d on d.id = s.due_id
         join transactions st on st.id = s.transaction_id and st.status = 'active'
         join transactions dt on dt.id = d.transaction_id and dt.status = 'active'
-        where d.kind = ${kind} and d.party_id = ${input.partyId}
+        where d.kind = ${kind} and coalesce(d.party_id, d.lender_id) = ${input.partyId}
         order by st.date_time desc, st.created_at desc`),
     ]);
-    if (!party) throw new TRPCError({ code: "NOT_FOUND", message: "Party not found." });
+    // a bank or NBFC stands where a party would, with its branch as the place
+    const [lender] = party ? [] : await db.select({ id: lendersTable.id, name: lendersTable.name, city: lendersTable.branch }).from(lendersTable).where(eq(lendersTable.id, input.partyId));
+    const holder = party ?? (lender ? { ...lender, shortName: null, phone: null, countryCode: "+91", type: null } : null);
+    if (!holder) throw new TRPCError({ code: "NOT_FOUND", message: "Party not found." });
     const settlements = settled.rows.map((r) => ({
       transactionId: r.transaction_id,
       assignedId: r.assigned_id,
@@ -234,7 +257,7 @@ export default class DueService {
     // a payment that settled several dues counts once, in full
     const lastPaid = paid ? { dated: paid.dated, amount: settlements.filter((x) => x.transactionId === paid.transactionId).reduce((sum, x) => sum + x.amount, 0) } : null;
     return {
-      party,
+      party: holder,
       left: Number(fromPaise(dues.reduce((sum, d) => sum + toPaise(d.left), 0))),
       overdue: Number(fromPaise(dues.filter((d) => d.overdue).reduce((sum, d) => sum + toPaise(d.left), 0))),
       averageDays: days,
@@ -287,11 +310,13 @@ export default class DueService {
   async addOld(rawInput: AddOldDueInputModel, actor: ActorModel): Promise<DueModel> {
     const input = addOldDueInputModel.parse(rawInput);
     const id = await db.transaction(async (tx) => {
+      const lent = input.lender ? await this.lenderIn(tx, input.lender) : null;
       const ledgerId =
+        lent?.ledgerId ??
         input.partyLedgerId ??
         (await this.parties.createIn(tx, input.newParty!, input.kind === "debtor" ? "customer" : input.kind === "creditor" ? "supplier" : null)).ledgerId;
       const { ledger, party } = await counterLedger(tx, this.accounts, ledgerId);
-      if (!party) throw new TRPCError({ code: "BAD_REQUEST", message: "A due is on a party." });
+      if (!party && !lent) throw new TRPCError({ code: "BAD_REQUEST", message: "A due is on a party." });
 
       // we're owed it (a debtor, a loan we gave): the party is debited; we owe it: the party is credited
       const owedToUs = input.kind === "debtor" || input.kind === "loanGiven";
@@ -314,10 +339,11 @@ export default class DueService {
       return this.createIn(tx, {
         kind: input.kind,
         party,
+        lender: lent?.due ?? null,
         transactionId: t.id,
         amount: input.amount,
         dueOn: input.dueOn,
-        terms: isLoan(input.kind) ? { interestRate: input.interestRate!, frequency: input.frequency! } : null,
+        terms: isLoan(input.kind) ? { interestRate: input.interestRate!, frequency: input.frequency!, lenderType: input.lenderType } : null,
       });
     });
     const [due] = await this.open(db, eq(duesTable.id, id));

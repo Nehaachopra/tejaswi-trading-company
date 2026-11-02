@@ -3,7 +3,7 @@ import { and, asc, count, db, desc, eq, gte, inArray, isNull, lt, lte, ne, notIn
 import { ledgerEntriesTable, ledgerGroupsTable, ledgerMastersTable, ledgersTable, partiesTable, partyAddressesTable, paymentsTable, receiptsTable, transactionsTable } from "@repo/database/schema";
 
 // the picker: the ledgers used last when nothing is typed, and at most this many matches when something is
-const RECENT_PICKS = 8;
+const RECENT_PICKS = 14;
 // how close a party's name must be spelt to what's typed to count as a match (0 to 1; trigram word similarity)
 const FUZZY_FLOOR = 0.4;
 const PICK_LIMIT = 20;
@@ -44,6 +44,7 @@ import {
   type PickedLedgerModel,
   type ReceiptKind,
   TAX_LEDGERS,
+  type TdsType,
 } from "./model";
 import { GROUPS, type GroupType, LEDGERS, type LedgerKey, MASTERS, type MasterKey } from "./structure";
 
@@ -63,6 +64,10 @@ const notFound = () => new TRPCError({ code: "NOT_FOUND", message: "Ledger not f
 
 // the accounting structure, its fixed ledgers and masters, and opening balances; every entry goes
 // through the ledger engine
+// an expense head's TDS: what it was set to, or what a built-in head carries
+const BUILT_IN_TDS: Record<string, TdsType> = { rent: "rent", transport: "contract", labour: "contract", brokerage: "brokerage", professionalFees: "professional", legalFees: "professional" };
+const tdsTypeOf = (l: { tdsType: TdsType | null }, key: string | null): TdsType | null => l.tdsType ?? (key ? (BUILT_IN_TDS[key] ?? null) : null);
+
 export default class AccountsService {
   // ids never change once created (ledgers and masters can't be deleted), so they are looked up once
   private readonly ids = new Map<string, string>();
@@ -277,6 +282,22 @@ export default class AccountsService {
       )
       .orderBy(asc(ledgerEntriesTable.dateTime), asc(ledgerEntriesTable.createdAt), asc(ledgerEntriesTable.id));
 
+    // the other ledgers in these transactions, for each line's other side
+    const transactionIds = [...new Set(rows.map((r) => r.entry.transactionId))];
+    const others = transactionIds.length
+      ? await db
+          .select({ entry: ledgerEntriesTable, name: ledgersTable.name, referenceId: ledgersTable.referenceId, masterId: ledgersTable.ledgerMasterId, head: ledgerGroupsTable.type })
+          .from(ledgerEntriesTable)
+          .innerJoin(ledgersTable, eq(ledgersTable.id, ledgerEntriesTable.ledgerId))
+          .innerJoin(ledgerGroupsTable, eq(ledgerGroupsTable.id, ledgersTable.ledgerGroupId))
+          .where(and(inArray(ledgerEntriesTable.transactionId, transactionIds), ne(ledgerEntriesTable.ledgerId, ledger.id)))
+      : [];
+    const contrasOf = (e: typeof ledgerEntriesTable.$inferSelect) =>
+      others
+        .filter((o) => o.entry.transactionId === e.transactionId && o.entry.isReversal === e.isReversal && o.entry.transactionType !== e.transactionType)
+        .map((o) => ({ key: o.referenceId === null && !o.masterId ? (LEDGER_KEY.get(`${o.head}|${o.name}`) ?? null) : null, name: o.name, amount: Number(o.entry.amount) }))
+        .sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name));
+
     // the balance after each line
     let running = toPaise(before!.total);
     const broughtForward = asBalance(running);
@@ -292,6 +313,7 @@ export default class AccountsService {
         side: e.transactionType,
         amount: Number(e.amount),
         isReversal: e.isReversal,
+        contras: contrasOf(e),
         balance: asBalance(running),
       };
     });
@@ -344,6 +366,7 @@ export default class AccountsService {
       custom: l.referenceId === null && !masterName && !LEDGER_KEY.has(`${head}|${l.name}`),
       referenceId: l.referenceId,
       isActive: l.isActive,
+      tdsType: tdsTypeOf(l, l.referenceId === null && !masterName ? (LEDGER_KEY.get(`${head}|${l.name}`) ?? null) : null),
       balance: balances.get(l.id)!,
     }));
   }
@@ -414,21 +437,26 @@ export default class AccountsService {
     const [group] = await tx.select({ id: ledgerGroupsTable.id }).from(ledgerGroupsTable).where(eq(ledgerGroupsTable.type, input.head));
     if (!group) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "The accounting structure is missing." });
     await this.assertNameFree(tx, group.id, input.name);
-    const [ledger] = await tx.insert(ledgersTable).values({ name: input.name, ledgerGroupId: group.id, balance: "0.00" }).returning({ id: ledgersTable.id });
+    const [ledger] = await tx
+      .insert(ledgersTable)
+      .values({ name: input.name, ledgerGroupId: group.id, balance: "0.00", tdsType: input.tdsType })
+      .returning({ id: ledgersTable.id });
     return ledger!.id;
   }
 
-  // a new name for a ledger the admin added; built-in ledgers keep theirs
+  // a new name for a ledger the admin added (built-in ledgers keep theirs); an expense head's TDS, built-in ones too
   async updateLedger(rawInput: UpdateLedgerInputModel): Promise<LedgerModel> {
     const input = updateLedgerInputModel.parse(rawInput);
     const current = await this.ledger({ id: input.id });
-    if (!current.custom) throw new TRPCError({ code: "BAD_REQUEST", message: "A built-in ledger keeps its name." });
+    if (!current.custom && input.name !== current.name) throw new TRPCError({ code: "BAD_REQUEST", message: "A built-in ledger keeps its name." });
+    if (input.tdsType != null && current.head !== "expense") throw new TRPCError({ code: "BAD_REQUEST", message: "Only an expense head carries TDS." });
     await db.transaction(async (tx) => {
       const [row] = await tx.select({ ledgerGroupId: ledgersTable.ledgerGroupId }).from(ledgersTable).where(eq(ledgersTable.id, input.id)).for("update");
       if (input.name !== current.name) {
         await this.assertNameFree(tx, row!.ledgerGroupId, input.name, input.id);
         await tx.update(ledgersTable).set({ name: input.name }).where(eq(ledgersTable.id, input.id));
       }
+      if (input.tdsType !== undefined) await tx.update(ledgersTable).set({ tdsType: input.tdsType }).where(eq(ledgersTable.id, input.id));
     });
     return this.ledger({ id: input.id });
   }
@@ -446,8 +474,15 @@ export default class AccountsService {
       l.head !== "loss" &&
       (input.purpose === "receipt" || (l.masterKey !== "employees" && l.key !== "drawings")) &&
       (input.receiptKind === null || fitsReceiptKind(input.receiptKind, l)) &&
-      (input.paymentKind === null || fitsPaymentKind(input.paymentKind, l));
-    const kindWhere = input.receiptKind ? this.receiptKindWhere(input.receiptKind) : input.paymentKind ? this.paymentKindWhere(input.paymentKind) : undefined;
+      (input.paymentKind === null || fitsPaymentKind(input.paymentKind, l)) &&
+      (input.payee !== "other" || l.masterKey === "parties");
+    const kindWhere = input.payee === "other"
+      ? eq(ledgerMastersTable.name, MASTERS.parties.name)
+      : input.receiptKind
+        ? this.receiptKindWhere(input.receiptKind)
+        : input.paymentKind
+          ? this.paymentKindWhere(input.paymentKind)
+          : undefined;
 
     // nothing typed: the ledgers used last for this purpose, newest first
     if (input.search === "") {
@@ -455,6 +490,7 @@ export default class AccountsService {
         input.purpose === "receipt"
           ? db.select({ id: receiptsTable.receivedFromLedgerId, at: transactionsTable.dateTime }).from(receiptsTable).innerJoin(transactionsTable, eq(transactionsTable.id, receiptsTable.transactionId))
           : db.select({ id: paymentsTable.paidToLedgerId, at: transactionsTable.dateTime }).from(paymentsTable).innerJoin(transactionsTable, eq(transactionsTable.id, paymentsTable.transactionId));
+      // (landlords have no "used last": a rent payment is paid to the Rent ledger)
       const recent = await used.orderBy(desc(transactionsTable.dateTime)).limit(50);
       const ids = [...new Set(recent.map((r) => r.id))];
       const found = new Map((ids.length ? await this.summariesWhere(inArray(ledgersTable.id, ids)) : []).map((l) => [l.id, l]));
@@ -550,17 +586,19 @@ export default class AccountsService {
   // where a ledger sits (its head, sub-group and built-in key), read inside a save
   async placeIn(tx: Tx, ledgerId: string) {
     const [row] = await tx
-      .select({ name: ledgersTable.name, head: ledgerGroupsTable.type, masterName: ledgerMastersTable.name, referenceId: ledgersTable.referenceId })
+      .select({ name: ledgersTable.name, head: ledgerGroupsTable.type, masterName: ledgerMastersTable.name, referenceId: ledgersTable.referenceId, tdsType: ledgersTable.tdsType })
       .from(ledgersTable)
       .innerJoin(ledgerGroupsTable, eq(ledgerGroupsTable.id, ledgersTable.ledgerGroupId))
       .leftJoin(ledgerMastersTable, eq(ledgerMastersTable.id, ledgersTable.ledgerMasterId))
       .where(eq(ledgersTable.id, ledgerId));
     if (!row) throw notFound();
+    const key = row.referenceId === null && !row.masterName ? (LEDGER_KEY.get(`${row.head}|${row.name}`) ?? null) : null;
     return {
       head: row.head,
       masterKey: row.masterName ? (MASTER_KEY.get(`${row.head}|${row.masterName}`) ?? null) : null,
-      key: row.referenceId === null && !row.masterName ? (LEDGER_KEY.get(`${row.head}|${row.name}`) ?? null) : null,
+      key,
       referenceId: row.referenceId,
+      tdsType: tdsTypeOf(row, key),
     };
   }
 

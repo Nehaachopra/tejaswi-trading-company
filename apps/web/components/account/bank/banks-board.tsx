@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { FILTER_BAR, PAGE } from "~/components/ui/page-styles";
 import { ClearButton } from "~/components/ui/clear-button";
 import { Spinner } from "~/components/ui/spinner";
 import { cn } from "~/lib/utils";
@@ -30,7 +31,7 @@ export function BanksBoard() {
   );
 
   return (
-    <main className="mx-auto max-w-3xl px-4 pb-16 pt-6 sm:px-6">
+    <main className={`${PAGE} pb-16`}>
       <h1 className="sr-only">{t("title")}</h1>
 
       {/* back to Asset, where Bank sits */}
@@ -40,7 +41,7 @@ export function BanksBoard() {
 
 
       {/* search and Show inactive, under the header while the list scrolls */}
-      <div className="sticky top-16 z-20 -mx-4 mt-2 flex items-center gap-2 bg-chestnut px-4 py-2 sm:-mx-6 sm:px-6">
+      <div className={`mt-3 ${FILTER_BAR}`}>
         <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory">
           <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
           <span className="sr-only">{t("search")}</span>
@@ -83,7 +84,7 @@ export function BanksBoard() {
           )}
         </p>
       ) : (
-        <ul className="mt-2 flex flex-col gap-3">
+        <ul className="mt-2 grid gap-3 lg:grid-cols-2">
           {shown.map((b) => (
             <li key={b.id}>
               <Link

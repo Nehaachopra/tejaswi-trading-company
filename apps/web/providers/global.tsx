@@ -5,6 +5,7 @@ import { ThemeProvider as NextThemesProvider } from "next-themes";
 import React, { useState } from "react";
 
 import { Toaster } from "~/components/ui/toast";
+import { CapitalFirst } from "~/lib/capital-first";
 import { trpc } from "~/trpc/client";
 import { createTRPCLinks } from "~/trpc/create-client";
 
@@ -35,6 +36,7 @@ export const GlobalProviders: React.FC<{ children: React.ReactNode }> = ({ child
         <trpc.Provider queryClient={queryClient} client={trpcClient}>
           {children}
           <Toaster />
+          <CapitalFirst />
         </trpc.Provider>
       </NextThemesProvider>
     </QueryClientProvider>

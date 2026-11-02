@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { PAGE } from "~/components/ui/page-styles";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
@@ -38,7 +39,7 @@ export function LedgerPage({ ledgerId }: { ledgerId: string }) {
 
   return (
     // little room below: the statement fills the screen and scrolls inside itself
-    <main className="mx-auto max-w-5xl px-4 pb-6 pt-6 sm:px-6">
+    <main className={`${PAGE} pb-6`}>
       {/* back to the ledger's head */}
       <Link href={ledger.data ? `/account/${ledger.data.head}` : "/account"} className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
         <ArrowLeft className="size-4" aria-hidden /> {ledger.data ? t(`heads.${ledger.data.head}`) : t("title")}
@@ -70,7 +71,7 @@ export function LedgerPage({ ledgerId }: { ledgerId: string }) {
                       <MenuItem
                         onClick={() => {
                           close();
-                          setSheet({ kind: "rename", id: ledger.data.id, head: ledger.data.head, name: ledger.data.name });
+                          setSheet({ kind: "rename", id: ledger.data.id, head: ledger.data.head, name: ledger.data.name, tdsType: ledger.data.tdsType === "professional" ? null : ledger.data.tdsType });
                         }}
                       >
                         <Pencil className="size-4" aria-hidden /> {tm("rename")}

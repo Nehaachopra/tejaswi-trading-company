@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, db, eq } from "@repo/database";
+import { and, asc, db, eq, sql } from "@repo/database";
 import { bankDetailsTable, duesTable, ledgerEntriesTable, ledgersTable, partiesTable, partyAddressesTable, receiptsTable, transactionsTable } from "@repo/database/schema";
 
 import AccountsService from "../accounts";
@@ -8,7 +8,7 @@ import { fromPaise } from "../accounts/money";
 import DueService from "../due";
 import PartyService from "../party";
 import TransactionService from "../transaction";
-import { COMPANY } from "../transaction/company";
+import SettingService from "../setting";
 import { counterLedger, settleLedger } from "../transaction/settle";
 import { type CreateReceiptInputModel, createReceiptInputModel, NEW_LEDGER_FOR, RECEIVED_FOR_DB, type ReceiptIdInputModel, type ReceiptModel, type SavedReceiptModel, tdsOn } from "./model";
 
@@ -26,6 +26,7 @@ export default class ReceiptService {
     private readonly transactions = new TransactionService(),
     private readonly parties = new PartyService(accounts),
     private readonly dues = new DueService(accounts, transactions, parties),
+    private readonly settings = new SettingService(),
   ) {}
 
   async create(rawInput: CreateReceiptInputModel, actor: ActorModel): Promise<SavedReceiptModel> {
@@ -35,7 +36,9 @@ export default class ReceiptService {
       // Parties until their first sale or purchase), or a new ledger made now where its kind puts it
       // a loan given back or its interest: the loan we gave, which says who it comes from
       const loan = input.dueId ? await this.dues.loanIn(tx, input.dueId, "loanGiven") : null;
+      const lent = input.lender ? await this.dues.lenderIn(tx, input.lender) : null;
       const fromId =
+        lent?.ledgerId ??
         loan?.ledgerId ??
         input.receivedFromLedgerId ??
         (input.newParty
@@ -111,9 +114,9 @@ export default class ReceiptService {
       if (input.receivedFor === "customer" && party) await this.dues.settleOldestIn(tx, { kind: "debtor", partyId: party.id, transactionId: t.id, amount: fromLedger });
       if (input.receivedFor === "loanReturned") await this.dues.settleLoanIn(tx, loan!.due, t.id, input.amount);
       if (input.loan) {
-        if (!party) throw new TRPCError({ code: "BAD_REQUEST", message: "A loan comes from a party." });
+        if (!party && !lent) throw new TRPCError({ code: "BAD_REQUEST", message: "A loan comes from a party." });
         const { dueOn, ...terms } = input.loan;
-        await this.dues.createIn(tx, { kind: "loanTaken", party, transactionId: t.id, amount: input.amount, dueOn, terms });
+        await this.dues.createIn(tx, { kind: "loanTaken", party, lender: lent?.due ?? null, transactionId: t.id, amount: input.amount, dueOn, terms });
       }
       return { t };
     });
@@ -128,7 +131,8 @@ export default class ReceiptService {
       .select({ ledgerId: ledgerEntriesTable.ledgerId })
       .from(ledgerEntriesTable)
       .where(eq(ledgerEntriesTable.transactionId, input.transactionId))
-      .orderBy(asc(ledgerEntriesTable.createdAt));
+      // the debit side of the transaction first, then the credit side
+      .orderBy(sql`case when ${ledgerEntriesTable.transactionType} = 'debit' then 0 else 1 end`, asc(ledgerEntriesTable.createdAt));
     const ids = [...new Set(lines.map((l) => l.ledgerId))];
     const ledgers = await Promise.all(ids.map((id) => this.accounts.ledger({ id })));
     return ledgers.map(({ openingBalance: _o, hasEntries: _h, ...l }) => l);
@@ -186,7 +190,7 @@ export default class ReceiptService {
         ? {
             name: r.partyNameSnapshot!,
             shortName: r.partyShortNameSnapshot,
-            address: r.partyAddressLine1Snapshot
+            address: r.partyAddressLine1Snapshot !== null
               ? {
                   line1: r.partyAddressLine1Snapshot,
                   line2: r.partyAddressLine2Snapshot,
@@ -216,7 +220,7 @@ export default class ReceiptService {
           }
         : null,
       loan: loan?.interestRate != null && loan.frequency ? { interestRate: Number(loan.interestRate), frequency: loan.frequency } : null,
-      company: t.companySnapshot ?? COMPANY,
+      company: t.companySnapshot ?? (await this.settings.get("company")),
       settledIn: r.settledIn,
       bankDetailsId: r.bankDetailsId,
       referenceNumber: r.referenceNumber,

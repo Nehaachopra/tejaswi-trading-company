@@ -4,9 +4,10 @@ import { Lock, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
+import { ADD_ON_IVORY } from "~/components/ui/page-styles";
 import { fieldClass } from "~/components/ui/card-form";
 import { Spinner } from "~/components/ui/spinner";
-import { titleCase } from "~/lib/format";
+import { noDigits, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 import { appOfUpi, lengthFits, lengthsFor, type RouterOutputs, upiProblem } from "@repo/trpc/client";
@@ -167,7 +168,7 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
   return (
     <div className="flex flex-col gap-5">
       {/* IFSC (optional), with what it found */}
-      <label className="flex flex-col gap-1.5">
+      <label className="flex flex-col gap-2.5">
         <span className="text-sm">{t("ifsc")}</span>
         <input
           autoFocus
@@ -191,13 +192,13 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
       {/* bank and branch: locked to the IFSC when it found them, otherwise picked and typed */}
       {fromIfsc ? (
         <>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2.5">
             <span className="text-sm">{t("bankName")}</span>
             <p className={locked}>
               <Lock className="size-4 shrink-0" aria-hidden /> <span className="truncate">{draft.bankName}</span>
             </p>
           </div>
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2.5">
             <span className="text-sm">{t("branch")}</span>
             <p className={locked}>
               <Lock className="size-4 shrink-0" aria-hidden /> <span className="truncate">{draft.branchName}</span>
@@ -206,7 +207,7 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
         </>
       ) : (
         <>
-          <label className="flex flex-col gap-1.5">
+          <label className="flex flex-col gap-2.5">
             <span className="text-sm">{t("bankName")}</span>
             <PickMenu
               label={t("bankName")}
@@ -221,13 +222,13 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
             />
           </label>
           {draft.bankOther && (
-            <label className="flex flex-col gap-1.5">
+            <label className="flex flex-col gap-2.5">
               <span className="text-sm">{t("otherBankName")}</span>
               <input value={draft.bankName} maxLength={NAME_MAX} onChange={(e) => onChange({ bankName: e.target.value })} aria-invalid={show("bankName") || undefined} className={input(show("bankName"))} />
             </label>
           )}
           {/* a listed bank's branches can be searched (picking one fills in the IFSC); an Other bank's is typed */}
-          <label className="flex flex-col gap-1.5">
+          <label className="flex flex-col gap-2.5">
             <span className="text-sm">{t("branch")}</span>
             {listed && !draft.bankOther ? (
               <BranchSearch
@@ -246,7 +247,7 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
       )}
 
       {/* the account number, typed twice when it's new or changed */}
-      <label className="flex flex-col gap-1.5">
+      <label className="flex flex-col gap-2.5">
         <span className="text-sm">{t("accountNumber")}</span>
         <input
           value={draft.accountNumber}
@@ -274,7 +275,7 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
         })()}
       </label>
       {needsAgain(draft) && (
-        <label className="flex flex-col gap-1.5">
+        <label className="flex flex-col gap-2.5">
           <span className="text-sm">{t("accountNumberAgain")}</span>
           <input
             value={draft.accountNumberAgain}
@@ -290,18 +291,18 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
         </label>
       )}
 
-      <label className="flex flex-col gap-1.5">
+      <label className="flex flex-col gap-2.5">
         <span className="text-sm">{t("holder")}</span>
         <input
           value={draft.accountHolderName}
           maxLength={HOLDER_MAX}
           autoCapitalize="words"
-          onChange={(e) => onChange({ accountHolderName: e.target.value })}
+          onChange={(e) => onChange({ accountHolderName: noDigits(e.target.value) })}
           aria-invalid={show("accountHolderName") || undefined}
           className={input(show("accountHolderName"))}
         />
       </label>
-      <label className="flex flex-col gap-1.5">
+      <label className="flex flex-col gap-2.5">
         <span className="text-sm">{t("type")}</span>
         <PickMenu
           label={t("type")}
@@ -374,7 +375,7 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
           <button
             type="button"
             onClick={() => onChange({ upiIds: [...draft.upiIds, { key: newKey(), upiId: "", provider: null }] })}
-            className="flex min-h-11 items-center justify-center gap-2 rounded-control border border-dashed border-chestnut/50 text-sm hover:border-chestnut"
+            className={ADD_ON_IVORY}
           >
             <Plus className="size-4" aria-hidden /> {t("addUpi")}
           </button>

@@ -4,6 +4,7 @@ import { ArrowLeft, CircleAlert } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
+import { PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
 import { trpc } from "~/trpc/client";
@@ -19,7 +20,7 @@ export function BankPage({ bankId }: { bankId: string }) {
   const bank = trpc.accounts.bank.get.useQuery({ id: bankId });
 
   return (
-    <main className="mx-auto max-w-5xl px-4 pb-16 pt-6 sm:px-6">
+    <main className={`${PAGE} pb-16`}>
       {/* back to the list */}
       <Link href="/account/bank" className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
         <ArrowLeft className="size-4" aria-hidden /> {t("back")}
@@ -59,7 +60,7 @@ export function BankPage({ bankId }: { bankId: string }) {
               </DetailsCard>
 
               {/* its ledger, titled with the account's name (the header above carries the bank and ••last 4) */}
-              <LedgerStatement ledgerId={b.ledgerId} name={b.accountHolderName} head="asset" balance={b.balance} />
+              <LedgerStatement ledgerId={b.ledgerId} name={name} head="asset" balance={b.balance} />
 
             </div>
           );

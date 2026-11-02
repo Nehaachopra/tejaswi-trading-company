@@ -3,7 +3,7 @@
 import { boolean, pgTable, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { money, timestamps } from "../../utils/common/column-type";
-import { ledgerTransactionTypeEnum } from "../../utils/common/enum";
+import { ledgerTransactionTypeEnum, tdsTypeEnum } from "../../utils/common/enum";
 
 import { ledgerGroupsTable } from "./ledger-group";
 import { ledgerMastersTable } from "./ledger-master";
@@ -33,6 +33,9 @@ export const ledgersTable = pgTable(
     referenceTable: varchar("reference_table", { length: 30 }),
 
     referenceId: uuid("reference_id"),
+
+    // an expense head's TDS (rent, contract work, brokerage); its payments then name who was paid
+    tdsType: tdsTypeEnum("tds_type"),
 
     // total of every entry, post-dated ones included, kept in step with each entry in the
     // same database transaction; "as of today" leaves out entries dated after today

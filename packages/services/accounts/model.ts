@@ -70,6 +70,8 @@ export const statementLineModel = z.object({
   side: sideModel,
   amount: z.number(),
   isReversal: z.boolean(),
+  // the other side of this line in its transaction: each ledger and how much, largest first
+  contras: z.array(z.object({ key: z.string().nullable(), name: z.string(), amount: z.number() })),
   balance: balanceModel,
 });
 
@@ -95,6 +97,15 @@ export type LedgerIdInputModel = z.infer<typeof ledgerIdInputModel>;
 export const headModel = z.enum(["asset", "liability", "income", "expense", "profit", "loss"]);
 
 // one ledger with where it sits and its balance as of today
+// the TDS an expense head's payments carry: rent (194I), contract work like transport, labour and loading (194C),
+// brokerage or commission (194H)
+export const tdsTypeModel = z.enum(["rent", "contract", "brokerage"]);
+
+// the TDS a head carries: one of those, or professional fees, which only built-in heads have
+export const headTdsModel = z.enum(["rent", "contract", "brokerage", "professional"]);
+
+export type TdsType = z.infer<typeof headTdsModel>;
+
 export const ledgerSummaryModel = z.object({
   id: idModel,
   name: z.string(),
@@ -109,6 +120,8 @@ export const ledgerSummaryModel = z.object({
   // the bank account, party or employee it belongs to, if any
   referenceId: idModel.nullable(),
   isActive: z.boolean(),
+  // an expense head's TDS (the built-in Rent is rent), null for none
+  tdsType: headTdsModel.nullable(),
   balance: ledgerBalanceModel,
 });
 
@@ -144,17 +157,21 @@ export const customHeadModel = z.enum(["asset", "liability", "income", "expense"
 export const ledgerNameModel = z.string().trim().toLowerCase().min(1).max(150);
 
 // a ledger the admin adds under a head; its opening balance is set on the Opening balances page
-export const createLedgerInputModel = z.object({
-  head: customHeadModel,
-  name: ledgerNameModel,
-});
+export const createLedgerInputModel = z
+  .object({
+    head: customHeadModel,
+    name: ledgerNameModel,
+    tdsType: tdsTypeModel.nullable().default(null),
+  })
+  .refine((l) => l.tdsType === null || l.head === "expense", { message: "Only an expense head carries TDS.", path: ["tdsType"] });
 
-export type CreateLedgerInputModel = z.infer<typeof createLedgerInputModel>;
+export type CreateLedgerInputModel = z.input<typeof createLedgerInputModel>;
 
-// a new name for a ledger the admin added
+// a new name for a ledger the admin added; an expense head (built-in ones too) can change its TDS
 export const updateLedgerInputModel = z.object({
   id: idModel,
   name: ledgerNameModel,
+  tdsType: tdsTypeModel.nullable().optional(),
 });
 
 export type UpdateLedgerInputModel = z.infer<typeof updateLedgerInputModel>;
@@ -203,8 +220,9 @@ export const receiptKindModel = z.enum(["customer", "loanTaken", "loanReturned",
 
 export type ReceiptKind = z.infer<typeof receiptKindModel>;
 
-// built-in ledgers that only their own screens post to (a sale, a purchase, their returns, salary), never a receipt
-export const OWN_SCREEN_LEDGERS = ["sale", "purchase", "saleReturn", "purchaseReturn", "salary"];
+// built-in ledgers that only their own screens post to (a sale, a purchase, their returns, salary, a bad debt written
+// off on Dues, a discount given with a sale or receipt), never a receipt or payment: no money moves for them by itself
+export const OWN_SCREEN_LEDGERS = ["sale", "purchase", "saleReturn", "purchaseReturn", "salary", "badDebts", "discountGiven", "interestPaid"];
 
 // the kinds that come from a party (its own ledger, whatever its type); a loan returned and its interest come from the
 // party of the loan picked
@@ -217,6 +235,8 @@ export const LOAN_RECEIPT_KINDS: ReceiptKind[] = ["loanReturned", "interestRecei
 // income head of our own for other income; any asset or expense head of our own (not cash) for a refund
 export function fitsReceiptKind(kind: ReceiptKind, l: { head: string; masterKey: string | null; key: string | null; referenceId: string | null }) {
   const party = l.masterKey === "debtors" || l.masterKey === "creditors" || l.masterKey === "debtorCreditors" || l.masterKey === "parties";
+  // a loan received can come from a bank or NBFC
+  if (kind === "loanTaken" && l.masterKey === "lenders") return true;
   if (PARTY_RECEIPT_KINDS.includes(kind)) return party;
   if (l.masterKey !== null || l.referenceId !== null || (l.key !== null && OWN_SCREEN_LEDGERS.includes(l.key))) return false;
   if (kind === "capital") return l.key === "capital";
@@ -236,13 +256,15 @@ export const PARTY_PAYMENT_KINDS: PaymentKind[] = ["supplier", "loanRepaid", "in
 // the kinds that name a loan instead of a ledger: the loan we repay, or the interest on it
 export const LOAN_PAYMENT_KINDS: PaymentKind[] = ["loanRepaid", "interestPaid"];
 
-// the built-in ledgers a tax is paid into: TDS we deducted, TCS, and output GST (normal and reverse charge)
-export const TAX_LEDGERS = ["tdsPayable", "tcs", "outputCgst", "outputSgst", "outputIgst", "outputCgstRcm", "outputSgstRcm", "outputIgstRcm"];
+// the built-in ledgers a tax is paid into: TDS we deducted, TCS, output GST and reverse-charge GST
+export const TAX_LEDGERS = ["tdsPayable", "tcs", "outputCgst", "outputSgst", "outputIgst", "rcmCgstPayable", "rcmSgstPayable", "rcmIgstPayable"];
 
 // whether a ledger can take money paid out for a kind: a party's ledger for a supplier, a loan or a refund; a tax
 // ledger for a tax; any expense head of our own (not salary, purchase or a sale return) for an expense
 export function fitsPaymentKind(kind: PaymentKind, l: { head: string; masterKey: string | null; key: string | null; referenceId: string | null }) {
   const party = l.masterKey === "debtors" || l.masterKey === "creditors" || l.masterKey === "debtorCreditors" || l.masterKey === "parties";
+  // a loan from a bank or NBFC, and its interest, go to that lender
+  if (LOAN_PAYMENT_KINDS.includes(kind) && l.masterKey === "lenders") return true;
   if (PARTY_PAYMENT_KINDS.includes(kind)) return party;
   if (kind === "taxPaid") return l.key !== null && TAX_LEDGERS.includes(l.key);
   if (l.masterKey !== null || l.referenceId !== null || (l.key !== null && OWN_SCREEN_LEDGERS.includes(l.key))) return false;
@@ -255,6 +277,9 @@ export const pickLedgersInputModel = z.object({
   purpose: z.enum(["receipt", "payment"]),
   receiptKind: receiptKindModel.nullable().default(null),
   paymentKind: paymentKindModel.nullable().default(null),
+  // who an expense was paid to, not customers or suppliers: for rent the landlords, otherwise (a transporter, a broker)
+  // parties with no sale or purchase
+  payee: z.enum(["other"]).nullable().default(null),
   search: z.string().trim().max(60).default(""),
 });
 

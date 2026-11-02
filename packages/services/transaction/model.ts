@@ -70,8 +70,8 @@ export const transactionModel = transactionSummaryModel.extend({
       dateTime: z.date(),
     }),
   ),
-  // why it can't be cancelled, if it can't (already cancelled, a filed GST month ...)
-  cancelBlockedBy: z.enum(["cancelled", "gstFiled", "openingBalance"]).nullable(),
+  // why it can't be cancelled, if it can't (already cancelled, a filed GST month, reverse-charge GST already paid ...)
+  cancelBlockedBy: z.enum(["cancelled", "gstFiled", "openingBalance", "rcmPaid"]).nullable(),
 });
 
 export type TransactionModel = z.infer<typeof transactionModel>;

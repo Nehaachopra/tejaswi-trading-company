@@ -5,9 +5,10 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import type { RouterOutputs } from "@repo/trpc/client";
 
+import { FILTER_BAR, PAGE } from "~/components/ui/page-styles";
+import { chip } from "../product/row-styles";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
-import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 
 type Job = RouterOutputs["jobs"]["list"]["jobs"][number];
@@ -25,41 +26,31 @@ export function JobsBoard() {
   const jobs = trpc.jobs.list.useQuery({ state, limit: 50 }, { refetchInterval: 15_000, staleTime: 0 });
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6">
-      {/* header: title and Refresh */}
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs uppercase tracking-[0.16em] text-ivory/60">{t("eyebrow")}</p>
-          <h1 className="font-heading text-4xl font-bold">{t("title")}</h1>
-          <p className="mt-1 text-sm text-ivory/70">{t("subtitle")}</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => void jobs.refetch()}
-          disabled={jobs.isFetching}
-          aria-busy={jobs.isFetching}
-          className="flex min-h-11 items-center gap-1.5 rounded-control border px-3 text-sm hover:border-ivory/60 aria-busy:opacity-80"
-        >
-          {jobs.isFetching ? <Spinner /> : <RefreshCw className="size-4" aria-hidden />} {t("refresh")}
-        </button>
-      </header>
+    <main className={`${PAGE} pb-16`}>
+      <h1 className="sr-only">{t("title")}</h1>
 
-      {/* state chips with their counts */}
-      <div className="-mx-4 mt-6 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+      {/* state chips with their counts, then Refresh on the right, under the header while the list scrolls */}
+      <div className={FILTER_BAR}>
         {FILTERS.map((f) => (
           <button
             key={f}
             type="button"
             aria-pressed={state === f}
             onClick={() => setState(f)}
-            className={cn(
-              "tabular min-h-9 shrink-0 rounded-control border px-4 text-sm transition-colors",
-              state === f ? "border-ivory bg-ivory font-medium text-chestnut" : "hover:border-ivory/60",
-            )}
+            className={`tabular ${chip(state === f)}`}
           >
             {t(`filters.${f}`)} {jobs.data ? `· ${jobs.data.counts[f]}` : ""}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => void jobs.refetch()}
+          disabled={jobs.isFetching}
+          aria-busy={jobs.isFetching}
+          className={`ml-auto flex items-center gap-1.5 aria-busy:opacity-80 ${chip(false)}`}
+        >
+          {jobs.isFetching ? <Spinner /> : <RefreshCw className="size-4" aria-hidden />} {t("refresh")}
+        </button>
       </div>
 
       {/* the list: loading, error, empty, or the cards */}

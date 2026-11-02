@@ -4,6 +4,7 @@ import { Plus, Power, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { addSquare } from "~/components/ui/page-styles";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { Sheet } from "~/components/ui/sheet";
 import { Spinner } from "~/components/ui/spinner";
@@ -97,7 +98,7 @@ export function ProductSheet({
             aria-label={t("addPack")}
             title={t("addPack")}
             onClick={() => onAddPack(group)}
-            className="grid size-8 shrink-0 place-items-center rounded-control border border-dashed border-chestnut/60 hover:border-chestnut"
+            className={addSquare("size-8")}
           >
             <Plus className="size-4" aria-hidden />
           </button>

@@ -19,6 +19,7 @@ export function DetailsCard({
   menu?: React.ReactNode;
   // read out on the toggle: "Show details"
   openLabel: string;
+  // h2 where the page has its own title (the landlords on the Rent account)
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);

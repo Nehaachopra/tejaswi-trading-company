@@ -4,6 +4,7 @@ import { CircleAlert, Lock, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
+import { PAGE } from "~/components/ui/page-styles";
 import { ClearButton } from "~/components/ui/clear-button";
 import { fieldClass, SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
@@ -130,7 +131,7 @@ export function OpeningBoard() {
   );
 
   return (
-    <main className="mx-auto max-w-3xl px-4 pb-28 pt-6 sm:px-6">
+    <main className={`${PAGE} pb-28`}>
       <h1 className="sr-only">{t("title")}</h1>
 
       {sheet.isPending ? (
@@ -204,7 +205,7 @@ export function OpeningBoard() {
             {/* within the app's width, beside the sidebar */}
             <div className={cn(SHELL_WIDTH, "lg:pl-60")}>
               <div className="border-t border-chestnut/15 bg-ivory text-chestnut">
-                <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
+                <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
                   <p className="min-w-0 flex-1 text-sm">
                     {t("capital")} <SignedAmount balance={capital} head="liability" className="font-heading text-lg font-bold" />
                   </p>

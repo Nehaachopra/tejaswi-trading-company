@@ -4,6 +4,7 @@ import { CircleAlert, History, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { ADD_BUTTON, FILTER_BAR_UNDER_TABS, PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { trpc } from "~/trpc/client";
@@ -16,7 +17,7 @@ import { GodownCard } from "./godown-card";
 import { type MoveStart, MoveStockSheet } from "./move-stock-sheet";
 import { MovesSheet } from "./moves-sheet";
 
-const outline = "flex min-h-11 items-center justify-center gap-2 rounded-control border border-ivory/50 px-4 text-sm font-medium text-ivory hover:border-ivory";
+const outline = `flex items-center gap-1.5 ${chip(false)}`;
 
 // /stock, the Godowns tab: a card per godown with the products it holds; Moves (and each product's Move) for
 // everyone, Add godown, Edit and Mark inactive for the admin
@@ -56,24 +57,22 @@ export function GodownsBoard({ isAdmin }: { isAdmin: boolean }) {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6">
+    <main className={`${PAGE} pb-16`}>
       {/* the page's name, for screen readers only: the tabs say it visually */}
       <h1 className="sr-only">{t("title")}</h1>
 
       {/* Godowns · Stock count */}
       <StockTabs />
 
-      {/* the actions: Add godown (admin), Moves; Show inactive for the admin */}
-      <div className="mt-6 flex flex-wrap items-center gap-2">
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-ivory px-5 font-heading text-lg font-bold text-chestnut sm:w-auto"
-          >
-            <Plus className="size-5" aria-hidden /> {t("add")}
-          </button>
-        )}
+      {/* Add godown (admin) */}
+      {isAdmin && (
+        <button type="button" onClick={() => setAdding(true)} className={`mt-6 ${ADD_BUTTON}`}>
+          <Plus className="size-5" aria-hidden /> {t("add")}
+        </button>
+      )}
+
+      {/* Moves, and Show inactive for the admin, under the tabs while the list scrolls */}
+      <div className={`mt-3 ${FILTER_BAR_UNDER_TABS}`}>
         <button type="button" onClick={() => setHistory(true)} className={outline}>
           <History className="size-4" aria-hidden /> {t("moves")}
         </button>

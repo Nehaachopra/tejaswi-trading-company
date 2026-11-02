@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { amountModel, ledgerNameModel, ledgerSummaryModel, LOAN_RECEIPT_KINDS, PARTY_RECEIPT_KINDS, type ReceiptKind, receiptKindModel } from "../accounts/model";
-import { loanTermsInputModel } from "../due/model";
+import { lenderLoanInputModel, loanTermsInputModel } from "../due/model";
 import { createPartyInputModel } from "../party/model";
 import { remarksModel } from "../transaction/model";
 
@@ -43,6 +43,8 @@ export const createReceiptInputModel = z
     // save with the type picked for them. Every loan received also gives its terms
     newParty: createPartyInputModel.nullable().default(null),
     loan: loanTermsInputModel.nullable().default(null),
+    // a loan from a bank or NBFC comes from a lender, never a party
+    lender: lenderLoanInputModel.nullable().default(null),
     amount: amountModel,
     settledIn: z.enum(["cash", "bank"]),
     bankDetailsId: idModel.nullable().default(null),
@@ -56,7 +58,7 @@ export const createReceiptInputModel = z
     tdsRate: rateModel.nullable().default(null),
     remarks: remarksModel,
   })
-  .refine((r) => [r.receivedFromLedgerId, r.newLedger, r.newParty].filter((v) => v !== null).length === (LOAN_RECEIPT_KINDS.includes(r.receivedFor) ? 0 : 1), {
+  .refine((r) => [r.receivedFromLedgerId, r.newLedger, r.newParty, r.lender].filter((v) => v !== null).length === (LOAN_RECEIPT_KINDS.includes(r.receivedFor) ? 0 : 1), {
     message: "Pick who it came from, or add a new one.",
     path: ["receivedFromLedgerId"],
   })
@@ -69,6 +71,8 @@ export const createReceiptInputModel = z
     message: "Only a payment or a loan comes from a new party.",
     path: ["newParty"],
   })
+  .refine((r) => r.loan === null || r.loan.lenderType !== null, { message: "A loan received says who gave it.", path: ["loan"] })
+  .refine((r) => r.lender === null || r.receivedFor === "loanTaken", { message: "A lender only gives a loan we took.", path: ["lender"] })
   .refine((r) => (r.receivedFor === "loanTaken") === (r.loan !== null), { message: "A loan received needs its terms.", path: ["loan"] })
   .refine((r) => r.newLedger === null || !!NEW_LEDGER_FOR[r.receivedFor], { message: "That comes from a party, not a new ledger.", path: ["newLedger"] })
   .refine((r) => r.settledIn === "cash" || r.bankDetailsId !== null, { message: "Pick the bank account.", path: ["bankDetailsId"] });

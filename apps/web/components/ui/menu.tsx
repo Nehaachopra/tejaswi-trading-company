@@ -13,6 +13,11 @@ export function Menu({
   surface = "ivory",
   align = "right",
   plain = false,
+  boxed = false,
+  matchWidth = false,
+  inFlow = false,
+  panelClassName,
+  asksFirst = false,
   disabled,
   children,
 }: {
@@ -21,8 +26,17 @@ export function Menu({
   triggerClassName?: string;
   surface?: "ivory" | "chestnut";
   align?: "left" | "right";
-  // an icon button with no edge (the ⋯ menus); dropdown fields keep theirs
+  // an icon button with no edge (the ⋯ menus); a dropdown field has only a line under it
   plain?: boolean;
+  // a small button with a full edge (the header's language and profile)
+  boxed?: boolean;
+  // the panel is exactly as wide as the trigger
+  matchWidth?: boolean;
+  // the panel opens in the page's flow, pushing what's below it down, instead of over it
+  inFlow?: boolean;
+  panelClassName?: string;
+  // a half-filled form asks before it opens (see useLeaveGuard)
+  asksFirst?: boolean;
   disabled?: boolean;
   children: (close: () => void) => React.ReactNode;
 }) {
@@ -53,9 +67,11 @@ export function Menu({
         aria-expanded={open}
         aria-controls={panelId}
         disabled={disabled}
+        data-asks-first={asksFirst || undefined}
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "flex min-h-11 items-center justify-center gap-1.5 rounded-control border transition-colors disabled:opacity-40",
+          "flex min-h-11 items-center justify-center gap-1.5 transition-colors disabled:opacity-40",
+          plain || boxed ? "rounded-control border" : "rounded-none border-b",
           plain
             ? cn("border-transparent", surface === "ivory" ? "text-chestnut hover:bg-chestnut/[0.08]" : "text-ivory hover:bg-ivory/10", open && (surface === "ivory" ? "bg-chestnut/[0.08]" : "bg-ivory/10"))
             : surface === "ivory"
@@ -72,8 +88,10 @@ export function Menu({
         <div
           id={panelId}
           className={cn(
-            "on-ivory absolute top-full z-40 mt-2 max-h-80 min-w-56 overflow-y-auto rounded-control border border-chestnut/25 bg-ivory p-1.5 text-chestnut",
-            align === "right" ? "right-0" : "left-0",
+            "on-ivory mt-2 max-h-80 min-w-56 overflow-y-auto rounded-control border border-chestnut/25 bg-ivory p-1.5 text-chestnut",
+            inFlow ? "min-w-0" : "absolute top-full z-40",
+            !inFlow && (matchWidth ? "inset-x-0 min-w-0" : align === "right" ? "right-0" : "left-0"),
+            panelClassName,
           )}
         >
           {children(close)}
