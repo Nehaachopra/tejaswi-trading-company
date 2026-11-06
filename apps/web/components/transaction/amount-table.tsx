@@ -22,8 +22,12 @@ export function AmountTable({ rows }: { rows: AmountRow[] }) {
     if (groups.length === 0 || r.gapBefore) groups.push([]);
     groups[groups.length - 1]!.push(r);
   }
-  // the first box folds when it has a total past its amount
-  const folds = (groups[0] ?? []).findIndex((r) => r.tone === "total") > 0;
+  // a Breakdown only when there's something to break down: TDS or reverse-charge GST taken off (between the amount and
+  // the total), or an advance (the box after it). Otherwise just the amount shows
+  const first = groups[0] ?? [];
+  const totalAt = first.findIndex((r) => r.tone === "total");
+  const taxed = totalAt > 1 && first.slice(1, totalAt).some((r) => (r.amount ?? 0) > 0);
+  const folds = taxed || groups.length > 1;
   return (
     <div className="flex flex-col gap-2.5">
       {/* the Breakdown heading opens and closes it */}
@@ -39,8 +43,9 @@ export function AmountTable({ rows }: { rows: AmountRow[] }) {
         </button>
       )}
       {groups.map((group, g) => {
-        // folded: only the amount shows
-        const shown = g === 0 && folds && !open ? group.slice(0, 1) : group;
+        // folded, or nothing to break down: only the amount shows
+        if (g > 0 && folds && !open) return null;
+        const shown = g === 0 && (!folds || !open) ? group.slice(0, 1) : group;
         return (
           <table key={group[0]!.key} className="tabular w-full overflow-hidden rounded-control text-sm font-normal shadow-[0_0_5px_0] shadow-chestnut/25">
             <tbody>

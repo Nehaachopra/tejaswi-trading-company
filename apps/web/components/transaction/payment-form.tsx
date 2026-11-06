@@ -520,6 +520,8 @@ function PaymentEntry({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () 
     (into === "bank" || into === "both") &&
     // before card 1 has its account, one account stays for it
     freeBanks.length > (bankId ? 0 : 1) &&
+    // something is still to pay, and every card has its account
+    (!multi || (firstShort > 0 && !!bankId && moreParts.every((m) => m.bankId))) &&
     moreParts.length < 4;
   // every card has an account, an amount and how it was paid, and together they pay all of the bank's share
   const morePartsOk =
@@ -544,20 +546,28 @@ function PaymentEntry({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () 
     (payee?.kind === "ledger" ? payee.ledger.party : null) ??
     (payee?.kind === "party" ? { name: newPayee.name.trim(), upiIds: newPayeeUpis } : null) ??
     (to?.kind === "ledger" ? to.ledger.party : null);
-  // no UPI ID on file: one typed here, for the QR; the payment saves it on them
+  // their UPI ID for the QR: filled in with the one saved on them, or typed (a new one is saved on them with the payment)
   const [typedUpi, setTypedUpi] = useState("");
-  // name@handle, and the handle (after @) one a UPI app gives out: @okicici, @ybl, @paytm, a bank's own…
+  const savedUpis = qrParty?.upiIds ?? [];
+  // name@handle, and the handle (after @) one a UPI app gives out: @okicici, @ybl, @paytm, a bank's own… (one already
+  // saved on them is taken as it is)
   const typedUpiShapeOk = upiFormatOk(typedUpi.trim());
-  const typedUpiOk = typedUpiShapeOk && appOfUpi(typedUpi) !== null;
+  const typedUpiOk =
+    typedUpiShapeOk && (appOfUpi(typedUpi) !== null || savedUpis.includes(typedUpi.trim().toLowerCase()));
   // its mistakes show once the box is left (or Next is pressed), not while the handle is still being typed
   const [upiLeft, setUpiLeft] = useState(false);
-  const savedUpis = qrParty?.upiIds ?? [];
   // any account paying by UPI: card 1's, or one added after it
   const anyUpi = bankMode === "upi" || moreParts.some((m) => m.mode === "upi");
-  const asksUpi = savedUpis.length === 0 && (into === "bank" || into === "both") && anyUpi;
-  const payeeUpis = savedUpis.length > 0 ? savedUpis : typedUpiOk ? [typedUpi.trim()] : [];
-  // another party starts with nothing typed
-  useEffect(() => setTypedUpi(""), [qrParty?.name]);
+  // the box shows whenever someone is being paid by UPI (a head paid to no one, like electricity, has none)
+  const asksUpi = !!qrParty && (into === "bank" || into === "both") && anyUpi;
+  const payeeUpis = typedUpiOk ? [typedUpi.trim().toLowerCase()] : [];
+  // another party: the box starts with their saved UPI ID, or empty
+  const savedKey = `${qrParty?.name ?? ""}|${savedUpis.join()}`;
+  useEffect(() => {
+    setTypedUpi(savedUpis[0] ?? "");
+    setUpiLeft(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the party or their saved UPI IDs change
+  }, [savedKey]);
   // what the first account pays (the QR is for it; more accounts pay their parts apart)
   const upiAmount = firstPart;
   // the party's QR shows: a UPI ID, a bank picked, and something for it to pay
@@ -750,18 +760,9 @@ function PaymentEntry({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () 
         : skipped
           ? LABOUR_SKIP_MAX
           : undefined;
-  // never more than the money there is: what the place picked holds (cash, the bank accounts together as more accounts
-  // pay what one can't, or both), or before a pick, cash and the banks together. Unknown to staff (the save checks)
-  const moneyCap =
-    into === "cash"
-      ? cashHeld
-      : into === "bank"
-        ? banksHeld
-        : into === "both"
-          ? cashHeld !== null && banksHeld !== null
-            ? cashHeld + banksHeld
-            : null
-          : pairMost;
+  // never more than the money there is: cash and the banks together (a new amount starts Paid from again, so the
+  // place picked before doesn't limit it). Unknown to staff (the save checks)
+  const moneyCap = pairMost;
   const cap = [ruleCap, moneyCap ?? undefined]
     .filter((c): c is number => c !== undefined)
     .reduce<number | undefined>((m, c) => (m === undefined ? c : Math.min(m, c)), undefined);
@@ -1058,6 +1059,8 @@ function PaymentEntry({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () 
     );
   }
 
+  // Save tapped and still working: the button says so and can't be tapped again
+  const [saving, setSaving] = useState(false);
   async function save() {
     // something still missing: back to the first card that needs it
     if (!ready) {
@@ -1065,8 +1068,10 @@ function PaymentEntry({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () 
       return guide();
     }
     // a new party with the same name in the same town: asked first
-    if (!loanOf && to?.kind === "party" && !(await sameName.confirm(newParty))) return;
-    if (headTds && !rent && payee?.kind === "party" && !(await sameName.confirm(newPayee))) return;
+    // saving from the first tap until the saved payment opens (the checks, the save, then the page)
+    setSaving(true);
+    if (!loanOf && to?.kind === "party" && !(await sameName.confirm(newParty))) return setSaving(false);
+    if (headTds && !rent && payee?.kind === "party" && !(await sameName.confirm(newPayee))) return setSaving(false);
     setSaveError(null);
     try {
       const r = await create.mutateAsync({
@@ -1096,7 +1101,10 @@ function PaymentEntry({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () 
         amount: value,
         settledIn: into === "both" ? "cashAndBank" : into!,
         // their UPI ID typed for the QR: saved on them for next time
-        payeeUpiId: asksUpi && typedUpiOk ? typedUpi.trim().toLowerCase() : null,
+        payeeUpiId:
+          asksUpi && typedUpiOk && !savedUpis.includes(typedUpi.trim().toLowerCase())
+            ? typedUpi.trim().toLowerCase()
+            : null,
         cashAmount: into === "both" ? cashValue : null,
         bankDetailsId: into === "cash" ? null : bankId,
         bankMode: into === "cash" ? null : bankMode,
@@ -1120,6 +1128,7 @@ function PaymentEntry({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () 
       utils.transactions.payment.balances.setData({ transactionId: r.transactionId }, r.balances);
       router.replace(`/transaction/payment/${r.transactionId}`);
     } catch (err) {
+      setSaving(false);
       const code = (err as { data?: { code?: string } })?.data?.code;
       if (code === "CONFLICT" && (err as { message?: string }).message?.startsWith("Phone"))
         return setSaveError(tc("saveErrors.phone"));
@@ -1360,14 +1369,22 @@ function PaymentEntry({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () 
         <button
           type="button"
           onClick={() => void save()}
-          disabled={create.isPending}
-          aria-busy={create.isPending}
+          disabled={saving || create.isPending}
+          aria-busy={saving || create.isPending}
           className="flex min-h-14 w-full items-center justify-center gap-2 rounded-control bg-chestnut font-heading text-lg font-bold text-ivory shadow-md transition-colors hover:bg-chestnut/90 aria-busy:opacity-80"
         >
           {/* the total, as the summary shows it (with any TDS and reverse-charge GST) */}
-          {create.isPending && <Spinner className="size-5" />}
-          <span>{tp("save")}</span>
-          <span className="tabular">{rupees(total)}</span>
+          {saving || create.isPending ? (
+            <>
+              <Spinner className="size-5" />
+              <span>{tp("saving")}</span>
+            </>
+          ) : (
+            <>
+              <span>{tp("save")}</span>
+              <span className="tabular">{rupees(total)}</span>
+            </>
+          )}
         </button>
         {saveError && (
           <p role="alert">
@@ -1578,6 +1595,8 @@ function PaymentEntry({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () 
             {into === "both" && partRow("cash")}
             {usesBank && (
               <div className={cn(into === "both" && "border-t border-chestnut/15")}>
+                {/* with cash: the bank's part, typed or the rest of the cash part */}
+                {into === "both" && partRow("bank")}
                 {/* the account cards, card 1 from the start (with cash, once the cash part is in) */}
                 <Reveal follow show={into === "bank" || bothBankSet || moreParts.length > 0} gap="0px">
                   {multi ? accountRows() : oneAccount()}
@@ -1782,6 +1801,9 @@ function PaymentEntry({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () 
             onPick={(id) => {
               setAccountsOpen(0);
               setBankId(id);
+              // it holds less than the amount: the cards come up, and the cursor goes to card 1's amount
+              const h = bankHeld(id);
+              if (h !== null && h < bankShare) setTimeout(() => document.getElementById("card-amount-first")?.focus(), 50);
             }}
             openSignal={accountsOpen}
             invalid={tried && !bank}

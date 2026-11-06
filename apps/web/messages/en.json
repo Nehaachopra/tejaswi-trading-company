@@ -1395,6 +1395,7 @@
           "interest": "Interest"
         },
         "save": "Save payment",
+        "saving": "Saving…",
         "saveErrors": {
           "failed": "Couldn't save the payment. Try again.",
           "balance": "That's more than there is where it's paid from. Check the amount."
@@ -1456,7 +1457,7 @@
           "to": "Paid to",
           "tds": "TDS deducted",
           "terms": "Loan terms",
-          "details": "Reference and remarks",
+          "details": "Date and remarks",
           "remarks": "Remarks",
           "head": "Expense head",
           "tax": "Tax",

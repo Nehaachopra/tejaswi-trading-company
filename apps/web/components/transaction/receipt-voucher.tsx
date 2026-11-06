@@ -448,7 +448,7 @@ export function ReceiptVoucher({
                 {t("jurisdiction", { place: r.company.jurisdiction })}
               </p>
             </div>
-            <div className="grid grid-cols-[auto_1fr_auto_1fr] content-start border-b border-chestnut/40 [&>*:nth-child(4n)]:border-r-0">
+            <div className="grid grid-cols-[auto_1fr] content-start border-b border-chestnut/40 [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_1fr_auto_1fr] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
               <Detail
                 label={t("number")}
                 value={<span className="font-bold">{r.assignedId}</span>}
@@ -466,13 +466,18 @@ export function ReceiptVoucher({
                   r.bankMode ? t(`modes.${r.bankMode}`) : t("bank"),
                 )}
               />
-              <Detail label={t("reference")} value={r.referenceNumber} />
-              <Detail label={t("dated")} value={r.referenceNumber ? dated(r.dateTime) : null} />
-              {/* each more account: how it paid and its reference */}
+              {/* a receipt's reference (payments take none) */}
+              {!isPayment && (
+                <>
+                  <Detail label={t("reference")} value={r.referenceNumber} />
+                  <Detail label={t("dated")} value={r.referenceNumber ? dated(r.dateTime) : null} />
+                </>
+              )}
+              {/* each more account: how it paid (and on a receipt, its reference) */}
               {(r.moreBankParts ?? []).map((m) => (
                 <Fragment key={m.bankDetailsId}>
                   <Detail label={t("mode")} value={t(`modes.${m.mode}`)} />
-                  <Detail label={t("reference")} value={m.referenceNumber} />
+                  {!isPayment && <Detail label={t("reference")} value={m.referenceNumber} />}
                 </Fragment>
               ))}
               {/* reverse charge: this is also our self-invoice */}

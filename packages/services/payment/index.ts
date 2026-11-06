@@ -146,6 +146,8 @@ export default class PaymentService {
       // a UPI ID typed for the QR goes on whoever was paid (the landlord, the expense's payee, or the party), for next time
       const upiOwner = landlord ?? payee ?? party;
       if (input.payeeUpiId && upiOwner) {
+        // a landlord has one UPI ID: the new one takes its place
+        if (landlord) await tx.delete(partyUpiIdsTable).where(eq(partyUpiIdsTable.partyId, landlord.id));
         await tx.insert(partyUpiIdsTable).values({ partyId: upiOwner.id, upiId: input.payeeUpiId }).onConflictDoNothing();
       }
       if (input.pan && input.paidFor === "interestPaid" && lender && !lender.pan) await tx.update(lendersTable).set({ pan: input.pan }).where(eq(lendersTable.id, lender.id));
@@ -313,8 +315,11 @@ export default class PaymentService {
       }).returning({ id: paymentsTable.id });
 
       // the bank's part: which account, how much, the UTR or cheque, and the account as it is now
+      // each row a millisecond apart, so they read back in the order saved (the first account, then the others)
+      const savedAt = Date.now();
       if (bank && input.bankDetailsId) {
         await tx.insert(paymentBankDetailsTable).values({
+          createdAt: new Date(savedAt),
           paymentId: row!.id,
           bankDetailsId: input.bankDetailsId,
           amount: fromPaise(src.bankPart),
@@ -330,6 +335,7 @@ export default class PaymentService {
         const acc = moreBanks.find((m) => m.id === b.bankDetailsId);
         if (!acc) throw new TRPCError({ code: "BAD_REQUEST", message: "Pick the bank account." });
         await tx.insert(paymentBankDetailsTable).values({
+          createdAt: new Date(savedAt + i + 1),
           paymentId: row!.id,
           bankDetailsId: b.bankDetailsId,
           amount: fromPaise(src.more[i]!.part),

@@ -475,8 +475,10 @@ export default class AccountsService {
       l.head !== "loss" &&
       (input.purpose === "receipt" || (l.masterKey !== "employees" && l.key !== "drawings")) &&
       (input.receiptKind === null || fitsReceiptKind(input.receiptKind, l)) &&
-      (input.paymentKind === null || fitsPaymentKind(input.paymentKind, l)) &&
-      (input.payee !== "other" || l.masterKey === "parties");
+      // an expense's payee (professional, advocate, labour…) is anyone in Parties, whatever the payment's kind
+      (input.payee === "other"
+        ? l.masterKey === "parties"
+        : input.paymentKind === null || fitsPaymentKind(input.paymentKind, l));
     const kindWhere = input.payee === "other"
       ? eq(ledgerMastersTable.name, MASTERS.parties.name)
       : input.receiptKind
