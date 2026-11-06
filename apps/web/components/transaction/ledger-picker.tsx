@@ -1,20 +1,22 @@
 "use client";
 
-import { ChevronDown, Pencil, Plus, Search } from "lucide-react";
+import { ChevronDown, Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
-import { ADD_ON_IVORY, PICK_LIST, PICK_NEW, PICK_ROW, PICK_SEARCH, PICK_TWO_COLUMNS, PICKED } from "~/components/ui/page-styles";
+import { ADD_ON_IVORY, PICK_LIST, PICK_NEW, PICK_ROW, PICK_SEARCH, PICK_TWO_COLUMNS } from "~/components/ui/page-styles";
 import { ClearButton } from "~/components/ui/clear-button";
 import { MicButton } from "~/components/ui/mic-button";
 import { fieldClass } from "~/components/ui/card-form";
 import { Spinner } from "~/components/ui/spinner";
+import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 import type { RouterInputs, RouterOutputs } from "@repo/trpc/client";
 
 import { useLedgerName } from "../account/ledger-name";
 import { SignedAmount } from "../account/signed-amount";
+import { PickedCard } from "./picked-card";
 import { PartyPick } from "./party-finder";
 
 export type Pickable = RouterOutputs["accounts"]["ledger"]["pickable"][number];
@@ -312,6 +314,9 @@ export function LedgerSearch({
     return () => clearTimeout(timer);
   }, [search]);
   const listing = value === null || browsing || search !== "";
+  // which side of a party's balance is a due: a customer paying us owes on the debit side, a supplier we pay on the
+  // credit side; the other side is an advance
+  const owedBy = purpose === "receipt" && receiptKind === "customer" ? "debit" : purpose === "payment" && paymentKind === "supplier" ? "credit" : null;
   const found = trpc.accounts.ledger.pickable.useQuery(
     { purpose, receiptKind, paymentKind, payee, search: asked },
     { enabled: listing, placeholderData: (previous) => previous },
@@ -335,11 +340,14 @@ export function LedgerSearch({
       className={PICK_ROW}
     >
       {l.party ? (
-        <PartyPick ledger={l} party={l.party} />
+        <>
+          <PartyPick ledger={l} party={l.party} />
+          {owedBy && <PartyOwes ledger={l} owedBy={owedBy} />}
+        </>
       ) : (
         <>
           <span className="min-w-0 flex-1 truncate font-semibold">{nameOf(l)}</span>
-          {l.balance && <SignedAmount balance={l.balance.today} head={l.head} className="shrink-0 text-sm" />}
+          {l.balance && l.balance.today.amount !== 0 && <SignedAmount balance={l.balance.today} head={l.head} className="shrink-0 text-sm" />}
         </>
       )}
     </button>
@@ -367,35 +375,30 @@ export function LedgerSearch({
         </label>
       )}
 
-      {/* what's picked, alone, with Change (someone new has theirs beside the card's name, over their details) */}
+      {/* what's picked, alone: who it is (and what's due or advanced) on top, then Edit and Change as a row of their
+          own under it, both in words (someone new has theirs beside the card's name, over their details) */}
       {!listing && value !== null && value.kind !== "party" && (
-        <div className={PICKED}>
+        <PickedCard
+          oneLine={!(value.kind === "ledger" && value.ledger.party)}
+          aside={
+            value.kind === "ledger" && value.ledger.party && owedBy ? (
+              <PartyOwes ledger={value.ledger} owedBy={owedBy} picked />
+            ) : undefined
+          }
+          onEdit={onEdit}
+          onChange={() => {
+            onChange(null);
+            setBrowsing(true);
+          }}
+        >
           {value.kind === "ledger" && value.ledger.party ? (
             <PartyPick ledger={value.ledger} party={value.ledger.party} />
           ) : (
             <span className="min-w-0 flex-1 truncate font-semibold">
-              {value.kind === "ledger"
-                ? nameOf(value.ledger)
-                : `${value.name} · ${t("new")}`}
+              {value.kind === "ledger" ? nameOf(value.ledger) : `${value.name} · ${t("new")}`}
             </span>
           )}
-          {onEdit && (
-            <button type="button" aria-label={t("edit")} onClick={onEdit} className="grid size-9 shrink-0 place-items-center rounded-control hover:bg-ivory/10">
-              <Pencil className="size-4" aria-hidden />
-            </button>
-          )}
-          {/* Change lets go of the pick, so nothing after it counts until someone is picked again */}
-          <button
-            type="button"
-            onClick={() => {
-              onChange(null);
-              setBrowsing(true);
-            }}
-            className="shrink-0 rounded-control px-2 py-1 text-sm font-semibold underline underline-offset-2"
-          >
-            {t("change")}
-          </button>
-        </div>
+        </PickedCard>
       )}
 
       {/* the matches in two columns on a wide screen, then someone new */}
@@ -519,5 +522,31 @@ export function HeadEdit({ ledgerId, name, onSaved, onCancel }: { ledgerId: stri
         </button>
       </div>
     </div>
+  );
+}
+
+// what a party owes, or the advance they have with us, beside them: the amount, then "due" under it, or "advance" in an
+// outline so it stands apart (nothing when they're square, or for staff, who see no balances)
+// picked: on the chestnut card of what's picked, where an advance is an ivory label
+function PartyOwes({ ledger, owedBy, picked = false }: { ledger: Pickable; owedBy: "debit" | "credit"; picked?: boolean }) {
+  const t = useTranslations("transactions.picker");
+  const b = ledger.balance?.today;
+  if (!b || b.amount <= 0) return null;
+  const due = b.side === owedBy;
+  return (
+    // picked: the amount level with the name, the label down on the phone and town line
+    <span className={cn("flex shrink-0 flex-col items-end gap-0.5 text-right", picked && "justify-between self-stretch")}>
+      <span className="tabular text-sm font-semibold">{rupees(b.amount)}</span>
+      <span
+        className={cn(
+          "text-xs",
+          due
+            ? "opacity-70"
+            : picked
+              ? "rounded-control bg-ivory px-1.5 font-semibold text-chestnut"
+              : "rounded-control border border-current/50 px-1.5 font-semibold",
+        )}
+      >{due ? t("due") : t("advance")}</span>
+    </span>
   );
 }

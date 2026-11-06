@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 
 import { PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
+import { useBankName } from "~/lib/bank-names";
 import { titleCase } from "~/lib/format";
 import { trpc } from "~/trpc/client";
 
@@ -15,6 +16,8 @@ import { LedgerStatement } from "../ledger-statement";
 // /account/bank/[account], admin only and view only: the account's details on top, its ledger below (it is
 // added, edited and made inactive in Entities → Bank accounts)
 export function BankPage({ bankId }: { bankId: string }) {
+  // bank names in the language picked
+  const bankName = useBankName();
   const t = useTranslations("accounts.bank");
   const tf = useTranslations("accounts.bank.form");
   const bank = trpc.accounts.bank.get.useQuery({ id: bankId });
@@ -37,7 +40,7 @@ export function BankPage({ bankId }: { bankId: string }) {
       ) : (
         (() => {
           const b = bank.data;
-          const name = `${titleCase(b.bankName)} ••${b.last4}`;
+          const name = `${bankName(b.bankName)} ••${b.last4}`;
           const rows = [
             { label: t("details.accountNumber"), value: b.accountNumber, number: true },
             { label: t("details.ifsc"), value: b.ifscCode ?? "—", number: true },

@@ -138,6 +138,8 @@ export const receiptModel = z.object({
   amount: z.number(),
   tdsRate: z.number().nullable(),
   tdsAmount: z.number().nullable(),
+  // a customer paying more than they owed: what settled their dues (with any TDS) and the advance left with us
+  split: z.object({ due: z.number(), advance: z.number() }).nullable(),
 });
 
 export type ReceiptModel = z.infer<typeof receiptModel>;

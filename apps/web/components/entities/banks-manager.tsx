@@ -10,6 +10,7 @@ import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
+import { useBankName } from "~/lib/bank-names";
 import { titleCase } from "~/lib/format";
 import { trpc } from "~/trpc/client";
 
@@ -21,6 +22,8 @@ import { chip } from "../product/row-styles";
 // staying under the header, then a row per account: bank ••last 4 and type, branch and IFSC; tapping a row edits
 // it, its ⋯ menu also marks it inactive or active
 export function BanksManager() {
+  // bank names in the language picked
+  const bankName = useBankName();
   const tc = useTranslations("common");
   const t = useTranslations("banks");
   const tb = useTranslations("accounts.bank");
@@ -95,7 +98,7 @@ export function BanksManager() {
       ) : (
         <ul className="mt-2 grid gap-3 lg:grid-cols-2">
           {shown.map((b) => {
-            const name = `${titleCase(b.bankName)} ••${b.last4}`;
+            const name = `${bankName(b.bankName)} ••${b.last4}`;
             return (
               <li
                 key={b.id}
@@ -105,7 +108,7 @@ export function BanksManager() {
                 <button type="button" onClick={() => setOpen(b.id)} className="min-w-0 flex-1 py-1.5 text-left">
                   <span className="flex items-center gap-2">
                     <span className="truncate font-heading text-xl font-bold leading-7" title={name}>
-                      {titleCase(b.bankName)}
+                      {bankName(b.bankName)}
                     </span>
                     <span className="tabular shrink-0 text-sm opacity-70">••{b.last4}</span>
                     {!b.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{tb("inactive")}</span>}

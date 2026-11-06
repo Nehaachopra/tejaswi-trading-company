@@ -143,7 +143,7 @@ export const partyDuesModel = z.object({
     phone: z.string().nullable(),
     countryCode: z.string().nullable(),
     city: z.string().nullable(),
-    type: z.enum(["customer", "supplier", "both"]).nullable(),
+    type: z.enum(["customer", "supplier", "customer_supplier"]).nullable(),
   }),
   left: z.number(),
   overdue: z.number(),

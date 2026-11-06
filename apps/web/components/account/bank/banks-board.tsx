@@ -9,7 +9,8 @@ import { FILTER_BAR, PAGE } from "~/components/ui/page-styles";
 import { ClearButton } from "~/components/ui/clear-button";
 import { Spinner } from "~/components/ui/spinner";
 import { cn } from "~/lib/utils";
-import { titleCase } from "~/lib/format";
+import { useBankName } from "~/lib/bank-names";
+
 import { trpc } from "~/trpc/client";
 
 import { chip } from "../../product/row-styles";
@@ -20,6 +21,8 @@ import { SignedAmount } from "../signed-amount";
 // inactive, both staying under the header, then a card per account (bank, ••last 4 and type on the left, today's
 // balance and any post-dated amount on the right) opening its page
 export function BanksBoard() {
+  // bank names in the language picked
+  const bankName = useBankName();
   const tc = useTranslations("common");
   const t = useTranslations("accounts.bank");
   const [showInactive, setShowInactive] = useState(false);
@@ -96,8 +99,8 @@ export function BanksBoard() {
               >
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2">
-                    <span className="truncate font-heading text-xl font-bold leading-7" title={titleCase(b.bankName)}>
-                      {titleCase(b.bankName)}
+                    <span className="truncate font-heading text-xl font-bold leading-7" title={bankName(b.bankName)}>
+                      {bankName(b.bankName)}
                     </span>
                     {!b.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
                   </span>

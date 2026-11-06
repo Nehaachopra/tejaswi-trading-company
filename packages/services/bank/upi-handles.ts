@@ -27,6 +27,12 @@ export const appOfUpi = (upiId: string): UpiApp | null => {
   return null;
 };
 
+// whether a UPI ID is shaped name@handle, whatever app it's in (a party's, whose app we don't ask)
+export const upiFormatOk = (upiId: string) => {
+  const [name, handle, extra] = upiId.trim().toLowerCase().split("@");
+  return !!name && !!handle && extra === undefined && NAME.test(name) && /^[a-z]{2,30}$/.test(handle);
+};
+
 // what's wrong with a UPI ID for an app: "format" (not name@handle), "handle" (not one of the app's), or null
 export const upiProblem = (upiId: string, app: UpiApp): "format" | "handle" | null => {
   const [name, handle, extra] = upiId.trim().toLowerCase().split("@");

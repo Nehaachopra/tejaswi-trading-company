@@ -24,17 +24,23 @@ const LENDERS = ["bank", "nbfc", "individual"] as const;
 type Lender = (typeof LENDERS)[number];
 
 const input = (bad: boolean) => `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
-const chip = (on: boolean) => cn("min-h-10 rounded-control border px-3 text-sm font-medium", on ? "border-chestnut bg-chestnut text-ivory" : "border-chestnut/50 hover:border-chestnut");
+const chip = (on: boolean) =>
+  cn(
+    "min-h-11 rounded-control border px-3.5 text-sm font-semibold transition-colors",
+    on ? "border-chestnut bg-chestnut text-ivory" : "border-chestnut/50 hover:bg-chestnut/[0.06]",
+  );
 
-// a loan from before the app, added right in the payment that repays it: first the kind of lender, then who (a party
-// for an individual, a lender with its loan account for a bank or NBFC), then how much, when, and its terms.
-// `newPartyDetails` is the form's own way of taking someone new, so it works the same here. Added, it goes back with the
-// loan's id
+// a loan from before the app, added right in the payment or receipt that settles it. One we took: first the kind of
+// lender, then who (a party for an individual, a lender with its loan account for a bank or NBFC); one we gave (`given`)
+// is always to a party. Then how much, when, and its terms. `newPartyDetails` is the form's own way of taking someone
+// new, so it works the same here. Added, it goes back with the loan's id
 export function OldLoanForm({
+  given = false,
   newPartyDetails,
   onAdded,
   onCancel,
 }: {
+  given?: boolean;
   newPartyDetails: (draft: PartyDraft, setDraft: React.Dispatch<React.SetStateAction<PartyDraft>>, match: Pickable | null, pickMatch: (m: Pickable) => void) => React.ReactNode;
   onAdded: (dueId: string) => void;
   onCancel: () => void;
@@ -48,7 +54,8 @@ export function OldLoanForm({
   const [newParty, setNewParty] = useState<PartyDraft>(() => emptyParty());
   const [amount, setAmount] = useState("");
   const [dated, setDated] = useState(() => indiaDay(new Date()));
-  const [lender, setLender] = useState<Lender | null>(null);
+  // a loan we gave is always to a person
+  const [lender, setLender] = useState<Lender | null>(given ? "individual" : null);
   const [bankLender, setBankLender] = useState<LenderDraft>(emptyLender);
   const [terms, setTerms] = useState<LoanDraft>(emptyLoan);
   const [dueOn, setDueOn] = useState("");
@@ -71,7 +78,7 @@ export function OldLoanForm({
     if (!ready) return;
     try {
       const due = await add.mutateAsync({
-        kind: "loanTaken",
+        kind: given ? "loanGiven" : "loanTaken",
         partyLedgerId: !bank && who?.kind === "ledger" ? who.ledger.id : null,
         newParty: !bank && who?.kind === "party" ? partyInput(newParty) : null,
         lender: bank ? lenderInput(bankLender, bank) : null,
@@ -79,7 +86,7 @@ export function OldLoanForm({
         dated,
         dueOn: dueOn || null,
         ...loanInput(terms),
-        lenderType: lender,
+        lenderType: given ? null : lender,
         remarks: "",
       });
       void utils.accounts.invalidate();
@@ -92,7 +99,8 @@ export function OldLoanForm({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* first, the kind of lender: it decides the TDS, and the rest of the form follows it */}
+      {/* first, for a loan we took, the kind of lender: it decides the TDS, and the rest of the form follows it */}
+      {!given && (
       <div role="radiogroup" aria-label={tl("lender")} className="flex flex-col gap-2.5">
         <span className="text-xs font-semibold">
           {tl("lender")}
@@ -117,6 +125,7 @@ export function OldLoanForm({
           ))}
         </div>
       </div>
+      )}
       {tried && lender === null && <FieldMessage className="mt-0">{t("oldLoanLender")}</FieldMessage>}
 
       {/* a bank or NBFC: its lender and loan account */}
@@ -126,7 +135,7 @@ export function OldLoanForm({
       {lender === "individual" && (
         <div className="flex flex-col gap-2.5">
           <span className="text-xs font-semibold">
-            {t("oldLoanFrom")}
+            {t(given ? "oldLoanTo" : "oldLoanFrom")}
             <RequiredMark />
           </span>
           <LedgerSearch
@@ -169,10 +178,10 @@ export function OldLoanForm({
             </label>
             <label className="flex flex-col gap-2.5 text-xs font-semibold">
               <span>
-                {t("oldLoanTaken")}
+                {t(given ? "oldLoanGiven" : "oldLoanTaken")}
                 <RequiredMark />
               </span>
-              <DateInput value={dated} max={indiaDay(new Date())} onChange={setDated} calendarLabel={t("oldLoanTaken")} className={cn(input(tried && dated === ""), "text-sm font-medium")} />
+              <DateInput value={dated} max={indiaDay(new Date())} onChange={setDated} calendarLabel={t(given ? "oldLoanGiven" : "oldLoanTaken")} className={cn(input(tried && dated === ""), "text-sm font-medium")} />
             </label>
           </div>
 

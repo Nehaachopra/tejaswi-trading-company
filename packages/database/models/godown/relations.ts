@@ -5,7 +5,7 @@ import { relations } from "drizzle-orm";
 import { productGodownsTable } from "./product-godown";
 import { godownsTable } from "./godown";
 import { productsTable } from "../product/product";
-import { landlordsTable } from "../landlord/landlord";
+import { partiesTable } from "../party/party";
 import { usersTable } from "../auth/user";
 import { stockMovesTable } from "./stock-move";
 
@@ -27,9 +27,9 @@ export const productGodownsRelations = relations(
 export const godownsRelations = relations(
   godownsTable,
   ({ one, many }) => ({
-    landlord: one(landlordsTable, {
+    landlord: one(partiesTable, {
       fields: [godownsTable.landlordId],
-      references: [landlordsTable.id],
+      references: [partiesTable.id],
     }),
 
     productGodowns: many(productGodownsTable),

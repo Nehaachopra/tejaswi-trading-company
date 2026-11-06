@@ -1012,10 +1012,10 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
     return (
       <div role="listbox" aria-label={t("q.from")} className="on-ivory absolute inset-x-0 bottom-full z-30 mb-2 flex max-h-[min(24rem,55dvh)] flex-col overflow-hidden rounded-2xl bg-ivory text-chestnut shadow-xl">
         {/* the matches: best at the bottom, nearest the bar */}
-        <ul className="scrollbar-none flex min-h-0 flex-1 flex-col-reverse divide-y divide-y-reverse divide-chestnut/10 overflow-y-auto">
+        <ul className="scrollbar-none flex min-h-0 flex-1 flex-col-reverse gap-1 overflow-y-auto p-1.5">
           {list.map((l) => (
             <li key={l.id}>
-              <button type="button" role="option" aria-selected={false} onClick={() => pickFrom(l)} className="flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-chestnut/[0.06]">
+              <button type="button" role="option" aria-selected={false} onClick={() => pickFrom(l)} className="flex w-full items-center gap-2 rounded-control px-3 py-2.5 text-left hover:bg-chestnut/[0.06]">
                 {l.party ? (
                   <PartyPick ledger={l} party={l.party} />
                 ) : (
@@ -1060,10 +1060,10 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
     const list = statesLike(typed);
     return (
       <div role="listbox" aria-label={t("q.state")} className="on-ivory absolute inset-x-0 bottom-full z-30 mb-2 flex max-h-[min(24rem,55dvh)] flex-col overflow-hidden rounded-2xl bg-ivory text-chestnut shadow-xl">
-        <ul className="scrollbar-none flex min-h-0 flex-1 flex-col divide-y divide-chestnut/10 overflow-y-auto">
+        <ul className="scrollbar-none flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-1.5">
           {list.map(([code, name]) => (
             <li key={code}>
-              <button type="button" role="option" aria-selected={address.stateCode === code} onClick={() => pickState(code)} className={cn("flex w-full items-center gap-2 px-4 py-2.5 text-left hover:bg-chestnut/[0.06]", address.stateCode === code && "font-semibold")}>
+              <button type="button" role="option" aria-selected={address.stateCode === code} onClick={() => pickState(code)} className={cn("flex w-full items-center gap-2 rounded-control px-3 py-2.5 text-left hover:bg-chestnut/[0.06]", address.stateCode === code && "font-semibold")}>
                 <span className="min-w-0 flex-1 truncate">{name}</span>
                 <span className="shrink-0 text-xs text-chestnut/60">{code}</span>
               </button>

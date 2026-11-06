@@ -1,11 +1,15 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { upiFormatOk } from "../bank/upi-handles";
 
 import { ledgerBalanceModel, savedOpeningBalanceModel } from "../accounts/model";
 
 const idModel = z.string().uuid();
 
-export const partyTypeModel = z.enum(["customer", "supplier", "both"]);
+export const partyTypeModel = z.enum(["customer", "supplier", "customer_supplier"]);
+
+// a party's type where landlords never show (party lists, pickers, dues): landlord counts as none
+export const asPartyType = (t: z.infer<typeof partyTypeModel> | "landlord" | null) => (t === "landlord" ? null : t);
 
 export type PartyTypeModel = z.infer<typeof partyTypeModel>;
 
@@ -115,10 +119,24 @@ export const partyPaidBeforeModel = z
 
 // a new party with its addresses (up to 10); its opening balance is set on the Opening balances page. Left out, what
 // was paid before stays as it is
+// a UPI ID a party is paid on: name@handle, lowercase, up to 255 (party_upi_ids)
+export const partyUpiIdModel = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .max(255)
+  .refine(upiFormatOk, "A UPI ID looks like name@bank.");
+
 export const createPartyInputModel = z.object({
   details: partyDetailsInputModel,
   addresses: z.array(partyAddressInputModel).max(10).default([]),
   paidBefore: partyPaidBeforeModel.optional(),
+  // the UPI ID they're paid on (one for now; the table takes more); left out, the saved one stays as it is
+  upiIds: z
+    .array(partyUpiIdModel)
+    .max(1, "One UPI ID for now.")
+    .refine((ids) => new Set(ids).size === ids.length, "That UPI ID is in twice.")
+    .optional(),
 });
 
 export type CreatePartyInputModel = z.infer<typeof createPartyInputModel>;
@@ -151,7 +169,7 @@ export type PartyIdInputModel = z.infer<typeof partyIdInputModel>;
 // the lists: one type (customers, suppliers, both, or "none" for parties with no sale or purchase yet), active only
 // unless asked, and a search over name and phone
 export const listPartiesInputModel = z.object({
-  type: z.enum(["customer", "supplier", "both", "none"]).optional(),
+  type: z.enum(["customer", "supplier", "customer_supplier", "none"]).optional(),
   includeInactive: z.boolean().default(false),
   search: z.string().trim().max(150).default(""),
 });
@@ -243,6 +261,7 @@ export const partyModel = partySummaryModel.extend({
   remarks: z.string().nullable(),
   transportDeclaration: z.boolean(),
   addresses: z.array(partyAddressModel),
+  upiIds: z.array(z.string()),
   // this financial year's, null when none was typed
   paidBefore: z.object({ paid: z.number(), tds: z.number() }).nullable(),
   openingBalance: savedOpeningBalanceModel.nullable(),

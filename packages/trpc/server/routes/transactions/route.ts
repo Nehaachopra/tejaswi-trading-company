@@ -15,6 +15,7 @@ import {
 import { ledgerSummaryModel } from "@repo/services/accounts/model";
 import { createReceiptInputModel, receiptIdInputModel, receiptModel, receiptShareKeyModel, savedReceiptModel, sharedReceiptInputModel } from "@repo/services/receipt/model";
 import {
+  cashTodayInputModel,
   createPaymentInputModel,
   interestTdsInputModel,
   interestTdsModel,
@@ -144,12 +145,19 @@ const paymentRouter = router({
     .output(paymentSourcesModel)
     .query(({ ctx }) => paymentService.sources(ctx.session.user.role === "admin")),
 
-  // whether an amount can be paid from cash or a bank account: never more than it holds today
+  // whether an amount can be paid from cash or bank accounts: never more than each holds today. The form's own check,
+  // not in the API docs: its list of more accounts can't go in a GET address
   fits: protectedProcedure
-    .meta({ openapi: { method: "GET", path: "/transactions/payments/fits", tags: ["transactions"] } })
     .input(paymentFitsInputModel)
     .output(z.object({ fits: z.boolean() }))
     .query(({ input }) => paymentService.fits(input)),
+
+  // the cash already paid that day to the same person, for the cash limit warning (section 40A(3))
+  cashToday: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/payments/cash-today", tags: ["transactions"] } })
+    .input(cashTodayInputModel)
+    .output(z.object({ paid: z.number() }))
+    .query(({ input }) => paymentService.cashToday(input)),
 
   // (not in the OpenAPI document: its GST is an object, which a GET's query string can't carry)
   // an expense's tax as it's filled in: TDS on rent, contract work or brokerage, and reverse-charge GST on rent from a

@@ -1,11 +1,12 @@
 import { TRPCError } from "@trpc/server";
+import { asPartyType } from "./model";
 import { and, asc, count, db, desc, eq, ilike, inArray, isNull, ne, notInArray, or, type SQL, sql } from "@repo/database";
 import {
   ledgerEntriesTable,
   ledgersTable,
   partiesTable,
   partyAddressesTable,
-  partyPaidBeforeTable,
+  partyPaidBeforeTable, partyUpiIdsTable,
   purchaseOrdersTable,
   saleOrdersTable,
   transactionsTable,
@@ -48,7 +49,7 @@ const REFERENCE = "parties";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // the sub-group a party's one ledger sits under, by its type
-const MASTER = { customer: "debtors", supplier: "creditors", both: "debtorCreditors" } as const;
+const MASTER = { customer: "debtors", supplier: "creditors", customer_supplier: "debtorCreditors" } as const;
 
 const notFound = () => new TRPCError({ code: "NOT_FOUND", message: "Party not found." });
 // the short name is taken; the message's start tells the screen which field it's about
@@ -129,6 +130,13 @@ export default class PartyService {
   }
 
   // what was paid this financial year outside this website: kept, replaced, or gone when it's cleared to nothing
+  // the party's UPI IDs, as given (the old ones replaced); left out, they stay as they are
+  private async saveUpiIds(tx: Tx, partyId: string, upiIds: string[] | undefined) {
+    if (upiIds === undefined) return;
+    await tx.delete(partyUpiIdsTable).where(eq(partyUpiIdsTable.partyId, partyId));
+    if (upiIds.length > 0) await tx.insert(partyUpiIdsTable).values(upiIds.map((upiId) => ({ partyId, upiId })));
+  }
+
   private async savePaidBefore(tx: Tx, partyId: string, paidBefore: CreatePartyInputModel["paidBefore"]) {
     if (!paidBefore) return;
     const year = financialYear(new Date()).name;
@@ -169,7 +177,7 @@ export default class PartyService {
         ledgerId,
         name: p.name,
         shortName: p.shortName,
-        type: p.type,
+        type: asPartyType(p.type),
         phone: p.phone,
         city: defaultOf.get(p.id)?.city ?? null,
         gstin: defaultOf.get(p.id)?.gstin ?? null,
@@ -184,7 +192,8 @@ export default class PartyService {
     const search = input.search ? `%${input.search.replace(/[%_\\]/g, "\\$&")}%` : null;
     const rows = await this.summaries(
       and(
-        input.type === "none" ? isNull(partiesTable.type) : input.type ? eq(partiesTable.type, input.type) : undefined,
+        // landlords are listed in Entities → Landlords, never with parties
+        input.type === "none" ? isNull(partiesTable.type) : input.type ? eq(partiesTable.type, input.type) : or(isNull(partiesTable.type), ne(partiesTable.type, "landlord")),
         input.includeInactive ? undefined : eq(partiesTable.isActive, true),
         search ? or(ilike(partiesTable.shortName, search), ilike(partiesTable.name, search), ilike(partiesTable.phone, search)) : undefined,
       ),
@@ -321,7 +330,7 @@ export default class PartyService {
     const [found] = await this.summaries(eq(partiesTable.id, input.id));
     if (!found) throw notFound();
     const { row: p, summary } = found;
-    const [addresses, openingBalance, withEntries, pendingOrders, [paidBefore]] = await Promise.all([
+    const [addresses, openingBalance, withEntries, pendingOrders, [paidBefore], upis] = await Promise.all([
       db
         .select()
         .from(partyAddressesTable)
@@ -334,6 +343,7 @@ export default class PartyService {
         .select({ paid: partyPaidBeforeTable.paid, tds: partyPaidBeforeTable.tds })
         .from(partyPaidBeforeTable)
         .where(and(eq(partyPaidBeforeTable.partyId, p.id), eq(partyPaidBeforeTable.financialYear, financialYear(new Date()).name))),
+      db.select({ upiId: partyUpiIdsTable.upiId }).from(partyUpiIdsTable).where(eq(partyUpiIdsTable.partyId, p.id)).orderBy(asc(partyUpiIdsTable.createdAt)),
     ]);
     return {
       ...summary,
@@ -358,9 +368,10 @@ export default class PartyService {
         isDefault: a.isDefault,
       })),
       paidBefore: paidBefore ? { paid: Number(paidBefore.paid), tds: Number(paidBefore.tds) } : null,
+      upiIds: upis.map((u) => u.upiId),
       openingBalance,
       hasEntries: withEntries.has(summary.ledgerId),
-      insights: await this.insights(summary.ledgerId, p.type, pendingOrders),
+      insights: await this.insights(summary.ledgerId, asPartyType(p.type), pendingOrders),
     };
   }
 
@@ -398,6 +409,7 @@ export default class PartyService {
       .returning({ id: ledgersTable.id });
     if (!ledger) throw notFound();
     await this.savePaidBefore(tx, party!.id, parsed.paidBefore);
+    await this.saveUpiIds(tx, party!.id, parsed.upiIds);
     return { partyId: party!.id, ledgerId: ledger.id };
   }
 
@@ -439,6 +451,7 @@ export default class PartyService {
       const ledger = await this.accounts.ledgerOf(tx, REFERENCE, id);
       await tx.update(ledgersTable).set({ name: ledgerNameOf(details) }).where(eq(ledgersTable.id, ledger.id));
       await this.savePaidBefore(tx, id, parsed.paidBefore);
+      await this.saveUpiIds(tx, id, parsed.upiIds);
     }).catch((error: unknown) => {
       if (isUniqueViolation(error)) throw violated(error).includes("phone") ? phoneTaken(details.phone ?? "", "another party") : shortNameTaken(details.shortName);
       throw error;

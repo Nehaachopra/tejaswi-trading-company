@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
+import { asPartyType } from "../party/model";
 import { and, asc, count, db, desc, eq, gte, inArray, isNull, lt, lte, ne, notInArray, type SQL, sql } from "@repo/database";
-import { ledgerEntriesTable, ledgerGroupsTable, ledgerMastersTable, ledgersTable, partiesTable, partyAddressesTable, paymentsTable, receiptsTable, transactionsTable } from "@repo/database/schema";
+import { ledgerEntriesTable, ledgerGroupsTable, ledgerMastersTable, ledgersTable, partiesTable, partyAddressesTable, partyUpiIdsTable, paymentsTable, receiptsTable, transactionsTable } from "@repo/database/schema";
 
 // the picker: the ledgers used last when nothing is typed, and at most this many matches when something is
 const RECENT_PICKS = 14;
@@ -530,7 +531,10 @@ export default class AccountsService {
           .leftJoin(partyAddressesTable, and(eq(partyAddressesTable.partyId, partiesTable.id), eq(partyAddressesTable.isActive, true), eq(partyAddressesTable.isDefault, true)))
           .where(inArray(partiesTable.id, ids))
       : [];
-    const byId = new Map(rows.map(({ id, ...p }) => [id, p]));
+    const upis = ids.length
+      ? await db.select({ partyId: partyUpiIdsTable.partyId, upiId: partyUpiIdsTable.upiId }).from(partyUpiIdsTable).where(inArray(partyUpiIdsTable.partyId, ids)).orderBy(asc(partyUpiIdsTable.createdAt))
+      : [];
+    const byId = new Map(rows.map(({ id, ...p }) => [id, { ...p, type: asPartyType(p.type), upiIds: upis.filter((u) => u.partyId === id).map((u) => u.upiId) }]));
     return ledgers.map((l) => ({ ...l, party: (l.referenceId && byId.get(l.referenceId)) || null }));
   }
 
@@ -544,6 +548,7 @@ export default class AccountsService {
     );
     switch (kind) {
       case "customer":
+        return inMaster("debtors", "debtorCreditors");
       case "loanTaken":
       case "loanReturned":
       case "interestReceived":
@@ -562,6 +567,7 @@ export default class AccountsService {
     const inMaster = (...keys: MasterKey[]) => inArray(ledgerMastersTable.name, keys.map((k) => MASTERS[k].name));
     switch (kind) {
       case "supplier":
+        return inMaster("creditors", "debtorCreditors");
       case "loanRepaid":
       case "interestPaid":
       case "loanGiven":

@@ -19,6 +19,7 @@ export function Menu({
   panelClassName,
   asksFirst = false,
   disabled,
+  openSignal = 0,
   children,
 }: {
   label: string;
@@ -38,9 +39,14 @@ export function Menu({
   // a half-filled form asks before it opens (see useLeaveGuard)
   asksFirst?: boolean;
   disabled?: boolean;
+  // each new number opens the panel from outside (a question answered No: pick again)
+  openSignal?: number;
   children: (close: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (openSignal > 0) setOpen(true);
+  }, [openSignal]);
   const root = useRef<HTMLDivElement>(null);
   const panelId = useId();
   const close = () => setOpen(false);

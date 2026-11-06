@@ -2,7 +2,8 @@ import { z } from "zod";
 
 import { amountModel, headTdsModel, ledgerNameModel, ledgerSummaryModel, LOAN_PAYMENT_KINDS, PARTY_PAYMENT_KINDS, type PaymentKind, paymentKindModel, type TdsType, tdsTypeModel } from "../accounts/model";
 import { loanTermsInputModel } from "../due/model";
-import { createPartyInputModel, createPayeeInputModel, GSTIN_PATTERN } from "../party/model";
+import { createPartyInputModel, createPayeeInputModel, GSTIN_PATTERN, partyUpiIdModel } from "../party/model";
+import { appOfUpi } from "../bank/upi-handles";
 import { remarksModel } from "../transaction/model";
 
 const idModel = z.string().uuid();
@@ -44,8 +45,50 @@ export const expenseGstModel = z.discriminatedUnion("mode", [
 
 export type ExpenseGstModel = z.infer<typeof expenseGstModel>;
 
+// where a payment's money came from: cash, one bank account, or cash and one bank account together
+export const settledInModel = z.enum(["cash", "bank", "cashAndBank"]);
+
+export type SettledInModel = z.infer<typeof settledInModel>;
+
+// how the database keeps it
+export const SETTLED_IN_DB = { cash: "cash", bank: "bank", cashAndBank: "cash_and_bank" } as const satisfies Record<SettledInModel, string>;
+
+// how a bank payment was made, and the reference each mode has: a UPI UTR or IMPS reference is 12 digits, a NEFT or
+// RTGS UTR 16 to 22 letters and digits, a cheque 6 digits
+export const bankModeModel = z.enum(["upi", "imps", "neftRtgs", "cheque"]);
+
+export type BankMode = z.infer<typeof bankModeModel>;
+
+export const BANK_MODE_DB = { upi: "upi", imps: "imps", neftRtgs: "neft_rtgs", cheque: "cheque" } as const satisfies Record<BankMode, string>;
+
+export const BANK_MODE_REFERENCE: Record<BankMode, RegExp> = {
+  upi: /^\d{12}$/,
+  imps: /^\d{12}$/,
+  neftRtgs: /^[A-Z0-9]{16,22}$/,
+  cheque: /^\d{6}$/,
+};
+
+// a UTR, IMPS reference or cheque number, up to 30 (payment_bank_details)
+const referenceModel = z
+  .string()
+  .trim()
+  .max(30)
+  .transform((v) => (v === "" ? null : v))
+  .nullable()
+  .default(null);
+
+// another bank account paying part of the bank's share
+export const moreBankPartModel = z
+  .object({ bankDetailsId: idModel, amount: amountModel, mode: bankModeModel, referenceNumber: referenceModel })
+  .refine((b) => b.referenceNumber === null || BANK_MODE_REFERENCE[b.mode].test(b.referenceNumber), {
+    message: "That reference doesn't fit how it was paid.",
+    path: ["referenceNumber"],
+  });
+
+export type MoreBankPartModel = z.infer<typeof moreBankPartModel>;
+
 // money paid out: what it was for, to a ledger of that kind (or a new one made in the same save: a party, or an
-// expense head), from cash or one bank account, on any date. A loan repaid or the interest on one names the loan
+// expense head), from cash, one bank account or both (cashAmount is the cash part), on any date. A loan repaid or the interest on one names the loan
 // (dueId) instead, and goes to its lender. TDS on a supplier is worked out here, never sent; a loan given gives its terms.
 // Lengths follow payments: reference 30, remarks 100
 export const createPaymentInputModel = z
@@ -61,21 +104,27 @@ export const createPaymentInputModel = z
     payeeLedgerId: idModel.nullable().default(null),
     payeeLandlordId: idModel.nullable().default(null),
     newPayee: createPayeeInputModel.nullable().default(null),
+    // a UPI ID typed for the QR, for someone with none saved: it's kept on them
+    payeeUpiId: partyUpiIdModel
+      .refine((u) => appOfUpi(u) !== null, "That isn't a UPI handle (the part after @).")
+      .nullable()
+      .default(null),
     rentMonths: rentMonthsModel,
     loan: loanTermsInputModel.nullable().default(null),
     // an expense's GST, if any
     gst: expenseGstModel.nullable().default(null),
     pan: panNowModel,
     amount: amountModel,
-    settledIn: z.enum(["cash", "bank"]),
+    settledIn: settledInModel,
+    // cash and bank together: the part paid in cash (the bank pays the rest)
+    cashAmount: amountModel.nullable().default(null),
     bankDetailsId: idModel.nullable().default(null),
-    referenceNumber: z
-      .string()
-      .trim()
-      .max(30)
-      .transform((v) => (v === "" ? null : v))
-      .nullable()
-      .default(null),
+    // how the bank's part was paid (none for cash)
+    bankMode: bankModeModel.nullable().default(null),
+    referenceNumber: referenceModel,
+    // more bank accounts when no one account holds the bank's part: each with what it pays, how and its reference
+    // (the first account, above, pays the rest)
+    moreBankParts: z.array(moreBankPartModel).max(4).default([]),
     remarks: remarksModel,
   })
   .refine((p) => [p.paidToLedgerId, p.newLedger, p.newParty].filter((v) => v !== null).length === (LOAN_PAYMENT_KINDS.includes(p.paidFor) ? 0 : 1), {
@@ -89,6 +138,25 @@ export const createPaymentInputModel = z
   .refine((p) => p.gst === null || p.paidFor === "expense", { message: "Only an expense carries GST here.", path: ["gst"] })
   .refine((p) => (p.paidFor === "loanGiven") === (p.loan !== null), { message: "A loan given needs its terms.", path: ["loan"] })
   .refine((p) => p.settledIn === "cash" || p.bankDetailsId !== null, { message: "Pick the bank account.", path: ["bankDetailsId"] })
+  .refine((p) => (p.settledIn === "cash") === (p.bankMode === null), { message: "Pick how it was paid.", path: ["bankMode"] })
+  .refine((p) => p.bankMode === null || p.referenceNumber === null || BANK_MODE_REFERENCE[p.bankMode].test(p.referenceNumber), {
+    message: "That reference doesn't fit how it was paid.",
+    path: ["referenceNumber"],
+  })
+  .refine((p) => (p.settledIn === "cashAndBank") === (p.cashAmount !== null), { message: "Enter the cash part.", path: ["cashAmount"] })
+  .refine((p) => p.settledIn !== "cash" || p.moreBankParts.length === 0, { message: "Cash uses no bank account.", path: ["moreBankParts"] })
+  .refine((p) => new Set([p.bankDetailsId, ...p.moreBankParts.map((b) => b.bankDetailsId)]).size === p.moreBankParts.length + 1, {
+    message: "An account is in twice.",
+    path: ["moreBankParts"],
+  })
+  // the first account still pays something: the others never cover the whole bank part
+  .refine(
+    (p) =>
+      p.settledIn === "cash" ||
+      Math.round(p.amount * 100) - Math.round((p.cashAmount ?? 0) * 100) - p.moreBankParts.reduce((sum, b) => sum + Math.round(b.amount * 100), 0) > 0,
+    { message: "The other accounts pay more than the bank's part.", path: ["moreBankParts"] },
+  )
+  .refine((p) => p.cashAmount === null || Math.round(p.cashAmount * 100) < Math.round(p.amount * 100), { message: "The cash part must be less than the amount.", path: ["cashAmount"] })
   .refine((p) => p.paidFor === "expense" || (p.payeeLedgerId === null && p.payeeLandlordId === null && p.newPayee === null), { message: "Only an expense names who was paid.", path: ["payeeLedgerId"] })
   .refine((p) => p.payeeLedgerId === null || p.newPayee === null, { message: "Pick who was paid, or add them.", path: ["payeeLedgerId"] })
   .refine((p) => p.newPayee === null || p.newPayee.addresses.length > 0, { message: "A new party needs an address.", path: ["newPayee"] });
@@ -309,12 +377,22 @@ export const paymentModel = z.object({
     fssai: z.string(),
     jurisdiction: z.string(),
   }),
-  settledIn: z.enum(["cash", "bank"]),
+  settledIn: settledInModel,
+  // what came from each: cash and the bank account (0 for the one not used)
+  cashAmount: z.number(),
+  bankAmount: z.number(),
   bankDetailsId: idModel.nullable(),
+  bankMode: bankModeModel.nullable(),
   referenceNumber: z.string().nullable(),
+  // the other accounts it was paid from, when no one account held the bank's part (the first is above)
+  moreBankParts: z.array(
+    z.object({ bankDetailsId: idModel, name: z.string(), last4: z.string(), ifsc: z.string().nullable(), amount: z.number(), mode: bankModeModel, referenceNumber: z.string().nullable() }),
+  ),
   amount: z.number(),
   tdsRate: z.number().nullable(),
   tdsAmount: z.number().nullable(),
+  // a supplier paid more than we owed them: what settled our dues to them (with any TDS) and the advance left with them
+  split: z.object({ due: z.number(), advance: z.number() }).nullable(),
   // the PAN of whoever the TDS was taken from
   tdsPan: z.string().nullable(),
   // reverse charge: the GST we pay ourselves and what it's on, for rent or goods transport
@@ -337,14 +415,35 @@ export const paymentSourcesModel = z.object({
 
 export type PaymentSourcesModel = z.infer<typeof paymentSourcesModel>;
 
-// whether an amount can be paid from cash or one bank account: no more than it holds today
+// whether an amount can be paid from cash, one bank account, or both: each part no more than it holds today
 export const paymentFitsInputModel = z.object({
-  settledIn: z.enum(["cash", "bank"]),
+  settledIn: settledInModel,
   bankDetailsId: idModel.nullable().default(null),
+  // cash and bank together: the part paid in cash
+  cashAmount: amountModel.nullable().default(null),
+  // more accounts and what each pays (the first account pays the rest)
+  moreBankParts: z.array(z.object({ bankDetailsId: idModel, amount: amountModel })).max(4).default([]),
   amount: amountModel,
 });
 
 export type PaymentFitsInputModel = z.infer<typeof paymentFitsInputModel>;
+
+// the cash already paid that day to whoever this payment goes to: a party (as supplier or as an expense's payee), a
+// landlord, or another ledger such as a lender. Section 40A(3) disallows an expense paid in cash above ₹10,000 to one
+// person in a day (₹35,000 to a transporter)
+export const cashTodayInputModel = z.object({
+  paidToLedgerId: idModel.nullable().default(null),
+  payeeLedgerId: idModel.nullable().default(null),
+  payeeLandlordId: idModel.nullable().default(null),
+  // interest on a loan we took: the loan, whose lender was paid
+  dueId: idModel.nullable().default(null),
+  day: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+export type CashTodayInputModel = z.infer<typeof cashTodayInputModel>;
+
+export const CASH_EXPENSE_LIMIT = 10_000;
+export const CASH_TRANSPORT_LIMIT = 35_000;
 
 // a voucher opened from a link shared with the party: the payment and the key in its link
 export const sharedPaymentInputModel = z.object({ transactionId: idModel, key: z.string().min(1).max(64) });

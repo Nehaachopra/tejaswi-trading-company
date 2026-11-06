@@ -237,6 +237,8 @@ export function fitsReceiptKind(kind: ReceiptKind, l: { head: string; masterKey:
   const party = l.masterKey === "debtors" || l.masterKey === "creditors" || l.masterKey === "debtorCreditors" || l.masterKey === "parties";
   // a loan received can come from a bank or NBFC
   if (kind === "loanTaken" && l.masterKey === "lenders") return true;
+  // money from someone buying from us: a customer or a both, never only a supplier
+  if (kind === "customer") return l.masterKey === "debtors" || l.masterKey === "debtorCreditors";
   if (PARTY_RECEIPT_KINDS.includes(kind)) return party;
   if (l.masterKey !== null || l.referenceId !== null || (l.key !== null && OWN_SCREEN_LEDGERS.includes(l.key))) return false;
   if (kind === "capital") return l.key === "capital";
@@ -265,6 +267,8 @@ export function fitsPaymentKind(kind: PaymentKind, l: { head: string; masterKey:
   const party = l.masterKey === "debtors" || l.masterKey === "creditors" || l.masterKey === "debtorCreditors" || l.masterKey === "parties";
   // a loan from a bank or NBFC, and its interest, go to that lender
   if (LOAN_PAYMENT_KINDS.includes(kind) && l.masterKey === "lenders") return true;
+  // money to someone we buy from: a supplier or a both, never only a customer
+  if (kind === "supplier") return l.masterKey === "creditors" || l.masterKey === "debtorCreditors";
   if (PARTY_PAYMENT_KINDS.includes(kind)) return party;
   if (kind === "taxPaid") return l.key !== null && TAX_LEDGERS.includes(l.key);
   if (l.masterKey !== null || l.referenceId !== null || (l.key !== null && OWN_SCREEN_LEDGERS.includes(l.key))) return false;
@@ -292,7 +296,9 @@ export const pickedPartyModel = z.object({
   shortName: z.string().nullable(),
   phone: z.string().nullable(),
   city: z.string().nullable(),
-  type: z.enum(["customer", "supplier", "both"]).nullable(),
+  type: z.enum(["customer", "supplier", "customer_supplier"]).nullable(),
+  // what they're paid on, for a payment's UPI QR
+  upiIds: z.array(z.string()),
 });
 
 export type PickedPartyModel = z.infer<typeof pickedPartyModel>;

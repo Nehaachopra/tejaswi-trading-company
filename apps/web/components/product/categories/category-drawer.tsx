@@ -126,7 +126,7 @@ export function CategoryDrawer({ category, onClose }: { category: Category | nul
                   onClick={() => void bringBack()}
                   disabled={reactivate.isPending}
                   aria-busy={reactivate.isPending}
-                  className="flex min-h-11 items-center justify-center gap-1.5 rounded-control border border-chestnut/60 px-3 text-sm font-medium hover:border-chestnut aria-busy:opacity-80"
+                  className="flex min-h-11 w-full sm:w-auto items-center justify-center gap-1.5 rounded-control border border-chestnut/60 px-3 text-sm font-medium hover:border-chestnut aria-busy:opacity-80"
                 >
                   {reactivate.isPending ? <Spinner /> : <RotateCcw className="size-4" aria-hidden />}
                   {t("reactivateName", { name: titleCase(inactive.name) })}

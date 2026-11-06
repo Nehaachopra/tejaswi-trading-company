@@ -4,12 +4,10 @@ import { boolean, date, integer, pgTable, text, uuid, varchar } from "drizzle-or
 
 import { money, percent, timestamps } from "../../utils/common/column-type";
 
-import { bankDetailsTable } from "../bank-detail";
 import { ledgersTable } from "../accounting/ledger";
 import { transactionsTable } from "./transaction";
 import { duesTable } from "../due/due";
 import { partiesTable } from "../party/party";
-import { landlordsTable } from "../landlord/landlord";
 import { gstPlaceOfSupplyEnum, paidForEnum, settledInEnum, supplyTypeEnum } from "../../utils/common/enum";
 import { uniqueIndex } from "drizzle-orm/pg-core";
 import { index } from "drizzle-orm/pg-core";
@@ -68,28 +66,17 @@ export const paymentsTable = pgTable("payments", {
   // transport and brokerage, a landlord for rent
   payeePartyId: uuid("payee_party_id").references(() => partiesTable.id, { onDelete: "restrict" }),
 
-  payeeLandlordId: uuid("payee_landlord_id").references(() => landlordsTable.id, { onDelete: "restrict" }),
+  // rent's landlord: a party of type landlord
+  payeeLandlordId: uuid("payee_landlord_id").references(() => partiesTable.id, { onDelete: "restrict" }),
 
   // what it was for (the voucher's "Paid for" and its particulars)
   paidFor: paidForEnum("paid_for").notNull(),
 
+  // cash, bank, or both: the bank's part (account, reference, snapshot) is in payment_bank_details, and the cash part
+  // is the amount less it
   settledIn: settledInEnum("settled_in").notNull(),
 
-  bankDetailsId: uuid("bank_details_id")
-    .references(() => bankDetailsTable.id, {
-      onDelete: "restrict"
-    }),
-
-  // the UTR or cheque number of a bank payment
-  referenceNumber: varchar("reference_number", { length: 30 }),
-
-  // the bank account as it was when paid: its bank, the last 4 digits and IFSC
-  bankNameSnapshot: varchar("bank_name_snapshot", { length: 100 }),
-
-  bankAccountLast4Snapshot: varchar("bank_account_last4_snapshot", { length: 4 }),
-
-  bankIfscSnapshot: varchar("bank_ifsc_snapshot", { length: 11 }),
-
+  // the whole amount paid, cash and bank together
   amount: money("amount").default("0.00").notNull(),
 
   // the interest paid on a loan: which loan (what a payment settles is kept in due_settlements)
@@ -131,8 +118,6 @@ export const paymentsTable = pgTable("payments", {
 
   index("payments_paid_to_ledger_id_idx").on(table.paidToLedgerId),
 
-  index("payments_bank_details_id_idx").on(table.bankDetailsId),
-
   check(
     "payments_amount_positive",
     sql`${table.amount} > 0`,
@@ -141,11 +126,6 @@ export const paymentsTable = pgTable("payments", {
   check(
     "payments_interest_on_a_loan",
     sql`(${table.interestOnDueId} IS NOT NULL) = (${table.paidFor}::text = 'interest_paid')`,
-  ),
-
-  check(
-    "payments_bank_account_for_bank",
-    sql`${table.settledIn} = 'cash' OR ${table.bankDetailsId} IS NOT NULL`,
   ),
 
   check(

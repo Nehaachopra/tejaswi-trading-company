@@ -21,7 +21,7 @@ export function PartyPick({ party }: { ledger: Pickable; party: NonNullable<Pick
     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
       <span className="flex items-center gap-2">
         <span className="min-w-0 truncate font-heading text-base font-bold">{partyLabel(party)}</span>
-        <span className="shrink-0 rounded-control border border-current/40 px-1.5 py-0.5 text-xs">{tt(kindOf(party.type))}</span>
+<span className="shrink-0 rounded-control border border-current/40 px-1.5 py-0.5 text-xs">{tt(kindOf(party.type))}</span>
       </span>
       {party.shortName && <span className="truncate text-sm">{titleCase(party.name)}</span>}
       <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
@@ -67,8 +67,8 @@ export function PhoneMatches({ matches, onUse, title, onClose }: { matches: Pick
   if (matches.length === 0) return null;
 
   return (
-    <div role="listbox" aria-label={title ?? t("matches", { count: matches.length })} className="on-ivory absolute inset-x-0 top-full z-30 mt-1 flex max-h-80 flex-col overflow-y-auto rounded-control border border-chestnut/25 bg-ivory text-chestnut">
-      <span className="flex items-center gap-2 px-3 pb-1 pt-2 text-xs font-semibold">
+    <div role="listbox" aria-label={title ?? t("matches", { count: matches.length })} className="on-ivory absolute inset-x-0 top-full z-30 mt-1 flex max-h-80 flex-col gap-1 overflow-y-auto rounded-control border border-chestnut/25 bg-ivory p-1.5 text-chestnut">
+      <span className="flex items-center gap-2 px-1.5 pb-1 pt-0.5 text-xs font-semibold">
         <span className="flex-1">{title ?? t("matches", { count: matches.length })}</span>
         {onClose && (
           <button type="button" onClick={onClose} className="min-h-8 rounded-control px-2 font-medium underline underline-offset-2">
@@ -77,7 +77,7 @@ export function PhoneMatches({ matches, onUse, title, onClose }: { matches: Pick
         )}
       </span>
       {matches.map((l) => (
-        <button key={l.id} type="button" role="option" aria-selected={false} onClick={() => onUse(l)} className="flex border-t border-chestnut/10 px-3 py-2.5 text-left hover:bg-chestnut/[0.06]">
+        <button key={l.id} type="button" role="option" aria-selected={false} onClick={() => onUse(l)} className="flex rounded-control px-3 py-2.5 text-left hover:bg-chestnut/[0.06]">
           <PartyPick ledger={l} party={l.party!} />
         </button>
       ))}

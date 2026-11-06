@@ -121,7 +121,7 @@ export function PartiesManager() {
         <Filter
           label={t("type")}
           current={type ? tf(`types.${type}`) : t("allTypes")}
-          options={[{ id: null, name: t("allTypes") }, ...(["customer", "supplier", "both", "none"] as const).map((id) => ({ id, name: tf(`types.${id}`) }))]}
+          options={[{ id: null, name: t("allTypes") }, ...(["customer", "supplier", "customer_supplier", "none"] as const).map((id) => ({ id, name: tf(`types.${id}`) }))]}
           picked={type}
           onPick={setType}
         />

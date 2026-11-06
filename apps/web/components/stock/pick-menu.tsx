@@ -13,6 +13,7 @@ import { cn } from "~/lib/utils";
 export function PickMenu<T extends string | null>({
   label,
   current,
+  currentSub,
   currentHint,
   options,
   picked,
@@ -28,13 +29,18 @@ export function PickMenu<T extends string | null>({
   noMatch,
   onTyped,
   typedLabel,
+  openSignal,
+  moneyHints = false,
 }: {
   label: string;
   current: string;
+  // a second line under the current choice (a bank account's last digits)
+  currentSub?: string;
   // beside the current choice, before the arrow
   currentHint?: string;
   // `sub` is a second line under the name, `hint` sits on the right
-  options: { id: T; name: string; sub?: string; hint?: string }[];
+  // a disabled one shows muted and can't be picked
+  options: { id: T; name: string; sub?: string; hint?: string; disabled?: boolean }[];
   picked: T;
   onPick: (id: T) => void;
   disabled?: boolean;
@@ -53,11 +59,21 @@ export function PickMenu<T extends string | null>({
   // a name the list doesn't have: what's typed in the search can be used as it is
   onTyped?: (text: string) => void;
   typedLabel?: (text: string) => string;
+  // each new number opens the list (see Menu)
+  openSignal?: number;
+  // the hints are money (balances): shown large and bold, never muted
+  moneyHints?: boolean;
 }) {
   const tc = useTranslations("common");
   const [search, setSearch] = useState("");
   const needle = search.trim().toLowerCase();
-  const shown = needle === "" ? options : options.filter((o) => o.name.toLowerCase().includes(needle) || (o.hint ?? "").toLowerCase().includes(needle));
+  const shown =
+    needle === ""
+      ? options
+      : options.filter(
+          (o) =>
+            o.name.toLowerCase().includes(needle) || (o.hint ?? "").toLowerCase().includes(needle),
+        );
 
   return (
     <Menu
@@ -69,10 +85,20 @@ export function PickMenu<T extends string | null>({
       // a list that narrows as you search keeps one width, whatever names are showing
       panelClassName={searchable && !matchWidth ? "w-72 max-w-[calc(100vw-2rem)]" : undefined}
       disabled={disabled}
-      triggerClassName={cn("min-h-11 w-full min-w-0 justify-between border-0 px-3 text-sm shadow-[0_0_5px_0] shadow-chestnut/40", invalid && "shadow-danger/80", className)}
+      openSignal={openSignal}
+      triggerClassName={cn(
+        "min-h-11 w-full min-w-0 justify-between border-0 px-3 text-sm shadow-[0_0_5px_0] shadow-chestnut/40",
+        invalid && "shadow-danger/80",
+        className,
+      )}
       trigger={
         <>
-          <span className="min-w-0 flex-1 truncate text-left">{current}</span>
+          <span className="min-w-0 flex-1 text-left">
+            <span className="block truncate">{current}</span>
+            {currentSub && (
+              <span className="tabular block text-xs font-normal opacity-70">{currentSub}</span>
+            )}
+          </span>
           {currentHint && <span className="tabular shrink-0 font-semibold">{currentHint}</span>}
           <ChevronDown className="size-4 shrink-0" aria-hidden />
         </>
@@ -103,14 +129,23 @@ export function PickMenu<T extends string | null>({
                 aria-label={searchLabel ?? label}
                 className="min-w-0 flex-1 bg-transparent text-sm text-chestnut outline-none placeholder:text-chestnut/60"
               />
-              {search && <ClearButton onClear={() => setSearch("")} label={tc("clearSearch")} surface="ivory" />}
+              {search && (
+                <ClearButton
+                  onClear={() => setSearch("")}
+                  label={tc("clearSearch")}
+                  surface="ivory"
+                />
+              )}
             </label>
           )}
-          {/* a long list shows its first 100; the search reaches the rest */}
+          {/* a long list shows its first 100; the search reaches the rest. Each choice is a rounded row with room
+              around it and a small gap between */}
           {shown.slice(0, 100).map((option) => (
             <MenuItem
               key={option.id ?? "none"}
               selected={picked === option.id}
+              disabled={option.disabled}
+              className="py-2.5 [&+&]:mt-1"
               onClick={() => {
                 onPick(option.id);
                 setSearch("");
@@ -119,9 +154,20 @@ export function PickMenu<T extends string | null>({
             >
               <span className="min-w-0 flex-1">
                 <span className="block truncate">{option.name}</span>
-                {option.sub && <span className="tabular block text-xs opacity-70">{option.sub}</span>}
+                {option.sub && (
+                  <span className="tabular block text-xs opacity-70">{option.sub}</span>
+                )}
               </span>
-              {option.hint && <span className="tabular shrink-0 text-xs opacity-70">{option.hint}</span>}
+              {option.hint && (
+                <span
+                  className={cn(
+                    "tabular shrink-0",
+                    moneyHints ? "font-heading text-lg font-bold" : "text-xs opacity-70",
+                  )}
+                >
+                  {option.hint}
+                </span>
+              )}
             </MenuItem>
           ))}
           {shown.length === 0 && !onTyped && <p className="px-3 py-3 text-sm">{noMatch ?? "—"}</p>}
@@ -133,7 +179,9 @@ export function PickMenu<T extends string | null>({
                 close();
               }}
             >
-              <span className="flex-1 truncate font-semibold">{typedLabel?.(search.trim()) ?? search.trim()}</span>
+              <span className="flex-1 truncate font-semibold">
+                {typedLabel?.(search.trim()) ?? search.trim()}
+              </span>
             </MenuItem>
           )}
           {shown.length > 100 && <p className="px-3 py-2 text-xs">{`+${shown.length - 100}`}</p>}

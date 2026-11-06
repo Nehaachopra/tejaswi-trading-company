@@ -36,6 +36,8 @@
 @layer base {
   html {
     color-scheme: dark;
+    /* room for the scrollbar always, so the page doesn't shift sideways as cards grow and shrink */
+    scrollbar-gutter: stable;
     @apply font-sans;
   }
   body {
@@ -160,4 +162,118 @@ input[type="search"]::-webkit-search-cancel-button {
 }
 .chat-dot {
   animation: chat-dot 1.1s ease-in-out infinite;
+}
+
+/* a part of a card that appears once it's needed (Received into after the amount): the card opens up to make room
+   while the part fades and rises into place; clipped only while it opens, so its shadows and lists show after */
+@keyframes reveal-open {
+  from {
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transform: translateY(12px);
+    overflow: hidden;
+  }
+  99% {
+    overflow: hidden;
+  }
+  to {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: none;
+  }
+}
+.reveal-open {
+  display: grid;
+  grid-template-rows: 1fr;
+  animation: reveal-open 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.reveal-open > * {
+  min-height: 0;
+}
+
+/* a field that needs picking again (a question answered No): a chestnut ring that breathes, so the eye goes to it */
+@keyframes attention {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px var(--color-chestnut), 0 0 0 4px color-mix(in srgb, var(--color-chestnut) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 2px var(--color-chestnut), 0 0 0 8px color-mix(in srgb, var(--color-chestnut) 25%, transparent);
+  }
+}
+.attention {
+  animation: attention 1.4s ease-in-out infinite;
+}
+
+/* a part of a card that comes and goes (Reveal): the space opens (or folds) smoothly, taking the gap before it along,
+   while the part fades and rises into place; closing, it fades first and the space follows */
+.reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: calc(-1 * var(--reveal-gap, 1rem));
+  opacity: 0;
+  transition:
+    grid-template-rows 0.36s cubic-bezier(0.4, 0, 0.2, 1) 0.06s,
+    margin-top 0.36s cubic-bezier(0.4, 0, 0.2, 1) 0.06s,
+    opacity 0.18s ease;
+}
+.reveal[data-open] {
+  grid-template-rows: 1fr;
+  margin-top: 0;
+  opacity: 1;
+  transition:
+    grid-template-rows 0.42s cubic-bezier(0.2, 0.8, 0.2, 1),
+    margin-top 0.42s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.34s ease 0.08s;
+}
+.reveal-inner {
+  transform: translateY(10px) scale(0.985);
+  transform-origin: top center;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.reveal[data-open] .reveal-inner {
+  transform: none;
+  transition: transform 0.46s cubic-bezier(0.2, 0.8, 0.2, 1) 0.04s;
+}
+
+/* moving between a form's cards (moveCard): the card grows or shrinks to the new one's height while the old content
+   slides out and the new slides in, forwards from the right and back from the left. Browsers without view
+   transitions get the card rising in (chat-rise) */
+::view-transition-group(txn-card) {
+  animation-duration: 0.44s;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  overflow: clip;
+  border-radius: 1rem;
+}
+::view-transition-old(txn-card) {
+  animation: card-out 0.2s cubic-bezier(0.4, 0, 1, 1) both;
+}
+::view-transition-new(txn-card) {
+  animation: card-in 0.44s cubic-bezier(0.2, 0.8, 0.2, 1) 0.08s both;
+}
+/* the rest of the page (the summary filling in) crossfades quickly */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.25s;
+}
+@keyframes card-out {
+  to {
+    opacity: 0;
+    transform: translateX(calc(-24px * var(--card-dir, 1)));
+  }
+}
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(32px * var(--card-dir, 1)));
+  }
+}
+html[data-card-dir="back"] {
+  --card-dir: -1;
+}
+.txn-card {
+  view-transition-name: txn-card;
+}
+html[data-card-morphs] .txn-card {
+  animation: none;
 }

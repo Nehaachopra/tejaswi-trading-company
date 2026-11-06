@@ -103,7 +103,7 @@ export function AddCategorySheet({ open, onClose }: { open: boolean; onClose: ()
               onClick={() => void bringBack()}
               disabled={reactivate.isPending}
               aria-busy={reactivate.isPending}
-              className="-mt-2 flex min-h-11 items-center justify-center gap-1.5 rounded-control border border-chestnut/60 px-3 text-sm font-medium hover:border-chestnut aria-busy:opacity-80"
+              className="-mt-2 flex min-h-11 w-full sm:w-auto items-center justify-center gap-1.5 rounded-control border border-chestnut/60 px-3 text-sm font-medium hover:border-chestnut aria-busy:opacity-80"
             >
               {reactivate.isPending ? <Spinner /> : <RotateCcw className="size-4" aria-hidden />}
               {t("reactivateName", { name: titleCase(inactive.name) })}

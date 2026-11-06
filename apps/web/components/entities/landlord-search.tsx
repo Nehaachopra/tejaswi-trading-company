@@ -1,11 +1,12 @@
 "use client";
 
-import { Pencil, Plus, Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
 import { fieldClass } from "~/components/ui/card-form";
-import { ADD_ON_IVORY, PICK_LIST, PICK_NEW, PICK_ROW, PICK_SEARCH, PICK_TWO_COLUMNS, PICKED } from "~/components/ui/page-styles";
+import { ADD_ON_IVORY, PICK_LIST, PICK_NEW, PICK_ROW, PICK_SEARCH, PICK_TWO_COLUMNS } from "~/components/ui/page-styles";
+import { PickedCard } from "../transaction/picked-card";
 import { cn } from "~/lib/utils";
 
 import { partyLabel } from "../account/party/party-kinds";
@@ -41,7 +42,6 @@ export function LandlordSearch({
   startOpen?: boolean;
 }) {
   const t = useTranslations("stock.form");
-  const tp = useTranslations("transactions.picker");
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(startOpen);
   const [adding, setAdding] = useState(false);
@@ -64,24 +64,16 @@ export function LandlordSearch({
 
   if (chosen)
     return (
-      <div className={PICKED}>
+      <PickedCard
+        oneLine
+        onEdit={canEdit ? () => setEditing(true) : undefined}
+        onChange={() => {
+          onPick(null);
+          setOpen(startOpen);
+        }}
+      >
         <span className="min-w-0 flex-1 truncate font-semibold">{partyLabel(chosen)}</span>
-        {canEdit && (
-          <button type="button" aria-label={tp("edit")} onClick={() => setEditing(true)} className="grid size-9 shrink-0 place-items-center rounded-control hover:bg-ivory/10">
-            <Pencil className="size-4" aria-hidden />
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={() => {
-            onPick(null);
-            setOpen(startOpen);
-          }}
-          className="shrink-0 rounded-control px-2 py-1 text-sm font-semibold underline underline-offset-2"
-        >
-          {t("change")}
-        </button>
-      </div>
+      </PickedCard>
     );
 
   // someone new: their details right here, as a new party's are

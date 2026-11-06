@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, House, IdCard, Landmark, Mail, Map, MapPin, MapPinned, MessageSquare, Pencil, Percent, Phone, Plus, ReceiptText, Tag, Trash2, User, Wallet, type LucideIcon } from "lucide-react";
+import { Building2, House, IdCard, Landmark, Mail, Map, MapPin, MapPinned, MessageSquare, Pencil, Percent, Phone, Plus, QrCode, ReceiptText, Tag, Trash2, User, Wallet, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
@@ -16,7 +16,7 @@ import { noDigits, titleCase } from "~/lib/format";
 import { indiaPostPlace, indiaPostTownPin } from "~/lib/india-post";
 import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
-import { GSTIN_PATTERN, PHONE_PATTERN, type RouterOutputs } from "@repo/trpc/client";
+import { GSTIN_PATTERN, PHONE_PATTERN, type RouterOutputs, upiFormatOk } from "@repo/trpc/client";
 
 import { PickMenu } from "../../stock/pick-menu";
 import { DISTRICTS } from "./districts";
@@ -68,6 +68,8 @@ export type PartyDraft = {
   paidBefore: string;
   tdsBefore: string;
   addresses: AddressDraft[];
+  // the UPI IDs they're paid on
+  upiIds: { key: string; upiId: string }[];
 };
 
 let keys = 0;
@@ -101,6 +103,7 @@ export const emptyDraft = (): PartyDraft => ({
   paidBefore: "",
   tdsBefore: "",
   addresses: [emptyAddress(true)],
+  upiIds: [],
 });
 
 export const draftFrom = (p: Party): PartyDraft => ({
@@ -114,6 +117,7 @@ export const draftFrom = (p: Party): PartyDraft => ({
   remarks: p.remarks ?? "",
   paidBefore: p.paidBefore ? String(p.paidBefore.paid) : "",
   tdsBefore: p.paidBefore?.tds ? String(p.paidBefore.tds) : "",
+  upiIds: p.upiIds.map((upiId) => ({ key: newKey(), upiId })),
   addresses: p.addresses.map((a) => ({
     key: newKey(),
     id: a.id,
@@ -133,9 +137,9 @@ export const draftFrom = (p: Party): PartyDraft => ({
 });
 
 // an address with nothing typed in it is simply left out
-const blank = (a: AddressDraft) => [a.addressLine1, a.city, a.district, a.state, a.postalCode, a.gstin, a.label, a.addressLine2, a.landmark].every((v) => v.trim() === "");
+export const blank = (a: AddressDraft) => [a.addressLine1, a.city, a.district, a.state, a.postalCode, a.gstin, a.label, a.addressLine2, a.landmark].every((v) => v.trim() === "");
 
-function addressProblems(a: AddressDraft) {
+export function addressProblems(a: AddressDraft) {
   const gstin = a.gstin.trim();
   return {
     city: a.city.trim() === "",
@@ -156,6 +160,7 @@ export function draftProblems(d: PartyDraft, strict = false, phoneOptional = fal
       shortName: d.shortNameTaken || (d.shortName.trim() !== "" && !SHORT_NAME.test(d.shortName.trim())),
       email: d.email.trim() !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim()),
       pan: d.pan.trim() !== "" && !/^[A-Z]{5}\d{4}[A-Z]$/.test(d.pan.trim()),
+      upi: d.upiIds.some((u) => upiBad(d, u.key)),
     },
     addresses: d.addresses.map((a, i) => (blank(a) && !(strict && i === 0) ? null : addressProblems(a))),
   };
@@ -169,26 +174,37 @@ export const draftOk = (d: PartyDraft, strict = false, phoneOptional = false) =>
 // TDS typed above what was paid
 export const tdsOver = (d: PartyDraft) => Number(d.tdsBefore) > Number(d.paidBefore);
 
+// a UPI ID typed that isn't name@handle, or is in twice (blank ones are left out)
+export function upiBad(d: { upiIds: PartyDraft["upiIds"] }, key: string) {
+  const u = d.upiIds.find((x) => x.key === key)!.upiId.trim();
+  if (u === "") return false;
+  return !upiFormatOk(u) || d.upiIds.filter((x) => x.upiId.trim() === u).length > 1;
+}
+
+// an address as the API takes it
+export const addressInput = (a: AddressDraft) => ({
+  ...(a.id ? { id: a.id } : {}),
+  label: a.label.trim(),
+  addressType: a.addressType,
+  addressLine1: a.addressLine1.trim(),
+  addressLine2: a.addressLine2.trim(),
+  landmark: a.landmark.trim(),
+  city: a.city.trim(),
+  district: a.district.trim(),
+  state: a.state.trim(),
+  stateCode: a.stateCode!,
+  postalCode: a.postalCode,
+  gstin: a.gstin.trim(),
+  isDefault: a.isDefault,
+});
+
 // the draft as the API takes it; the default address is the marked one among those kept, or the first
 export function draftInput(d: PartyDraft) {
   const kept = d.addresses.filter((a) => !blank(a));
   return {
+    upiIds: d.upiIds.map((u) => u.upiId.trim()).filter((u) => u !== ""),
     details: { name: d.name.trim(), shortName: d.shortName.trim() || null, phone: d.phone, email: d.email.trim(), pan: d.pan.trim(), remarks: d.remarks.trim(), transportDeclaration: d.transportDeclaration },
-    addresses: kept.map((a) => ({
-      ...(a.id ? { id: a.id } : {}),
-      label: a.label.trim(),
-      addressType: a.addressType,
-      addressLine1: a.addressLine1.trim(),
-      addressLine2: a.addressLine2.trim(),
-      landmark: a.landmark.trim(),
-      city: a.city.trim(),
-      district: a.district.trim(),
-      state: a.state.trim(),
-      stateCode: a.stateCode!,
-      postalCode: a.postalCode,
-      gstin: a.gstin.trim(),
-      isDefault: a.isDefault,
-    })),
+    addresses: kept.map(addressInput),
   };
 }
 
@@ -228,8 +244,9 @@ export function Field({ label, icon: Icon, children, className, required = false
 type Lookup = { state: "idle" | "looking" | "missing" } | { state: "found"; place: string };
 
 // one address: PIN first (it fills in the city, district and state), then the lines and GSTIN; its name, what
-// it's used for and whether it's the default are in its header
-function AddressFields({
+// it's used for and whether it's the default are in its header. `single` (a landlord's one address): no header and no
+// GSTIN, which is asked with their GST
+export function AddressFields({
   address,
   index,
   count,
@@ -239,7 +256,9 @@ function AddressFields({
   onRemove,
   onMakeDefault,
   onRestart,
+  single = false,
 }: {
+  single?: boolean;
   address: AddressDraft;
   index: number;
   count: number;
@@ -261,8 +280,7 @@ function AddressFields({
   const [lookup, setLookup] = useState<Lookup>({ state: "idle" });
   // its name being changed
   const [naming, setNaming] = useState(false);
-  // a place changed starts what's under it again: a different district clears the town, PIN and lines, a different town
-  // its PIN (which the town then fills in if it can). A first pick keeps what's typed
+  // a different district starts what's under it again (town, PIN and lines); a first pick keeps what's typed
   const setDistrict = (district: string) => {
     if (district === address.district) return;
     if (address.district.trim() === "") return onChange({ district });
@@ -270,8 +288,12 @@ function AddressFields({
     onRestart?.();
     onChange({ district, city: "", postalCode: "", addressLine1: "", addressLine2: "", landmark: "" });
   };
+  // the town changed: a PIN typed stays, with its district and state (only a PIN the town itself filled in is looked up
+  // again for the new town)
   const setCity = (city: string) => {
-    if (city !== address.city) onChange({ city, postalCode: "" });
+    if (city === address.city) return;
+    const pinWasFilled = address.postalCode !== "" && address.postalCode === pinFromTown.current;
+    onChange(pinWasFilled ? { city, postalCode: "" } : { city });
   };
   // the state's districts, with a name the PIN directory gave or one typed in if the list doesn't have it
   const districts = address.stateCode ? DISTRICTS[address.stateCode] : undefined;
@@ -355,6 +377,7 @@ function AddressFields({
     <fieldset className="flex flex-col gap-4 rounded-control border border-chestnut/20 p-3">
       {/* which address, default or not, remove */}
       <legend className="sr-only">{t("addressN", { n: index + 1 })}</legend>
+      {!single && (
       <div className="flex flex-wrap items-center gap-2">
         {/* its name, "Address 1" until it's given one, changed with the pen */}
         <div className="flex min-w-0 flex-1 basis-20 items-center gap-1">
@@ -404,6 +427,7 @@ function AddressFields({
           </button>
         )}
       </div>
+      )}
 
       {/* the city beside its PIN, each filling the other and the state and district below; then those two */}
       <div className="grid grid-cols-2 items-start gap-x-6 gap-y-3">
@@ -494,6 +518,7 @@ function AddressFields({
       </div>
 
       {/* GSTIN (its first two digits are the state's code) */}
+      {!single && (
       <Field icon={ReceiptText} label={t("gstin")} className="mt-6 sm:w-56">
         <input
           value={address.gstin}
@@ -506,6 +531,7 @@ function AddressFields({
         />
         {show("gstin") && <span className="text-xs text-danger">{t("gstinHint")}</span>}
       </Field>
+      )}
     </fieldset>
   );
 }
@@ -601,6 +627,8 @@ export function PartyFields({
 
   // one address changed, added, removed or made the default
   const setAddress = (key: string, patch: Partial<AddressDraft>) => onChange({ addresses: draft.addresses.map((a) => (a.key === key ? { ...a, ...patch } : a)) });
+  // a UPI ID changed, added or removed
+
   const removeAddress = (key: string) => {
     const left = draft.addresses.filter((a) => a.key !== key);
     onChange({ addresses: left.some((a) => a.isDefault) ? left : left.map((a, i) => ({ ...a, isDefault: i === 0 })) });
@@ -808,3 +836,61 @@ export function PartyFields({
     </div>
   );
 }
+
+// the UPI IDs someone is paid on, for a payment's QR: one box always there, then "Add UPI ID" for another (up to `max`)
+export function UpiIdsField({ upiIds, onChange, tried, max = 5 }: { upiIds: PartyDraft["upiIds"]; onChange: (upiIds: PartyDraft["upiIds"]) => void; tried: boolean; max?: number }) {
+  const t = useTranslations("accounts.party.form");
+  // with none yet, an empty box stands in for the first; typing in it makes it a real one
+  const rows = upiIds.length > 0 ? upiIds : [{ key: "upi-blank", upiId: "" }];
+  const setUpi = (key: string, upiId: string) =>
+    onChange(upiIds.length === 0 ? [{ key: newKey(), upiId }] : upiIds.map((u) => (u.key === key ? { ...u, upiId } : u)));
+  return (
+    <div className="flex flex-col gap-2.5">
+      <span className="flex items-center gap-1.5 text-xs font-semibold">
+        <QrCode className="size-3.5 shrink-0 opacity-70" aria-hidden />
+        {t("upiIds")}
+      </span>
+      {rows.map((u) => {
+        const wrong = tried && upiIds.length > 0 && upiBad({ upiIds }, u.key);
+        return (
+          <div key={u.key} className="flex flex-col gap-1.5 sm:w-96">
+            <div className="flex items-center gap-2">
+              <input
+                value={u.upiId}
+                maxLength={255}
+                inputMode="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                onChange={(e) => setUpi(u.key, e.target.value.toLowerCase().replace(/[^a-z0-9.@_-]/g, ""))}
+                placeholder="name@okhdfcbank"
+                aria-label={t("upiIds")}
+                aria-invalid={wrong || undefined}
+                className={input(wrong)}
+              />
+              {/* the first box stays; the ones added after it can go */}
+              {rows.length > 1 && (
+                <button type="button" onClick={() => onChange(upiIds.filter((x) => x.key !== u.key))} aria-label={t("removeUpi")} className="grid size-11 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.06]">
+                  <Trash2 className="size-4" aria-hidden />
+                </button>
+              )}
+            </div>
+            {wrong && <FieldMessage className="mt-0">{t("upiBad")}</FieldMessage>}
+          </div>
+        );
+      })}
+      {rows.length < max && (
+        <button
+          type="button"
+          onClick={() => onChange([...(upiIds.length > 0 ? upiIds : [{ key: newKey(), upiId: "" }]), { key: newKey(), upiId: "" }])}
+          className={cn(ADD_ON_IVORY, "self-start")}
+        >
+          <Plus className="size-4" aria-hidden /> {t("addUpi")}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// a new UPI row's key, for forms outside this file
+export const upiKey = () => newKey();

@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, db, eq, sql } from "@repo/database";
-import { bankDetailsTable, duesTable, ledgerEntriesTable, ledgersTable, partiesTable, partyAddressesTable, receiptsTable, transactionsTable } from "@repo/database/schema";
+import { bankDetailsTable, dueSettlementsTable, duesTable, ledgerEntriesTable, ledgersTable, partiesTable, partyAddressesTable, receiptsTable, transactionsTable } from "@repo/database/schema";
 
 import AccountsService from "../accounts";
 import { type ActorModel, fitsReceiptKind, type LedgerSummaryModel, type PostingLine, type ReceiptKind } from "../accounts/model";
@@ -13,6 +13,10 @@ import { counterLedger, settleLedger } from "../transaction/settle";
 import { type CreateReceiptInputModel, createReceiptInputModel, NEW_LEDGER_FOR, RECEIVED_FOR_DB, type ReceiptIdInputModel, type ReceiptModel, type SavedReceiptModel, tdsOn } from "./model";
 
 // the kind back from how the database keeps it
+// the TDS a party takes from what it pays us, by law: a buyer 0.1% under section 194Q (we have a PAN), a borrower 10% on
+// interest under section 194A
+const RECEIPT_TDS_RATE: Partial<Record<ReceiptKind, number>> = { customer: 0.1, interestReceived: 10 };
+
 const KIND_OF = Object.fromEntries(Object.entries(RECEIVED_FOR_DB).map(([k, v]) => [v, k])) as Record<string, ReceiptKind>;
 
 // money coming in: from a party, a loan, interest or other income, into cash or one bank account, on any date (no GST
@@ -51,9 +55,13 @@ export default class ReceiptService {
       }
       const into = await settleLedger(tx, this.accounts, input.settledIn, input.bankDetailsId);
 
-      // TDS only when a party deducted it
-      if (input.tdsRate !== null && (!party || input.receivedFor !== "customer")) throw new TRPCError({ code: "BAD_REQUEST", message: "TDS applies to parties only." });
-      const tds = input.tdsRate !== null ? tdsOn(input.amount, input.tdsRate) : 0;
+      // a bank or NBFC pays a loan into a bank account, never in cash
+      if (lent && input.settledIn === "cash") throw new TRPCError({ code: "BAD_REQUEST", message: "A bank's loan comes into a bank account." });
+      // TDS only when a party deducted it: a customer paying us, or a borrower paying interest
+      if (input.tdsRate !== null && (!party || (input.receivedFor !== "customer" && input.receivedFor !== "interestReceived"))) throw new TRPCError({ code: "BAD_REQUEST", message: "TDS applies to parties only." });
+      // the rate is the law's, never typed: 0.1% a buyer takes under 194Q, 10% a borrower takes on interest under 194A
+      const tdsRate = input.tdsRate !== null ? RECEIPT_TDS_RATE[input.receivedFor]! : null;
+      const tds = tdsRate !== null ? tdsOn(input.amount, tdsRate) : 0;
 
       // what it posts: cash or bank (and TDS receivable) up, the source down by both (Interest received up, for interest)
       const fromLedger = Math.round((input.amount + tds) * 100) / 100;
@@ -105,7 +113,7 @@ export default class ReceiptService {
         bankIfscSnapshot: bank?.ifsc?.slice(0, 11) ?? null,
         amount: fromPaise(Math.round(input.amount * 100)),
         tdsApplicable: tds > 0,
-        tdsRate: tds > 0 ? input.tdsRate!.toFixed(2) : null,
+        tdsRate: tds > 0 ? tdsRate!.toFixed(2) : null,
         tdsAmount: tds > 0 ? fromPaise(Math.round(tds * 100)) : null,
       });
 
@@ -161,7 +169,7 @@ export default class ReceiptService {
     const snapped = r.partyNameSnapshot !== null;
 
     // the party's default address (only for those older receipts), and a loan's interest
-    const [[address], [loan]] = await Promise.all([
+    const [[address], [loan], [settled]] = await Promise.all([
       party && !snapped
         ? db
             .select()
@@ -169,7 +177,12 @@ export default class ReceiptService {
             .where(and(eq(partyAddressesTable.partyId, party.id), eq(partyAddressesTable.isActive, true), eq(partyAddressesTable.isDefault, true)))
         : Promise.resolve([]),
       db.select({ interestRate: duesTable.interestRate, frequency: duesTable.frequency }).from(duesTable).where(eq(duesTable.transactionId, r.transactionId)),
+      db.select({ amount: sql<string>`coalesce(sum(${dueSettlementsTable.amount}), 0)` }).from(dueSettlementsTable).where(eq(dueSettlementsTable.transactionId, r.transactionId)),
     ]);
+    // a customer's receipt: what it settled of their dues, the rest an advance (only when there is one)
+    const settles = Math.round((Number(r.amount) + Number(r.tdsAmount ?? 0)) * 100) / 100;
+    const duePart = Number(settled?.amount ?? 0);
+    const advancePart = Math.round((settles - duePart) * 100) / 100;
     return {
       transactionId: r.transactionId,
       assignedId: t.assignedId,
@@ -221,12 +234,14 @@ export default class ReceiptService {
         : null,
       loan: loan?.interestRate != null && loan.frequency ? { interestRate: Number(loan.interestRate), frequency: loan.frequency } : null,
       company: t.companySnapshot ?? (await this.settings.get("company")),
-      settledIn: r.settledIn,
+      // a receipt comes into cash or one bank account, never both
+      settledIn: r.settledIn === "cash" ? "cash" : "bank",
       bankDetailsId: r.bankDetailsId,
       referenceNumber: r.referenceNumber,
       amount: Number(r.amount),
       tdsRate: r.tdsRate === null ? null : Number(r.tdsRate),
       tdsAmount: r.tdsAmount === null ? null : Number(r.tdsAmount),
+      split: KIND_OF[r.receivedFor] === "customer" && advancePart > 0 ? { due: duePart, advance: advancePart } : null,
     };
   }
 }

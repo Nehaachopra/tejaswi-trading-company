@@ -27,6 +27,8 @@ const MASTER_PAGE: Record<string, string | undefined> = {
   debtorCreditors: "/account/debtor-creditor",
   parties: "/account/parties",
   lenders: "/entities/lenders",
+  // landlords, each with the rent owed to them
+  rentPayable: "/entities/landlords",
 };
 
 // /account, admin only: every ledger account under its head (Asset, Liability, Income, Expense, Profit, Loss),

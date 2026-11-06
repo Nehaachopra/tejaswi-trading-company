@@ -6,10 +6,12 @@ import { boolean, index, pgEnum, pgTable, text, uniqueIndex, uuid, varchar } fro
 import { timestamps } from "../../utils/common/column-type";
 
 // what the party has done with us, set by its transactions (never picked): a sale makes it a customer, a purchase a
-// supplier, both make it both. It decides the party's one ledger: customer → Debtors, supplier → Creditors, both →
-// Debtor-creditors (one net balance); a party with no sale or purchase yet (type null) sits in Parties. A loan to or
-// from a party goes through that same ledger (its interest terms are in loans)
-export const partyTypeEnum = pgEnum("party_type", ["customer", "supplier", "both"]);
+// supplier, both make it customer_supplier. It decides the party's one ledger: customer → Debtors, supplier →
+// Creditors, customer_supplier → Debtor-creditors (one net balance); a party with no sale or purchase yet (type null)
+// sits in Parties. A loan to or from a party goes through that same ledger (its interest terms are in loans).
+// landlord is the one type set when they're added (in Entities → Landlords), never by a sale or purchase: their ledger
+// sits in Rent payable, and they never become a customer or supplier (someone who is also one has a separate party)
+export const partyTypeEnum = pgEnum("party_type", ["customer", "supplier", "customer_supplier", "landlord"]);
 
 export const partiesTable = pgTable(
   "parties",
@@ -54,8 +56,10 @@ export const partiesTable = pgTable(
     // two parties can't share a short name
     uniqueIndex("parties_short_name_unique").on(table.shortName),
 
-    // one phone, one party (a party may have none); it's also how a party is found first
-    uniqueIndex("parties_phone_unique").on(table.phone),
+    // one phone, one party (a party may have none); it's also how a party is found first. Landlords are counted apart,
+    // as someone who is also a customer or supplier has a separate party with the same phone
+    uniqueIndex("parties_phone_unique").on(table.phone).where(sql`${table.type} IS DISTINCT FROM 'landlord'`),
+    uniqueIndex("parties_landlord_phone_unique").on(table.phone).where(sql`${table.type} = 'landlord'`),
 
     // finding a party by a name like the one typed, misspelt or not (trigrams; needs the pg_trgm extension)
     index("parties_name_trgm_idx").using("gin", sql`lower(${table.name}) gin_trgm_ops`),

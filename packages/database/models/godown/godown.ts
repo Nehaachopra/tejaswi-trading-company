@@ -14,7 +14,7 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { money, timestamps } from "../../utils/common/column-type";
-import { landlordsTable } from "../landlord/landlord";
+import { partiesTable } from "../party/party";
 import { sql } from "drizzle-orm";
 
 export const godownOwnershipEnum = pgEnum("godown_ownership", ["rented", "owned"]);
@@ -39,8 +39,9 @@ export const godownsTable = pgTable("godowns", {
     withTimezone: true,
   }),
 
-  // who it's rented from; their details live with them, in Entities. The service asks for one on a rented godown
-  landlordId: uuid("landlord_id").references(() => landlordsTable.id, {
+  // who it's rented from: a party of type landlord, added in Entities → Landlords. The service asks for one on a rented
+  // godown
+  landlordId: uuid("landlord_id").references(() => partiesTable.id, {
     onDelete: "set null"
   }),
 

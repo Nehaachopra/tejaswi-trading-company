@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, count, db, eq, gt, inArray, ne, sql } from "@repo/database";
-import { godownsTable, landlordsTable, productGodownsTable, productsTable, stockCountGodownsTable } from "@repo/database/schema";
+import { godownsTable, partiesTable, productGodownsTable, productsTable, stockCountGodownsTable } from "@repo/database/schema";
 
 import StockEngine from "../stock/engine";
 
@@ -97,7 +97,7 @@ export default class GodownService {
   // a rented godown's landlord must be an active one
   private async assertLandlord(id: string | null) {
     if (!id) return;
-    const [landlord] = await db.select({ isActive: landlordsTable.isActive }).from(landlordsTable).where(eq(landlordsTable.id, id));
+    const [landlord] = await db.select({ isActive: partiesTable.isActive }).from(partiesTable).where(and(eq(partiesTable.id, id), eq(partiesTable.type, "landlord")));
     if (!landlord?.isActive) throw new TRPCError({ code: "BAD_REQUEST", message: "Pick a landlord." });
   }
 

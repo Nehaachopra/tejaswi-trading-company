@@ -8,6 +8,7 @@ import { drawingsTable } from "./drawing/drawing";
 import { drawingProductsTable } from "./drawing/drawing-product";
 import { othersTable } from "./other";
 import { paymentsTable } from "./payment";
+import { paymentBankDetailsTable } from "./payment-bank-detail";
 import { purchasesTable } from "./purchase/purchase";
 import { purchaseReturnsTable } from "./purchase-return/purchase-return";
 import { receiptsTable } from "./receipt";
@@ -78,5 +79,27 @@ export const salePurchaseCreditDetailsRelations = relations(salePurchaseCreditDe
   transaction: one(transactionsTable, {
     fields: [salePurchaseCreditDetailsTable.transactionId],
     references: [transactionsTable.id],
+  }),
+}));
+
+// a payment and the bank part it was paid with, if any
+export const paymentsRelations = relations(paymentsTable, ({ one }) => ({
+  transaction: one(transactionsTable, {
+    fields: [paymentsTable.transactionId],
+    references: [transactionsTable.id],
+  }),
+
+  bankPart: one(paymentBankDetailsTable),
+}));
+
+export const paymentBankDetailsRelations = relations(paymentBankDetailsTable, ({ one }) => ({
+  payment: one(paymentsTable, {
+    fields: [paymentBankDetailsTable.paymentId],
+    references: [paymentsTable.id],
+  }),
+
+  bankDetails: one(bankDetailsTable, {
+    fields: [paymentBankDetailsTable.bankDetailsId],
+    references: [bankDetailsTable.id],
   }),
 }));

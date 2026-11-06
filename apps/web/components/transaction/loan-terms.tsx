@@ -27,7 +27,11 @@ export function loanProblems(d: LoanDraft) {
 export const loanInput = (d: LoanDraft) => ({ interestRate: Number(d.rate), frequency: d.frequency! });
 
 const input = (bad: boolean) => `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
-const chip = (on: boolean) => cn("min-h-10 rounded-control border px-3 text-sm font-medium", on ? "border-chestnut bg-chestnut text-ivory" : "border-chestnut/50");
+const chip = (on: boolean) =>
+  cn(
+    "min-h-11 rounded-control border px-3.5 text-sm font-semibold transition-colors",
+    on ? "border-chestnut bg-chestnut text-ivory" : "border-chestnut/50 hover:bg-chestnut/[0.06]",
+  );
 
 // a loan's interest: the rate a year (0 = interest-free) and how often it's paid
 export function LoanTerms({ draft, onChange, tried }: { draft: LoanDraft; onChange: (patch: Partial<LoanDraft>) => void; tried: boolean }) {

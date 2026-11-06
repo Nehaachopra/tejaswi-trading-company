@@ -8,7 +8,8 @@ import { fieldClass } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { MicButton } from "~/components/ui/mic-button";
 import { NumberInput } from "~/components/ui/number-input";
-import { ADD_ON_IVORY, PICK_LIST, PICK_NEW, PICK_ROW, PICK_SEARCH, PICK_TWO_COLUMNS, PICKED } from "~/components/ui/page-styles";
+import { ADD_ON_IVORY, PICK_LIST, PICK_NEW, PICK_ROW, PICK_SEARCH, PICK_TWO_COLUMNS } from "~/components/ui/page-styles";
+import { PickedCard } from "./picked-card";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
@@ -165,12 +166,9 @@ export function LenderFields({ type, draft, onChange, tried }: { type: BankLende
     <div className="flex flex-col gap-4">
       {/* who: picked, being added, or being searched for */}
       {draft.picked ? (
-        <div className={PICKED}>
+        <PickedCard oneLine onChange={() => onChange({ picked: null })}>
           <span className="min-w-0 flex-1 truncate font-semibold">{lenderLabel(draft.picked)}</span>
-          <button type="button" onClick={() => onChange({ picked: null })} className="shrink-0 rounded-control px-2 py-1 text-sm font-semibold underline underline-offset-2">
-            {tp("change")}
-          </button>
-        </div>
+        </PickedCard>
       ) : draft.adding ? (
         <div className="flex flex-col gap-3">
           <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">

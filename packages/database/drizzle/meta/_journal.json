@@ -169,6 +169,41 @@
       "when": 1793549995281,
       "tag": "0023_overjoyed_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793764528440,
+      "tag": "0024_elite_swordsman",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793855936660,
+      "tag": "0025_sturdy_azazel",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793863647340,
+      "tag": "0026_heavy_timeslip",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1793938437941,
+      "tag": "0027_swift_cloak",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793950778467,
+      "tag": "0028_elite_kang",
+      "breakpoints": true
     }
   ]
 }

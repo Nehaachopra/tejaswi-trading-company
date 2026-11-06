@@ -290,20 +290,20 @@ function DuesTable({ page, kind, partyName, actions }: { page: Page; kind: DueKi
           <CircleAlert className="size-4" aria-hidden /> {tp("badDebtFailed")}
         </p>
       )}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <button
           type="button"
           onClick={() => void bookBadDebt(x)}
           disabled={writeOff.isPending}
           aria-busy={writeOff.isPending}
-          className="inline-flex min-h-10 items-center gap-2 rounded-control bg-danger px-3.5 text-sm font-semibold text-ivory aria-busy:opacity-80"
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-control bg-danger px-3.5 text-sm font-semibold text-ivory aria-busy:opacity-80"
         >
           {writeOff.isPending ? <Spinner className="size-4" /> : <Ban className="size-4" aria-hidden />} {tp("confirm")}
         </button>
         <button
           type="button"
           onClick={() => setConfirming(null)}
-          className="inline-flex min-h-10 items-center rounded-control border-2 border-chestnut px-3.5 text-sm font-semibold hover:bg-chestnut/[0.06]"
+          className="inline-flex min-h-10 items-center justify-center rounded-control border-2 border-chestnut px-3.5 text-sm font-semibold hover:bg-chestnut/[0.06]"
         >
           {tp("cancel")}
         </button>

@@ -82,13 +82,25 @@ const bankRouter = router({
     .output(z.array(branchModel))
     .query(({ input }) => bankService.branches(input)),
 
-  // the active accounts money can go into or come from, for receipts and payments: names only (staff use it too)
+  // the active accounts money can go into or come from, for receipts and payments: names, and the UPI IDs a receipt's
+  // QR can be paid to with the holder's name it shows (staff use it too; no balances here)
   pickable: protectedProcedure
     .meta({ openapi: { method: "GET", path: "/accounts/banks/pickable", tags: ["accounts"] } })
     .input(z.void())
-    .output(z.array(z.object({ id: z.string(), bankName: z.string(), last4: z.string(), accountType: z.string() })))
+    .output(
+      z.array(
+        z.object({ id: z.string(), bankName: z.string(), last4: z.string(), accountType: z.string(), accountHolderName: z.string(), upiIds: z.array(z.string()) }),
+      ),
+    )
     .query(async () =>
-      (await bankService.list({ includeInactive: false })).map((b) => ({ id: b.id, bankName: b.bankName, last4: b.last4, accountType: b.accountType })),
+      (await bankService.list({ includeInactive: false })).map((b) => ({
+        id: b.id,
+        bankName: b.bankName,
+        last4: b.last4,
+        accountType: b.accountType,
+        accountHolderName: b.accountHolderName,
+        upiIds: b.upiIds.map((u) => u.upiId),
+      })),
     ),
 
   list: adminProcedure

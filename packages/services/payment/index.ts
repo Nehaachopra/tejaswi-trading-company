@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, db, eq, gte, isNotNull, lte, sql } from "@repo/database";
-import { bankDetailsTable, duesTable, landlordsTable, ledgerEntriesTable, ledgersTable, lendersTable, partiesTable, partyAddressesTable, partyPaidBeforeTable, paymentsTable, transactionsTable } from "@repo/database/schema";
+import { and, asc, db, eq, gte, inArray, isNotNull, lt, lte, ne, or, sql } from "@repo/database";
+import { bankDetailsTable, dueSettlementsTable, duesTable, ledgerEntriesTable, ledgersTable, lendersTable, partiesTable, partyAddressesTable, partyPaidBeforeTable, partyUpiIdsTable, paymentBankDetailsTable, paymentsTable, transactionsTable } from "@repo/database/schema";
 
 import AccountsService from "../accounts";
 import { type ActorModel, fitsPaymentKind, type LedgerSummaryModel, type PaymentKind, type PostingLine, type TdsType } from "../accounts/model";
@@ -13,9 +13,13 @@ import SettingService from "../setting";
 import { financialYear } from "../setting/model";
 import { counterLedger, settleLedger } from "../transaction/settle";
 import {
+  type CashTodayInputModel,
+  cashTodayInputModel,
   type CreatePaymentInputModel,
   createPaymentInputModel,
   PAID_FOR_DB,
+  SETTLED_IN_DB,
+  type SettledInModel,
   type PaymentFitsInputModel,
   paymentFitsInputModel,
   type PaymentIdInputModel,
@@ -44,12 +48,35 @@ import {
   supplierTdsInputModel,
   type SupplierTdsModel,
   tds194Q,
+  BANK_MODE_DB,
+  type BankMode,
 } from "./model";
 
 // the kind back from how the database keeps it
+const MODE_OF = Object.fromEntries(Object.entries(BANK_MODE_DB).map(([k, v]) => [v, k])) as Record<string, BankMode>;
+
 const KIND_OF = Object.fromEntries(Object.entries(PAID_FOR_DB).map(([k, v]) => [v, k])) as Record<string, PaymentKind>;
+const SETTLED_OF = Object.fromEntries(Object.entries(SETTLED_IN_DB).map(([k, v]) => [v, k])) as Record<string, SettledInModel>;
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+// where a payment's money comes from: the cash ledger and the bank's, whichever are used, and how much each pays
+// (paise). More accounts each pay their part; the first account pays what's left of the bank's share
+async function sourcesIn(
+  tx: Tx,
+  accounts: AccountsService,
+  p: { settledIn: SettledInModel; bankDetailsId: string | null; cashAmount: number | null; moreBankParts?: { bankDetailsId: string; amount: number }[]; amount: number },
+) {
+  const cashLedger = p.settledIn === "bank" ? null : await settleLedger(tx, accounts, "cash", null);
+  const bankLedger = p.settledIn === "cash" ? null : await settleLedger(tx, accounts, "bank", p.bankDetailsId);
+  const cashPart = p.settledIn === "cash" ? toPaise(p.amount) : p.settledIn === "bank" ? 0 : toPaise(p.cashAmount ?? 0);
+  const more = [];
+  for (const b of p.settledIn === "cash" ? [] : (p.moreBankParts ?? [])) {
+    more.push({ bankDetailsId: b.bankDetailsId, ledger: await settleLedger(tx, accounts, "bank", b.bankDetailsId), part: toPaise(b.amount) });
+  }
+  const morePaid = more.reduce((sum, b) => sum + b.part, 0);
+  return { cashLedger, bankLedger, cashPart, bankPart: toPaise(p.amount) - cashPart - morePaid, more };
+}
 
 // what a ledger holds today, debit as plus (cash and bank accounts hold a debit balance)
 const held = (b: { amount: number; side: "debit" | "credit" } | undefined) => (b ? (b.side === "debit" ? 1 : -1) * b.amount : 0);
@@ -94,7 +121,7 @@ export default class PaymentService {
       if (!fitsPaymentKind(input.paidFor, place)) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "That ledger doesn't fit what the money was paid for." });
       }
-      const from = await settleLedger(tx, this.accounts, input.settledIn, input.bankDetailsId);
+      const src = await sourcesIn(tx, this.accounts, input);
 
       // an expense to a head with TDS names who was paid (a party already added, or a new one made now)
       const tdsType = input.paidFor === "expense" ? place.tdsType : null;
@@ -114,8 +141,12 @@ export default class PaymentService {
       // a PAN given with this payment goes on the record of whoever carries its TDS, if they have none
       const taxed = landlord ?? payee ?? (input.paidFor === "supplier" || input.paidFor === "interestPaid" ? party : null);
       if (input.pan && taxed && !taxed.pan) {
-        const table = landlord ? landlordsTable : partiesTable;
-        await tx.update(table).set({ pan: input.pan }).where(eq(table.id, taxed.id));
+        await tx.update(partiesTable).set({ pan: input.pan }).where(eq(partiesTable.id, taxed.id));
+      }
+      // a UPI ID typed for the QR goes on whoever was paid (the landlord, the expense's payee, or the party), for next time
+      const upiOwner = landlord ?? payee ?? party;
+      if (input.payeeUpiId && upiOwner) {
+        await tx.insert(partyUpiIdsTable).values({ partyId: upiOwner.id, upiId: input.payeeUpiId }).onConflictDoNothing();
       }
       if (input.pan && input.paidFor === "interestPaid" && lender && !lender.pan) await tx.update(lendersTable).set({ pan: input.pan }).where(eq(lendersTable.id, lender.id));
 
@@ -139,9 +170,23 @@ export default class PaymentService {
       const toLedger = Math.round((input.amount + tds) * 100) / 100;
       const rcm = tax?.rcm ?? null;
       const bill = tax?.bill ?? null;
-      // the amount with its TDS and reverse-charge GST: never more than cash or the bank account holds today
-      if (Math.round((toLedger + (rcm?.gst ?? 0)) * 100) / 100 > held((await this.accounts.balances([from])).get(from)?.today)) {
-        throw new TRPCError({ code: "PRECONDITION_FAILED", message: `That's more than there is in ${input.settledIn === "cash" ? "cash" : "the bank account"}.` });
+      // only the amount leaves cash or the bank (TDS and reverse-charge GST are owed to the government, paid later): never
+      // more than cash or the bank account holds today; paid from both, each part fits what it holds and the whole fits both
+      const now = await this.accounts.balances([src.cashLedger, src.bankLedger, ...src.more.map((b) => b.ledger)].filter((l) => l !== null));
+      const cashHeld = src.cashLedger ? toPaise(held(now.get(src.cashLedger)?.today)) : 0;
+      const bankHeld = src.bankLedger ? toPaise(held(now.get(src.bankLedger)?.today)) : 0;
+      if (src.cashPart > cashHeld) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That's more than there is in cash." });
+      if (src.bankPart > bankHeld) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That's more than there is in the bank account." });
+      // each more account pays no more than it holds
+      let moreHeld = 0;
+      for (const b of src.more) {
+        const has = toPaise(held(now.get(b.ledger)?.today));
+        if (b.part > has) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That's more than there is in one of the bank accounts." });
+        moreHeld += has;
+      }
+      if (toPaise(input.amount) > cashHeld + bankHeld + moreHeld) {
+        const where = input.settledIn === "cash" ? "cash" : input.settledIn === "bank" ? "the bank account" : "cash and the bank account";
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: `That's more than there is in ${where}.` });
       }
       if ((rcm || bill) && (await this.transactions.filed(tx, "gstr3b", input.dateTime))) {
         throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That month's GSTR-3B is filed; a payment with GST can't go into it." });
@@ -152,7 +197,9 @@ export default class PaymentService {
       const lines: PostingLine[] = [
         { ledgerId: input.paidFor === "interestPaid" ? await this.accounts.ledgerId(tx, "interestPaid") : to.id, side: "debit", amount: Math.round((toLedger - (bill?.gst ?? 0) + (rcm?.gst ?? 0)) * 100) / 100 },
       ];
-      lines.push({ ledgerId: from, side: "credit", amount: input.amount });
+      if (src.cashLedger && src.cashPart > 0) lines.push({ ledgerId: src.cashLedger, side: "credit", amount: src.cashPart / 100 });
+      if (src.bankLedger && src.bankPart > 0) lines.push({ ledgerId: src.bankLedger, side: "credit", amount: src.bankPart / 100 });
+      for (const b of src.more) lines.push({ ledgerId: b.ledger, side: "credit", amount: b.part / 100 });
       if (tds > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "tdsPayable"), side: "credit", amount: tds });
       // a bill's GST goes to input credit, not the expense
       if (bill) {
@@ -189,25 +236,31 @@ export default class PaymentService {
 
       // the party's (or an expense's payee's) default address and the bank account as they are now, kept with the
       // payment so its voucher reads the same on any later date
-      const hasAddress = party ?? payee;
-      const shown = hasAddress ?? landlord;
-      const [[address], [bank]] = await Promise.all([
+      const hasAddress = party ?? payee ?? landlord;
+      const shown = hasAddress;
+      const [[address], [bank], moreBanks] = await Promise.all([
         hasAddress
           ? tx
               .select()
               .from(partyAddressesTable)
               .where(and(eq(partyAddressesTable.partyId, hasAddress.id), eq(partyAddressesTable.isActive, true), eq(partyAddressesTable.isDefault, true)))
           : Promise.resolve([]),
-        input.settledIn === "bank" && input.bankDetailsId
+        src.bankLedger && input.bankDetailsId
           ? tx
               .select({ bankName: bankDetailsTable.bankName, accountNumber: bankDetailsTable.accountNumber, ifsc: bankDetailsTable.ifscCode })
               .from(bankDetailsTable)
               .where(eq(bankDetailsTable.id, input.bankDetailsId))
           : Promise.resolve([]),
+        src.more.length > 0
+          ? tx
+              .select({ id: bankDetailsTable.id, bankName: bankDetailsTable.bankName, accountNumber: bankDetailsTable.accountNumber, ifsc: bankDetailsTable.ifscCode })
+              .from(bankDetailsTable)
+              .where(inArray(bankDetailsTable.id, src.more.map((b) => b.bankDetailsId)))
+          : Promise.resolve([]),
       ]);
       // reverse charge: the voucher is our self-invoice, so a copy is kept as a file
       if (rcm) await queueDocument(tx, t.id, "rcmSelfInvoice");
-      await tx.insert(paymentsTable).values({
+      const [row] = await tx.insert(paymentsTable).values({
         transactionId: t.id,
         paidToLedgerId: to.id,
         paidToNameSnapshot: (party ? (party.shortName ?? party.name) : to.name).slice(0, 150),
@@ -226,12 +279,7 @@ export default class PaymentService {
         payeePartyId: payee?.id ?? null,
         payeeLandlordId: landlord?.id ?? null,
         paidFor: PAID_FOR_DB[input.paidFor],
-        settledIn: input.settledIn,
-        bankDetailsId: input.settledIn === "bank" ? input.bankDetailsId : null,
-        referenceNumber: input.referenceNumber,
-        bankNameSnapshot: bank ? bank.bankName.slice(0, 100) : null,
-        bankAccountLast4Snapshot: bank ? bank.accountNumber.slice(-4) : null,
-        bankIfscSnapshot: bank?.ifsc?.slice(0, 11) ?? null,
+        settledIn: SETTLED_IN_DB[input.settledIn],
         amount: fromPaise(Math.round(input.amount * 100)),
         interestOnDueId: input.paidFor === "interestPaid" ? loan!.due.id : null,
         tdsApplicable: tds > 0,
@@ -262,7 +310,36 @@ export default class PaymentService {
               gstAmount: fromPaise(Math.round(bill.gst * 100)),
             }
           : {}),
-      });
+      }).returning({ id: paymentsTable.id });
+
+      // the bank's part: which account, how much, the UTR or cheque, and the account as it is now
+      if (bank && input.bankDetailsId) {
+        await tx.insert(paymentBankDetailsTable).values({
+          paymentId: row!.id,
+          bankDetailsId: input.bankDetailsId,
+          amount: fromPaise(src.bankPart),
+          mode: BANK_MODE_DB[input.bankMode!],
+          referenceNumber: input.referenceNumber,
+          bankNameSnapshot: bank.bankName.slice(0, 100),
+          bankAccountLast4Snapshot: bank.accountNumber.slice(-4),
+          bankIfscSnapshot: bank.ifsc?.slice(0, 11) ?? null,
+        });
+      }
+      // and each more account's part, in the order given
+      for (const [i, b] of input.moreBankParts.entries()) {
+        const acc = moreBanks.find((m) => m.id === b.bankDetailsId);
+        if (!acc) throw new TRPCError({ code: "BAD_REQUEST", message: "Pick the bank account." });
+        await tx.insert(paymentBankDetailsTable).values({
+          paymentId: row!.id,
+          bankDetailsId: b.bankDetailsId,
+          amount: fromPaise(src.more[i]!.part),
+          mode: BANK_MODE_DB[b.mode],
+          referenceNumber: b.referenceNumber,
+          bankNameSnapshot: acc.bankName.slice(0, 100),
+          bankAccountLast4Snapshot: acc.accountNumber.slice(-4),
+          bankIfscSnapshot: acc.ifsc?.slice(0, 11) ?? null,
+        });
+      }
 
       // what it does to the dues: a supplier's settled oldest first (with the TDS), the loan repaid brought down, a loan
       // given made a due with its terms
@@ -398,11 +475,18 @@ export default class PaymentService {
     return { id: partyId, pan: p?.pan ?? null, hasGstin: !!gstin, transportDeclaration: p?.transportDeclaration ?? false };
   }
 
-  // a rent payment's landlord, who must be active
+  // a rent payment's landlord (a party of type landlord), who must be active; their GSTIN is on their address
   private async landlordOf(tx: Tx, id: string) {
-    const [landlord] = await tx.select().from(landlordsTable).where(eq(landlordsTable.id, id));
+    const [landlord] = await tx
+      .select()
+      .from(partiesTable)
+      .where(and(eq(partiesTable.id, id), eq(partiesTable.type, "landlord")));
     if (!landlord?.isActive) throw new TRPCError({ code: "BAD_REQUEST", message: "Pick the landlord." });
-    return landlord;
+    const [address] = await tx
+      .select({ gstin: partyAddressesTable.gstin })
+      .from(partyAddressesTable)
+      .where(and(eq(partyAddressesTable.partyId, id), eq(partyAddressesTable.isActive, true), eq(partyAddressesTable.isDefault, true)));
+    return { ...landlord, gstin: address?.gstin ?? null };
   }
 
   // an expense's GST on top of its TDS: reverse charge on rent with no GSTIN or on goods transport, or the GST in a bill
@@ -513,6 +597,36 @@ export default class PaymentService {
     });
   }
 
+  // what's been paid in cash that day (India time) to the same person, by active payments: a party whether paid as a
+  // supplier or as an expense's payee, a landlord, or the ledger itself (a lender). Nothing known yet is ₹0
+  async cashToday(rawInput: CashTodayInputModel): Promise<{ paid: number }> {
+    const input = cashTodayInputModel.parse(rawInput);
+    const start = new Date(`${input.day}T00:00:00+05:30`);
+    const end = new Date(start.getTime() + 86_400_000);
+    return db.transaction(async (tx) => {
+      const ledgerId = input.payeeLedgerId ?? input.paidToLedgerId ?? (input.dueId ? (await this.dues.loanIn(tx, input.dueId, "loanTaken")).ledgerId : null);
+      const party = ledgerId && !input.payeeLandlordId ? (await counterLedger(tx, this.accounts, ledgerId)).party : null;
+      const partyLedger = party ? (await this.accounts.ledgerOf(tx, "parties", party.id)).id : null;
+      const who = input.payeeLandlordId
+        ? eq(paymentsTable.payeeLandlordId, input.payeeLandlordId)
+        : party && partyLedger
+          ? or(eq(paymentsTable.paidToLedgerId, partyLedger), eq(paymentsTable.payeePartyId, party.id))
+          : ledgerId
+            ? eq(paymentsTable.paidToLedgerId, ledgerId)
+            : null;
+      if (!who) return { paid: 0 };
+      // each payment's cash part: the whole amount less what the bank paid
+      const [row] = await tx
+        .select({
+          paid: sql<string>`coalesce(sum(${paymentsTable.amount} - coalesce((select sum(${paymentBankDetailsTable.amount}) from ${paymentBankDetailsTable} where ${paymentBankDetailsTable.paymentId} = ${paymentsTable.id}), 0)), 0)`,
+        })
+        .from(paymentsTable)
+        .innerJoin(transactionsTable, eq(transactionsTable.id, paymentsTable.transactionId))
+        .where(and(who, ne(paymentsTable.settledIn, "bank"), eq(transactionsTable.status, "active"), gte(transactionsTable.dateTime, start), lt(transactionsTable.dateTime, end)));
+      return { paid: Number(row?.paid ?? 0) };
+    });
+  }
+
   // cash and each active bank account with what it holds today; the balances only for the admin
   async sources(showBalances: boolean): Promise<PaymentSourcesModel> {
     const cashId = await db.transaction((tx) => this.accounts.ledgerId(tx, "cash"));
@@ -536,8 +650,12 @@ export default class PaymentService {
   // whether an amount can be paid from there (for staff too, who don't see the balance itself)
   async fits(rawInput: PaymentFitsInputModel): Promise<{ fits: boolean }> {
     const input = paymentFitsInputModel.parse(rawInput);
-    const from = await db.transaction((tx) => settleLedger(tx, this.accounts, input.settledIn, input.bankDetailsId));
-    return { fits: toPaise(input.amount) <= toPaise(held((await this.accounts.balances([from])).get(from)?.today)) };
+    const src = await db.transaction((tx) => sourcesIn(tx, this.accounts, input));
+    const now = await this.accounts.balances([src.cashLedger, src.bankLedger, ...src.more.map((b) => b.ledger)].filter((l) => l !== null));
+    const cashFits = !src.cashLedger || src.cashPart <= toPaise(held(now.get(src.cashLedger)?.today));
+    const bankFits = !src.bankLedger || (src.bankPart > 0 && src.bankPart <= toPaise(held(now.get(src.bankLedger)?.today)));
+    const moreFit = src.more.every((b) => b.part <= toPaise(held(now.get(b.ledger)?.today)));
+    return { fits: cashFits && bankFits && moreFit };
   }
 
   // the ledgers a payment moved (cash or the bank, TDS payable, Interest paid, the party or head), each with its
@@ -555,8 +673,8 @@ export default class PaymentService {
   }
 
   private async tdsPanOf(tx: Tx, p: { payeeLandlordId: string | null; payeePartyId: string | null; paidToLedgerId: string }) {
-    if (p.payeeLandlordId) return (await tx.select({ pan: landlordsTable.pan }).from(landlordsTable).where(eq(landlordsTable.id, p.payeeLandlordId)))[0]?.pan ?? null;
-    if (p.payeePartyId) return (await tx.select({ pan: partiesTable.pan }).from(partiesTable).where(eq(partiesTable.id, p.payeePartyId)))[0]?.pan ?? null;
+    const payeeId = p.payeeLandlordId ?? p.payeePartyId;
+    if (payeeId) return (await tx.select({ pan: partiesTable.pan }).from(partiesTable).where(eq(partiesTable.id, payeeId)))[0]?.pan ?? null;
     const { party, lender } = await counterLedger(tx, this.accounts, p.paidToLedgerId);
     return party?.pan ?? lender?.pan ?? null;
   }
@@ -570,7 +688,19 @@ export default class PaymentService {
       .where(eq(paymentsTable.transactionId, input.transactionId));
     if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Payment not found." });
     const { p, t } = row;
+    // its bank rows in the order they were saved: the first account, then any more
+    const [b, ...more] = await db
+      .select()
+      .from(paymentBankDetailsTable)
+      .where(eq(paymentBankDetailsTable.paymentId, p.id))
+      .orderBy(asc(paymentBankDetailsTable.createdAt), asc(paymentBankDetailsTable.id));
+    // what came from the bank accounts, and the rest from cash
+    const bankAmount = [b, ...more].reduce((sum, x) => (x ? sum + toPaise(Number(x.amount)) : sum), 0) / 100;
     const [loan] = await db.select({ interestRate: duesTable.interestRate, frequency: duesTable.frequency }).from(duesTable).where(eq(duesTable.transactionId, p.transactionId));
+    // a supplier's payment: what it settled of what we owed them, the rest an advance (only when there is one)
+    const [settled] = await db.select({ amount: sql<string>`coalesce(sum(${dueSettlementsTable.amount}), 0)` }).from(dueSettlementsTable).where(eq(dueSettlementsTable.transactionId, p.transactionId));
+    const duePart = Number(settled?.amount ?? 0);
+    const advancePart = Math.round((Number(p.amount) + Number(p.tdsAmount ?? 0) - duePart) * 100) / 100;
     // the PAN of whoever the TDS was taken from: the landlord, the expense's payee, or the party paid
     const tdsPan = p.tdsAmount !== null ? await db.transaction((tx) => this.tdsPanOf(tx, p)) : null;
     // which service its reverse charge is on, from who was paid and the head
@@ -584,7 +714,7 @@ export default class PaymentService {
       status: t.status,
       paidFor: KIND_OF[p.paidFor]!,
       createdByName: t.createdByName,
-      bank: p.bankNameSnapshot ? { name: p.bankNameSnapshot, last4: p.bankAccountLast4Snapshot ?? "", ifsc: p.bankIfscSnapshot } : null,
+      bank: b ? { name: b.bankNameSnapshot, last4: b.bankAccountLast4Snapshot, ifsc: b.bankIfscSnapshot } : null,
       paidToLedgerId: p.paidToLedgerId,
       paidToName: p.paidToNameSnapshot,
       partyPhone: p.partyPhoneSnapshot,
@@ -607,12 +737,25 @@ export default class PaymentService {
         : null,
       loan: loan?.interestRate != null && loan.frequency ? { interestRate: Number(loan.interestRate), frequency: loan.frequency } : null,
       company: t.companySnapshot ?? (await this.settings.get("company")),
-      settledIn: p.settledIn,
-      bankDetailsId: p.bankDetailsId,
-      referenceNumber: p.referenceNumber,
+      settledIn: SETTLED_OF[p.settledIn]!,
+      cashAmount: (toPaise(Number(p.amount)) - toPaise(bankAmount)) / 100,
+      bankAmount,
+      bankDetailsId: b?.bankDetailsId ?? null,
+      bankMode: b ? MODE_OF[b.mode]! : null,
+      referenceNumber: b?.referenceNumber ?? null,
+      moreBankParts: more.map((x) => ({
+        bankDetailsId: x.bankDetailsId,
+        name: x.bankNameSnapshot,
+        last4: x.bankAccountLast4Snapshot,
+        ifsc: x.bankIfscSnapshot,
+        amount: Number(x.amount),
+        mode: MODE_OF[x.mode]!,
+        referenceNumber: x.referenceNumber,
+      })),
       amount: Number(p.amount),
       tdsRate: p.tdsRate === null ? null : Number(p.tdsRate),
       tdsAmount: p.tdsAmount === null ? null : Number(p.tdsAmount),
+      split: KIND_OF[p.paidFor] === "supplier" && advancePart > 0 ? { due: duePart, advance: advancePart } : null,
       tdsPan,
       rcm: p.rcmApplicable
         ? {

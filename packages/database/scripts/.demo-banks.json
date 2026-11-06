@@ -1,0 +1,12 @@
+[
+  {
+    "bankId": "801627e8-db48-4f99-a39f-658c4e830124",
+    "ledgerId": "9cf3a25b-0a6e-40b3-9002-1aba5b357f55",
+    "amount": 250000
+  },
+  {
+    "bankId": "c71a72ec-ca75-4826-9256-209b404843a7",
+    "ledgerId": "a3038363-cbc9-42db-bd5d-ce926429c675",
+    "amount": 85000
+  }
+]

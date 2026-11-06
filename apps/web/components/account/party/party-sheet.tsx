@@ -140,7 +140,7 @@ export function PartySheet({
   const kind = editing ? kindOf(party.data?.type ?? null) : type;
   const taxes = trpc.settings.page.useQuery(undefined, { enabled: !!partyId });
   const asksTds = kind === "none" && !!taxes.data?.taxAudit;
-  const asksPaid = asksTds || ((kind === "supplier" || kind === "both") && !!taxes.data?.tds194q);
+  const asksPaid = asksTds || ((kind === "supplier" || kind === "customer_supplier") && !!taxes.data?.tds194q);
   const ok = draftOk(draft) && !(asksTds && tdsOver(draft));
   // sent only when asked, so it stays as saved otherwise; a TDS that isn't asked stays within the amount
   const paidBefore = () => {

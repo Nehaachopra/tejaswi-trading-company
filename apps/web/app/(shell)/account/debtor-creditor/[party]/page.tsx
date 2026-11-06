@@ -8,5 +8,5 @@ export const metadata: Metadata = { title: "Debtor-creditor · Tejaswi trading c
 // for an admin session
 export default async function DebtorCreditorPage({ params }: { params: Promise<{ party: string }> }) {
   const { party } = await params;
-  return <PartyPage partyId={party} type="both" />;
+  return <PartyPage partyId={party} type="customer_supplier" />;
 }

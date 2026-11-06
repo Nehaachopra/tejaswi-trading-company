@@ -5,7 +5,7 @@ import type { Head } from "../balance";
 // a party as lists, pages and ledgers name it: its short name, or (without one) its full name
 export const partyLabel = (p: { shortName: string | null; name: string }) => p.shortName ?? titleCase(p.name.toLowerCase());
 
-export type PartyType = "customer" | "supplier" | "both" | "none";
+export type PartyType = "customer" | "supplier" | "customer_supplier" | "none";
 
 // a party's list: its type, or "none" until its first sale or purchase
 export const kindOf = (type: Exclude<PartyType, "none"> | null): PartyType => type ?? "none";
@@ -15,7 +15,7 @@ export const kindOf = (type: Exclude<PartyType, "none"> | null): PartyType => ty
 export const PARTY_KINDS = {
   customer: { path: "/account/debtor", head: "asset", master: "debtors" },
   supplier: { path: "/account/creditor", head: "liability", master: "creditors" },
-  both: { path: "/account/debtor-creditor", head: "asset", master: "debtorCreditors" },
+  customer_supplier: { path: "/account/debtor-creditor", head: "asset", master: "debtorCreditors" },
   // parties with no sale or purchase yet
   none: { path: "/account/parties", head: "asset", master: "parties" },
 } as const satisfies Record<PartyType, { path: string; head: Head; master: string }>;

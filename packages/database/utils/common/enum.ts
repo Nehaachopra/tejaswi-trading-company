@@ -113,7 +113,10 @@ export const orderStatusEnum = pgEnum("order_status", [
 
 export const transactedInEnum = pgEnum("transacted_in", ["cash", "credit", "both"]);
 
-export const settledInEnum = pgEnum("settled_in", ["cash", "bank"]);
+export const settledInEnum = pgEnum("settled_in", ["cash", "bank", "cash_and_bank"]);
+
+// how money left or came into a bank: UPI, IMPS, NEFT or RTGS, or a cheque
+export const bankModeEnum = pgEnum("bank_mode", ["upi", "imps", "neft_rtgs", "cheque"]);
 
 // what a receipt was for: a customer's payment, a loan received, a loan repaid to us, capital, a refund, other income
 export const receivedForEnum = pgEnum("received_for", ["customer", "loan_received", "loan_repaid", "interest_received", "capital", "refund", "other_income"]);

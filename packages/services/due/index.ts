@@ -1,4 +1,5 @@
 import { TRPCError } from "@trpc/server";
+import { asPartyType } from "../party/model";
 import { and, asc, db, eq, inArray, or, type SQL, sql } from "@repo/database";
 import { duesTable, dueSettlementsTable, lendersTable, partiesTable, partyAddressesTable, transactionsTable } from "@repo/database/schema";
 
@@ -242,7 +243,7 @@ export default class DueService {
     ]);
     // a bank or NBFC stands where a party would, with its branch as the place
     const [lender] = party ? [] : await db.select({ id: lendersTable.id, name: lendersTable.name, city: lendersTable.branch }).from(lendersTable).where(eq(lendersTable.id, input.partyId));
-    const holder = party ?? (lender ? { ...lender, shortName: null, phone: null, countryCode: "+91", type: null } : null);
+    const holder = party ? { ...party, type: asPartyType(party.type) } : (lender ? { ...lender, shortName: null, phone: null, countryCode: "+91", type: null } : null);
     if (!holder) throw new TRPCError({ code: "NOT_FOUND", message: "Party not found." });
     const settlements = settled.rows.map((r) => ({
       transactionId: r.transaction_id,

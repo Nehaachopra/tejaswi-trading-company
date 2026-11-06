@@ -15,9 +15,10 @@ export const FILTER_TRIGGER = "min-h-9 min-w-0 max-w-48 gap-1.5 px-3 text-sm";
 // a list's + Add button on the chestnut page
 export const ADD_BUTTON = "on-ivory flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-ivory px-5 font-heading text-lg font-bold text-chestnut sm:w-fit";
 
-// a + Add button on an ivory card or sheet: ivory too, with a chestnut outline so it reads as a button
+// a + Add button on an ivory card or sheet: ivory too, with a chestnut outline so it reads as a button; full width on
+// a phone, like every button
 export const ADD_ON_IVORY =
-  "flex min-h-11 items-center justify-center gap-2 rounded-control border border-chestnut bg-ivory px-4 text-sm font-semibold text-chestnut transition-colors hover:bg-chestnut/[0.06]";
+  "flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-chestnut bg-ivory px-4 sm:w-auto text-sm font-semibold text-chestnut transition-colors hover:bg-chestnut/[0.06]";
 
 // the small square + beside pack sizes and in a drawer
 export const addSquare = (size: "size-8" | "size-11") =>
@@ -26,7 +27,7 @@ export const addSquare = (size: "size-8" | "size-11") =>
 // picking from a search on an ivory card (a ledger, a party, a landlord, a loan): the search box, its list of matches
 // (two columns on a wide screen), each match, + New as the list's last row, and what's picked with its Change
 export const PICK_SEARCH = "relative flex min-h-12 items-center gap-2 px-3";
-export const PICK_LIST = "flex max-h-80 flex-col overflow-x-hidden overflow-y-auto";
+export const PICK_LIST = "flex flex-col overflow-x-hidden sm:max-h-80 sm:overflow-y-auto";
 export const PICK_TWO_COLUMNS = "sm:grid sm:grid-cols-2 sm:content-start sm:gap-x-6";
 export const PICK_ROW =
   "flex min-h-12 w-full shrink-0 items-center gap-2 border-b border-chestnut/20 px-1 py-2.5 text-left transition-colors last:border-b-0 hover:bg-chestnut/[0.05]";

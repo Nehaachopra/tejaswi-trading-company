@@ -4,7 +4,8 @@ import { useEffect, useId } from "react";
 
 import { Spinner } from "./spinner";
 
-// asks before something that can't be undone; Cancel has the focus, so Enter never destroys by accident
+// asks before something that can't be undone; Cancel has the focus, so Enter never destroys by accident. A plain one
+// (a question, nothing destroyed) has a chestnut answer, and that answer has the focus
 export function ConfirmDialog({
   open,
   title,
@@ -14,16 +15,19 @@ export function ConfirmDialog({
   busy,
   onConfirm,
   onCancel,
+  tone = "danger",
 }: {
   open: boolean;
   title: string;
-  body: string;
+  body: React.ReactNode;
   confirmLabel: string;
   cancelLabel: string;
   busy: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  tone?: "danger" | "plain";
 }) {
+  const plain = tone === "plain";
   const titleId = useId();
   const bodyId = useId();
 
@@ -54,26 +58,28 @@ export function ConfirmDialog({
           <h2 id={titleId} className="font-heading text-2xl font-bold">
             {title}
           </h2>
-          <p id={bodyId} className="mt-1 text-sm text-chestnut/80">
+          <div id={bodyId} className="mt-1 text-sm text-chestnut/80">
             {body}
-          </p>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        {/* the two answers, each with room inside; a plain one's stacked, its answer on top, so long labels never squeeze */}
+        <div className={plain ? "flex flex-col-reverse gap-2" : "grid grid-cols-2 gap-2"}>
           <button
             type="button"
-            autoFocus
+            autoFocus={!plain}
             onClick={onCancel}
             disabled={busy}
-            className="min-h-12 rounded-control border border-chestnut/60 font-medium hover:border-chestnut disabled:opacity-40"
+            className="min-h-12 rounded-control border border-chestnut/60 px-4 py-2 font-medium leading-tight hover:border-chestnut disabled:opacity-40"
           >
             {cancelLabel}
           </button>
           <button
             type="button"
+            autoFocus={plain}
             onClick={onConfirm}
             disabled={busy}
             aria-busy={busy}
-            className="flex min-h-12 items-center justify-center gap-2 rounded-control bg-danger font-heading text-lg font-bold text-ivory aria-busy:opacity-80"
+            className={`flex min-h-12 items-center justify-center gap-2 rounded-control px-4 py-2 font-heading text-lg font-bold leading-tight text-ivory aria-busy:opacity-80 ${plain ? "bg-chestnut" : "bg-danger"}`}
           >
             {busy && <Spinner className="size-5" />}
             {confirmLabel}

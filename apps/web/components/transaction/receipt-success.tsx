@@ -1,43 +1,95 @@
 "use client";
 
-import { CircleAlert, CircleCheck, FileText, Plus } from "lucide-react";
+import { Banknote, CircleAlert, CircleCheck, FileText, Landmark, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Fragment } from "react";
 
 import { CopyButton } from "~/components/ui/copy-button";
 import { PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
-import { rupees, titleCase } from "~/lib/format";
-import { cn } from "~/lib/utils";
+import { useBankName } from "~/lib/bank-names";
+import { rupees } from "~/lib/format";
 import { trpc } from "~/trpc/client";
 
-import { useLedgerName } from "../account/ledger-name";
 import { NEW_TRANSACTION_HREF } from "../shell/nav-items";
 
 // /transaction/receipt/[id] and /transaction/payment/[id], where a saved receipt or payment lands (and its voucher
-// returns to): that it worked, its number and voucher, its journal entry (the admin's only), and the way to a new
-// transaction
-export function ReceiptSuccess({ id, flow = "receipt" }: { id: string; flow?: "receipt" | "payment" }) {
+// returns to): that it worked, its number and voucher, what the cash or bank account it used holds now (the admin's
+// only), and the way to a new transaction
+export function ReceiptSuccess({
+  id,
+  flow = "receipt",
+}: {
+  id: string;
+  flow?: "receipt" | "payment";
+}) {
+  // bank names in the language picked
+  const bankName = useBankName();
   const base = useTranslations("transactions.receipt.success");
   // a payment's own words where it has them, the receipt's otherwise
   const own = useTranslations("transactions.payment.success");
-  const t = ((key: string) => (flow === "payment" && own.has(key as never) ? own(key as never) : base(key as never))) as typeof base;
-  const nameOf = useLedgerName();
+  const t = ((key: string, values?: Record<string, string>) =>
+    flow === "payment" && own.has(key as never)
+      ? own(key as never, values as never)
+      : base(key as never, values as never)) as typeof base;
+  const tc = useTranslations("transactions.chat");
+  const tf = useTranslations("transactions.receipt.form");
   const isPayment = flow === "payment";
-  const receiptGet = trpc.transactions.receipt.get.useQuery({ transactionId: id }, { enabled: !isPayment });
-  const receiptBalances = trpc.transactions.receipt.balances.useQuery({ transactionId: id }, { enabled: !isPayment });
-  const paymentGet = trpc.transactions.payment.get.useQuery({ transactionId: id }, { enabled: isPayment });
-  const paymentBalances = trpc.transactions.payment.balances.useQuery({ transactionId: id }, { enabled: isPayment });
+  const receiptGet = trpc.transactions.receipt.get.useQuery(
+    { transactionId: id },
+    { enabled: !isPayment },
+  );
+  const paymentGet = trpc.transactions.payment.get.useQuery(
+    { transactionId: id },
+    { enabled: isPayment },
+  );
   const receipt = isPayment ? paymentGet : receiptGet;
-  // the ledgers it moved, for their names (their balances aren't shown: they'd read as this transaction's amounts)
-  const balances = isPayment ? paymentBalances : receiptBalances;
-  // what it posted, the debit side first, then largest first and by name so it always reads the same; the admin's only
-  const posted = trpc.transactions.history.get.useQuery({ id }, { retry: false });
-  const journal = (posted.data?.lines ?? [])
-    .filter((l) => !l.isReversal)
-    .sort((a, b) => (a.side === b.side ? b.amount - a.amount || a.ledgerName.localeCompare(b.ledgerName) : a.side === "debit" ? -1 : 1));
-  const ledgerOf = (ledgerId: string) => balances.data?.find((l) => l.id === ledgerId);
+  // what cash and each bank account hold now, asked again so it includes this one (null for staff, who don't see them)
+  const sources = trpc.transactions.payment.sources.useQuery(undefined, {
+    refetchOnMount: "always",
+  });
+  const banks = trpc.accounts.bank.pickable.useQuery();
+  // only once asked again, so it never shows what they held before this one
+  const held =
+    sources.data && sources.data.cash !== null && !sources.isFetching ? sources.data : null;
+  // the account this one went into or out of: its name and what it holds now
+  const usedBank = held?.banks.find((b) => b.id === receipt.data?.bankDetailsId);
+  const usedBankName = usedBank
+    ? bankName(banks.data?.find((x) => x.id === usedBank.id)?.bankName ?? usedBank.bankName)
+    : "";
+  // the places it used, each with what it holds now: cash, the bank account, or both (a payment from cash and a bank)
+  const settledIn = receipt.data?.settledIn;
+  const used = [
+    ...(settledIn === "cash" || settledIn === "cashAndBank"
+      ? [{ key: "cash", bank: false, name: tc("cash"), held: held?.cash ?? 0 }]
+      : []),
+    ...(settledIn !== "cash" && usedBank
+      ? [
+          {
+            key: usedBank.id,
+            bank: true,
+            name: `${usedBankName} ••${usedBank.last4}`,
+            held: usedBank.available ?? 0,
+          },
+        ]
+      : []),
+    // a payment no one account could cover: each more account it used
+    ...(isPayment && paymentGet.data
+      ? paymentGet.data.moreBankParts.flatMap((m) => {
+          const b = held?.banks.find((x) => x.id === m.bankDetailsId);
+          return b
+            ? [
+                {
+                  key: b.id,
+                  bank: true,
+                  name: `${bankName(banks.data?.find((x) => x.id === b.id)?.bankName ?? b.bankName)} ••${b.last4}`,
+                  held: b.available ?? 0,
+                },
+              ]
+            : [];
+        })
+      : []),
+  ];
 
   return (
     <main className={`${PAGE} pb-28`}>
@@ -52,7 +104,10 @@ export function ReceiptSuccess({ id, flow = "receipt" }: { id: string; flow?: "r
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
       ) : (
-        <section role="status" className="on-ivory flex flex-col items-center gap-6 rounded-control bg-ivory p-6 text-center text-chestnut sm:p-8">
+        <section
+          role="status"
+          className="on-ivory flex flex-col items-center gap-6 rounded-control bg-ivory p-6 text-center text-chestnut sm:p-8"
+        >
           {/* it worked */}
           <div className="flex flex-col items-center gap-3">
             <span className="grid size-20 place-items-center rounded-full bg-success/15">
@@ -64,38 +119,64 @@ export function ReceiptSuccess({ id, flow = "receipt" }: { id: string; flow?: "r
           {/* its number, and the voucher */}
           <div className="flex w-full flex-col items-center gap-3">
             <p className="flex items-center gap-1 text-sm">
-              {t("number")} <span className="font-heading text-xl font-bold">{receipt.data.assignedId}</span>
+              {t("number")}{" "}
+              <span className="font-heading text-xl font-bold">{receipt.data.assignedId}</span>
               <CopyButton value={receipt.data.assignedId} />
             </p>
-            <Link href={`/transaction/${flow}/${id}/voucher`} className="flex min-h-11 items-center gap-2 rounded-control border border-chestnut/50 px-4 text-sm font-semibold">
+            <Link
+              href={`/transaction/${flow}/${id}/voucher`}
+              className="flex min-h-11 w-full sm:w-auto items-center justify-center gap-2 rounded-control border border-chestnut/50 px-4 text-sm font-semibold"
+            >
               <FileText className="size-4" aria-hidden /> {t("voucher")}
             </Link>
           </div>
 
-          {/* the journal entry, debit first */}
-          {journal.length > 0 && balances.data && (
-            <div className="w-full max-w-lg rounded-control border border-chestnut/25 p-4 text-left">
-              <h3 className="mb-2 font-heading text-lg font-bold">{t("journal")}</h3>
-              {/* written as an accountant writes it: "Rent Dr", then "To Bank" set in, each amount in its own column */}
-              <div className="tabular grid grid-cols-[1fr_auto_auto] gap-x-6 gap-y-1 text-sm">
-                {journal.map((l, i) => {
-                  const ledger = ledgerOf(l.ledgerId);
-                  const name = ledger ? nameOf(ledger) : titleCase(l.ledgerName);
-                  const debit = l.side === "debit";
-                  return (
-                    <Fragment key={i}>
-                      <span className={cn("min-w-0", !debit && "pl-6")}>{debit ? `${name} Dr` : `To ${name}`}</span>
-                      <span className="text-right">{debit ? rupees(l.amount) : ""}</span>
-                      <span className="text-right">{debit ? "" : rupees(l.amount)}</span>
-                    </Fragment>
-                  );
-                })}
-              </div>
+          {/* more than was owed (a customer paying us, a supplier we paid): what settled the due and what's an advance */}
+          {receipt.data?.split && (
+            <div className="tabular flex w-full max-w-lg flex-col gap-2 rounded-control border border-chestnut/25 px-4 py-3 text-left">
+              {receipt.data.split.due > 0 && (
+                <p className="flex items-baseline justify-between gap-4">
+                  <span className="text-sm font-semibold">{tf("due")}</span>
+                  <span className="font-heading text-xl font-bold">
+                    {rupees(receipt.data.split.due)}
+                  </span>
+                </p>
+              )}
+              <p className="flex items-center justify-between gap-4">
+                <span className="rounded-control border border-current/50 px-1.5 text-xs font-semibold">
+                  {tf("advancePart")}
+                </span>
+                <span className="font-heading text-xl font-bold">
+                  {rupees(receipt.data.split.advance)}
+                </span>
+              </p>
             </div>
           )}
 
+          {/* what the cash or bank account it used holds now, a row each */}
+          {held &&
+            used.map((u) => (
+              <p
+                key={u.key}
+                className="tabular -mt-3 flex w-full max-w-lg items-center justify-between gap-4 rounded-control border border-chestnut/25 px-4 py-3 text-left first-of-type:mt-0"
+              >
+                <span className="flex min-w-0 items-center gap-2 text-sm font-semibold">
+                  {u.bank ? (
+                    <Landmark className="size-4 shrink-0" aria-hidden />
+                  ) : (
+                    <Banknote className="size-4 shrink-0" aria-hidden />
+                  )}
+                  <span className="truncate">{t("balance", { where: u.name })}</span>
+                </span>
+                <span className="shrink-0 font-heading text-xl font-bold">{rupees(u.held)}</span>
+              </p>
+            ))}
+
           {/* on to the next one */}
-          <Link href={NEW_TRANSACTION_HREF} className="flex min-h-11 items-center gap-2 rounded-control bg-chestnut px-5 text-sm font-semibold text-ivory transition-colors hover:bg-chestnut/90">
+          <Link
+            href={NEW_TRANSACTION_HREF}
+            className="flex min-h-11 w-full sm:w-auto items-center justify-center gap-2 rounded-control bg-chestnut px-5 text-sm font-semibold text-ivory transition-colors hover:bg-chestnut/90"
+          >
             <Plus className="size-5" strokeWidth={2.5} aria-hidden /> {t("newTransaction")}
           </Link>
         </section>
