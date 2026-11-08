@@ -35,8 +35,8 @@ export const LEDGERS = {
   inputCgst: { group: "asset", name: "input cgst" },
   inputSgst: { group: "asset", name: "input sgst" },
   inputIgst: { group: "asset", name: "input igst" },
-  // TDS customers deduct from us
-  tdsReceivable: { group: "asset", name: "tds receivable" },
+  // TDS customers deduct from us (it was "tds receivable": renamed in place, entries kept)
+  tdsReceivable: { group: "asset", name: "tds", was: "tds receivable" },
 
   // GST collected, until it's paid
   outputCgst: { group: "liability", name: "output cgst payable" },
@@ -80,6 +80,6 @@ export const LEDGERS = {
   interestPaid: { group: "expense", name: "interest paid" },
   // what a debtor or a borrower will never pay, written off from /dues
   badDebts: { group: "expense", name: "bad debts" },
-} as const satisfies Record<string, { group: GroupType; name: string }>;
+} as const satisfies Record<string, { group: GroupType; name: string; was?: string }>;
 
 export type LedgerKey = keyof typeof LEDGERS;

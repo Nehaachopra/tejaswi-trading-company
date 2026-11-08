@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 
 import { cn } from "~/lib/utils";
 
-import { PICKED } from "../ui/page-styles";
+import { PICKED } from "../../ui/page-styles";
 
 // Edit and Change under what's picked: the same words-only button, big enough to tap
 const PICKED_ACTION =

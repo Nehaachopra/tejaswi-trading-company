@@ -76,6 +76,9 @@ export const paymentsTable = pgTable("payments", {
   // is the amount less it
   settledIn: settledInEnum("settled_in").notNull(),
 
+  // the cash part's bill or voucher number, if any (a bank's reference is on its payment_bank_details row)
+  referenceNumber: varchar("reference_number", { length: 30 }),
+
   // the whole amount paid, cash and bank together
   amount: money("amount").default("0.00").notNull(),
 

@@ -4,7 +4,14 @@ import { ChevronDown, Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
-import { ADD_ON_IVORY, PICK_LIST, PICK_NEW, PICK_ROW, PICK_SEARCH, PICK_TWO_COLUMNS } from "~/components/ui/page-styles";
+import {
+  ADD_ON_IVORY,
+  PICK_LIST,
+  PICK_NEW,
+  PICK_ROW,
+  PICK_SEARCH,
+  PICK_TWO_COLUMNS,
+} from "~/components/ui/page-styles";
 import { ClearButton } from "~/components/ui/clear-button";
 import { MicButton } from "~/components/ui/mic-button";
 import { fieldClass } from "~/components/ui/card-form";
@@ -14,9 +21,9 @@ import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 import type { RouterInputs, RouterOutputs } from "@repo/trpc/client";
 
-import { useLedgerName } from "../account/ledger-name";
-import { SignedAmount } from "../account/signed-amount";
-import { PickedCard } from "./picked-card";
+import { useLedgerName } from "../../account/ledger-name";
+import { SignedAmount } from "../../account/signed-amount";
+import { PickedCard } from "../shared/picked-card";
 import { PartyPick } from "./party-finder";
 
 export type Pickable = RouterOutputs["accounts"]["ledger"]["pickable"][number];
@@ -316,13 +323,20 @@ export function LedgerSearch({
   const listing = value === null || browsing || search !== "";
   // which side of a party's balance is a due: a customer paying us owes on the debit side, a supplier we pay on the
   // credit side; the other side is an advance
-  const owedBy = purpose === "receipt" && receiptKind === "customer" ? "debit" : purpose === "payment" && paymentKind === "supplier" ? "credit" : null;
+  const owedBy =
+    purpose === "receipt" && receiptKind === "customer"
+      ? "debit"
+      : purpose === "payment" && paymentKind === "supplier"
+        ? "credit"
+        : null;
   const found = trpc.accounts.ledger.pickable.useQuery(
     { purpose, receiptKind, paymentKind, payee, search: asked },
     { enabled: listing, placeholderData: (previous) => previous },
   );
   // a tax with nothing owed can't be paid, so it isn't offered (staff see no balances, so they see them all)
-  const shown = (found.data ?? []).filter((l) => paymentKind !== "taxPaid" || !l.balance || l.balance.today.amount > 0);
+  const shown = (found.data ?? []).filter(
+    (l) => paymentKind !== "taxPaid" || !l.balance || l.balance.today.amount > 0,
+  );
 
   const pick = (choice: LedgerChoice) => {
     onChange(choice);
@@ -347,7 +361,9 @@ export function LedgerSearch({
       ) : (
         <>
           <span className="min-w-0 flex-1 truncate font-semibold">{nameOf(l)}</span>
-          {l.balance && l.balance.today.amount !== 0 && <SignedAmount balance={l.balance.today} head={l.head} className="shrink-0 text-sm" />}
+          {l.balance && l.balance.today.amount !== 0 && (
+            <SignedAmount balance={l.balance.today} head={l.head} className="shrink-0 text-sm" />
+          )}
         </>
       )}
     </button>
@@ -408,10 +424,17 @@ export function LedgerSearch({
             {/* a tax under its sub-heading (GST, reverse charge, income tax); anything else in one list */}
             {paymentKind === "taxPaid"
               ? TAX_GROUPS.map(({ group, keys }) => {
-                  const inGroup = shown.filter((l) => (keys as readonly string[]).includes(l.key ?? ""));
+                  const inGroup = shown.filter((l) =>
+                    (keys as readonly string[]).includes(l.key ?? ""),
+                  );
                   if (inGroup.length === 0) return null;
                   return (
-                    <div key={group} role="group" aria-labelledby={`tax-${group}`} className="flex flex-col">
+                    <div
+                      key={group}
+                      role="group"
+                      aria-labelledby={`tax-${group}`}
+                      className="flex flex-col"
+                    >
                       <h3
                         id={`tax-${group}`}
                         className="px-1 pb-1 pt-3 text-xs font-semibold uppercase tracking-[0.08em] opacity-60"
@@ -429,7 +452,15 @@ export function LedgerSearch({
               </p>
             ) : (
               shown.length === 0 && (
-                <p className="col-span-full px-1 py-2 text-sm">{t(asked !== "" ? "noMatch" : paymentKind === "taxPaid" ? "noTaxDue" : "typeToFind")}</p>
+                <p className="col-span-full px-1 py-2 text-sm">
+                  {t(
+                    asked !== ""
+                      ? "noMatch"
+                      : paymentKind === "taxPaid"
+                        ? "noTaxDue"
+                        : "typeToFind",
+                  )}
+                </p>
               )
             )}
             {asked !== "" && shown.length >= PICK_LIMIT && (
@@ -488,7 +519,17 @@ export function LedgerSearch({
 }
 
 // an expense head of our own, its name changed right where it's picked; built-in heads keep theirs
-export function HeadEdit({ ledgerId, name, onSaved, onCancel }: { ledgerId: string; name: string; onSaved: (name: string) => void; onCancel: () => void }) {
+export function HeadEdit({
+  ledgerId,
+  name,
+  onSaved,
+  onCancel,
+}: {
+  ledgerId: string;
+  name: string;
+  onSaved: (name: string) => void;
+  onCancel: () => void;
+}) {
   const t = useTranslations("transactions.picker");
   const tc = useTranslations("transactions.chat");
   const tf = useTranslations("accounts.party.form");
@@ -511,13 +552,29 @@ export function HeadEdit({ ledgerId, name, onSaved, onCancel }: { ledgerId: stri
 
   return (
     <div className="flex flex-col gap-3">
-      <input autoFocus value={typed} maxLength={150} aria-label={t("edit")} onChange={(e) => setTyped(e.target.value)} className={cn("min-h-11 min-w-0 px-3 text-base sm:w-80", fieldClass(typed.trim() === ""))} />
+      <input
+        autoFocus
+        value={typed}
+        maxLength={150}
+        aria-label={t("edit")}
+        onChange={(e) => setTyped(e.target.value)}
+        className={cn("min-h-11 min-w-0 px-3 text-base sm:w-80", fieldClass(typed.trim() === ""))}
+      />
       {failed && <p className="text-sm text-danger">{t("headTaken")}</p>}
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-        <button type="button" onClick={onCancel} className="min-h-11 rounded-control border border-chestnut/50 px-5 text-sm font-semibold hover:border-chestnut">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="min-h-11 rounded-control border border-chestnut/50 px-5 text-sm font-semibold hover:border-chestnut"
+        >
           {tc("oldLoanCancel")}
         </button>
-        <button type="button" onClick={() => void save()} disabled={update.isPending} className="min-h-11 rounded-control bg-chestnut px-5 text-sm font-semibold text-ivory disabled:opacity-60">
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={update.isPending}
+          className="min-h-11 rounded-control bg-chestnut px-5 text-sm font-semibold text-ivory disabled:opacity-60"
+        >
           {tf("saveDetails")}
         </button>
       </div>
@@ -525,28 +582,31 @@ export function HeadEdit({ ledgerId, name, onSaved, onCancel }: { ledgerId: stri
   );
 }
 
-// what a party owes, or the advance they have with us, beside them: the amount, then "due" under it, or "advance" in an
-// outline so it stands apart (nothing when they're square, or for staff, who see no balances)
-// picked: on the chestnut card of what's picked, where an advance is an ivory label
-function PartyOwes({ ledger, owedBy, picked = false }: { ledger: Pickable; owedBy: "debit" | "credit"; picked?: boolean }) {
+// what a party owes, or the advance they have with us, beside them: the amount, then "due" or "advance" under it in
+// plain text (nothing when they're square, or for staff, who see no balances)
+function PartyOwes({
+  ledger,
+  owedBy,
+  picked = false,
+}: {
+  ledger: Pickable;
+  owedBy: "debit" | "credit";
+  picked?: boolean;
+}) {
   const t = useTranslations("transactions.picker");
   const b = ledger.balance?.today;
   if (!b || b.amount <= 0) return null;
   const due = b.side === owedBy;
   return (
     // picked: the amount level with the name, the label down on the phone and town line
-    <span className={cn("flex shrink-0 flex-col items-end gap-0.5 text-right", picked && "justify-between self-stretch")}>
+    <span
+      className={cn(
+        "flex shrink-0 flex-col items-end gap-0.5 text-right",
+        picked && "justify-between self-stretch",
+      )}
+    >
       <span className="tabular text-sm font-semibold">{rupees(b.amount)}</span>
-      <span
-        className={cn(
-          "text-xs",
-          due
-            ? "opacity-70"
-            : picked
-              ? "rounded-control bg-ivory px-1.5 font-semibold text-chestnut"
-              : "rounded-control border border-current/50 px-1.5 font-semibold",
-        )}
-      >{due ? t("due") : t("advance")}</span>
+      <span className="text-xs opacity-70">{due ? t("due") : t("advance")}</span>
     </span>
   );
 }

@@ -4,7 +4,6 @@ import { boolean, pgTable, text, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { money, percent, timestamps } from "../../utils/common/column-type";
 
-import { bankDetailsTable } from "../bank-detail";
 import { ledgersTable } from "../accounting/ledger";
 import { transactionsTable } from "./transaction";
 import { duesTable } from "../due/due";
@@ -71,20 +70,12 @@ export const receiptsTable = pgTable(
     // the interest received on a loan we gave: which loan (what a receipt settles is kept in due_settlements)
     interestOnDueId: uuid("interest_on_due_id").references(() => duesTable.id, { onDelete: "restrict" }),
 
+    // cash, bank, or both: the bank's part (each account, how it came in, its reference) is in receipt_bank_details,
+    // and the cash part is the amount less it
     settledIn: settledInEnum("settled_in").notNull(),
 
-    bankDetailsId: uuid("bank_details_id").references(() => bankDetailsTable.id, {
-      onDelete: "restrict",
-    }),
-
+    // the cash part's bill or voucher number, if any (a bank's reference is on its receipt_bank_details row)
     referenceNumber: varchar("reference_number", { length: 30 }),
-
-    // the bank account as it was when received: its bank, the last 4 digits and IFSC
-    bankNameSnapshot: varchar("bank_name_snapshot", { length: 100 }),
-
-    bankAccountLast4Snapshot: varchar("bank_account_last4_snapshot", { length: 4 }),
-
-    bankIfscSnapshot: varchar("bank_ifsc_snapshot", { length: 11 }),
 
     amount: money("amount").notNull().default("0.00"),
 
@@ -104,17 +95,10 @@ export const receiptsTable = pgTable(
 
     index("receipts_received_from_ledger_id_idx").on(table.receivedFromLedgerId),
 
-    index("receipts_bank_details_id_idx").on(table.bankDetailsId),
-
     check(
       "receipts_amounts_valid",
       sql`${table.amount} > 0
         AND (${table.tdsAmount} IS NULL OR ${table.tdsAmount} >= 0)`,
-    ),
-
-    check(
-      "receipts_bank_account_for_bank",
-      sql`${table.settledIn} = 'cash' OR ${table.bankDetailsId} IS NOT NULL`,
     ),
 
     check(

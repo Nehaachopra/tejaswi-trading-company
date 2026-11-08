@@ -466,11 +466,17 @@ export function ReceiptVoucher({
                   r.bankMode ? t(`modes.${r.bankMode}`) : t("bank"),
                 )}
               />
-              {/* a receipt's reference (payments take none) */}
+              {/* a receipt's reference: the bank's, or else the cash part's bill or voucher number (payments take none) */}
               {!isPayment && (
                 <>
-                  <Detail label={t("reference")} value={r.referenceNumber} />
-                  <Detail label={t("dated")} value={r.referenceNumber ? dated(r.dateTime) : null} />
+                  <Detail
+                    label={t("reference")}
+                    value={r.referenceNumber ?? r.cashReferenceNumber}
+                  />
+                  <Detail
+                    label={t("dated")}
+                    value={(r.referenceNumber ?? r.cashReferenceNumber) ? dated(r.dateTime) : null}
+                  />
                 </>
               )}
               {/* each more account: how it paid (and on a receipt, its reference) */}

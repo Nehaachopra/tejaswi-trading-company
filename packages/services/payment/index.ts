@@ -11,7 +11,7 @@ import PartyService from "../party";
 import TransactionService from "../transaction";
 import SettingService from "../setting";
 import { financialYear } from "../setting/model";
-import { counterLedger, settleLedger } from "../transaction/settle";
+import { counterLedger, moneyPartsIn, settleLedger } from "../transaction/settle";
 import {
   type CashTodayInputModel,
   cashTodayInputModel,
@@ -60,23 +60,6 @@ const SETTLED_OF = Object.fromEntries(Object.entries(SETTLED_IN_DB).map(([k, v])
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-// where a payment's money comes from: the cash ledger and the bank's, whichever are used, and how much each pays
-// (paise). More accounts each pay their part; the first account pays what's left of the bank's share
-async function sourcesIn(
-  tx: Tx,
-  accounts: AccountsService,
-  p: { settledIn: SettledInModel; bankDetailsId: string | null; cashAmount: number | null; moreBankParts?: { bankDetailsId: string; amount: number }[]; amount: number },
-) {
-  const cashLedger = p.settledIn === "bank" ? null : await settleLedger(tx, accounts, "cash", null);
-  const bankLedger = p.settledIn === "cash" ? null : await settleLedger(tx, accounts, "bank", p.bankDetailsId);
-  const cashPart = p.settledIn === "cash" ? toPaise(p.amount) : p.settledIn === "bank" ? 0 : toPaise(p.cashAmount ?? 0);
-  const more = [];
-  for (const b of p.settledIn === "cash" ? [] : (p.moreBankParts ?? [])) {
-    more.push({ bankDetailsId: b.bankDetailsId, ledger: await settleLedger(tx, accounts, "bank", b.bankDetailsId), part: toPaise(b.amount) });
-  }
-  const morePaid = more.reduce((sum, b) => sum + b.part, 0);
-  return { cashLedger, bankLedger, cashPart, bankPart: toPaise(p.amount) - cashPart - morePaid, more };
-}
 
 // what a ledger holds today, debit as plus (cash and bank accounts hold a debit balance)
 const held = (b: { amount: number; side: "debit" | "credit" } | undefined) => (b ? (b.side === "debit" ? 1 : -1) * b.amount : 0);
@@ -121,7 +104,7 @@ export default class PaymentService {
       if (!fitsPaymentKind(input.paidFor, place)) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "That ledger doesn't fit what the money was paid for." });
       }
-      const src = await sourcesIn(tx, this.accounts, input);
+      const src = await moneyPartsIn(tx, this.accounts, input);
 
       // an expense to a head with TDS names who was paid (a party already added, or a new one made now)
       const tdsType = input.paidFor === "expense" ? place.tdsType : null;
@@ -282,6 +265,7 @@ export default class PaymentService {
         payeeLandlordId: landlord?.id ?? null,
         paidFor: PAID_FOR_DB[input.paidFor],
         settledIn: SETTLED_IN_DB[input.settledIn],
+        referenceNumber: input.settledIn === "bank" ? null : input.cashReferenceNumber,
         amount: fromPaise(Math.round(input.amount * 100)),
         interestOnDueId: input.paidFor === "interestPaid" ? loan!.due.id : null,
         tdsApplicable: tds > 0,
@@ -656,7 +640,7 @@ export default class PaymentService {
   // whether an amount can be paid from there (for staff too, who don't see the balance itself)
   async fits(rawInput: PaymentFitsInputModel): Promise<{ fits: boolean }> {
     const input = paymentFitsInputModel.parse(rawInput);
-    const src = await db.transaction((tx) => sourcesIn(tx, this.accounts, input));
+    const src = await db.transaction((tx) => moneyPartsIn(tx, this.accounts, input));
     const now = await this.accounts.balances([src.cashLedger, src.bankLedger, ...src.more.map((b) => b.ledger)].filter((l) => l !== null));
     const cashFits = !src.cashLedger || src.cashPart <= toPaise(held(now.get(src.cashLedger)?.today));
     const bankFits = !src.bankLedger || (src.bankPart > 0 && src.bankPart <= toPaise(held(now.get(src.bankLedger)?.today)));
@@ -749,6 +733,7 @@ export default class PaymentService {
       bankDetailsId: b?.bankDetailsId ?? null,
       bankMode: b ? MODE_OF[b.mode]! : null,
       referenceNumber: b?.referenceNumber ?? null,
+      cashReferenceNumber: p.referenceNumber,
       moreBankParts: more.map((x) => ({
         bankDetailsId: x.bankDetailsId,
         name: x.bankNameSnapshot,

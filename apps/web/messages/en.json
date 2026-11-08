@@ -708,7 +708,7 @@
       "inputCgst": "Input CGST",
       "inputSgst": "Input SGST",
       "inputIgst": "Input IGST",
-      "tdsReceivable": "TDS receivable",
+      "tdsReceivable": "TDS",
       "outputCgst": "Output CGST Payable",
       "outputSgst": "Output SGST Payable",
       "outputIgst": "Output IGST Payable",
@@ -1136,7 +1136,7 @@
         "newTransaction": "New transaction",
         "loading": "Loading…",
         "loadError": "Couldn't load the receipt. Check your connection and try again.",
-        "balance": "{where} balance now"
+        "balance": "{where} balance"
       },
       "party": "Party",
       "finder": {
@@ -1163,21 +1163,41 @@
           "from": "Pick who it came from, or fill in what's marked in red.",
           "terms": "Fill in the loan's interest and how often it's paid.",
           "amount": "Enter the amount, and pick where it came into.",
-          "details": "Pick the day."
+          "details": "Fill in what's marked in red.",
+          "amountEmpty": "Enter the amount.",
+          "into": "Pick where it came into.",
+          "amountDetails": "Fill in what's marked in red."
         },
         "tdsDeducted": "They deducted TDS",
         "pickPlace": "Cash or a bank account",
-        "noUpi": "No UPI ID on this account.",
-        "addUpi": "Add one",
+        "noUpiStaff": "This account has no UPI ID. Ask the admin to add one, or pick another way.",
+        "ourUpi": "UPI ID for this account",
+        "ourUpiBad": "A UPI ID looks like name@bank.",
+        "ourUpiHandle": "{handle} isn't a UPI handle. Check the part after @, like @okicici or @ybl.",
+        "ourUpiTaken": "That UPI ID is on another account.",
         "scanToPay": "Scan with any UPI app to pay",
         "upiId": "UPI ID",
         "bankOnly": "A bank's loan comes into a bank account.",
         "stepsDone": "{done} of {all}",
         "advancePart": "Advance",
         "heldAdvance": "They already have {amount} advance with us.",
+        "advanceAsk": {
+          "title": "Advance?",
+          "body": "Did you receive {amount} as advance?",
+          "yes": "Yes",
+          "no": "No"
+        },
         "due": "Due",
         "tdsNote194Q": "A buyer takes 0.1% TDS under section 194Q. It is claimed back from the government.",
-        "tdsNote194A": "A borrower takes 10% TDS on interest under section 194A. It is claimed back from the government."
+        "tdsNote194A": "A borrower takes 10% TDS on interest under section 194A. It is claimed back from the government.",
+        "loadFailed": "Cash and bank balances couldn't load. Check the connection and try again.",
+        "loansFailed": "Loans couldn't load. Check the connection and try again.",
+        "receivedBy": "Received by",
+        "pickMode": "Pick how it came in.",
+        "accountAmount": "Amount into this account",
+        "barIn": "In {amount}",
+        "barDone": "All placed",
+        "saving": "Saving…"
       }
     },
     "voucher": {
@@ -1310,6 +1330,7 @@
         "dueBefore": "It can't be due before that day."
       },
       "saveErrors": {
+        "busy": "Too many saves in a minute. Wait a minute and try again.",
         "network": "Can't reach the server. Check your connection.",
         "taken": "That name is taken.",
         "check": "Something in it isn't right. Check the answers.",
@@ -1464,7 +1485,8 @@
           "gst": "GST",
           "payee": "Paid to",
           "amount": "Amount",
-          "rent": "Rent breakdown"
+          "rent": "Rent breakdown",
+          "reference": "Reference and remarks"
         },
         "available": "{held} available",
         "missing": {
@@ -1518,6 +1540,12 @@
         "due": "Due",
         "advancePart": "Advance",
         "heldAdvance": "They already have {amount} advance from us.",
+        "advanceAsk": {
+          "title": "Advance?",
+          "body": "Did you pay {amount} as advance?",
+          "yes": "Yes",
+          "no": "No"
+        },
         "paidBy": "Paid by",
         "pickMode": "Pick how it was paid.",
         "refLabel": {
@@ -1561,7 +1589,17 @@
         "barPaid": "Paid {amount}",
         "barLeft": "Left {amount}",
         "barDone": "All paid",
-        "anotherAccount": "Another account"
+        "anotherAccount": "Another account",
+        "capOnly": "Only {amount} can be paid.",
+        "loadFailed": "Couldn't load cash and bank balances. Check your connection and try again.",
+        "taxFailed": "Couldn't work out the TDS and GST. Check your connection and try again.",
+        "fitsFailed": "Couldn't check what cash and the bank hold. Check your connection and try again.",
+        "cashTodayFailed": "Couldn't check the cash paid to them today. Check your connection and try again.",
+        "loansFailed": "Couldn't load the loans. Check your connection and try again.",
+        "landlordsFailed": "Couldn't load the landlords. Check your connection and try again.",
+        "tryAgain": "Try again",
+        "refCash": "Reference number",
+        "refCashHint": "Bill or voucher no."
       }
     },
     "tdsTypes": {

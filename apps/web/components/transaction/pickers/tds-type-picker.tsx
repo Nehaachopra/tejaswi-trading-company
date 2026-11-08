@@ -10,7 +10,13 @@ const CHOICES: (TdsType | null)[] = [null, "rent", "contract", "brokerage"];
 
 // the TDS an expense head's payments carry, picked once when it's added (or edited): none, rent, transport and
 // labour (contract work), or brokerage; the website works out each payment's TDS from it
-export function TdsTypePicker({ value, onChange }: { value: TdsType | null; onChange: (v: TdsType | null) => void }) {
+export function TdsTypePicker({
+  value,
+  onChange,
+}: {
+  value: TdsType | null;
+  onChange: (v: TdsType | null) => void;
+}) {
   const t = useTranslations("transactions.tdsTypes");
   return (
     <div role="radiogroup" aria-label={t("label")} className="flex flex-col gap-2.5">
@@ -25,7 +31,9 @@ export function TdsTypePicker({ value, onChange }: { value: TdsType | null; onCh
             onClick={() => onChange(c)}
             className={cn(
               "min-h-11 rounded-control border px-3.5 text-sm font-semibold transition-colors",
-              value === c ? "border-chestnut bg-chestnut text-ivory" : "border-chestnut/50 hover:bg-chestnut/[0.06]",
+              value === c
+                ? "border-chestnut bg-chestnut text-ivory"
+                : "border-chestnut/50 hover:bg-chestnut/[0.06]",
             )}
           >
             {t(c ?? "none")}

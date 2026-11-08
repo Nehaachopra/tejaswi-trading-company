@@ -8,12 +8,12 @@ import { cn } from "~/lib/utils";
 export function FieldMessage({ tone = "error", className, children }: { tone?: "error" | "success"; className?: string; children: React.ReactNode }) {
   const Icon = tone === "error" ? CircleAlert : CircleCheck;
   return (
-    <p
+    <div
       role={tone === "error" ? "alert" : "status"}
       className={cn("-mt-3 flex items-start gap-2 text-sm font-medium", tone === "error" ? "text-danger" : "text-success", className)}
     >
       <Icon className="mt-0.5 size-4 shrink-0" aria-hidden />
       <span>{children}</span>
-    </p>
+    </div>
   );
 }

@@ -3,6 +3,8 @@ import { and, eq } from "@repo/database";
 import { bankDetailsTable, ledgersTable, lendersTable, partiesTable } from "@repo/database/schema";
 
 import type AccountsService from "../accounts";
+import { toPaise } from "../accounts/money";
+import type { SettledInModel } from "../payment/model";
 import type { Tx } from "../stock/engine";
 
 // where money came in or went out: cash, or one of our active bank accounts. Shared by receipts and payments
@@ -13,6 +15,25 @@ export async function settleLedger(tx: Tx, accounts: AccountsService, settledIn:
   if (!bank) throw new TRPCError({ code: "NOT_FOUND", message: "Bank account not found." });
   if (!bank.isActive) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That bank account is inactive." });
   return (await accounts.ledgerOf(tx, "bank_details", bankDetailsId)).id;
+}
+
+// where a payment's money comes from, or a receipt's goes into: the cash ledger and the first bank account's, whichever
+// are used, and how much each takes (paise). More accounts each take their part; the first account takes what's left of
+// the bank's share
+export async function moneyPartsIn(
+  tx: Tx,
+  accounts: AccountsService,
+  p: { settledIn: SettledInModel; bankDetailsId: string | null; cashAmount: number | null; moreBankParts?: { bankDetailsId: string; amount: number }[]; amount: number },
+) {
+  const cashLedger = p.settledIn === "bank" ? null : await settleLedger(tx, accounts, "cash", null);
+  const bankLedger = p.settledIn === "cash" ? null : await settleLedger(tx, accounts, "bank", p.bankDetailsId);
+  const cashPart = p.settledIn === "cash" ? toPaise(p.amount) : p.settledIn === "bank" ? 0 : toPaise(p.cashAmount ?? 0);
+  const more = [];
+  for (const b of p.settledIn === "cash" ? [] : (p.moreBankParts ?? [])) {
+    more.push({ bankDetailsId: b.bankDetailsId, ledger: await settleLedger(tx, accounts, "bank", b.bankDetailsId), part: toPaise(b.amount) });
+  }
+  const morePaid = more.reduce((sum, b) => sum + b.part, 0);
+  return { cashLedger, bankLedger, cashPart, bankPart: toPaise(p.amount) - cashPart - morePaid, more };
 }
 
 // the other side of a receipt or payment: any active ledger but cash and the bank accounts (money between those is a

@@ -9,9 +9,10 @@ import { PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
 import { useBankName } from "~/lib/bank-names";
 import { rupees } from "~/lib/format";
+import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 
-import { NEW_TRANSACTION_HREF } from "../shell/nav-items";
+import { NEW_TRANSACTION_HREF } from "../../shell/nav-items";
 
 // /transaction/receipt/[id] and /transaction/payment/[id], where a saved receipt or payment lands (and its voucher
 // returns to): that it worked, its number and voucher, what the cash or bank account it used holds now (the admin's
@@ -73,9 +74,9 @@ export function ReceiptSuccess({
           },
         ]
       : []),
-    // a payment no one account could cover: each more account it used
-    ...(isPayment && paymentGet.data
-      ? paymentGet.data.moreBankParts.flatMap((m) => {
+    // split over more accounts: each more account it used
+    ...(receipt.data
+      ? receipt.data.moreBankParts.flatMap((m) => {
           const b = held?.banks.find((x) => x.id === m.bankDetailsId);
           return b
             ? [
@@ -116,36 +117,38 @@ export function ReceiptSuccess({
             <h2 className="font-heading text-2xl font-bold">{t("title")}</h2>
           </div>
 
-          {/* its number, and the voucher */}
-          <div className="flex w-full flex-col items-center gap-3">
-            <p className="flex items-center gap-1 text-sm">
-              {t("number")}{" "}
-              <span className="font-heading text-xl font-bold">{receipt.data.assignedId}</span>
-              <CopyButton value={receipt.data.assignedId} />
+          {/* its number in a box like the rows below (label left, the ID and its copy button right), and the voucher
+              beside it (under it on the phone) */}
+          <div className="flex w-full max-w-lg flex-col gap-3 sm:flex-row sm:items-stretch">
+            <p className="flex min-w-0 flex-1 items-center justify-between gap-4 rounded-control border border-chestnut/25 py-1.5 pl-4 pr-2 text-left">
+              <span className="text-sm font-semibold">{t("number")}</span>
+              <span className="flex items-center gap-1">
+                <span className="font-heading text-xl font-bold">{receipt.data.assignedId}</span>
+                <CopyButton value={receipt.data.assignedId} />
+              </span>
             </p>
             <Link
               href={`/transaction/${flow}/${id}/voucher`}
-              className="flex min-h-11 w-full sm:w-auto items-center justify-center gap-2 rounded-control border border-chestnut/50 px-4 text-sm font-semibold"
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-chestnut/50 px-4 text-sm font-semibold sm:w-auto"
             >
               <FileText className="size-4" aria-hidden /> {t("voucher")}
             </Link>
           </div>
 
-          {/* more than was owed (a customer paying us, a supplier we paid): what settled the due and what's an advance */}
+          {/* more than was owed (a customer paying us, a supplier we paid): what settled the due and what's an advance,
+              a row each in one box */}
           {receipt.data?.split && (
-            <div className="tabular flex w-full max-w-lg flex-col gap-2 rounded-control border border-chestnut/25 px-4 py-3 text-left">
+            <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
               {receipt.data.split.due > 0 && (
-                <p className="flex items-baseline justify-between gap-4">
+                <p className="flex items-baseline justify-between gap-4 border-b border-chestnut/15 py-3">
                   <span className="text-sm font-semibold">{tf("due")}</span>
                   <span className="font-heading text-xl font-bold">
                     {rupees(receipt.data.split.due)}
                   </span>
                 </p>
               )}
-              <p className="flex items-center justify-between gap-4">
-                <span className="rounded-control border border-current/50 px-1.5 text-xs font-semibold">
-                  {tf("advancePart")}
-                </span>
+              <p className="flex items-baseline justify-between gap-4 py-3">
+                <span className="text-sm font-semibold">{tf("advancePart")}</span>
                 <span className="font-heading text-xl font-bold">
                   {rupees(receipt.data.split.advance)}
                 </span>
@@ -153,24 +156,30 @@ export function ReceiptSuccess({
             </div>
           )}
 
-          {/* what the cash or bank account it used holds now, a row each */}
-          {held &&
-            used.map((u) => (
-              <p
-                key={u.key}
-                className="tabular -mt-3 flex w-full max-w-lg items-center justify-between gap-4 rounded-control border border-chestnut/25 px-4 py-3 text-left first-of-type:mt-0"
-              >
-                <span className="flex min-w-0 items-center gap-2 text-sm font-semibold">
-                  {u.bank ? (
-                    <Landmark className="size-4 shrink-0" aria-hidden />
-                  ) : (
-                    <Banknote className="size-4 shrink-0" aria-hidden />
+          {/* what the cash or bank accounts it used hold, a row each in one box */}
+          {held && used.length > 0 && (
+            <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
+              {used.map((u, i) => (
+                <p
+                  key={u.key}
+                  className={cn(
+                    "flex items-center justify-between gap-4 py-3",
+                    i > 0 && "border-t border-chestnut/15",
                   )}
-                  <span className="truncate">{t("balance", { where: u.name })}</span>
-                </span>
-                <span className="shrink-0 font-heading text-xl font-bold">{rupees(u.held)}</span>
-              </p>
-            ))}
+                >
+                  <span className="flex min-w-0 items-center gap-2 text-sm font-semibold">
+                    {u.bank ? (
+                      <Landmark className="size-4 shrink-0" aria-hidden />
+                    ) : (
+                      <Banknote className="size-4 shrink-0" aria-hidden />
+                    )}
+                    <span className="truncate">{t("balance", { where: u.name })}</span>
+                  </span>
+                  <span className="shrink-0 font-heading text-xl font-bold">{rupees(u.held)}</span>
+                </p>
+              ))}
+            </div>
+          )}
 
           {/* on to the next one */}
           <Link

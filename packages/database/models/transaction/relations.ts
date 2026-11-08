@@ -12,6 +12,7 @@ import { paymentBankDetailsTable } from "./payment-bank-detail";
 import { purchasesTable } from "./purchase/purchase";
 import { purchaseReturnsTable } from "./purchase-return/purchase-return";
 import { receiptsTable } from "./receipt";
+import { receiptBankDetailsTable } from "./receipt-bank-detail";
 import { bankDetailsTable } from "../bank-detail";
 import { salePurchaseCreditDetailsTable } from "./sale-purchase-credit-detail";
 import { transactionPaymentsTable } from "./transaction-payment";
@@ -100,6 +101,19 @@ export const paymentBankDetailsRelations = relations(paymentBankDetailsTable, ({
 
   bankDetails: one(bankDetailsTable, {
     fields: [paymentBankDetailsTable.bankDetailsId],
+    references: [bankDetailsTable.id],
+  }),
+}));
+
+// a receipt's bank part rows, one per account it came into
+export const receiptBankDetailsRelations = relations(receiptBankDetailsTable, ({ one }) => ({
+  receipt: one(receiptsTable, {
+    fields: [receiptBankDetailsTable.receiptId],
+    references: [receiptsTable.id],
+  }),
+
+  bankDetails: one(bankDetailsTable, {
+    fields: [receiptBankDetailsTable.bankDetailsId],
     references: [bankDetailsTable.id],
   }),
 }));

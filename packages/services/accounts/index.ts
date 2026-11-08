@@ -106,8 +106,10 @@ export default class AccountsService {
       const fixed = await tx.select().from(ledgersTable).where(and(isNull(ledgersTable.referenceId), isNull(ledgersTable.ledgerMasterId)));
       for (const l of Object.values(LEDGERS)) {
         const ledgerGroupId = groupId.get(l.group)!;
-        // found whatever its case, and kept in lowercase like every other name
-        const found = fixed.find((f) => f.name.toLowerCase() === l.name);
+        // found whatever its case (or by the name it had before a rename), and kept in lowercase like every other name
+        const was = "was" in l ? l.was : null;
+        const found =
+          fixed.find((f) => f.name.toLowerCase() === l.name) ?? (was ? fixed.find((f) => f.name.toLowerCase() === was) : undefined);
         if (!found) await tx.insert(ledgersTable).values({ name: l.name, ledgerGroupId, balance: "0.00" });
         else if (found.ledgerGroupId !== ledgerGroupId || found.name !== l.name) {
           await tx.update(ledgersTable).set({ ledgerGroupId, name: l.name }).where(eq(ledgersTable.id, found.id));

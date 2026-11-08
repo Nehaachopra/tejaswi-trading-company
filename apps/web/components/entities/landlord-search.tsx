@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { fieldClass } from "~/components/ui/card-form";
 import { ADD_ON_IVORY, PICK_LIST, PICK_NEW, PICK_ROW, PICK_SEARCH, PICK_TWO_COLUMNS } from "~/components/ui/page-styles";
-import { PickedCard } from "../transaction/picked-card";
+import { PickedCard } from "../transaction/shared/picked-card";
 import { cn } from "~/lib/utils";
 
 import { partyLabel } from "../account/party/party-kinds";

@@ -2,7 +2,9 @@ import { z } from "zod";
 
 import { amountModel, ledgerNameModel, ledgerSummaryModel, LOAN_RECEIPT_KINDS, PARTY_RECEIPT_KINDS, type ReceiptKind, receiptKindModel } from "../accounts/model";
 import { lenderLoanInputModel, loanTermsInputModel } from "../due/model";
-import { createPartyInputModel } from "../party/model";
+import { appOfUpi } from "../bank/upi-handles";
+import { createPartyInputModel, partyUpiIdModel } from "../party/model";
+import { BANK_MODE_REFERENCE, bankModeModel, moreBankPartModel, settledInModel } from "../payment/model";
 import { remarksModel } from "../transaction/model";
 
 const idModel = z.string().uuid();
@@ -28,12 +30,24 @@ export const RECEIVED_FOR_DB = {
   otherIncome: "other_income",
 } as const satisfies Record<ReceiptKind, string>;
 
+// a UTR, IMPS reference, cheque number, or a cash bill or voucher number, up to 30
+const referenceModel = z
+  .string()
+  .trim()
+  .max(30)
+  .transform((v) => (v === "" ? null : v))
+  .nullable()
+  .default(null);
+
 // money received: what it was for, from a ledger of that kind (or a new one made in the same save, its place set by
-// the kind), into cash or one bank account, on any date. A loan given back or the interest on one names the loan
+// the kind), into cash, one bank account or both (cashAmount is the cash part), split over more accounts if it came
+// into several, each with how it came in and its reference; on any date. A loan given back or the interest on one names the loan
 // (dueId) instead, and comes from its borrower. A customer that deducted TDS gives its rate; lengths follow receipts:
 // reference 30, remarks 100
 export const createReceiptInputModel = z
   .object({
+    // made when the form opened: a second save with it (a retry, a double tap) gets the first one's result
+    saveKey: z.string().uuid().nullable().default(null),
     dateTime: z.coerce.date(),
     receivedFor: receiptKindModel,
     receivedFromLedgerId: idModel.nullable().default(null),
@@ -46,15 +60,24 @@ export const createReceiptInputModel = z
     // a loan from a bank or NBFC comes from a lender, never a party
     lender: lenderLoanInputModel.nullable().default(null),
     amount: amountModel,
-    settledIn: z.enum(["cash", "bank"]),
+    settledIn: settledInModel,
+    // cash and bank together: the part that came in cash (the bank took the rest)
+    cashAmount: amountModel.nullable().default(null),
     bankDetailsId: idModel.nullable().default(null),
-    referenceNumber: z
-      .string()
-      .trim()
-      .max(30)
-      .transform((v) => (v === "" ? null : v))
-      .nullable()
-      .default(null),
+    // how the bank's part came in (none for cash)
+    bankMode: bankModeModel.nullable().default(null),
+    // the first account's UTR or cheque number, shaped as its mode has it
+    referenceNumber: referenceModel,
+    // the cash part's bill or voucher number
+    cashReferenceNumber: referenceModel,
+    // more bank accounts it came into: each with what came in, how and its reference (the first account, above, took
+    // the rest)
+    moreBankParts: z.array(moreBankPartModel).max(4).default([]),
+    // a UPI ID typed for an account that had none (for its QR): added to that account with the receipt
+    bankUpiIds: z
+      .array(z.object({ bankDetailsId: idModel, upiId: partyUpiIdModel.refine((u) => appOfUpi(u) !== null, "That isn't a UPI app's handle.") }))
+      .max(5)
+      .default([]),
     tdsRate: rateModel.nullable().default(null),
     remarks: remarksModel,
   })
@@ -75,7 +98,39 @@ export const createReceiptInputModel = z
   .refine((r) => r.lender === null || r.receivedFor === "loanTaken", { message: "A lender only gives a loan we took.", path: ["lender"] })
   .refine((r) => (r.receivedFor === "loanTaken") === (r.loan !== null), { message: "A loan received needs its terms.", path: ["loan"] })
   .refine((r) => r.newLedger === null || !!NEW_LEDGER_FOR[r.receivedFor], { message: "That comes from a party, not a new ledger.", path: ["newLedger"] })
-  .refine((r) => r.settledIn === "cash" || r.bankDetailsId !== null, { message: "Pick the bank account.", path: ["bankDetailsId"] });
+  .refine((r) => r.settledIn === "cash" || r.bankDetailsId !== null, { message: "Pick the bank account.", path: ["bankDetailsId"] })
+  .refine((r) => (r.settledIn === "cash") === (r.bankMode === null), { message: "Pick how it came in.", path: ["bankMode"] })
+  .refine((r) => r.bankMode === null || r.referenceNumber === null || BANK_MODE_REFERENCE[r.bankMode].test(r.referenceNumber), {
+    message: "That reference doesn't fit how it came in.",
+    path: ["referenceNumber"],
+  })
+  .refine((r) => r.settledIn !== "bank" || r.cashReferenceNumber === null, { message: "A bank receipt has no cash part.", path: ["cashReferenceNumber"] })
+  .refine((r) => (r.settledIn === "cashAndBank") === (r.cashAmount !== null), { message: "Enter the cash part.", path: ["cashAmount"] })
+  .refine((r) => r.cashAmount === null || Math.round(r.cashAmount * 100) < Math.round(r.amount * 100), { message: "The cash part must be less than the amount.", path: ["cashAmount"] })
+  .refine((r) => r.settledIn !== "cash" || r.moreBankParts.length === 0, { message: "Cash uses no bank account.", path: ["moreBankParts"] })
+  .refine((r) => new Set([r.bankDetailsId, ...r.moreBankParts.map((b) => b.bankDetailsId)]).size === r.moreBankParts.length + 1, {
+    message: "An account is in twice.",
+    path: ["moreBankParts"],
+  })
+  // a UPI ID only for an account this came into by UPI, one each
+  .refine(
+    (r) =>
+      new Set(r.bankUpiIds.map((u) => u.bankDetailsId)).size === r.bankUpiIds.length &&
+      r.bankUpiIds.every(
+        (u) =>
+          (u.bankDetailsId === r.bankDetailsId && r.bankMode === "upi") ||
+          r.moreBankParts.some((m) => m.bankDetailsId === u.bankDetailsId && m.mode === "upi"),
+      ),
+    { message: "A UPI ID is only added to an account it came into by UPI.", path: ["bankUpiIds"] },
+  )
+  .refine((r) => new Set(r.bankUpiIds.map((u) => u.upiId)).size === r.bankUpiIds.length, { message: "A UPI ID is in twice.", path: ["bankUpiIds"] })
+  // the first account still takes something: the others never cover the whole bank part
+  .refine(
+    (r) =>
+      r.settledIn === "cash" ||
+      Math.round(r.amount * 100) - Math.round((r.cashAmount ?? 0) * 100) - r.moreBankParts.reduce((sum, b) => sum + Math.round(b.amount * 100), 0) > 0,
+    { message: "The other accounts take more than the bank's part.", path: ["moreBankParts"] },
+  );
 
 export type CreateReceiptInputModel = z.infer<typeof createReceiptInputModel>;
 
@@ -132,9 +187,20 @@ export const receiptModel = z.object({
     fssai: z.string(),
     jurisdiction: z.string(),
   }),
-  settledIn: z.enum(["cash", "bank"]),
+  settledIn: settledInModel,
+  // what came into each: cash and the bank accounts (0 for one not used)
+  cashAmount: z.number(),
+  bankAmount: z.number(),
   bankDetailsId: idModel.nullable(),
+  // how the first account's part came in, and its UTR or cheque number
+  bankMode: bankModeModel.nullable(),
   referenceNumber: z.string().nullable(),
+  // the cash part's bill or voucher number
+  cashReferenceNumber: z.string().nullable(),
+  // the other accounts it came into (the first is above)
+  moreBankParts: z.array(
+    z.object({ bankDetailsId: idModel, name: z.string(), last4: z.string(), ifsc: z.string().nullable(), amount: z.number(), mode: bankModeModel, referenceNumber: z.string().nullable() }),
+  ),
   amount: z.number(),
   tdsRate: z.number().nullable(),
   tdsAmount: z.number().nullable(),

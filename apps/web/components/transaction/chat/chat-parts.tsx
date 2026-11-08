@@ -8,7 +8,10 @@ import { cn } from "~/lib/utils";
 // the helper's face: the app's own icon (the wheat grain), on top of her first bubble of a turn
 function Avatar() {
   return (
-    <span aria-hidden className="grid size-9 shrink-0 place-items-center rounded-full bg-ivory p-1.5">
+    <span
+      aria-hidden
+      className="grid size-9 shrink-0 place-items-center rounded-full bg-ivory p-1.5"
+    >
       {/* eslint-disable-next-line @next/next/no-img-element -- a tiny SVG served as is */}
       <img src="/icon.svg" alt="" width={24} height={24} className="size-full" />
     </span>
@@ -16,12 +19,23 @@ function Avatar() {
 }
 
 // the helper's side of the chat: a label on ivory, her avatar on top of the first of a turn; it rises into place
-export function HelperBubble({ children, first = false }: { children: React.ReactNode; first?: boolean }) {
+export function HelperBubble({
+  children,
+  first = false,
+}: {
+  children: React.ReactNode;
+  first?: boolean;
+}) {
   const t = useTranslations("transactions.chat");
   return (
     <div className="chat-rise flex flex-col items-start gap-1.5">
       {first && <Avatar />}
-      <div className={cn("on-ivory max-w-[85%] rounded-2xl rounded-bl-sm bg-ivory px-4 py-2.5 text-[0.95rem] text-chestnut", first && "rounded-tl-md")}>
+      <div
+        className={cn(
+          "on-ivory max-w-[85%] rounded-2xl rounded-bl-sm bg-ivory px-4 py-2.5 text-[0.95rem] text-chestnut",
+          first && "rounded-tl-md",
+        )}
+      >
         {first && <span className="sr-only">{t("helper")}: </span>}
         {children}
       </div>
@@ -90,7 +104,9 @@ export function Chip({
       disabled={disabled}
       className={cn(
         "min-h-10 rounded-full border px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:border-ivory/25 disabled:bg-transparent disabled:text-ivory/40",
-        on || strong ? "border-ivory bg-ivory text-chestnut" : "border-ivory/50 text-ivory hover:border-ivory hover:bg-ivory/10",
+        on || strong
+          ? "border-ivory bg-ivory text-chestnut"
+          : "border-ivory/50 text-ivory hover:border-ivory hover:bg-ivory/10",
       )}
     >
       {children}
@@ -105,7 +121,11 @@ export function Cards({ children }: { children: React.ReactNode }) {
 
 export function Card({ children, onClick }: { children: React.ReactNode; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="on-ivory flex w-full items-center gap-2 rounded-xl bg-ivory px-3 py-2.5 text-left text-chestnut hover:ring-2 hover:ring-ivory/60">
+    <button
+      type="button"
+      onClick={onClick}
+      className="on-ivory flex w-full items-center gap-2 rounded-xl bg-ivory px-3 py-2.5 text-left text-chestnut hover:ring-2 hover:ring-ivory/60"
+    >
       {children}
     </button>
   );
@@ -115,11 +135,20 @@ export function Card({ children, onClick }: { children: React.ReactNode; onClick
 export function TypingBubble() {
   const t = useTranslations("transactions.chat");
   return (
-    <div className="chat-rise flex flex-col items-start gap-1.5" role="status" aria-label={t("typing")}>
+    <div
+      className="chat-rise flex flex-col items-start gap-1.5"
+      role="status"
+      aria-label={t("typing")}
+    >
       <Avatar />
       <div className="on-ivory flex h-10 items-center gap-1 rounded-2xl rounded-tl-md bg-ivory px-4">
         {[0, 1, 2].map((i) => (
-          <span key={i} aria-hidden className="chat-dot size-1.5 rounded-full bg-chestnut" style={{ animationDelay: `${i * 0.15}s` }} />
+          <span
+            key={i}
+            aria-hidden
+            className="chat-dot size-1.5 rounded-full bg-chestnut"
+            style={{ animationDelay: `${i * 0.15}s` }}
+          />
         ))}
       </div>
     </div>
@@ -127,12 +156,23 @@ export function TypingBubble() {
 }
 
 // a short note from the helper under a question (a problem with the answer, or a hint)
-export function Note({ children, tone = "hint" }: { children: React.ReactNode; tone?: "hint" | "error" }) {
+export function Note({
+  children,
+  tone = "hint",
+}: {
+  children: React.ReactNode;
+  tone?: "hint" | "error";
+}) {
   return (
     <p
       role={tone === "error" ? "alert" : undefined}
       // an error sits on ivory in red, so it stands out on the chestnut page
-      className={cn("text-sm", tone === "error" ? "flex w-fit items-start gap-1.5 rounded-xl bg-ivory px-3 py-1.5 font-medium text-danger" : "text-ivory/75")}
+      className={cn(
+        "text-sm",
+        tone === "error"
+          ? "flex w-fit items-start gap-1.5 rounded-xl bg-ivory px-3 py-1.5 font-medium text-danger"
+          : "text-ivory/75",
+      )}
     >
       {tone === "error" && <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />}
       {children}

@@ -13,17 +13,30 @@ import { Spinner } from "~/components/ui/spinner";
 import { trpc } from "~/trpc/client";
 import { cn } from "~/lib/utils";
 
-import { indiaDay } from "../account/balance";
-import { draftInput as partyInput, draftOk as partyOk, emptyDraft as emptyParty, type PartyDraft } from "../account/party/party-fields";
-import { type LedgerChoice, LedgerSearch, type Pickable } from "./ledger-picker";
-import { type BankLender, emptyLender, lenderInput, type LenderDraft, LenderFields, lenderOk } from "./lender-fields";
+import { indiaDay } from "../../account/balance";
+import {
+  draftInput as partyInput,
+  draftOk as partyOk,
+  emptyDraft as emptyParty,
+  type PartyDraft,
+} from "../../account/party/party-fields";
+import { type LedgerChoice, LedgerSearch, type Pickable } from "../pickers/ledger-picker";
+import {
+  type BankLender,
+  emptyLender,
+  lenderInput,
+  type LenderDraft,
+  LenderFields,
+  lenderOk,
+} from "./lender-fields";
 import { emptyLoan, type LoanDraft, loanInput, loanProblems, LoanTerms } from "./loan-terms";
-import { usePhoneMatches } from "./party-finder";
+import { usePhoneMatches } from "../pickers/party-finder";
 
 const LENDERS = ["bank", "nbfc", "individual"] as const;
 type Lender = (typeof LENDERS)[number];
 
-const input = (bad: boolean) => `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
+const input = (bad: boolean) =>
+  `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
 const chip = (on: boolean) =>
   cn(
     "min-h-11 rounded-control border px-3.5 text-sm font-semibold transition-colors",
@@ -41,7 +54,12 @@ export function OldLoanForm({
   onCancel,
 }: {
   given?: boolean;
-  newPartyDetails: (draft: PartyDraft, setDraft: React.Dispatch<React.SetStateAction<PartyDraft>>, match: Pickable | null, pickMatch: (m: Pickable) => void) => React.ReactNode;
+  newPartyDetails: (
+    draft: PartyDraft,
+    setDraft: React.Dispatch<React.SetStateAction<PartyDraft>>,
+    match: Pickable | null,
+    pickMatch: (m: Pickable) => void,
+  ) => React.ReactNode;
   onAdded: (dueId: string) => void;
   onCancel: () => void;
 }) {
@@ -65,12 +83,20 @@ export function OldLoanForm({
   const phoneMatches = usePhoneMatches(newParty.phone, "customer");
   const matched = who?.kind === "party" && phoneMatches.length > 0 ? phoneMatches[0]! : null;
   const bank: BankLender | null = lender === "bank" || lender === "nbfc" ? lender : null;
-  const whoDone = bank ? lenderOk(bankLender) : who !== null && (who.kind !== "party" || (!matched && partyOk(newParty, true)));
+  const whoDone = bank
+    ? lenderOk(bankLender)
+    : who !== null && (who.kind !== "party" || (!matched && partyOk(newParty, true)));
 
   // what's still needed, for the red marks once Add was tried
   const value = Number(amount.replace(/,/g, ""));
   const dueBad = dueOn !== "" && dueOn < dated;
-  const ready = whoDone && value > 0 && dated !== "" && lender !== null && !Object.values(loanProblems(terms)).some(Boolean) && !dueBad;
+  const ready =
+    whoDone &&
+    value > 0 &&
+    dated !== "" &&
+    lender !== null &&
+    !Object.values(loanProblems(terms)).some(Boolean) &&
+    !dueBad;
 
   const save = async () => {
     setTried(true);
@@ -101,35 +127,46 @@ export function OldLoanForm({
     <div className="flex flex-col gap-4">
       {/* first, for a loan we took, the kind of lender: it decides the TDS, and the rest of the form follows it */}
       {!given && (
-      <div role="radiogroup" aria-label={tl("lender")} className="flex flex-col gap-2.5">
-        <span className="text-xs font-semibold">
-          {tl("lender")}
-          <RequiredMark />
-        </span>
-        <div className="flex flex-wrap gap-2">
-          {LENDERS.map((l) => (
-            <button
-              key={l}
-              type="button"
-              role="radio"
-              aria-checked={lender === l}
-              onClick={() => {
-                setLender(l);
-                // a bank's interest is usually monthly; it can still be changed
-                if (l !== "individual") setTerms((d) => ({ ...d, frequency: d.frequency ?? "monthly" }));
-              }}
-              className={chip(lender === l)}
-            >
-              {tl(`lenders.${l}`)}
-            </button>
-          ))}
+        <div role="radiogroup" aria-label={tl("lender")} className="flex flex-col gap-2.5">
+          <span className="text-xs font-semibold">
+            {tl("lender")}
+            <RequiredMark />
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {LENDERS.map((l) => (
+              <button
+                key={l}
+                type="button"
+                role="radio"
+                aria-checked={lender === l}
+                onClick={() => {
+                  setLender(l);
+                  // a bank's interest is usually monthly; it can still be changed
+                  if (l !== "individual")
+                    setTerms((d) => ({ ...d, frequency: d.frequency ?? "monthly" }));
+                }}
+                className={chip(lender === l)}
+              >
+                {tl(`lenders.${l}`)}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
       )}
-      {tried && lender === null && <FieldMessage className="mt-0">{t("oldLoanLender")}</FieldMessage>}
+      {tried && lender === null && (
+        <FieldMessage className="mt-0">{t("oldLoanLender")}</FieldMessage>
+      )}
 
       {/* a bank or NBFC: its lender and loan account */}
-      {bank && <LenderFields key={bank} type={bank} draft={bankLender} onChange={(patch) => setBankLender((d) => ({ ...d, ...patch }))} tried={tried} />}
+      {bank && (
+        <LenderFields
+          key={bank}
+          type={bank}
+          draft={bankLender}
+          onChange={(patch) => setBankLender((d) => ({ ...d, ...patch }))}
+          tried={tried}
+        />
+      )}
 
       {/* an individual: an existing party or someone new */}
       {lender === "individual" && (
@@ -150,7 +187,10 @@ export function OldLoanForm({
             addParty
             placeholder={t("hints.from")}
           />
-          {who?.kind === "party" && newPartyDetails(newParty, setNewParty, matched, (m) => setWho({ kind: "ledger", ledger: m }))}
+          {who?.kind === "party" &&
+            newPartyDetails(newParty, setNewParty, matched, (m) =>
+              setWho({ kind: "ledger", ledger: m }),
+            )}
         </div>
       )}
 
@@ -164,7 +204,10 @@ export function OldLoanForm({
                 <RequiredMark />
               </span>
               <span className={cn("relative block", value > 0 && "text-ivory")}>
-                <IndianRupee className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2" aria-hidden />
+                <IndianRupee
+                  className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2"
+                  aria-hidden
+                />
                 <NumberInput
                   value={amount}
                   onChange={setAmount}
@@ -172,7 +215,11 @@ export function OldLoanForm({
                   maxDigits={13}
                   placeholder="0"
                   aria-invalid={(tried && value === 0) || undefined}
-                  className={cn(input(tried && value === 0), "pl-9 font-semibold", value > 0 && "bg-chestnut text-ivory caret-ivory")}
+                  className={cn(
+                    input(tried && value === 0),
+                    "pl-9 font-semibold",
+                    value > 0 && "bg-chestnut text-ivory caret-ivory",
+                  )}
                 />
               </span>
             </label>
@@ -181,15 +228,33 @@ export function OldLoanForm({
                 {t(given ? "oldLoanGiven" : "oldLoanTaken")}
                 <RequiredMark />
               </span>
-              <DateInput value={dated} max={indiaDay(new Date())} onChange={setDated} calendarLabel={t(given ? "oldLoanGiven" : "oldLoanTaken")} className={cn(input(tried && dated === ""), "text-sm font-medium")} />
+              <DateInput
+                value={dated}
+                max={indiaDay(new Date())}
+                onChange={setDated}
+                calendarLabel={t(given ? "oldLoanGiven" : "oldLoanTaken")}
+                className={cn(input(tried && dated === ""), "text-sm font-medium")}
+              />
             </label>
           </div>
 
-          <LoanTerms draft={terms} onChange={(patch) => setTerms((d) => ({ ...d, ...patch }))} tried={tried} />
+          <LoanTerms
+            draft={terms}
+            onChange={(patch) => setTerms((d) => ({ ...d, ...patch }))}
+            tried={tried}
+          />
 
           <label className="flex flex-col gap-2.5 text-xs font-semibold sm:w-72">
             {t(bank ? "oldLoanLastEmi" : "q.dueOn")}
-            <DateInput value={dueOn} min={dated} onChange={setDueOn} calendarLabel={t(bank ? "oldLoanLastEmi" : "q.dueOn")} aria-invalid={dueBad || undefined} placeholder="—" className={cn(input(dueBad), "text-sm font-medium")} />
+            <DateInput
+              value={dueOn}
+              min={dated}
+              onChange={setDueOn}
+              calendarLabel={t(bank ? "oldLoanLastEmi" : "q.dueOn")}
+              aria-invalid={dueBad || undefined}
+              placeholder="—"
+              className={cn(input(dueBad), "text-sm font-medium")}
+            />
           </label>
         </>
       )}
@@ -198,7 +263,11 @@ export function OldLoanForm({
       {tried && !ready && <FieldMessage className="mt-0">{t("oldLoanFill")}</FieldMessage>}
       {failed && <FieldMessage className="mt-0">{failed}</FieldMessage>}
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-        <button type="button" onClick={onCancel} className="min-h-11 rounded-control border border-chestnut/50 px-5 text-sm font-semibold hover:border-chestnut">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="min-h-11 rounded-control border border-chestnut/50 px-5 text-sm font-semibold hover:border-chestnut"
+        >
           {t("oldLoanCancel")}
         </button>
         {lender !== null && whoDone && (

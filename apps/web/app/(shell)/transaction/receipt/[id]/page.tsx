@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { ReceiptSuccess } from "~/components/transaction/receipt-success";
+import { ReceiptSuccess } from "~/components/transaction/done/success";
 
 export const metadata: Metadata = { title: "Receipt created · Tejaswi trading company" };
 

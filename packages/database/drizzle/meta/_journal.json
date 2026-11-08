@@ -204,6 +204,13 @@
       "when": 1793950778467,
       "tag": "0028_elite_kang",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1794133790594,
+      "tag": "0029_glamorous_paper_doll",
+      "breakpoints": true
     }
   ]
 }

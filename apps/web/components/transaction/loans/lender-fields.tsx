@@ -8,16 +8,23 @@ import { fieldClass } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { MicButton } from "~/components/ui/mic-button";
 import { NumberInput } from "~/components/ui/number-input";
-import { ADD_ON_IVORY, PICK_LIST, PICK_NEW, PICK_ROW, PICK_SEARCH, PICK_TWO_COLUMNS } from "~/components/ui/page-styles";
-import { PickedCard } from "./picked-card";
+import {
+  ADD_ON_IVORY,
+  PICK_LIST,
+  PICK_NEW,
+  PICK_ROW,
+  PICK_SEARCH,
+  PICK_TWO_COLUMNS,
+} from "~/components/ui/page-styles";
+import { PickedCard } from "../shared/picked-card";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 import type { RouterOutputs } from "@repo/trpc/client";
 
-import { BANKS } from "../account/bank/bank-list";
-import { PickMenu } from "../stock/pick-menu";
+import { BANKS } from "../../account/bank/bank-list";
+import { PickMenu } from "../../stock/pick-menu";
 
 type Lender = RouterOutputs["accounts"]["lender"]["list"][number];
 export type BankLender = "bank" | "nbfc";
@@ -29,16 +36,34 @@ const PAN_RE = /^[A-Z]{5}\d{4}[A-Z]$/;
 const ACCOUNT_RE = /^[A-Z0-9/-]+$/;
 
 // a bank or NBFC's loan as typed: the lender, one picked or a new one, and the loan's account there
-export type LenderDraft = { picked: Lender | null; adding: boolean; name: string; branch: string; pan: string; account: string; emi: string };
+export type LenderDraft = {
+  picked: Lender | null;
+  adding: boolean;
+  name: string;
+  branch: string;
+  pan: string;
+  account: string;
+  emi: string;
+};
 
-export const emptyLender = (): LenderDraft => ({ picked: null, adding: false, name: "", branch: "", pan: "", account: "", emi: "" });
+export const emptyLender = (): LenderDraft => ({
+  picked: null,
+  adding: false,
+  name: "",
+  branch: "",
+  pan: "",
+  account: "",
+  emi: "",
+});
 
-export const lenderLabel = (l: { name: string; branch: string | null }) => [l.name, l.branch].filter(Boolean).join(" · ");
+export const lenderLabel = (l: { name: string; branch: string | null }) =>
+  [l.name, l.branch].filter(Boolean).join(" · ");
 
 const panBad = (d: LenderDraft) => d.pan !== "" && !PAN_RE.test(d.pan);
 
 // someone is named, and nothing typed for them is wrong
-export const lenderChosen = (d: LenderDraft) => d.picked !== null || (d.adding && d.name.trim() !== "" && !panBad(d));
+export const lenderChosen = (d: LenderDraft) =>
+  d.picked !== null || (d.adding && d.name.trim() !== "" && !panBad(d));
 
 export const lenderOk = (d: LenderDraft) => lenderChosen(d) && ACCOUNT_RE.test(d.account);
 
@@ -50,14 +75,27 @@ export const lenderInput = (d: LenderDraft, type: BankLender) => ({
   emiAmount: Number(d.emi) > 0 ? Number(d.emi) : null,
 });
 
-const input = (bad: boolean) => `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
+const input = (bad: boolean) =>
+  `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
 
 // a bank's name, from the same list as our bank accounts; one the list doesn't have can be typed into its search
-export function BankNamePick({ value, onChange, invalid }: { value: string; onChange: (name: string) => void; invalid: boolean }) {
+export function BankNamePick({
+  value,
+  onChange,
+  invalid,
+}: {
+  value: string;
+  onChange: (name: string) => void;
+  invalid: boolean;
+}) {
   const t = useTranslations("transactions.lender");
   const tf = useTranslations("accounts.party.form");
-  const directory = trpc.accounts.bank.banks.useQuery(undefined, { staleTime: Infinity, retry: false });
-  const names: readonly string[] = directory.data && directory.data.length > 0 ? directory.data : BANKS;
+  const directory = trpc.accounts.bank.banks.useQuery(undefined, {
+    staleTime: Infinity,
+    retry: false,
+  });
+  const names: readonly string[] =
+    directory.data && directory.data.length > 0 ? directory.data : BANKS;
   return (
     <PickMenu
       label={t("name")}
@@ -76,7 +114,15 @@ export function BankNamePick({ value, onChange, invalid }: { value: string; onCh
 }
 
 // a lender's details changed right where its loan is picked: only what a bank or NBFC has, and never its type
-export function LenderEdit({ lenderId, onSaved, onCancel }: { lenderId: string; onSaved: (lender: { name: string; branch: string | null }) => void; onCancel: () => void }) {
+export function LenderEdit({
+  lenderId,
+  onSaved,
+  onCancel,
+}: {
+  lenderId: string;
+  onSaved: (lender: { name: string; branch: string | null }) => void;
+  onCancel: () => void;
+}) {
   const t = useTranslations("transactions.lender");
   const tc = useTranslations("transactions.chat");
   const tf = useTranslations("accounts.party.form");
@@ -96,7 +142,12 @@ export function LenderEdit({ lenderId, onSaved, onCancel }: { lenderId: string; 
     if (name.trim() === "" || panWrong) return;
     setFailed(false);
     try {
-      const saved = await update.mutateAsync({ id: lenderId, name: name.trim(), branch: branch.trim(), pan });
+      const saved = await update.mutateAsync({
+        id: lenderId,
+        name: name.trim(),
+        branch: branch.trim(),
+        pan,
+      });
       void utils.accounts.lender.invalidate();
       void utils.transactions.due.invalidate();
       onSaved(saved);
@@ -114,14 +165,29 @@ export function LenderEdit({ lenderId, onSaved, onCancel }: { lenderId: string; 
             <RequiredMark />
           </span>
           {lender.type === "bank" ? (
-            <BankNamePick value={name} onChange={(v) => setEdits((e) => ({ ...e, name: v }))} invalid={name.trim() === ""} />
+            <BankNamePick
+              value={name}
+              onChange={(v) => setEdits((e) => ({ ...e, name: v }))}
+              invalid={name.trim() === ""}
+            />
           ) : (
-            <input value={name} maxLength={NAME_MAX} onChange={(e) => setEdits((all) => ({ ...all, name: e.target.value }))} aria-invalid={name.trim() === "" || undefined} className={input(name.trim() === "")} />
+            <input
+              value={name}
+              maxLength={NAME_MAX}
+              onChange={(e) => setEdits((all) => ({ ...all, name: e.target.value }))}
+              aria-invalid={name.trim() === "" || undefined}
+              className={input(name.trim() === "")}
+            />
           )}
         </label>
         <label className="flex flex-col gap-2.5 text-xs font-semibold">
           {t("branch")}
-          <input value={branch} maxLength={BRANCH_MAX} onChange={(e) => setEdits((all) => ({ ...all, branch: e.target.value }))} className={input(false)} />
+          <input
+            value={branch}
+            maxLength={BRANCH_MAX}
+            onChange={(e) => setEdits((all) => ({ ...all, branch: e.target.value }))}
+            className={input(false)}
+          />
         </label>
       </div>
       {lender.type === "nbfc" && (
@@ -131,7 +197,12 @@ export function LenderEdit({ lenderId, onSaved, onCancel }: { lenderId: string; 
             value={pan}
             maxLength={10}
             placeholder="ABCDE1234F"
-            onChange={(e) => setEdits((all) => ({ ...all, pan: e.target.value.replace(/[^0-9a-z]/gi, "").toUpperCase() }))}
+            onChange={(e) =>
+              setEdits((all) => ({
+                ...all,
+                pan: e.target.value.replace(/[^0-9a-z]/gi, "").toUpperCase(),
+              }))
+            }
             aria-invalid={panWrong || undefined}
             className={cn(input(panWrong && pan.length === 10), "tabular uppercase")}
           />
@@ -139,10 +210,19 @@ export function LenderEdit({ lenderId, onSaved, onCancel }: { lenderId: string; 
       )}
       {failed && <FieldMessage className="mt-0">{t("saveFailed")}</FieldMessage>}
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-        <button type="button" onClick={onCancel} className="min-h-11 rounded-control border border-chestnut/50 px-5 text-sm font-semibold hover:border-chestnut">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="min-h-11 rounded-control border border-chestnut/50 px-5 text-sm font-semibold hover:border-chestnut"
+        >
           {tc("oldLoanCancel")}
         </button>
-        <button type="button" onClick={() => void save()} disabled={update.isPending} className="min-h-11 rounded-control bg-chestnut px-5 text-sm font-semibold text-ivory disabled:opacity-60">
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={update.isPending}
+          className="min-h-11 rounded-control bg-chestnut px-5 text-sm font-semibold text-ivory disabled:opacity-60"
+        >
           {tf("saveDetails")}
         </button>
       </div>
@@ -152,13 +232,25 @@ export function LenderEdit({ lenderId, onSaved, onCancel }: { lenderId: string; 
 
 // the lender of a bank or NBFC loan, searched and picked like anyone else on a form, or added with only its name and
 // branch (and an NBFC's PAN): no phone, email, short name or address. Then the loan's account there
-export function LenderFields({ type, draft, onChange, tried }: { type: BankLender; draft: LenderDraft; onChange: (patch: Partial<LenderDraft>) => void; tried: boolean }) {
+export function LenderFields({
+  type,
+  draft,
+  onChange,
+  tried,
+}: {
+  type: BankLender;
+  draft: LenderDraft;
+  onChange: (patch: Partial<LenderDraft>) => void;
+  tried: boolean;
+}) {
   const t = useTranslations("transactions.lender");
   const tp = useTranslations("transactions.picker");
   const lenders = trpc.accounts.lender.list.useQuery({ includeInactive: false });
   const [search, setSearch] = useState("");
   const needle = search.trim().toLowerCase();
-  const shown = (lenders.data ?? []).filter((l) => l.type === type && (needle === "" || lenderLabel(l).toLowerCase().includes(needle)));
+  const shown = (lenders.data ?? []).filter(
+    (l) => l.type === type && (needle === "" || lenderLabel(l).toLowerCase().includes(needle)),
+  );
   const noName = tried && draft.adding && draft.name.trim() === "";
   const noAccount = tried && !ACCOUNT_RE.test(draft.account);
 
@@ -178,14 +270,31 @@ export function LenderFields({ type, draft, onChange, tried }: { type: BankLende
                 <RequiredMark />
               </span>
               {type === "bank" ? (
-                <BankNamePick value={draft.name} onChange={(name) => onChange({ name })} invalid={noName} />
+                <BankNamePick
+                  value={draft.name}
+                  onChange={(name) => onChange({ name })}
+                  invalid={noName}
+                />
               ) : (
-                <input autoFocus value={draft.name} maxLength={NAME_MAX} onChange={(e) => onChange({ name: e.target.value })} placeholder={t("namePlaceholder")} aria-invalid={noName || undefined} className={input(noName)} />
+                <input
+                  autoFocus
+                  value={draft.name}
+                  maxLength={NAME_MAX}
+                  onChange={(e) => onChange({ name: e.target.value })}
+                  placeholder={t("namePlaceholder")}
+                  aria-invalid={noName || undefined}
+                  className={input(noName)}
+                />
               )}
             </label>
             <label className="flex flex-col gap-2.5 text-xs font-semibold">
               {t("branch")}
-              <input value={draft.branch} maxLength={BRANCH_MAX} onChange={(e) => onChange({ branch: e.target.value })} className={input(false)} />
+              <input
+                value={draft.branch}
+                maxLength={BRANCH_MAX}
+                onChange={(e) => onChange({ branch: e.target.value })}
+                className={input(false)}
+              />
             </label>
           </div>
           {type === "nbfc" && (
@@ -195,13 +304,22 @@ export function LenderFields({ type, draft, onChange, tried }: { type: BankLende
                 value={draft.pan}
                 maxLength={10}
                 placeholder="ABCDE1234F"
-                onChange={(e) => onChange({ pan: e.target.value.replace(/[^0-9a-z]/gi, "").toUpperCase() })}
+                onChange={(e) =>
+                  onChange({ pan: e.target.value.replace(/[^0-9a-z]/gi, "").toUpperCase() })
+                }
                 aria-invalid={panBad(draft) || undefined}
-                className={cn(input(panBad(draft) && (tried || draft.pan.length === 10)), "tabular uppercase")}
+                className={cn(
+                  input(panBad(draft) && (tried || draft.pan.length === 10)),
+                  "tabular uppercase",
+                )}
               />
             </label>
           )}
-          <button type="button" onClick={() => onChange({ adding: false, name: "", branch: "", pan: "" })} className="self-start text-sm font-semibold underline underline-offset-2">
+          <button
+            type="button"
+            onClick={() => onChange({ adding: false, name: "", branch: "", pan: "" })}
+            className="self-start text-sm font-semibold underline underline-offset-2"
+          >
             {tp("change")}
           </button>
         </div>
@@ -222,13 +340,24 @@ export function LenderFields({ type, draft, onChange, tried }: { type: BankLende
           </label>
           <div className={cn(PICK_LIST, PICK_TWO_COLUMNS)}>
             {shown.map((l) => (
-              <button key={l.id} type="button" onClick={() => onChange({ picked: l })} className={PICK_ROW}>
+              <button
+                key={l.id}
+                type="button"
+                onClick={() => onChange({ picked: l })}
+                className={PICK_ROW}
+              >
                 <span className="min-w-0 flex-1 truncate font-semibold">{lenderLabel(l)}</span>
               </button>
             ))}
-            {shown.length === 0 && !lenders.isPending && <p className="col-span-full px-1 py-2 text-sm">{t("none")}</p>}
+            {shown.length === 0 && !lenders.isPending && (
+              <p className="col-span-full px-1 py-2 text-sm">{t("none")}</p>
+            )}
             <div className={PICK_NEW}>
-              <button type="button" onClick={() => onChange({ adding: true, name: search.trim() })} className={ADD_ON_IVORY}>
+              <button
+                type="button"
+                onClick={() => onChange({ adding: true, name: search.trim() })}
+                className={ADD_ON_IVORY}
+              >
                 <Plus className="size-4" aria-hidden /> {t("new")}
               </button>
             </div>
@@ -248,14 +377,23 @@ export function LenderFields({ type, draft, onChange, tried }: { type: BankLende
               value={draft.account}
               maxLength={ACCOUNT_MAX}
               autoCapitalize="characters"
-              onChange={(e) => onChange({ account: e.target.value.toUpperCase().replace(/[^A-Z0-9/-]/g, "") })}
+              onChange={(e) =>
+                onChange({ account: e.target.value.toUpperCase().replace(/[^A-Z0-9/-]/g, "") })
+              }
               aria-invalid={noAccount || undefined}
               className={cn(input(noAccount), "tabular uppercase")}
             />
           </label>
           <label className="flex flex-col gap-2.5 text-xs font-semibold">
             {t("emi")}
-            <NumberInput value={draft.emi} onChange={(emi) => onChange({ emi })} decimals={2} maxDigits={13} placeholder="0" className={cn(input(false), "tabular")} />
+            <NumberInput
+              value={draft.emi}
+              onChange={(emi) => onChange({ emi })}
+              decimals={2}
+              maxDigits={13}
+              placeholder="0"
+              className={cn(input(false), "tabular")}
+            />
           </label>
         </div>
       )}

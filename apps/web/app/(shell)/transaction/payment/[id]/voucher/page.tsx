@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { ReceiptVoucher } from "~/components/transaction/receipt-voucher";
+import { ReceiptVoucher } from "~/components/transaction/done/voucher";
 
 export const metadata: Metadata = { title: "Payment voucher · Tejaswi trading company" };
 

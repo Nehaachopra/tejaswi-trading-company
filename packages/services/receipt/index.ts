@@ -1,15 +1,17 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, db, eq, sql } from "@repo/database";
-import { bankDetailsTable, dueSettlementsTable, duesTable, ledgerEntriesTable, ledgersTable, partiesTable, partyAddressesTable, receiptsTable, transactionsTable } from "@repo/database/schema";
+import { and, asc, db, eq, inArray, sql } from "@repo/database";
+import { bankDetailsTable, bankUpiIdsTable, dueSettlementsTable, duesTable, ledgerEntriesTable, ledgersTable, partiesTable, partyAddressesTable, receiptBankDetailsTable, receiptsTable, transactionsTable } from "@repo/database/schema";
 
 import AccountsService from "../accounts";
 import { type ActorModel, fitsReceiptKind, type LedgerSummaryModel, type PostingLine, type ReceiptKind } from "../accounts/model";
-import { fromPaise } from "../accounts/money";
+import { fromPaise, toPaise } from "../accounts/money";
 import DueService from "../due";
 import PartyService from "../party";
 import TransactionService from "../transaction";
 import SettingService from "../setting";
-import { counterLedger, settleLedger } from "../transaction/settle";
+import { appOfUpi } from "../bank/upi-handles";
+import { BANK_MODE_DB, type BankMode, SETTLED_IN_DB, type SettledInModel } from "../payment/model";
+import { counterLedger, moneyPartsIn } from "../transaction/settle";
 import { type CreateReceiptInputModel, createReceiptInputModel, NEW_LEDGER_FOR, RECEIVED_FOR_DB, type ReceiptIdInputModel, type ReceiptModel, type SavedReceiptModel, tdsOn } from "./model";
 
 // the kind back from how the database keeps it
@@ -18,10 +20,12 @@ import { type CreateReceiptInputModel, createReceiptInputModel, NEW_LEDGER_FOR, 
 const RECEIPT_TDS_RATE: Partial<Record<ReceiptKind, number>> = { customer: 0.1, interestReceived: 10 };
 
 const KIND_OF = Object.fromEntries(Object.entries(RECEIVED_FOR_DB).map(([k, v]) => [v, k])) as Record<string, ReceiptKind>;
+const MODE_OF = Object.fromEntries(Object.entries(BANK_MODE_DB).map(([k, v]) => [v, k])) as Record<string, BankMode>;
+const SETTLED_OF = Object.fromEntries(Object.entries(SETTLED_IN_DB).map(([k, v]) => [v, k])) as Record<string, SettledInModel>;
 
-// money coming in: from a party, a loan, interest or other income, into cash or one bank account, on any date (no GST
+// money coming in: from a party, a loan, interest or other income, into cash, bank accounts or both, on any date (no GST
 // lock). A customer's balance goes down and its dues are settled oldest first; when it deducted TDS, by what was
-// received plus the TDS, and the TDS goes to TDS receivable. A loan given back brings the loan picked down; its
+// received plus the TDS, and the TDS goes to TDS. A loan given back brings the loan picked down; its
 // interest is a receipt of its own, to Interest received. A loan taken becomes a due. A new ledger it names is made in
 // the same save
 export default class ReceiptService {
@@ -53,19 +57,23 @@ export default class ReceiptService {
       if (!fitsReceiptKind(input.receivedFor, await this.accounts.placeIn(tx, from.id))) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "That ledger doesn't fit what the money was received for." });
       }
-      const into = await settleLedger(tx, this.accounts, input.settledIn, input.bankDetailsId);
+      // where it came into: cash and the first account (whichever are used), and any more accounts, each with its part
+      const into = await moneyPartsIn(tx, this.accounts, input);
 
       // a bank or NBFC pays a loan into a bank account, never in cash
-      if (lent && input.settledIn === "cash") throw new TRPCError({ code: "BAD_REQUEST", message: "A bank's loan comes into a bank account." });
+      if (lent && input.settledIn !== "bank") throw new TRPCError({ code: "BAD_REQUEST", message: "A bank's loan comes into a bank account." });
       // TDS only when a party deducted it: a customer paying us, or a borrower paying interest
       if (input.tdsRate !== null && (!party || (input.receivedFor !== "customer" && input.receivedFor !== "interestReceived"))) throw new TRPCError({ code: "BAD_REQUEST", message: "TDS applies to parties only." });
       // the rate is the law's, never typed: 0.1% a buyer takes under 194Q, 10% a borrower takes on interest under 194A
       const tdsRate = input.tdsRate !== null ? RECEIPT_TDS_RATE[input.receivedFor]! : null;
       const tds = tdsRate !== null ? tdsOn(input.amount, tdsRate) : 0;
 
-      // what it posts: cash or bank (and TDS receivable) up, the source down by both (Interest received up, for interest)
+      // what it posts: cash or bank (and TDS) up, the source down by both (Interest received up, for interest)
       const fromLedger = Math.round((input.amount + tds) * 100) / 100;
-      const lines: PostingLine[] = [{ ledgerId: into, side: "debit", amount: input.amount }];
+      const lines: PostingLine[] = [];
+      if (into.cashLedger && into.cashPart > 0) lines.push({ ledgerId: into.cashLedger, side: "debit", amount: into.cashPart / 100 });
+      if (into.bankLedger && into.bankPart > 0) lines.push({ ledgerId: into.bankLedger, side: "debit", amount: into.bankPart / 100 });
+      for (const b of into.more) lines.push({ ledgerId: b.ledger, side: "debit", amount: b.part / 100 });
       if (tds > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "tdsReceivable"), side: "debit", amount: tds });
       lines.push({ ledgerId: input.receivedFor === "interestReceived" ? await this.accounts.ledgerId(tx, "interestReceived") : from.id, side: "credit", amount: fromLedger });
 
@@ -73,21 +81,27 @@ export default class ReceiptService {
 
       // the party's default address and the bank account as they are now, kept with the receipt so its voucher reads
       // the same on any later date
-      const [[address], [bank]] = await Promise.all([
+      const [[address], [bank], moreBanks] = await Promise.all([
         party
           ? tx
               .select()
               .from(partyAddressesTable)
               .where(and(eq(partyAddressesTable.partyId, party.id), eq(partyAddressesTable.isActive, true), eq(partyAddressesTable.isDefault, true)))
           : Promise.resolve([]),
-        input.settledIn === "bank" && input.bankDetailsId
+        into.bankLedger && input.bankDetailsId
           ? tx
               .select({ bankName: bankDetailsTable.bankName, accountNumber: bankDetailsTable.accountNumber, ifsc: bankDetailsTable.ifscCode })
               .from(bankDetailsTable)
               .where(eq(bankDetailsTable.id, input.bankDetailsId))
           : Promise.resolve([]),
+        into.more.length > 0
+          ? tx
+              .select({ id: bankDetailsTable.id, bankName: bankDetailsTable.bankName, accountNumber: bankDetailsTable.accountNumber, ifsc: bankDetailsTable.ifscCode })
+              .from(bankDetailsTable)
+              .where(inArray(bankDetailsTable.id, into.more.map((m) => m.bankDetailsId)))
+          : Promise.resolve([]),
       ]);
-      await tx.insert(receiptsTable).values({
+      const [row] = await tx.insert(receiptsTable).values({
         transactionId: t.id,
         receivedFromLedgerId: from.id,
         receivedFromNameSnapshot: (party ? (party.shortName ?? party.name) : from.name).slice(0, 150),
@@ -105,17 +119,52 @@ export default class ReceiptService {
         partyGstinSnapshot: address?.gstin?.slice(0, 15) ?? null,
         receivedFor: RECEIVED_FOR_DB[input.receivedFor],
         interestOnDueId: input.receivedFor === "interestReceived" ? loan!.due.id : null,
-        settledIn: input.settledIn,
-        bankDetailsId: input.settledIn === "bank" ? input.bankDetailsId : null,
-        referenceNumber: input.referenceNumber,
-        bankNameSnapshot: bank ? bank.bankName.slice(0, 100) : null,
-        bankAccountLast4Snapshot: bank ? bank.accountNumber.slice(-4) : null,
-        bankIfscSnapshot: bank?.ifsc?.slice(0, 11) ?? null,
+        settledIn: SETTLED_IN_DB[input.settledIn],
+        referenceNumber: input.settledIn === "bank" ? null : input.cashReferenceNumber,
         amount: fromPaise(Math.round(input.amount * 100)),
         tdsApplicable: tds > 0,
         tdsRate: tds > 0 ? tdsRate!.toFixed(2) : null,
         tdsAmount: tds > 0 ? fromPaise(Math.round(tds * 100)) : null,
-      });
+      }).returning({ id: receiptsTable.id });
+
+      // the bank's part: each account, how much came in, how and its reference, and the account as it is now; each row
+      // a millisecond apart, so they read back in the order saved (the first account, then the others)
+      const savedAt = Date.now();
+      if (bank && input.bankDetailsId) {
+        await tx.insert(receiptBankDetailsTable).values({
+          createdAt: new Date(savedAt),
+          receiptId: row!.id,
+          bankDetailsId: input.bankDetailsId,
+          amount: fromPaise(into.bankPart),
+          mode: BANK_MODE_DB[input.bankMode!],
+          referenceNumber: input.referenceNumber,
+          bankNameSnapshot: bank.bankName.slice(0, 100),
+          bankAccountLast4Snapshot: bank.accountNumber.slice(-4),
+          bankIfscSnapshot: bank.ifsc?.slice(0, 11) ?? null,
+        });
+      }
+      for (const [i, part] of input.moreBankParts.entries()) {
+        const acc = moreBanks.find((m) => m.id === part.bankDetailsId);
+        if (!acc) throw new TRPCError({ code: "BAD_REQUEST", message: "Pick the bank account." });
+        await tx.insert(receiptBankDetailsTable).values({
+          createdAt: new Date(savedAt + i + 1),
+          receiptId: row!.id,
+          bankDetailsId: part.bankDetailsId,
+          amount: fromPaise(into.more[i]!.part),
+          mode: BANK_MODE_DB[part.mode],
+          referenceNumber: part.referenceNumber,
+          bankNameSnapshot: acc.bankName.slice(0, 100),
+          bankAccountLast4Snapshot: acc.accountNumber.slice(-4),
+          bankIfscSnapshot: acc.ifsc?.slice(0, 11) ?? null,
+        });
+      }
+
+      // a UPI ID typed for an account that had none: added to it, unless another account already has it
+      for (const u of input.bankUpiIds) {
+        const [held] = await tx.select({ bankDetailsId: bankUpiIdsTable.bankDetailsId }).from(bankUpiIdsTable).where(eq(bankUpiIdsTable.upiId, u.upiId));
+        if (held && held.bankDetailsId !== u.bankDetailsId) throw new TRPCError({ code: "BAD_REQUEST", message: "That UPI ID is on another account." });
+        if (!held) await tx.insert(bankUpiIdsTable).values({ bankDetailsId: u.bankDetailsId, upiId: u.upiId, provider: appOfUpi(u.upiId)! });
+      }
 
       // what it does to the dues: a customer's settled oldest first (with the TDS), the loan given back brought down, a
       // loan taken made a due with its terms
@@ -133,7 +182,7 @@ export default class ReceiptService {
     return { ...receipt, balances };
   }
 
-  // the ledgers a receipt moved (cash or the bank, TDS receivable, the source), each with its balance now
+  // the ledgers a receipt moved (cash or the bank, TDS, the source), each with its balance now
   async balances(input: ReceiptIdInputModel): Promise<LedgerSummaryModel[]> {
     const lines = await db
       .select({ ledgerId: ledgerEntriesTable.ledgerId })
@@ -149,17 +198,9 @@ export default class ReceiptService {
   // a receipt's own details
   async get(input: ReceiptIdInputModel): Promise<ReceiptModel> {
     const [row] = await db
-      .select({
-        r: receiptsTable,
-        t: transactionsTable,
-        bankName: bankDetailsTable.bankName,
-        accountNumber: bankDetailsTable.accountNumber,
-        ifsc: bankDetailsTable.ifscCode,
-        party: partiesTable,
-      })
+      .select({ r: receiptsTable, t: transactionsTable, party: partiesTable })
       .from(receiptsTable)
       .innerJoin(transactionsTable, eq(transactionsTable.id, receiptsTable.transactionId))
-      .leftJoin(bankDetailsTable, eq(bankDetailsTable.id, receiptsTable.bankDetailsId))
       .innerJoin(ledgersTable, eq(ledgersTable.id, receiptsTable.receivedFromLedgerId))
       .leftJoin(partiesTable, and(eq(ledgersTable.referenceTable, "parties"), eq(partiesTable.id, ledgersTable.referenceId)))
       .where(eq(receiptsTable.transactionId, input.transactionId));
@@ -167,6 +208,13 @@ export default class ReceiptService {
     const { r, t, party } = row;
     // what it was saved with; receipts saved before snapshots were kept fall back to the party and bank as they are now
     const snapped = r.partyNameSnapshot !== null;
+    // its bank rows in the order they were saved: the first account, then any more; the rest came in cash
+    const [b, ...more] = await db
+      .select()
+      .from(receiptBankDetailsTable)
+      .where(eq(receiptBankDetailsTable.receiptId, r.id))
+      .orderBy(asc(receiptBankDetailsTable.createdAt), asc(receiptBankDetailsTable.id));
+    const bankAmount = [b, ...more].reduce((sum, x) => (x ? sum + toPaise(x.amount) : sum), 0) / 100;
 
     // the party's default address (only for those older receipts), and a loan's interest
     const [[address], [loan], [settled]] = await Promise.all([
@@ -191,11 +239,7 @@ export default class ReceiptService {
       status: t.status,
       receivedFor: KIND_OF[r.receivedFor]!,
       createdByName: t.createdByName,
-      bank: r.bankNameSnapshot
-        ? { name: r.bankNameSnapshot, last4: r.bankAccountLast4Snapshot ?? "", ifsc: r.bankIfscSnapshot }
-        : row.bankName
-          ? { name: row.bankName, last4: row.accountNumber!.slice(-4), ifsc: row.ifsc }
-          : null,
+      bank: b ? { name: b.bankNameSnapshot, last4: b.bankAccountLast4Snapshot, ifsc: b.bankIfscSnapshot } : null,
       receivedFromLedgerId: r.receivedFromLedgerId,
       receivedFromName: r.receivedFromNameSnapshot,
       partyPhone: r.partyPhoneSnapshot,
@@ -234,10 +278,22 @@ export default class ReceiptService {
         : null,
       loan: loan?.interestRate != null && loan.frequency ? { interestRate: Number(loan.interestRate), frequency: loan.frequency } : null,
       company: t.companySnapshot ?? (await this.settings.get("company")),
-      // a receipt comes into cash or one bank account, never both
-      settledIn: r.settledIn === "cash" ? "cash" : "bank",
-      bankDetailsId: r.bankDetailsId,
-      referenceNumber: r.referenceNumber,
+      settledIn: SETTLED_OF[r.settledIn]!,
+      cashAmount: (toPaise(r.amount) - toPaise(bankAmount)) / 100,
+      bankAmount,
+      bankDetailsId: b?.bankDetailsId ?? null,
+      bankMode: b ? MODE_OF[b.mode]! : null,
+      referenceNumber: b?.referenceNumber ?? null,
+      cashReferenceNumber: r.referenceNumber,
+      moreBankParts: more.map((x) => ({
+        bankDetailsId: x.bankDetailsId,
+        name: x.bankNameSnapshot,
+        last4: x.bankAccountLast4Snapshot,
+        ifsc: x.bankIfscSnapshot,
+        amount: Number(x.amount),
+        mode: MODE_OF[x.mode]!,
+        referenceNumber: x.referenceNumber,
+      })),
       amount: Number(r.amount),
       tdsRate: r.tdsRate === null ? null : Number(r.tdsRate),
       tdsAmount: r.tdsAmount === null ? null : Number(r.tdsAmount),

@@ -45,6 +45,7 @@ import { opensVoucher, voucherKey } from "@repo/services/transaction/share-link"
 
 import { documentService, dueService, paymentService, receiptService, transactionService } from "../../services";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
+import { checkDate, limitSaves, onceFor } from "../../guards";
 
 // History: every past transaction of every type, one in full, and cancelling one; the admin only
 const historyRouter = router({
@@ -88,7 +89,17 @@ const receiptRouter = router({
     .mutation(({ ctx, input }) => {
       // only the admin adds a new ledger while recording one
       if ((input.newLedger || input.newParty) && ctx.session.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only the admin adds ledgers." });
-      return receiptService.create(input, ctx.session.user).then((r) => (ctx.session.user.role === "admin" ? r : { ...r, balances: null }));
+      // and only the admin adds a UPI ID to our bank account (its QR is what customers pay into)
+      if (input.bankUpiIds.length > 0 && ctx.session.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only the admin adds UPI IDs." });
+      // dated today or before (staff a few days back at most), within the user's saves a minute, and once per form
+      checkDate(input.dateTime, ctx.session.user.role);
+      const save = () => {
+        limitSaves(ctx.session.user.id);
+        return receiptService.create(input, ctx.session.user);
+      };
+      return (input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save()).then((r) =>
+        ctx.session.user.role === "admin" ? r : { ...r, balances: null },
+      );
     }),
 
   // the ledgers it moved with their balances now, for the page after a save; the admin's only (staff never see
@@ -133,7 +144,13 @@ const paymentRouter = router({
     .mutation(({ ctx, input }) => {
       // only the admin adds a new ledger or party while recording one
       if ((input.newLedger || input.newParty || input.newPayee) && ctx.session.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only the admin adds ledgers." });
-      return paymentService.create(input, ctx.session.user).then((p) => {
+      // dated today or before (staff a few days back at most), within the user's saves a minute, and once per form
+      checkDate(input.dateTime, ctx.session.user.role);
+      const save = () => {
+        limitSaves(ctx.session.user.id);
+        return paymentService.create(input, ctx.session.user);
+      };
+      return (input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save()).then((p) => {
         if (p.rcm) storeDocumentsSoon();
         return ctx.session.user.role === "admin" ? p : { ...p, balances: null };
       });

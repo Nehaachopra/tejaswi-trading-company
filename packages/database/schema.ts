@@ -46,6 +46,7 @@ export * from "./models/transaction/purchase/purchase-product";
 export * from "./models/transaction/purchase-return/purchase-return";
 export * from "./models/transaction/purchase-return/purchase-return-product";
 export * from "./models/transaction/receipt";
+export * from "./models/transaction/receipt-bank-detail";
 export * from "./models/transaction/salary/salary";
 export * from "./models/transaction/salary/salary-advance-deduction";
 export * from "./models/transaction/salary/salary-posting";

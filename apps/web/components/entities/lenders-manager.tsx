@@ -18,7 +18,7 @@ import { trpc } from "~/trpc/client";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { chip } from "../product/row-styles";
-import { type BankLender, BankNamePick, lenderLabel } from "../transaction/lender-fields";
+import { type BankLender, BankNamePick, lenderLabel } from "../transaction/loans/lender-fields";
 
 type Lender = RouterOutputs["accounts"]["lender"]["list"][number];
 

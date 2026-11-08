@@ -9,8 +9,23 @@ import { rupees, titleCase } from "~/lib/format";
 
 // a UPI payment link: who's paid (the UPI ID and the name it shows), how much, and a note. Any UPI app that scans it
 // opens with the amount filled in. https://www.npci.org.in/ (UPI linking specification)
-export function upiLink({ upiId, payee, amount, note }: { upiId: string; payee: string; amount: number; note?: string }) {
-  const params = new URLSearchParams({ pa: upiId, pn: payee.slice(0, 50), am: amount.toFixed(2), cu: "INR" });
+export function upiLink({
+  upiId,
+  payee,
+  amount,
+  note,
+}: {
+  upiId: string;
+  payee: string;
+  amount: number;
+  note?: string;
+}) {
+  const params = new URLSearchParams({
+    pa: upiId,
+    pn: payee.slice(0, 50),
+    am: amount.toFixed(2),
+    cu: "INR",
+  });
   if (note) params.set("tn", note.slice(0, 50));
   // UPI apps read spaces as %20, not +, and want the UPI ID's @ as it is
   return `upi://pay?${params.toString().replace(/\+/g, "%20").replace(/%40/g, "@")}`;
@@ -18,7 +33,17 @@ export function upiLink({ upiId, payee, amount, note }: { upiId: string; payee: 
 
 // a bank account's UPI QR for the amount, shown in the card as soon as there is one: the code on white (so any phone camera reads
 // it), the amount large under it, and which UPI ID it pays (a choice when the account has more than one)
-export function UpiQr({ upiIds, payee, amount, note }: { upiIds: string[]; payee: string; amount: number; note?: string }) {
+export function UpiQr({
+  upiIds,
+  payee,
+  amount,
+  note,
+}: {
+  upiIds: string[];
+  payee: string;
+  amount: number;
+  note?: string;
+}) {
   const t = useTranslations("transactions.receipt.form");
   const [upiId, setUpiId] = useState(upiIds[0]!);
   const picked = upiIds.includes(upiId) ? upiId : upiIds[0]!;
@@ -29,7 +54,13 @@ export function UpiQr({ upiIds, payee, amount, note }: { upiIds: string[]; payee
       <span className="text-xs font-semibold">{t("scanToPay")}</span>
       {/* the code: dark on white with a quiet margin, the size a phone reads from arm's length */}
       <div className="rounded-xl bg-white p-3">
-        <QRCode value={upiLink({ upiId: picked, payee: name, amount, note })} size={208} fgColor="#2b160e" bgColor="#ffffff" level="M" />
+        <QRCode
+          value={upiLink({ upiId: picked, payee: name, amount, note })}
+          size={208}
+          fgColor="#2b160e"
+          bgColor="#ffffff"
+          level="M"
+        />
       </div>
       <p className="tabular font-heading text-3xl font-bold leading-none">{rupees(amount)}</p>
       <p className="text-center text-xs">

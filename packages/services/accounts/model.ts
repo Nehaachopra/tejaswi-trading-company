@@ -214,7 +214,7 @@ export type SaveOpeningInputModel = z.infer<typeof saveOpeningInputModel>;
 // the ledgers a receipt can come from or a payment go to: every active one but cash and the bank accounts (a payment
 // also leaves out employees and Drawings, which have their own pages)
 // what money comes in for: a customer's payment, a loan received or a loan repaid to us (all three credit the party's
-// own ledger), the owner putting money in (Capital), a refund (an asset or expense of our own: TDS receivable, a
+// own ledger), the owner putting money in (Capital), a refund (an asset or expense of our own: TDS, a
 // deposit), or other income (scrap sale, insurance claim, interest). A receipt keeps which it was
 export const receiptKindModel = z.enum(["customer", "loanTaken", "loanReturned", "interestReceived", "capital", "refund", "otherIncome"]);
 

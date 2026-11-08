@@ -31,7 +31,7 @@ function clean(typed: string, decimals: number, maxDigits: number, negative = fa
 
 // a number field shown with Indian grouping (x,xx,xxx) while typing; the value in and out is the raw number
 // as typed, without commas. The caret stays after the same digit as the commas move. With `max`, a larger
-// number can't be typed: it becomes the max. With `negative`, it may start with a minus (the keyboard then has one)
+// number can't be typed: it becomes the max (and onCapped is told). With `negative`, it may start with a minus (the keyboard then has one)
 export function NumberInput({
   value,
   onChange,
@@ -40,6 +40,7 @@ export function NumberInput({
   max,
   negative = false,
   placeholder,
+  onCapped,
   ...rest
 }: Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "inputMode" | "placeholder"> & {
   value: string;
@@ -49,6 +50,8 @@ export function NumberInput({
   max?: number;
   negative?: boolean;
   placeholder?: string;
+  // told when a larger number was typed and cut to the max, so the form can say why
+  onCapped?: (max: number) => void;
 }) {
   const ref = useRef<HTMLInputElement>(null);
   // how many digits (and the point) sat before the caret on the last keystroke
@@ -83,7 +86,8 @@ export function NumberInput({
         // over the max: the max, with the caret at the end
         if (max != null && Number(raw) > max) {
           caret.current = String(max).length;
-          return onChange(String(max));
+          onChange(String(max));
+          return onCapped?.(max);
         }
         caret.current = clean(before, decimals, maxDigits, negative).length;
         onChange(raw);

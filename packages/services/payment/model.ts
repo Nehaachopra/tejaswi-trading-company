@@ -93,6 +93,8 @@ export type MoreBankPartModel = z.infer<typeof moreBankPartModel>;
 // Lengths follow payments: reference 30, remarks 100
 export const createPaymentInputModel = z
   .object({
+    // made when the form opened: a second save with it (a retry, a double tap) gets the first one's result
+    saveKey: z.string().uuid().nullable().default(null),
     dateTime: z.coerce.date(),
     paidFor: paymentKindModel,
     paidToLedgerId: idModel.nullable().default(null),
@@ -122,6 +124,8 @@ export const createPaymentInputModel = z
     // how the bank's part was paid (none for cash)
     bankMode: bankModeModel.nullable().default(null),
     referenceNumber: referenceModel,
+    // the cash part's bill or voucher number
+    cashReferenceNumber: referenceModel,
     // more bank accounts when no one account holds the bank's part: each with what it pays, how and its reference
     // (the first account, above, pays the rest)
     moreBankParts: z.array(moreBankPartModel).max(4).default([]),
@@ -145,6 +149,7 @@ export const createPaymentInputModel = z
   })
   .refine((p) => (p.settledIn === "cashAndBank") === (p.cashAmount !== null), { message: "Enter the cash part.", path: ["cashAmount"] })
   .refine((p) => p.settledIn !== "cash" || p.moreBankParts.length === 0, { message: "Cash uses no bank account.", path: ["moreBankParts"] })
+  .refine((p) => p.settledIn !== "bank" || p.cashReferenceNumber === null, { message: "A bank payment has no cash part.", path: ["cashReferenceNumber"] })
   .refine((p) => new Set([p.bankDetailsId, ...p.moreBankParts.map((b) => b.bankDetailsId)]).size === p.moreBankParts.length + 1, {
     message: "An account is in twice.",
     path: ["moreBankParts"],
@@ -384,6 +389,8 @@ export const paymentModel = z.object({
   bankDetailsId: idModel.nullable(),
   bankMode: bankModeModel.nullable(),
   referenceNumber: z.string().nullable(),
+  // the cash part's bill or voucher number
+  cashReferenceNumber: z.string().nullable(),
   // the other accounts it was paid from, when no one account held the bank's part (the first is above)
   moreBankParts: z.array(
     z.object({ bankDetailsId: idModel, name: z.string(), last4: z.string(), ifsc: z.string().nullable(), amount: z.number(), mode: bankModeModel, referenceNumber: z.string().nullable() }),

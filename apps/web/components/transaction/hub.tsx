@@ -39,7 +39,8 @@ const KINDS: Kind[] = [
   { key: "others", icon: BookOpen, adminOnly: true },
 ];
 
-const tile = "flex min-h-24 flex-col items-center justify-center gap-2 rounded-control bg-ivory p-3 text-center font-heading text-base font-bold text-chestnut";
+const tile =
+  "flex min-h-24 flex-col items-center justify-center gap-2 rounded-control bg-ivory p-3 text-center font-heading text-base font-bold text-chestnut";
 
 // /transaction: a tile for every kind of transaction the person may make (salary, drawings and others are the
 // admin's); a kind not built yet says so
@@ -58,7 +59,11 @@ export function TransactionHub({ isAdmin }: { isAdmin: boolean }) {
                 {t(`kinds.${k.key}`)}
               </Link>
             ) : (
-              <button type="button" onClick={() => toast.info(t("comingSoon"))} className={`on-ivory w-full opacity-60 ${tile}`}>
+              <button
+                type="button"
+                onClick={() => toast.info(t("comingSoon"))}
+                className={`on-ivory w-full opacity-60 ${tile}`}
+              >
                 <k.icon className="size-7" aria-hidden />
                 {t(`kinds.${k.key}`)}
               </button>

@@ -17,6 +17,7 @@ import { trpc } from "~/trpc/client";
 import { PHONE_PATTERN, type RouterInputs, type RouterOutputs } from "@repo/trpc/client";
 
 import { indiaDay } from "../../account/balance";
+import { earliestDay } from "../shared/form-basics";
 import { useLedgerName } from "../../account/ledger-name";
 import {
   draftInput as partyInput,
@@ -27,9 +28,17 @@ import {
 import { GST_STATES, partyLabel, stateCodeOf } from "../../account/party/party-kinds";
 import { useSameNameConfirm } from "../../account/party/same-name";
 import { SignedAmount } from "../../account/signed-amount";
-import type { LedgerChoice, PaymentKind, Pickable, ReceiptKind } from "../ledger-picker";
-import { type BankLender, emptyLender, lenderInput, lenderLabel, type LenderDraft, LenderFields, lenderOk } from "../lender-fields";
-import { PartyPick, usePhoneMatches, withCode } from "../party-finder";
+import type { LedgerChoice, PaymentKind, Pickable, ReceiptKind } from "../pickers/ledger-picker";
+import {
+  type BankLender,
+  emptyLender,
+  lenderInput,
+  lenderLabel,
+  type LenderDraft,
+  LenderFields,
+  lenderOk,
+} from "../loans/lender-fields";
+import { PartyPick, usePhoneMatches, withCode } from "../pickers/party-finder";
 import {
   AnswerBubble,
   Card,
@@ -82,10 +91,26 @@ type Loan = RouterOutputs["transactions"]["due"]["openLoans"][number];
 // those repay it (never more than is left)
 const FLOWS: Record<
   Flow,
-  { kinds: Kind[]; partyKinds: Kind[]; plainKinds: Kind[]; tdsKind: Kind | null; loanKinds: Kind[]; loanPicks: Partial<Record<Kind, "loanGiven" | "loanTaken">>; repayKinds: Kind[] }
+  {
+    kinds: Kind[];
+    partyKinds: Kind[];
+    plainKinds: Kind[];
+    tdsKind: Kind | null;
+    loanKinds: Kind[];
+    loanPicks: Partial<Record<Kind, "loanGiven" | "loanTaken">>;
+    repayKinds: Kind[];
+  }
 > = {
   receipt: {
-    kinds: ["customer", "loanTaken", "loanReturned", "interestReceived", "capital", "refund", "otherIncome"],
+    kinds: [
+      "customer",
+      "loanTaken",
+      "loanReturned",
+      "interestReceived",
+      "capital",
+      "refund",
+      "otherIncome",
+    ],
     partyKinds: ["customer", "loanTaken"],
     plainKinds: ["refund", "otherIncome"],
     tdsKind: "customer",
@@ -143,7 +168,12 @@ const momentOf = (day: string) =>
 
 // a day as it reads in the chat: "Wednesday, 28 Oct 2026"
 const dayText = (day: string) =>
-  new Date(`${day}T12:00:00+05:30`).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short", year: "numeric" });
+  new Date(`${day}T12:00:00+05:30`).toLocaleDateString("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 
 // a ledger of a customer or supplier (or a party with no sale or purchase yet)
 const isParty = (l: Pickable) =>
@@ -165,22 +195,41 @@ export function PaymentChat({ isAdmin }: { isAdmin: boolean }) {
 
 // /dues/old: a due from before the app (the admin's), of the kind its tab was on; it goes back where it came from (a
 // receipt or payment picking a loan, or that tab)
-export function OldDueChat({ kind, back }: { kind: DueKind | null; back: "receipt" | "payment" | null }) {
+export function OldDueChat({
+  kind,
+  back,
+}: {
+  kind: DueKind | null;
+  back: "receipt" | "payment" | null;
+}) {
   return <MoneyChat flow="oldDue" isAdmin initialKind={kind} back={back} />;
 }
 
-function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: Flow; isAdmin: boolean; initialKind?: Kind | null; back?: "receipt" | "payment" | null }) {
+function MoneyChat({
+  flow,
+  isAdmin,
+  initialKind = null,
+  back = null,
+}: {
+  flow: Flow;
+  isAdmin: boolean;
+  initialKind?: Kind | null;
+  back?: "receipt" | "payment" | null;
+}) {
   const base = useTranslations("transactions.chat");
   // a payment's or an old due's own words where it has them (To, Paid from, Save payment ...), the shared ones otherwise
   const ownPayment = useTranslations("transactions.payment.chat");
   const ownDue = useTranslations("dues.chat");
   const own = flow === "payment" ? ownPayment : flow === "oldDue" ? ownDue : null;
   const t = ((key: string, values?: Record<string, string>) =>
-    own?.has(key as never) ? own(key as never, values as never) : base(key as never, values as never)) as typeof base;
+    own?.has(key as never)
+      ? own(key as never, values as never)
+      : base(key as never, values as never)) as typeof base;
   const tkReceipt = useTranslations("transactions.receipt.kinds");
   const tkPayment = useTranslations("transactions.payment.kinds");
   const tkDue = useTranslations("dues.kinds");
-  const tk = (k: Kind) => (flow === "payment" ? tkPayment : flow === "oldDue" ? tkDue : tkReceipt)(k as never);
+  const tk = (k: Kind) =>
+    (flow === "payment" ? tkPayment : flow === "oldDue" ? tkDue : tkReceipt)(k as never);
   const tf = useTranslations("transactions.loan.frequencies");
   const tl = useTranslations("transactions.loan");
   const utils = trpc.useUtils();
@@ -189,12 +238,25 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
   const nameOf = useLedgerName();
   const banks = trpc.accounts.bank.pickable.useQuery();
   // a payment never takes more than where it's paid from holds: what each holds today (null for staff)
-  const sources = trpc.transactions.payment.sources.useQuery(undefined, { enabled: flow === "payment" });
+  const sources = trpc.transactions.payment.sources.useQuery(undefined, {
+    enabled: flow === "payment",
+  });
   const createReceipt = trpc.transactions.receipt.create.useMutation();
   const createPayment = trpc.transactions.payment.create.useMutation();
   const addOldDue = trpc.transactions.due.addOld.useMutation();
   const create = flow === "payment" ? createPayment : flow === "oldDue" ? addOldDue : createReceipt;
-  const { kinds: KINDS, partyKinds: PARTY_KINDS, plainKinds: PLAIN_KINDS, tdsKind, loanKinds, loanPicks, repayKinds } = FLOWS[flow];
+  const {
+    kinds: KINDS,
+    partyKinds: PARTY_KINDS,
+    plainKinds: PLAIN_KINDS,
+    tdsKind,
+    loanKinds,
+    loanPicks,
+    repayKinds,
+  } = FLOWS[flow];
+
+  // made when the chat opens: a second save with it (a retry after the connection dropped) gets the first one's result
+  const [saveKey] = useState(() => crypto.randomUUID());
 
   // the answers
   const [amount, setAmount] = useState("");
@@ -245,7 +307,10 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
   const makesLoan = kind !== null && loanKinds.includes(kind);
   const loanOf = kind !== null ? loanPicks[kind] : undefined;
   const repays = kind !== null && repayKinds.includes(kind);
-  const loans = trpc.transactions.due.openLoans.useQuery({ kind: loanOf ?? "loanTaken" }, { enabled: !!loanOf });
+  const loans = trpc.transactions.due.openLoans.useQuery(
+    { kind: loanOf ?? "loanTaken" },
+    { enabled: !!loanOf },
+  );
 
   // who it came from: the box searches (phone, name or short name) once typing pauses; the ones used last first
   const [asked, setAsked] = useState("");
@@ -257,14 +322,14 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
     {
       // an old due is on any party: the customer's search covers every party
       purpose: flow === "payment" ? "payment" : "receipt",
-      receiptKind: flow === "receipt" ? (kind as ReceiptKind | null) : flow === "oldDue" ? "customer" : null,
+      receiptKind:
+        flow === "receipt" ? (kind as ReceiptKind | null) : flow === "oldDue" ? "customer" : null,
       paymentKind: flow === "payment" ? (kind as PaymentKind | null) : null,
       search: asked,
     },
     { enabled: kind !== null && !done.has("from"), placeholderData: (previous) => previous },
   );
-  const tdsAmount =
-    tdsParty && tds && tdsValue > 0 && tdsValue < 100 ? tdsOn(value, tdsValue) : 0;
+  const tdsAmount = tdsParty && tds && tdsValue > 0 && tdsValue < 100 ? tdsOn(value, tdsValue) : 0;
 
   // the questions that apply now, in order; the open one is the one being changed, or else the first unanswered
   // a payment starts with where it's paid from (and which bank), then the amount, which can't be more than that holds;
@@ -274,33 +339,43 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
   // who it's with: an open loan picked (its party comes with it), or someone searched or added
   // a loan we took says who gave it first; a bank or NBFC is then a lender, never a party
   const lenderFirst: Q[] = kind === "loanTaken" ? ["loanLender"] : [];
-  const bankLoan: BankLender | null = kind === "loanTaken" && (lender === "bank" || lender === "nbfc") ? lender : null;
+  const bankLoan: BankLender | null =
+    kind === "loanTaken" && (lender === "bank" || lender === "nbfc") ? lender : null;
   const who: Q[] = bankLoan
     ? ["lenderPick"]
     : loanOf
-    ? ["loan"]
-    : [
-        "from",
-        ...(from?.kind === "new" ? (["ledgerName"] as Q[]) : []),
-        ...(from?.kind === "party"
-          ? ([
-              "phone",
-              ...(showMatch ? ["phoneMatch"] : []),
-              "name",
-              // a PIN that's found fills the town, district and state; they're still asked, filled in, to change if needed
-              "pin",
-              "city",
-              "district",
-              "state",
-              "line1",
-            ] as Q[])
-          : []),
-      ];
+      ? ["loan"]
+      : [
+          "from",
+          ...(from?.kind === "new" ? (["ledgerName"] as Q[]) : []),
+          ...(from?.kind === "party"
+            ? ([
+                "phone",
+                ...(showMatch ? ["phoneMatch"] : []),
+                "name",
+                // a PIN that's found fills the town, district and state; they're still asked, filled in, to change if needed
+                "pin",
+                "city",
+                "district",
+                "state",
+                "line1",
+              ] as Q[])
+            : []),
+        ];
   // a loan's terms: who gave it (a loan we took), its interest, how often it's paid, and when it's due back
   const terms: Q[] = makesLoan ? ["loanRate", "loanFrequency", "dueOn"] : [];
   // an old due: what it is, who, how much, the day it was taken or billed, when it's due, a loan's terms
   const sequence: Q[] = oldDue
-    ? ["kind", ...lenderFirst, ...who, "amount", "date", ...(makesLoan ? terms : (["dueOn"] as Q[])), "remarks", "summary"]
+    ? [
+        "kind",
+        ...lenderFirst,
+        ...who,
+        "amount",
+        "date",
+        ...(makesLoan ? terms : (["dueOn"] as Q[])),
+        "remarks",
+        "summary",
+      ]
     : [
         ...(paysOut ? (["into", ...(into === "bank" ? ["bank"] : [])] as Q[]) : []),
         "amount",
@@ -425,7 +500,10 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
             .catch(() => ({ fits: true }));
           if (!fits) {
             const where = t(into === "cash" ? "fromCash" : "fromBank");
-            const held = into === "cash" ? sources.data?.cash : sources.data?.banks.find((b) => b.id === bankId)?.available;
+            const held =
+              into === "cash"
+                ? sources.data?.cash
+                : sources.data?.banks.find((b) => b.id === bankId)?.available;
             return setProblem(
               held === null || held === undefined
                 ? t("problems.overBalance", { where })
@@ -433,7 +511,8 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
             );
           }
         }
-        if (repays && loan && n > loan.left) return setProblem(t("problems.loanLeft", { left: rupees(loan.left) }));
+        if (repays && loan && n > loan.left)
+          return setProblem(t("problems.loanLeft", { left: rupees(loan.left) }));
         setAmount(String(n));
         return answered("amount", ["tdsRate"]);
       }
@@ -469,7 +548,9 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
       case "pin": {
         if (!/^\d{6}$/.test(text)) return bad("pin");
         const after: Q[] = ["city", "district", "state"];
-        const saved = await utils.accounts.party.pinPlace.fetch({ postalCode: text }).catch(() => null);
+        const saved = await utils.accounts.party.pinPlace
+          .fetch({ postalCode: text })
+          .catch(() => null);
         // a PIN already saved on an address: its town, district and state are taken as they are (tap one to
         // change it), and the address line comes next
         if (saved) {
@@ -535,7 +616,14 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
   }
 
   // the bank or NBFC named, for its answer and the summary
-  const lenderText = [bankLender.picked ? lenderLabel(bankLender.picked) : [bankLender.name.trim(), bankLender.branch.trim()].filter(Boolean).join(" · "), bankLender.account && `••${bankLender.account.slice(-4)}`].filter(Boolean).join(" · ");
+  const lenderText = [
+    bankLender.picked
+      ? lenderLabel(bankLender.picked)
+      : [bankLender.name.trim(), bankLender.branch.trim()].filter(Boolean).join(" · "),
+    bankLender.account && `••${bankLender.account.slice(-4)}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   // the save, from the summary
   async function save() {
@@ -544,10 +632,18 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
     if (from?.kind === "party" && !(await sameName.confirm(party))) return;
     // what both saves share; each names who it was with in its own words
     const shared = {
+      saveKey,
       dateTime: momentOf(day),
       newLedger: from?.kind === "new" ? { name: from.name } : null,
       newParty: from?.kind === "party" ? partyInput(party) : null,
-      loan: makesLoan ? { interestRate: Number(loanRate), frequency: frequency!, lenderType: kind === "loanTaken" ? lender : null, dueOn } : null,
+      loan: makesLoan
+        ? {
+            interestRate: Number(loanRate),
+            frequency: frequency!,
+            lenderType: kind === "loanTaken" ? lender : null,
+            dueOn,
+          }
+        : null,
       dueId: loan?.id ?? null,
       amount: value,
       settledIn: into,
@@ -586,7 +682,12 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
         utils.transactions.payment.balances.setData({ transactionId: r.transactionId }, r.balances);
         router.replace(`/transaction/payment/${r.transactionId}`);
       } else {
-        const r = await createReceipt.mutateAsync({ ...shared, lender: bankLoan ? lenderInput(bankLender, bankLoan) : null, receivedFor: kind as ReceiptKind, receivedFromLedgerId: ledgerId });
+        const r = await createReceipt.mutateAsync({
+          ...shared,
+          lender: bankLoan ? lenderInput(bankLender, bankLoan) : null,
+          receivedFor: kind as ReceiptKind,
+          receivedFromLedgerId: ledgerId,
+        });
         void utils.accounts.invalidate();
         utils.transactions.receipt.get.setData({ transactionId: r.transactionId }, r);
         utils.transactions.receipt.balances.setData({ transactionId: r.transactionId }, r.balances);
@@ -594,11 +695,12 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
       }
     } catch (err) {
       const code = (err as { data?: { code?: string } })?.data?.code;
-      if (code === "CONFLICT" && (err as { message?: string }).message?.startsWith("Phone")) return setSaveError(t("saveErrors.phone"));
+      if (code === "CONFLICT" && (err as { message?: string }).message?.startsWith("Phone"))
+        return setSaveError(t("saveErrors.phone"));
       if (code === "PRECONDITION_FAILED" && paysOut) return setSaveError(t("saveErrors.balance"));
       setSaveError(
         t(
-          `saveErrors.${!code ? "network" : code === "CONFLICT" ? "taken" : code === "BAD_REQUEST" ? "check" : "failed"}`,
+          `saveErrors.${!code ? "network" : code === "CONFLICT" ? "taken" : code === "TOO_MANY_REQUESTS" ? "busy" : code === "BAD_REQUEST" ? "check" : "failed"}`,
         ),
       );
     }
@@ -650,7 +752,9 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
       case "dueOn":
         return dueOn ? dayText(dueOn) : t("noDate");
       case "loan":
-        return loan ? `${titleCase(loan.partyName)} · ${t("left", { left: rupees(loan.left) })}` : "";
+        return loan
+          ? `${titleCase(loan.partyName)} · ${t("left", { left: rupees(loan.left) })}`
+          : "";
       case "into":
         return into === "cash" ? t("cash") : t("bank");
       case "bank":
@@ -727,7 +831,9 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
   // every bank account together, once each one's balance is known
   function banksTotal() {
     const all = sources.data?.banks ?? [];
-    return all.length > 0 && all.every((b) => b.available !== null) ? all.reduce((sum, b) => sum + (b.available ?? 0), 0) : null;
+    return all.length > 0 && all.every((b) => b.available !== null)
+      ? all.reduce((sum, b) => sum + (b.available ?? 0), 0)
+      : null;
   }
 
   // the chips and cards under the open question
@@ -751,7 +857,17 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
                     "kind",
                     kind === k
                       ? []
-                      : ["from", ...PARTY_QS, "tds", "tdsRate", "loanLender", "loanRate", "loanFrequency", "dueOn", "loan"],
+                      : [
+                          "from",
+                          ...PARTY_QS,
+                          "tds",
+                          "tdsRate",
+                          "loanLender",
+                          "loanRate",
+                          "loanFrequency",
+                          "dueOn",
+                          "loan",
+                        ],
                   );
                 }}
               >
@@ -766,7 +882,12 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
       case "lenderPick":
         return (
           <div className="on-ivory flex flex-col gap-3 rounded-2xl bg-ivory p-4 text-chestnut">
-            <LenderFields type={bankLoan!} draft={bankLender} onChange={(patch) => setBankLender((d) => ({ ...d, ...patch }))} tried={false} />
+            <LenderFields
+              type={bankLoan!}
+              draft={bankLender}
+              onChange={(patch) => setBankLender((d) => ({ ...d, ...patch }))}
+              tried={false}
+            />
             {lenderOk(bankLender) && (
               <Chips>
                 <Chip onClick={() => answered("lenderPick")}>{t("lenderNext")}</Chip>
@@ -872,7 +993,8 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
               <Card
                 key={l.id}
                 onClick={() => {
-                  if (repays && value > l.left) return setProblem(t("problems.loanLeft", { left: rupees(l.left) }));
+                  if (repays && value > l.left)
+                    return setProblem(t("problems.loanLeft", { left: rupees(l.left) }));
                   setLoan(l);
                   answered("loan");
                 }}
@@ -889,7 +1011,14 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
                       .join(" · ")}
                   </span>
                 </span>
-                <span className={cn("shrink-0 text-right font-heading font-bold", l.overdue && "text-danger")}>{rupees(l.left)}</span>
+                <span
+                  className={cn(
+                    "shrink-0 text-right font-heading font-bold",
+                    l.overdue && "text-danger",
+                  )}
+                >
+                  {rupees(l.left)}
+                </span>
               </Card>
             ))}
             {isAdmin && loanOf && (
@@ -925,11 +1054,17 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
               disabled={empty(sources.data?.cash)}
               onClick={() => {
                 setInto("cash");
-                answered("into", ["bank", "reference", ...(paysOut && into !== "cash" ? (["amount"] as Q[]) : [])]);
+                answered("into", [
+                  "bank",
+                  "reference",
+                  ...(paysOut && into !== "cash" ? (["amount"] as Q[]) : []),
+                ]);
               }}
             >
               {t("cash")}
-              {paysOut && sources.data?.cash != null && <span className="ml-1.5 opacity-75">{rupees(sources.data.cash)}</span>}
+              {paysOut && sources.data?.cash != null && (
+                <span className="ml-1.5 opacity-75">{rupees(sources.data.cash)}</span>
+              )}
             </Chip>
             <Chip
               on={done.has("into") && into === "bank"}
@@ -941,7 +1076,9 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
             >
               {t("bank")}
               {/* all the bank accounts together; each one's own shows on the next question */}
-              {paysOut && banksTotal() !== null && <span className="ml-1.5 opacity-75">{rupees(banksTotal()!)}</span>}
+              {paysOut && banksTotal() !== null && (
+                <span className="ml-1.5 opacity-75">{rupees(banksTotal()!)}</span>
+              )}
             </Chip>
           </Chips>
         );
@@ -961,7 +1098,9 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
                 }}
               >
                 {titleCase(b.bankName)} ••{b.last4}
-                {paysOut && held(b.id) != null && <span className="ml-1.5 opacity-75">{rupees(held(b.id)!)}</span>}
+                {paysOut && held(b.id) != null && (
+                  <span className="ml-1.5 opacity-75">{rupees(held(b.id)!)}</span>
+                )}
               </Chip>
             ))}
           </Chips>
@@ -1010,18 +1149,34 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
     const partyKind = kind !== null && PARTY_KINDS.includes(kind);
     const canAdd = isAdmin && kind !== null && (partyKind || PLAIN_KINDS.includes(kind));
     return (
-      <div role="listbox" aria-label={t("q.from")} className="on-ivory absolute inset-x-0 bottom-full z-30 mb-2 flex max-h-[min(24rem,55dvh)] flex-col overflow-hidden rounded-2xl bg-ivory text-chestnut shadow-xl">
+      <div
+        role="listbox"
+        aria-label={t("q.from")}
+        className="on-ivory absolute inset-x-0 bottom-full z-30 mb-2 flex max-h-[min(24rem,55dvh)] flex-col overflow-hidden rounded-2xl bg-ivory text-chestnut shadow-xl"
+      >
         {/* the matches: best at the bottom, nearest the bar */}
         <ul className="scrollbar-none flex min-h-0 flex-1 flex-col-reverse gap-1 overflow-y-auto p-1.5">
           {list.map((l) => (
             <li key={l.id}>
-              <button type="button" role="option" aria-selected={false} onClick={() => pickFrom(l)} className="flex w-full items-center gap-2 rounded-control px-3 py-2.5 text-left hover:bg-chestnut/[0.06]">
+              <button
+                type="button"
+                role="option"
+                aria-selected={false}
+                onClick={() => pickFrom(l)}
+                className="flex w-full items-center gap-2 rounded-control px-3 py-2.5 text-left hover:bg-chestnut/[0.06]"
+              >
                 {l.party ? (
                   <PartyPick ledger={l} party={l.party} />
                 ) : (
                   <>
                     <span className="min-w-0 flex-1 truncate font-medium">{nameOf(l)}</span>
-                    {l.balance && <SignedAmount balance={l.balance.today} head={l.head} className="shrink-0 text-sm" />}
+                    {l.balance && (
+                      <SignedAmount
+                        balance={l.balance.today}
+                        head={l.head}
+                        className="shrink-0 text-sm"
+                      />
+                    )}
                   </>
                 )}
               </button>
@@ -1041,7 +1196,11 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
         </ul>
         {/* someone new */}
         {canAdd && (
-          <button type="button" onClick={() => newFrom(partyKind)} className={`m-2 shrink-0 ${ADD_ON_IVORY}`}>
+          <button
+            type="button"
+            onClick={() => newFrom(partyKind)}
+            className={`m-2 shrink-0 ${ADD_ON_IVORY}`}
+          >
             <Plus className="size-4" aria-hidden /> {t(partyKind ? "newParty" : "newLedger")}
           </button>
         )}
@@ -1059,11 +1218,24 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
   function stateDropdown() {
     const list = statesLike(typed);
     return (
-      <div role="listbox" aria-label={t("q.state")} className="on-ivory absolute inset-x-0 bottom-full z-30 mb-2 flex max-h-[min(24rem,55dvh)] flex-col overflow-hidden rounded-2xl bg-ivory text-chestnut shadow-xl">
+      <div
+        role="listbox"
+        aria-label={t("q.state")}
+        className="on-ivory absolute inset-x-0 bottom-full z-30 mb-2 flex max-h-[min(24rem,55dvh)] flex-col overflow-hidden rounded-2xl bg-ivory text-chestnut shadow-xl"
+      >
         <ul className="scrollbar-none flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-1.5">
           {list.map(([code, name]) => (
             <li key={code}>
-              <button type="button" role="option" aria-selected={address.stateCode === code} onClick={() => pickState(code)} className={cn("flex w-full items-center gap-2 rounded-control px-3 py-2.5 text-left hover:bg-chestnut/[0.06]", address.stateCode === code && "font-semibold")}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={address.stateCode === code}
+                onClick={() => pickState(code)}
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-control px-3 py-2.5 text-left hover:bg-chestnut/[0.06]",
+                  address.stateCode === code && "font-semibold",
+                )}
+              >
                 <span className="min-w-0 flex-1 truncate">{name}</span>
                 <span className="shrink-0 text-xs text-chestnut/60">{code}</span>
               </button>
@@ -1122,7 +1294,12 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
         </span>,
       ],
       [t("sum.for"), kind ? tk(kind) : ""],
-      ...(bankLoan ? [] : ([loan ? [t("sum.loan"), answerText("loan")] : [t("sum.from"), fromName]] as [string, React.ReactNode][])),
+      ...(bankLoan
+        ? []
+        : ([loan ? [t("sum.loan"), answerText("loan")] : [t("sum.from"), fromName]] as [
+            string,
+            React.ReactNode,
+          ][])),
       ...(tdsAmount > 0
         ? ([[t("sum.tds"), `${tdsRate}% · ${rupees(tdsAmount)}`]] as [string, string][])
         : []),
@@ -1136,11 +1313,20 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
       ...(oldDue
         ? []
         : ([
-            [t("sum.into"), into === "cash" ? t("cash") : bank ? `${titleCase(bank.bankName)} ••${bank.last4}` : ""],
+            [
+              t("sum.into"),
+              into === "cash"
+                ? t("cash")
+                : bank
+                  ? `${titleCase(bank.bankName)} ••${bank.last4}`
+                  : "",
+            ],
             ...(reference ? [[t("sum.reference"), reference]] : []),
           ] as [string, string][])),
       [t("sum.date"), answerText("date")],
-      ...(makesLoan || oldDue ? ([[t("sum.dueOn"), answerText("dueOn")]] as [string, React.ReactNode][]) : []),
+      ...(makesLoan || oldDue
+        ? ([[t("sum.dueOn"), answerText("dueOn")]] as [string, React.ReactNode][])
+        : []),
       ...(remarks ? ([[t("sum.remarks"), remarks]] as [string, string][]) : []),
     ];
     return (
@@ -1241,6 +1427,9 @@ function MoneyChat({ flow, isAdmin, initialKind = null, back = null }: { flow: F
                   ref={dateBox}
                   autoFocus
                   type="date"
+                  // the transaction's day: today or before, staff a week back at most
+                  min={active === "date" ? earliestDay(isAdmin) : undefined}
+                  max={active === "date" ? indiaDay(new Date()) : undefined}
                   value={typed || (active === "date" ? day : (dueOn ?? ""))}
                   onChange={(e) => setTyped(e.target.value)}
                   className={cn(box, "[&::-webkit-calendar-picker-indicator]:hidden")}

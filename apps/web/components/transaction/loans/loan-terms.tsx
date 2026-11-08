@@ -24,9 +24,13 @@ export function loanProblems(d: LoanDraft) {
 }
 
 // the terms as the API takes them
-export const loanInput = (d: LoanDraft) => ({ interestRate: Number(d.rate), frequency: d.frequency! });
+export const loanInput = (d: LoanDraft) => ({
+  interestRate: Number(d.rate),
+  frequency: d.frequency!,
+});
 
-const input = (bad: boolean) => `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
+const input = (bad: boolean) =>
+  `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
 const chip = (on: boolean) =>
   cn(
     "min-h-11 rounded-control border px-3.5 text-sm font-semibold transition-colors",
@@ -34,7 +38,15 @@ const chip = (on: boolean) =>
   );
 
 // a loan's interest: the rate a year (0 = interest-free) and how often it's paid
-export function LoanTerms({ draft, onChange, tried }: { draft: LoanDraft; onChange: (patch: Partial<LoanDraft>) => void; tried: boolean }) {
+export function LoanTerms({
+  draft,
+  onChange,
+  tried,
+}: {
+  draft: LoanDraft;
+  onChange: (patch: Partial<LoanDraft>) => void;
+  tried: boolean;
+}) {
   const t = useTranslations("transactions.loan");
   const bad = loanProblems(draft);
   const show = (k: keyof typeof bad) => tried && bad[k];
@@ -54,7 +66,16 @@ export function LoanTerms({ draft, onChange, tried }: { draft: LoanDraft; onChan
             if (n !== null && n <= 100) onChange({ rate: String(n) });
           }}
         >
-          <NumberInput value={draft.rate} onChange={(rate) => onChange({ rate })} decimals={2} maxDigits={3} max={100} placeholder="0" aria-invalid={show("rate") || undefined} className={cn(input(show("rate")), "pr-11")} />
+          <NumberInput
+            value={draft.rate}
+            onChange={(rate) => onChange({ rate })}
+            decimals={2}
+            maxDigits={3}
+            max={100}
+            placeholder="0"
+            aria-invalid={show("rate") || undefined}
+            className={cn(input(show("rate")), "pr-11")}
+          />
         </MicField>
       </label>
 
@@ -64,9 +85,21 @@ export function LoanTerms({ draft, onChange, tried }: { draft: LoanDraft; onChan
           {t("frequency")}
           <RequiredMark />
         </span>
-        <div className={cn("flex flex-wrap gap-2 rounded-control", show("frequency") && "outline-2 outline-offset-2 outline-danger")}>
+        <div
+          className={cn(
+            "flex flex-wrap gap-2 rounded-control",
+            show("frequency") && "outline-2 outline-offset-2 outline-danger",
+          )}
+        >
           {FREQUENCIES.map((f) => (
-            <button key={f} type="button" role="radio" aria-checked={draft.frequency === f} onClick={() => onChange({ frequency: f })} className={chip(draft.frequency === f)}>
+            <button
+              key={f}
+              type="button"
+              role="radio"
+              aria-checked={draft.frequency === f}
+              onClick={() => onChange({ frequency: f })}
+              className={chip(draft.frequency === f)}
+            >
               {t(`frequencies.${f}`)}
             </button>
           ))}

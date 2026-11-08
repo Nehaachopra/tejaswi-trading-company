@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { PaymentForm } from "~/components/transaction/payment-form";
+import { PaymentForm } from "~/components/transaction/payment/form";
 import { getSession } from "~/trpc/session";
 
 export const metadata: Metadata = { title: "Payment · Tejaswi trading company" };

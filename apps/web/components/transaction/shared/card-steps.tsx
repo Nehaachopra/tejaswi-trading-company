@@ -27,7 +27,17 @@ export function useCardHistory<T extends string>(first: T, onBack: (card: T) => 
 }
 
 // how far along the form is: a thin bar that fills as cards are done, read out as "2 of 5"
-export function StepProgress({ done, all, label, className }: { done: number; all: number; label: string; className?: string }) {
+export function StepProgress({
+  done,
+  all,
+  label,
+  className,
+}: {
+  done: number;
+  all: number;
+  label: string;
+  className?: string;
+}) {
   return (
     <div
       role="progressbar"
@@ -37,7 +47,10 @@ export function StepProgress({ done, all, label, className }: { done: number; al
       aria-valuetext={label}
       className={cn("h-1.5 w-full overflow-hidden rounded-full bg-chestnut/15", className)}
     >
-      <div className="h-full rounded-full bg-chestnut transition-[width] duration-300 motion-reduce:transition-none" style={{ width: `${all === 0 ? 0 : (done / all) * 100}%` }} />
+      <div
+        className="h-full rounded-full bg-chestnut transition-[width] duration-300 motion-reduce:transition-none"
+        style={{ width: `${all === 0 ? 0 : (done / all) * 100}%` }}
+      />
     </div>
   );
 }

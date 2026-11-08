@@ -10,7 +10,7 @@ import { toast } from "~/components/ui/toast";
 import { titleCase } from "~/lib/format";
 import { trpc } from "~/trpc/client";
 
-import { type TdsType, TdsTypePicker } from "../transaction/tds-type-picker";
+import { type TdsType, TdsTypePicker } from "../transaction/pickers/tds-type-picker";
 import { type Head, usualSide } from "./balance";
 
 // what the sheet is for: a new ledger under a head, or a new name for one the admin added
