@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, db, desc, eq, gte, ilike, inArray, lt, lte, or, sql } from "@repo/database";
-import { gstReturnFilingsTable, ledgerEntriesTable, ledgersTable, transactionsTable } from "@repo/database/schema";
+import { gstReturnFilingsTable, ledgerEntriesTable, ledgersTable, receiptsTable, transactionsTable } from "@repo/database/schema";
 
 import LedgerEngine from "../accounts/engine";
 import type { ActorModel, PostingLine } from "../accounts/model";
@@ -127,6 +127,11 @@ export default class TransactionService {
     if (t.type === "opening_balance") return "openingBalance";
     const lockedBy = LOCKED_BY[t.type];
     if (lockedBy && (await this.filed(q, lockedBy, t.dateTime))) return "gstFiled";
+    // a scrap sale is a receipt that carries GST: GSTR-1 locks its month too
+    if (t.type === "receipt") {
+      const [r] = await q.select({ gstRate: receiptsTable.gstRate }).from(receiptsTable).where(eq(receiptsTable.transactionId, t.id));
+      if (r?.gstRate != null && (await this.filed(q, "gstr1", t.dateTime))) return "gstFiled";
+    }
     // reverse-charge GST it booked (rent from a landlord with no GSTIN) that's since been paid: taking it back would
     // leave more paid than owed, so the Tax paid payment is cancelled first
     if (t.type === "payment") {

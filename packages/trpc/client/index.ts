@@ -18,5 +18,8 @@ export { lengthFits, lengthsFor } from "@repo/services/bank/account-lengths";
 // what a phone and a GSTIN can be, shared with the forms and the receipt chat
 export { GSTIN_PATTERN, PHONE_PATTERN } from "@repo/services/party/model";
 
+// what we sell as scrap (its HSN and GST rate) and the GST in an amount that includes it, shared with the receipt form
+export { gstOutOf, SCRAP_GST } from "@repo/services/receipt/model";
+
 // the UPI handles each app gives out, shared with the bank form
 export { appOfUpi, UPI_HANDLES, upiFormatOk, upiProblem } from "@repo/services/bank/upi-handles";

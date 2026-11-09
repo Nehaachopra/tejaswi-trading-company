@@ -219,8 +219,8 @@ function KindChips() {
           role="radio"
           aria-checked={kind === k}
           onClick={() => {
-            // the same one again: on to the next card with everything kept
-            if (k === kind) return show("from");
+            // the same one again: on to the next card with everything kept (capital has no ledger to pick)
+            if (k === kind) return show(k === "capital" ? "amount" : "from");
             setKind(k);
             setFrom(null);
             setNewParty(emptyParty());
@@ -233,7 +233,7 @@ function KindChips() {
             setAmount("");
             filledFor.current = null;
             autoFilled.current = false;
-            show("from");
+            show(k === "capital" ? "amount" : "from");
           }}
           className={chip(kind === k)}
         >

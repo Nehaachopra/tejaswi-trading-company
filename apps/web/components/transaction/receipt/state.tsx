@@ -9,7 +9,7 @@ import { bankNameIn } from "~/lib/bank-names";
 import { rupees, titleCase } from "~/lib/format";
 import { useLeaveGuard } from "~/lib/use-leave-guard";
 import { useLoansGiven, useReceipt } from "~/providers/receipt";
-import { appOfUpi, type BankMode, upiFormatOk } from "@repo/trpc/client";
+import { appOfUpi, type BankMode, gstOutOf, SCRAP_GST, upiFormatOk } from "@repo/trpc/client";
 
 import { indiaDay } from "../../account/balance";
 import { useLedgerName } from "../../account/ledger-name";
@@ -84,6 +84,9 @@ export function useReceiptEntryState({
   // the answers
   const [kind, setKind] = useState<ReceiptKind | null>(null);
   const [from, setFrom] = useState<LedgerChoice>(null);
+  // a scrap sale: the party who bought it, picked under Scrap sale, or a new one's details
+  const [buyer, setBuyer] = useState<LedgerChoice>(null);
+  const [buyerDraft, setBuyerDraft] = useState<PartyDraft>(() => emptyParty());
   const [newParty, setNewParty] = useState<PartyDraft>(() => emptyParty());
   const [lender, setLender] = useState<Lender | null>(null);
   const [bankLender, setBankLender] = useState<LenderDraft>(emptyLender);
@@ -142,6 +145,16 @@ export function useReceiptEntryState({
   const [editingFrom, setEditingFrom] = useState(false);
   const fromLedgerId = from?.kind === "ledger" ? from.ledger.id : null;
   useEffect(() => setEditingFrom(false), [kind, fromLedgerId, loan?.id]);
+  // a scrap sale: Scrap sale picked as the ledger; another ledger asks for no buyer
+  const scrap = from?.kind === "ledger" && from.ledger.key === "scrapSale";
+  useEffect(() => {
+    setBuyer(null);
+    setBuyerDraft(emptyParty());
+  }, [fromLedgerId]);
+  // a new buyer's phone someone already has: they're used instead, or the phone is changed
+  const buyerPhoneMatches = usePhoneMatches(buyerDraft.phone, "customer");
+  const buyerMatched =
+    buyer?.kind === "party" && buyerPhoneMatches.length > 0 ? buyerPhoneMatches[0]! : null;
   const [loanSearch, setLoanSearch] = useState("");
   // an old loan given being added in the card, and the one just added, picked once the list has it
   const [addingOldLoan, setAddingOldLoan] = useState(false);
@@ -191,6 +204,9 @@ export function useReceiptEntryState({
   }, [kind, from, loan?.id]);
   // what it settles: what came in and the TDS taken from it
   const total = Math.round((value + tdsAmount) * 100) / 100;
+  // a scrap sale's GST, taken out of what came in at the law's rate (the split into CGST + SGST or IGST is the server's,
+  // by the buyer's state): the price before GST and the GST
+  const scrapGst = scrap && value > 0 ? gstOutOf(Math.round(value * 100), SCRAP_GST.rate, true) : null;
 
   // interest on a loan we gave: what's left at its rate for the months, or a figure typed in (then the months show --)
   const interestCalc = kind === "interestReceived" && !!loan?.interestRate;
@@ -351,7 +367,11 @@ export function useReceiptEntryState({
       ? false
       : bankLoan
         ? lenderOk(bankLender)
-        : from !== null && (from.kind !== "party" || (!matched && partyOk(newParty, true)));
+        : from !== null &&
+          (from.kind !== "party" || (!matched && partyOk(newParty, true))) &&
+          (!scrap ||
+            buyer?.kind === "ledger" ||
+            (buyer?.kind === "party" && !buyerMatched && partyOk(buyerDraft, true)));
   // by UPI into an account with no UPI ID: its UPI ID is a must (typed on its card, for the QR)
   const upisOk =
     into === "cash" ||
@@ -377,9 +397,10 @@ export function useReceiptEntryState({
     details: day !== "" && refAccounts.every(refOk),
   };
   // the cards that apply now; one shows at a time, and Next moves on once it's filled in
+  // capital has one ledger, Capital, so it asks for none
   const steps: Step[] = [
     "kind",
-    "from",
+    ...(kind === "capital" ? [] : (["from"] as Step[])),
     ...(kind === "loanTaken" ? (["terms"] as Step[]) : []),
     "amount",
     "details",
@@ -429,11 +450,17 @@ export function useReceiptEntryState({
               ? "missing.into"
               : "missing.amountDetails",
         )
-      : t(`missing.${s}`);
+      : s === "from" && scrap && buyer === null
+        ? t("missing.buyer")
+        : t(`missing.${s}`);
 
   // someone new being filled in: Change, beside the card's name, goes back to searching
   const changeOf = (s: Step) =>
-    s === "from" && from?.kind === "party" ? () => setFrom(null) : null;
+    s === "from" && from?.kind === "party"
+      ? () => setFrom(null)
+      : s === "from" && scrap && buyer?.kind === "party"
+        ? () => setBuyer(null)
+        : null;
 
   // what's answered so far, a line each, for the summary
   const fromName = loanOf
@@ -459,7 +486,27 @@ export function useReceiptEntryState({
   };
   const summary: SummaryItem<Step>[] = [
     { key: "kind", step: "kind", heading: stepName("kind"), value: kind && tk(kind) },
+    // capital: the Capital ledger it comes into, without a card of its own
+    {
+      key: "capital",
+      step: "kind",
+      heading: t("steps.ledger"),
+      value: kind === "capital" ? nameOf({ key: "capital", name: "capital" }) : null,
+    },
     { key: "from", step: "from", heading: stepName("from"), value: fromName },
+    // a scrap sale's buyer, under its own heading
+    {
+      key: "buyer",
+      step: "from",
+      heading: t("buyer"),
+      value: !scrap
+        ? null
+        : buyer?.kind === "ledger" && buyer.ledger.party
+          ? titleCase(buyer.ledger.party.name)
+          : buyer?.kind === "party"
+            ? titleCase(buyerDraft.name) || tc("newParty")
+            : null,
+    },
     // what's still owed (a customer or the loan given back), under its own heading after Received from
     {
       key: "due",
@@ -588,7 +635,7 @@ export function useReceiptEntryState({
     nextAfterPick.current = false;
     if (complete[current]) show(steps[index + 1]!);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only once a pick has settled
-  }, [from, loan]);
+  }, [from, loan, buyer]);
 
   // what's wrong with an account's typed UPI ID: not name@bank, not a UPI app's handle, or another account's; null when
   // it's fine (or nothing's typed)
@@ -634,6 +681,9 @@ export function useReceiptEntryState({
     setSaving(true);
     // a new party with the same name in the same town: asked first
     if (!loanOf && !bankLoan && from?.kind === "party" && !(await sameName.confirm(newParty)))
+      return setSaving(false);
+    // and a new scrap buyer
+    if (scrap && buyer?.kind === "party" && !(await sameName.confirm(buyerDraft)))
       return setSaving(false);
     setSaveError(null);
     const viaLedger = !loanOf && !bankLoan;
@@ -687,6 +737,8 @@ export function useReceiptEntryState({
                   : [];
               }),
         tdsRate: tdsAmount > 0 ? tdsValue : null,
+        buyerLedgerId: scrap && buyer?.kind === "ledger" ? buyer.ledger.id : null,
+        newBuyer: scrap && buyer?.kind === "party" ? partyInput(buyerDraft) : null,
         remarks,
       });
       // on to the receipt's own page (the save put it in hand); replace, so going back doesn't land on the filled form
@@ -737,6 +789,11 @@ export function useReceiptEntryState({
     setKind,
     from,
     setFrom,
+    buyer,
+    setBuyer,
+    buyerDraft,
+    setBuyerDraft,
+    buyerMatched,
     newParty,
     setNewParty,
     lender,
@@ -820,6 +877,8 @@ export function useReceiptEntryState({
     tdsValue,
     tdsAmount,
     total,
+    scrap,
+    scrapGst,
     interestCalc,
     interestWorked,
     interestDue,

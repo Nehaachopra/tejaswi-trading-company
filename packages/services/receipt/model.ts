@@ -79,9 +79,21 @@ export const createReceiptInputModel = z
       .max(5)
       .default([]),
     tdsRate: rateModel.nullable().default(null),
+    // a scrap sale: the ledger of the party who bought it (added in Entities), printed on its invoice; GST is taken out
+    // of the amount
+    buyerLedgerId: idModel.nullable().default(null),
+    // or a buyer not in the app yet, made as a customer in the same save
+    newBuyer: createPartyInputModel.nullable().default(null),
     remarks: remarksModel,
   })
-  .refine((r) => [r.receivedFromLedgerId, r.newLedger, r.newParty, r.lender].filter((v) => v !== null).length === (LOAN_RECEIPT_KINDS.includes(r.receivedFor) ? 0 : 1), {
+  .refine((r) => (r.buyerLedgerId === null && r.newBuyer === null) || r.receivedFor === "otherIncome", { message: "Only a scrap sale has a buyer.", path: ["buyerLedgerId"] })
+  .refine((r) => r.buyerLedgerId === null || r.newBuyer === null, { message: "Pick the buyer, or add a new one.", path: ["newBuyer"] })
+  .refine((r) => r.newBuyer === null || r.newBuyer.addresses.length > 0, { message: "A new buyer needs an address.", path: ["newBuyer"] })
+  // capital always comes into the one Capital ledger, so it may name none
+  .refine((r) => {
+    const named = [r.receivedFromLedgerId, r.newLedger, r.newParty, r.lender].filter((v) => v !== null).length;
+    return r.receivedFor === "capital" ? named === (r.receivedFromLedgerId === null ? 0 : 1) : named === (LOAN_RECEIPT_KINDS.includes(r.receivedFor) ? 0 : 1);
+  }, {
     message: "Pick who it came from, or add a new one.",
     path: ["receivedFromLedgerId"],
   })
@@ -133,6 +145,19 @@ export const createReceiptInputModel = z
   );
 
 export type CreateReceiptInputModel = z.infer<typeof createReceiptInputModel>;
+
+// what we sell as scrap, the dust from cleaning rice: HSN 2303 at 5% GST, as our CA confirmed (8 Nov 2026). The law's,
+// never typed or set; each scrap sale keeps the ones it was saved with
+export const SCRAP_GST = { hsn: "2303", rate: 5 } as const;
+
+// the GST in an amount received that includes it, in paise: the price before GST, and CGST + SGST (halves, any odd
+// paisa to SGST) within our state or IGST outside it
+export function gstOutOf(amountPaise: number, rate: number, sameState: boolean) {
+  const taxable = Math.round((amountPaise * 100) / (100 + rate));
+  const gst = amountPaise - taxable;
+  const cgst = sameState ? Math.floor(gst / 2) : 0;
+  return { taxable, cgst, sgst: sameState ? gst - cgst : 0, igst: sameState ? 0 : gst };
+}
 
 // the TDS a party deducted, worked out on what it owed: received is what's left after the TDS, so
 // owed = received ÷ (1 − rate), and the TDS is the difference
@@ -206,6 +231,11 @@ export const receiptModel = z.object({
   tdsAmount: z.number().nullable(),
   // a customer paying more than they owed: what settled their dues (with any TDS) and the advance left with us
   split: z.object({ due: z.number(), advance: z.number() }).nullable(),
+  // a scrap sale's GST, taken out of the amount: HSN, rate, the price before GST, and CGST + SGST or IGST (the buyer is
+  // in party)
+  gst: z
+    .object({ hsn: z.string(), rate: z.number(), taxable: z.number(), cgst: z.number(), sgst: z.number(), igst: z.number() })
+    .nullable(),
 });
 
 export type ReceiptModel = z.infer<typeof receiptModel>;

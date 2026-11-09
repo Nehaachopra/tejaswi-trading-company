@@ -265,6 +265,7 @@ export function FromPicker() {
     setEditingFrom,
     matched,
     movesOn,
+    scrap,
   } = useReceiptEntry();
   const ownLedger = LEDGER_KINDS.includes(kind!);
   return (
@@ -310,6 +311,9 @@ export function FromPicker() {
         />
       )}
 
+      {/* a scrap sale: who bought it, once Scrap sale is picked */}
+      {scrap && <BuyerPicker />}
+
       {from?.kind === "party" && (
         <NewPartyDetails
           draft={newParty}
@@ -319,6 +323,39 @@ export function FromPicker() {
         />
       )}
     </>
+  );
+}
+
+// a scrap sale's buyer, whose address goes on the invoice: a customer found, or (the admin) a new one added right
+// here, made a customer with the receipt. Picking one moves on by itself
+function BuyerPicker() {
+  const { isAdmin, t, tc, buyer, setBuyer, buyerDraft, setBuyerDraft, buyerMatched, movesOn } =
+    useReceiptEntry();
+  return (
+    <div className="flex flex-col gap-2.5">
+      <h3 className="text-xs font-semibold">{t("buyer")}</h3>
+      <LedgerSearch
+        purpose="receipt"
+        receiptKind="customer"
+        value={buyer}
+        onChange={(c) => {
+          setBuyer(c);
+          if (c?.kind === "party") setBuyerDraft(emptyParty());
+          if (c?.kind === "ledger") movesOn();
+        }}
+        canAdd={isAdmin}
+        addParty
+        placeholder={tc("hints.from")}
+      />
+      {buyer?.kind === "party" && (
+        <NewPartyDetails
+          draft={buyerDraft}
+          setDraft={setBuyerDraft}
+          match={buyerMatched}
+          pickMatch={(m) => setBuyer({ kind: "ledger", ledger: m })}
+        />
+      )}
+    </div>
   );
 }
 

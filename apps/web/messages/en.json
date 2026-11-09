@@ -1166,7 +1166,8 @@
           "details": "Fill in what's marked in red.",
           "amountEmpty": "Enter the amount.",
           "into": "Pick where it came into.",
-          "amountDetails": "Fill in what's marked in red."
+          "amountDetails": "Fill in what's marked in red.",
+          "buyer": "Pick who bought the scrap."
         },
         "tdsDeducted": "They deducted TDS",
         "pickPlace": "Cash or a bank account",
@@ -1197,7 +1198,10 @@
         "accountAmount": "Amount into this account",
         "barIn": "In {amount}",
         "barDone": "All placed",
-        "saving": "Saving…"
+        "saving": "Saving…",
+        "buyer": "Bought by",
+        "scrapPrice": "Price before GST",
+        "scrapGst": "GST {rate}%"
       }
     },
     "voucher": {
@@ -1226,7 +1230,8 @@
         "capital": "Capital introduced",
         "refund": "Refund received",
         "interestReceived": "Interest received",
-        "advance": "Advance received"
+        "advance": "Advance received",
+        "scrap": "Dust from cleaning rice (scrap)"
       },
       "particularsHead": "Particulars",
       "number": "Voucher No",
@@ -1251,7 +1256,9 @@
         "imps": "IMPS",
         "neftRtgs": "NEFT / RTGS",
         "cheque": "Cheque"
-      }
+      },
+      "taxInvoiceTitle": "Tax Invoice",
+      "gstRow": "{tax} @ {rate}%"
     },
     "loan": {
       "rate": "Interest % a year",

@@ -12,7 +12,8 @@ import SettingService from "../setting";
 import { appOfUpi } from "../bank/upi-handles";
 import { BANK_MODE_DB, type BankMode, SETTLED_IN_DB, type SettledInModel } from "../payment/model";
 import { counterLedger, moneyPartsIn } from "../transaction/settle";
-import { type CreateReceiptInputModel, createReceiptInputModel, NEW_LEDGER_FOR, RECEIVED_FOR_DB, type ReceiptIdInputModel, type ReceiptModel, type SavedReceiptModel, tdsOn } from "./model";
+import type { Tx } from "../stock/engine";
+import { type CreateReceiptInputModel, createReceiptInputModel, gstOutOf, NEW_LEDGER_FOR, SCRAP_GST, RECEIVED_FOR_DB, type ReceiptIdInputModel, type ReceiptModel, type SavedReceiptModel, tdsOn } from "./model";
 
 // the kind back from how the database keeps it
 // the TDS a party takes from what it pays us, by law: a buyer 0.1% under section 194Q (we have a PAN), a borrower 10% on
@@ -23,8 +24,8 @@ const KIND_OF = Object.fromEntries(Object.entries(RECEIVED_FOR_DB).map(([k, v]) 
 const MODE_OF = Object.fromEntries(Object.entries(BANK_MODE_DB).map(([k, v]) => [v, k])) as Record<string, BankMode>;
 const SETTLED_OF = Object.fromEntries(Object.entries(SETTLED_IN_DB).map(([k, v]) => [v, k])) as Record<string, SettledInModel>;
 
-// money coming in: from a party, a loan, interest or other income, into cash, bank accounts or both, on any date (no GST
-// lock). A customer's balance goes down and its dues are settled oldest first; when it deducted TDS, by what was
+// money coming in: from a party, a loan, interest or other income, into cash, bank accounts or both, on any date (only a
+// scrap sale, which carries GST, has its month locked by GSTR-1). A customer's balance goes down and its dues are settled oldest first; when it deducted TDS, by what was
 // received plus the TDS, and the TDS goes to TDS. A loan given back brings the loan picked down; its
 // interest is a receipt of its own, to Interest received. A loan taken becomes a due. A new ledger it names is made in
 // the same save
@@ -49,6 +50,8 @@ export default class ReceiptService {
         lent?.ledgerId ??
         loan?.ledgerId ??
         input.receivedFromLedgerId ??
+        // capital: the one Capital ledger
+        (input.receivedFor === "capital" ? await this.accounts.ledgerId(tx, "capital") : null) ??
         (input.newParty
           ? (await this.parties.createIn(tx, input.newParty, input.receivedFor === "customer" ? "customer" : null)).ledgerId
           : await this.accounts.createLedgerIn(tx, { ...NEW_LEDGER_FOR[input.receivedFor]!, name: input.newLedger!.name }));
@@ -68,6 +71,22 @@ export default class ReceiptService {
       const tdsRate = input.tdsRate !== null ? RECEIPT_TDS_RATE[input.receivedFor]! : null;
       const tds = tdsRate !== null ? tdsOn(input.amount, tdsRate) : 0;
 
+      // a scrap sale: the party who bought it (its default address goes on the invoice), and the GST taken out of what
+      // was received at its fixed rate, CGST + SGST within our state or IGST outside it. Its month locks once
+      // GSTR-1 is filed
+      const scrap = from.id === (await this.accounts.ledgerId(tx, "scrapSale"));
+      if (scrap && !input.buyerLedgerId && !input.newBuyer) throw new TRPCError({ code: "BAD_REQUEST", message: "Pick who bought the scrap." });
+      if (!scrap && (input.buyerLedgerId || input.newBuyer)) throw new TRPCError({ code: "BAD_REQUEST", message: "Only a scrap sale has a buyer." });
+      // a new buyer is made a customer in the same save, so the next scrap sale finds them
+      const buyerLedgerId = scrap ? (input.buyerLedgerId ?? (await this.parties.createIn(tx, input.newBuyer!, "customer")).ledgerId) : null;
+      const buyer = buyerLedgerId ? await this.buyerIn(tx, buyerLedgerId) : null;
+      let gst: ({ hsn: string; rate: number } & ReturnType<typeof gstOutOf>) | null = null;
+      if (buyer) {
+        await this.transactions.assertOpen(tx, "gstr1", input.dateTime);
+        const company = await this.settings.get("company", tx);
+        gst = { ...SCRAP_GST, ...gstOutOf(toPaise(input.amount), SCRAP_GST.rate, buyer.stateCode === company.stateCode) };
+      }
+
       // what it posts: cash or bank (and TDS) up, the source down by both (Interest received up, for interest)
       const fromLedger = Math.round((input.amount + tds) * 100) / 100;
       const lines: PostingLine[] = [];
@@ -75,18 +94,27 @@ export default class ReceiptService {
       if (into.bankLedger && into.bankPart > 0) lines.push({ ledgerId: into.bankLedger, side: "debit", amount: into.bankPart / 100 });
       for (const b of into.more) lines.push({ ledgerId: b.ledger, side: "debit", amount: b.part / 100 });
       if (tds > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "tdsReceivable"), side: "debit", amount: tds });
-      lines.push({ ledgerId: input.receivedFor === "interestReceived" ? await this.accounts.ledgerId(tx, "interestReceived") : from.id, side: "credit", amount: fromLedger });
+      if (gst) {
+        // a scrap sale: Scrap sale up by the price before GST, the GST owed up by the rest
+        lines.push({ ledgerId: from.id, side: "credit", amount: gst.taxable / 100 });
+        if (gst.cgst > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "outputCgst"), side: "credit", amount: gst.cgst / 100 });
+        if (gst.sgst > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "outputSgst"), side: "credit", amount: gst.sgst / 100 });
+        if (gst.igst > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "outputIgst"), side: "credit", amount: gst.igst / 100 });
+      } else {
+        lines.push({ ledgerId: input.receivedFor === "interestReceived" ? await this.accounts.ledgerId(tx, "interestReceived") : from.id, side: "credit", amount: fromLedger });
+      }
 
       const t = await this.transactions.create(tx, { type: "receipt", dateTime: input.dateTime, amount: input.amount, remarks: input.remarks, lines }, actor);
 
-      // the party's default address and the bank account as they are now, kept with the receipt so its voucher reads
-      // the same on any later date
+      // the party's (or the scrap buyer's) default address and the bank account as they are now, kept with the receipt so
+      // its voucher reads the same on any later date
+      const who = party ?? buyer?.party ?? null;
       const [[address], [bank], moreBanks] = await Promise.all([
-        party
+        who
           ? tx
               .select()
               .from(partyAddressesTable)
-              .where(and(eq(partyAddressesTable.partyId, party.id), eq(partyAddressesTable.isActive, true), eq(partyAddressesTable.isDefault, true)))
+              .where(and(eq(partyAddressesTable.partyId, who.id), eq(partyAddressesTable.isActive, true), eq(partyAddressesTable.isDefault, true)))
           : Promise.resolve([]),
         into.bankLedger && input.bankDetailsId
           ? tx
@@ -104,12 +132,12 @@ export default class ReceiptService {
       const [row] = await tx.insert(receiptsTable).values({
         transactionId: t.id,
         receivedFromLedgerId: from.id,
-        receivedFromNameSnapshot: (party ? (party.shortName ?? party.name) : from.name).slice(0, 150),
-        partyCountryCodeSnapshot: party?.phone ? party.countryCode : null,
-        partyPhoneSnapshot: party?.phone ?? null,
-        partyEmailSnapshot: party?.email ?? null,
-        partyNameSnapshot: party ? party.name.slice(0, 150) : null,
-        partyShortNameSnapshot: party?.shortName?.slice(0, 20) ?? null,
+        receivedFromNameSnapshot: (who ? (who.shortName ?? who.name) : from.name).slice(0, 150),
+        partyCountryCodeSnapshot: who?.phone ? who.countryCode : null,
+        partyPhoneSnapshot: who?.phone ?? null,
+        partyEmailSnapshot: who?.email ?? null,
+        partyNameSnapshot: who ? who.name.slice(0, 150) : null,
+        partyShortNameSnapshot: who?.shortName?.slice(0, 20) ?? null,
         partyAddressLine1Snapshot: address ? address.addressLine1.slice(0, 200) : null,
         partyAddressLine2Snapshot: address?.addressLine2?.slice(0, 200) ?? null,
         partyCitySnapshot: address ? address.city.slice(0, 100) : null,
@@ -125,6 +153,12 @@ export default class ReceiptService {
         tdsApplicable: tds > 0,
         tdsRate: tds > 0 ? tdsRate!.toFixed(2) : null,
         tdsAmount: tds > 0 ? fromPaise(Math.round(tds * 100)) : null,
+        hsnSnapshot: gst?.hsn ?? null,
+        gstRate: gst ? gst.rate.toFixed(2) : null,
+        taxableAmount: gst ? fromPaise(gst.taxable) : null,
+        cgstAmount: gst ? fromPaise(gst.cgst) : null,
+        sgstAmount: gst ? fromPaise(gst.sgst) : null,
+        igstAmount: gst ? fromPaise(gst.igst) : null,
       }).returning({ id: receiptsTable.id });
 
       // the bank's part: each account, how much came in, how and its reference, and the account as it is now; each row
@@ -298,7 +332,31 @@ export default class ReceiptService {
       tdsRate: r.tdsRate === null ? null : Number(r.tdsRate),
       tdsAmount: r.tdsAmount === null ? null : Number(r.tdsAmount),
       split: KIND_OF[r.receivedFor] === "customer" && advancePart > 0 ? { due: duePart, advance: advancePart } : null,
+      gst:
+        r.gstRate !== null
+          ? {
+              hsn: r.hsnSnapshot!,
+              rate: Number(r.gstRate),
+              taxable: Number(r.taxableAmount),
+              cgst: Number(r.cgstAmount ?? 0),
+              sgst: Number(r.sgstAmount ?? 0),
+              igst: Number(r.igstAmount ?? 0),
+            }
+          : null,
     };
+  }
+
+  // a scrap sale's buyer, from its ledger: an active party with a default address, whose state says CGST + SGST or IGST
+  private async buyerIn(tx: Tx, ledgerId: string) {
+    const { party } = await counterLedger(tx, this.accounts, ledgerId);
+    if (!party) throw new TRPCError({ code: "BAD_REQUEST", message: "The buyer must be a party." });
+    if (!party.isActive) throw new TRPCError({ code: "PRECONDITION_FAILED", message: `${party.name} is inactive.` });
+    const [address] = await tx
+      .select({ stateCode: partyAddressesTable.stateCode })
+      .from(partyAddressesTable)
+      .where(and(eq(partyAddressesTable.partyId, party.id), eq(partyAddressesTable.isActive, true), eq(partyAddressesTable.isDefault, true)));
+    if (!address) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The buyer needs an address for the invoice." });
+    return { party, stateCode: address.stateCode as string };
   }
 }
 

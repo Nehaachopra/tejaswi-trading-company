@@ -10,6 +10,7 @@ import { RequiredMark } from "~/components/ui/required-mark";
 import { Reveal } from "~/components/ui/reveal";
 import { Switch } from "~/components/ui/switch";
 import { rupees } from "~/lib/format";
+import { SCRAP_GST } from "@repo/trpc/client";
 import { cn } from "~/lib/utils";
 
 import { type AmountRow, AmountTable, BreakdownButton, hasBreakdown } from "../shared/amount-table";
@@ -195,7 +196,17 @@ function useAmountRows(): AmountRow[] {
     total,
     owes,
     advance,
+    scrapGst,
   } = useReceiptEntry();
+  // a scrap sale: the price before GST and the GST taken out of it, then what came in
+  if (scrapGst) {
+    const gst = scrapGst.cgst + scrapGst.sgst + scrapGst.igst;
+    return [
+      { key: "price", label: t("scrapPrice"), amount: scrapGst.taxable / 100 },
+      { key: "gst", label: t("scrapGst", { rate: SCRAP_GST.rate }), amount: gst / 100 },
+      { key: "total", label: tpf("total"), amount: value, tone: "total" as const },
+    ];
+  }
   return [
     { key: "in", label: tc("sum.amount"), amount: value },
     ...(tdsCan

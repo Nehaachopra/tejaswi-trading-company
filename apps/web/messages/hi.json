@@ -1166,7 +1166,8 @@
           "details": "लाल रंग में दिखाया गया भरें।",
           "amountEmpty": "राशि दर्ज करें।",
           "into": "चुनें कि कहाँ जमा हुई।",
-          "amountDetails": "लाल रंग में दिखाया गया भरें।"
+          "amountDetails": "लाल रंग में दिखाया गया भरें।",
+          "buyer": "स्क्रैप किसने खरीदा, चुनें।"
         },
         "tdsDeducted": "उन्होंने TDS काटा",
         "pickPlace": "नकद या बैंक खाता",
@@ -1197,7 +1198,10 @@
         "accountAmount": "इस खाते में राशि",
         "barIn": "जमा {amount}",
         "barDone": "पूरा जमा",
-        "saving": "सेव हो रहा है…"
+        "saving": "सेव हो रहा है…",
+        "buyer": "खरीदार",
+        "scrapPrice": "GST से पहले कीमत",
+        "scrapGst": "GST {rate}%"
       }
     },
     "voucher": {
@@ -1226,7 +1230,8 @@
         "capital": "पूँजी लगाई",
         "refund": "रिफ़ंड प्राप्त",
         "interestReceived": "ब्याज मिला",
-        "advance": "अग्रिम प्राप्त"
+        "advance": "अग्रिम प्राप्त",
+        "scrap": "चावल सफ़ाई की धूल (स्क्रैप)"
       },
       "particularsHead": "विवरण",
       "number": "वाउचर नं.",
@@ -1251,7 +1256,9 @@
         "imps": "IMPS",
         "neftRtgs": "NEFT / RTGS",
         "cheque": "चेक"
-      }
+      },
+      "taxInvoiceTitle": "टैक्स इनवॉइस",
+      "gstRow": "{tax} @ {rate}%"
     },
     "loan": {
       "rate": "ब्याज % सालाना",

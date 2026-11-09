@@ -21,8 +21,10 @@ type Payment = RouterOutputs["transactions"]["payment"]["get"];
 // what a voucher prints, the same for money in and out: what it was for, who it was with, and the rest as saved
 type Voucher = Omit<
   Receipt,
-  "receivedFor" | "receivedFromName" | "receivedFromLedgerId" | "settledIn" | "split"
+  "receivedFor" | "receivedFromName" | "receivedFromLedgerId" | "settledIn" | "split" | "gst"
 > & {
+  // a scrap sale's GST, taken out of what was received
+  gst?: Receipt["gst"];
   // a customer's receipt that left an advance: its due part and the advance
   split?: Receipt["split"];
   flow: "receipt" | "payment";
@@ -178,6 +180,8 @@ function useParticulars() {
         : words("loanPlain");
     if (r.flow === "receipt") {
       if (r.kind === "loanTaken") return [[loan(t), r.amount]];
+      // a scrap sale: the dust at its price before GST (the GST has its own rows under the lines)
+      if (r.kind === "otherIncome" && r.gst) return [[t("scrap"), r.gst.taxable]];
       if (r.kind === "otherIncome") return [[titleCase(r.counterName), r.amount]];
       // more than they owed: the due part (less the TDS, which has its own line) and the advance, a line each
       if (r.split) {
@@ -328,7 +332,18 @@ export function ReceiptVoucher({
   const taxed = isPayment && (tds > 0 || !!r.rcm);
   const worked = taxed || !!r.bill;
   // taxable value only where there's GST
-  const valueWord = r.rcm || r.bill ? ownWords("taxableValue") : t("amount");
+  const valueWord = r.rcm || r.bill || r.gst ? ownWords("taxableValue") : t("amount");
+  // a scrap sale's GST rows: CGST + SGST within our state, IGST outside it
+  const saleGst: [string, number, number][] = r.gst
+    ? r.gst.igst > 0
+      ? [["IGST", r.gst.rate, r.gst.igst]]
+      : [
+          ["CGST", r.gst.rate / 2, r.gst.cgst],
+          ["SGST", r.gst.rate / 2, r.gst.sgst],
+        ]
+    : [];
+  // the code beside each line: a service's SAC (reverse charge) or the scrap's HSN
+  const code = r.rcm ? { head: "SAC", value: r.rcm.sac } : r.gst ? { head: "HSN", value: r.gst.hsn } : null;
   const half = r.rcm ? Math.round((r.rcm.gst / 2) * 100) / 100 : 0;
   // the TDS row's base: what its rate is on, the period's whole once past a limit
   const tdsOn = r.tdsRate ? Math.round((tds / r.tdsRate) * 10000) / 100 : 0;
@@ -422,7 +437,7 @@ export function ReceiptVoucher({
       {/* the voucher itself */}
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
         <p className="pb-2 text-center font-heading text-2xl font-bold">
-          {r.rcm ? ownWords("selfInvoiceTitle") : t("title")}
+          {r.rcm ? ownWords("selfInvoiceTitle") : r.gst ? t("taxInvoiceTitle") : t("title")}
         </p>
 
         <div className="border border-chestnut/40">
@@ -562,9 +577,9 @@ export function ReceiptVoucher({
               <tr className="border-b border-chestnut/40 text-left">
                 <th className={cn(cell, "w-12 border-r font-semibold")}>{t("sl")}</th>
                 <th className={cn(cell, "border-r font-semibold")}>{t("particularsHead")}</th>
-                {r.rcm && <th className={cn(cell, "w-20 border-r font-semibold")}>SAC</th>}
+                {code && <th className={cn(cell, "w-20 border-r font-semibold")}>{code.head}</th>}
                 <th className={cn(cell, "w-40 text-right font-semibold")}>
-                  {worked ? valueWord : t("amount")}
+                  {worked || r.gst ? valueWord : t("amount")}
                 </th>
               </tr>
             </thead>
@@ -573,7 +588,7 @@ export function ReceiptVoucher({
                 <tr key={i} className="align-top">
                   <td className={cn(cell, "border-r")}>{i + 1}</td>
                   <td className={cn(cell, "border-r")}>{words}</td>
-                  {r.rcm && <td className={cn(cell, "tabular border-r")}>{r.rcm.sac}</td>}
+                  {code && <td className={cn(cell, "tabular border-r")}>{code.value}</td>}
                   <td className={cn(cell, "tabular text-right")}>
                     {money(isPayment && worked ? value : amount)}
                   </td>
@@ -590,7 +605,7 @@ export function ReceiptVoucher({
               <tr aria-hidden>
                 <td className="h-16 border-r border-chestnut/40" />
                 <td className="border-r border-chestnut/40" />
-                {r.rcm && <td className="border-r border-chestnut/40" />}
+                {code && <td className="border-r border-chestnut/40" />}
                 <td />
               </tr>
             </tbody>
@@ -623,6 +638,23 @@ export function ReceiptVoucher({
                     {ownWords("lessTds", { rate: r.tdsRate ?? 0 })}
                   </span>
                   <span className={cn(cell, "border-b tabular text-right")}>({money(tds)})</span>
+                </>
+              )}
+              {/* a scrap sale: its value before GST and each GST, then what was received */}
+              {r.gst && (
+                <>
+                  <span className={cn(cell, "border-b border-r text-right")}>{valueWord}</span>
+                  <span className={cn(cell, "border-b tabular text-right")}>
+                    {money(r.gst.taxable)}
+                  </span>
+                  {saleGst.map(([tax, rate, amount]) => (
+                    <Fragment key={tax}>
+                      <span className={cn(cell, "border-b border-r text-right")}>
+                        {t("gstRow", { tax, rate: String(rate) })}
+                      </span>
+                      <span className={cn(cell, "border-b tabular text-right")}>{money(amount)}</span>
+                    </Fragment>
+                  ))}
                 </>
               )}
               <span

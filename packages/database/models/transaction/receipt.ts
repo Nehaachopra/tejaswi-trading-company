@@ -85,6 +85,21 @@ export const receiptsTable = pgTable(
 
     tdsAmount: money("tds_amount"),
 
+    // a scrap sale's GST, taken out of the amount received (null on every other receipt): the HSN and rate as the
+    // settings had them, the price before GST, and CGST + SGST for a buyer in our state or IGST for one outside it.
+    // The buyer is the party in the snapshots above
+    hsnSnapshot: varchar("hsn_snapshot", { length: 8 }),
+
+    gstRate: percent("gst_rate"),
+
+    taxableAmount: money("taxable_amount"),
+
+    cgstAmount: money("cgst_amount"),
+
+    sgstAmount: money("sgst_amount"),
+
+    igstAmount: money("igst_amount"),
+
     // remarks and the company block live on the transaction; the voucher is drawn from all of these whenever someone
     // asks for it, never stored
 
@@ -115,6 +130,25 @@ export const receiptsTable = pgTable(
         AND (${table.tdsAmount} IS NULL OR ${table.tdsAmount} = 0)
       ) OR (
         ${table.tdsApplicable} = true
+      )`,
+    ),
+
+    // GST is all there or all absent, and the price plus the GST is what was received
+    check(
+      "receipts_gst_fields_consistent",
+      sql`(
+        ${table.gstRate} IS NULL
+        AND ${table.hsnSnapshot} IS NULL
+        AND ${table.taxableAmount} IS NULL
+        AND ${table.cgstAmount} IS NULL
+        AND ${table.sgstAmount} IS NULL
+        AND ${table.igstAmount} IS NULL
+      ) OR (
+        ${table.gstRate} IS NOT NULL
+        AND ${table.hsnSnapshot} IS NOT NULL
+        AND ${table.taxableAmount} IS NOT NULL
+        AND ${table.taxableAmount} > 0
+        AND ${table.taxableAmount} + coalesce(${table.cgstAmount}, 0) + coalesce(${table.sgstAmount}, 0) + coalesce(${table.igstAmount}, 0) = ${table.amount}
       )`,
     ),
   ],

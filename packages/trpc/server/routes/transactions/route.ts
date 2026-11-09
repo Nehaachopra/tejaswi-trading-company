@@ -88,7 +88,7 @@ const receiptRouter = router({
     .output(savedReceiptModel)
     .mutation(({ ctx, input }) => {
       // only the admin adds a new ledger while recording one
-      if ((input.newLedger || input.newParty) && ctx.session.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only the admin adds ledgers." });
+      if ((input.newLedger || input.newParty || input.newBuyer) && ctx.session.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only the admin adds ledgers." });
       // and only the admin adds a UPI ID to our bank account (its QR is what customers pay into)
       if (input.bankUpiIds.length > 0 && ctx.session.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only the admin adds UPI IDs." });
       // dated today or before (staff a few days back at most), within the user's saves a minute, and once per form
