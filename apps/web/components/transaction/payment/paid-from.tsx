@@ -9,9 +9,11 @@ import { cn } from "~/lib/utils";
 import { input, money } from "./shared";
 import { usePaymentEntry } from "./state";
 import { OneAccount, AccountRows } from "./bank-cards";
+import { type Place, PlacePicker } from "../shared/place-picker";
 import { FailNote, CapWarning } from "./notes";
 
-// where it's paid from: cash, a bank or both, picked from one list with what each holds (the admin only); then one
+// where it's paid from: cash, a bank or both, picked from one list with what each holds (the admin only), only the
+// pick once there is one (a dropdown back to all three); then one
 // panel with a row for each part in use, its amount on the right. The bank's row goes on with how it was paid (two
 // by two), the party's QR for UPI, then the account it left. Cash + Bank types either part and the other follows;
 // the bank's steps wait for its part. The cash-limit warning closes the panel
@@ -63,12 +65,7 @@ export function PaidFrom() {
   } = usePaymentEntry();
   // all three, always, for every kind of payment: one that can't pay it (nothing held, or not enough for this
   // amount) shows muted
-  const places: {
-    id: "cash" | "bank" | "both";
-    name: string;
-    hint?: string;
-    disabled: boolean;
-  }[] = [
+  const places: Place<"cash" | "bank" | "both">[] = [
     {
       id: "cash",
       name: tc("cash"),
@@ -92,44 +89,25 @@ export function PaidFrom() {
   const usesBank = into === "bank" || into === "both";
   return (
     <>
-      {/* cash, bank or both: a button each with what it holds (the admin only); one that can't pay it is muted.
-          Stacked on a phone (name left, balance right), side by side on wider screens */}
-      <div role="radiogroup" aria-label={t("steps.source")} className="grid gap-2">
-        {places.map((o) => {
-          const on = into === o.id;
-          return (
-            <button
-              key={o.id}
-              type="button"
-              role="radio"
-              aria-checked={on}
-              disabled={o.disabled}
-              onClick={() => {
-                setBankId(null);
-                if (o.id === "cash") {
-                  setInto("cash");
-                  setBankMode(null);
-                } else if (o.id === "both") pickBoth();
-                else {
-                  setInto("bank");
-                  setAccountsOpen((n) => n + 1);
-                }
-              }}
-              className={cn(
-                "flex items-center justify-between gap-3 rounded-control border-2 px-3.5 py-2 text-left shadow-[0_2px_4px_0] shadow-chestnut/20 transition-colors",
-                on
-                  ? "border-chestnut bg-chestnut text-ivory"
-                  : "border-chestnut/50 bg-ivory text-chestnut hover:bg-chestnut/[0.06]",
-                o.disabled && "cursor-not-allowed opacity-45 shadow-none hover:bg-ivory",
-                tried && into === null && !o.disabled && "border-danger",
-              )}
-            >
-              <span className="text-base font-semibold">{o.name}</span>
-              {o.hint && <span className={cn(money, "text-lg")}>{o.hint}</span>}
-            </button>
-          );
-        })}
-      </div>
+      {/* cash, bank or both: a button each with what it holds (the admin only); one that can't pay it is muted. Once
+          one is picked only it shows, as a dropdown that lists all three again */}
+      <PlacePicker
+        label={t("steps.source")}
+        places={places}
+        value={into}
+        invalid={tried && into === null}
+        onPick={(id) => {
+          setBankId(null);
+          if (id === "cash") {
+            setInto("cash");
+            setBankMode(null);
+          } else if (id === "both") pickBoth();
+          else {
+            setInto("bank");
+            setAccountsOpen((n) => n + 1);
+          }
+        }}
+      />
 
       {/* the panel, all in one box: with Cash + Bank a row per part to type; then the bank's steps (straight away when
           it's the bank alone); then the cash-limit warning. Cash alone has only the warning, when there is one */}
