@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, IndianRupee, Pencil } from "lucide-react";
+import { ChevronDown, HandCoins, IndianRupee, Pencil } from "lucide-react";
 import { Note } from "~/components/ui/note";
 import { Reveal } from "~/components/ui/reveal";
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
@@ -11,7 +11,7 @@ import { RequiredMark } from "~/components/ui/required-mark";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { type AmountRow, AmountTable } from "../shared/amount-table";
-import { DueBar } from "../shared/due-bar";
+import { AmountBox } from "../shared/amount-box";
 import { LABOUR_SKIP_MAX, input, saidAmount } from "./shared";
 import { usePaymentEntry } from "./state";
 import { FailNote, CapWarning } from "./notes";
@@ -81,7 +81,6 @@ export function AmountCard() {
     dueShown,
     weOwe,
     heldAdvance,
-    settlesTotal,
     advance,
     cap,
     filled,
@@ -120,7 +119,15 @@ export function AmountCard() {
     <div className="flex flex-col gap-4">
       {rentCalc && <div className="min-w-0 sm:w-[calc(50%-0.75rem)]">{rentBreakdown()}</div>}
       <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-6">
-        <div className="flex min-w-0 flex-col gap-4">
+        {/* the due (or cash in hand) in a row of its own on top; under it the amount on the left and where the money goes
+          on the right, both starting level. One column on a phone */}
+        {/* what's owed on the supplier, loan or tax, in a box like a deposit's cash in hand, as soon as something is owed */}
+        {dueShown !== null && (
+          <div className="min-w-0 sm:col-start-1">
+            <AmountBox icon={HandCoins} label={t("due")} amount={dueShown} />
+          </div>
+        )}
+        <div className={cn("flex min-w-0 flex-col gap-4", dueShown !== null && "sm:col-start-1 sm:row-start-2")}>
           {rentCalc ? (
             rentAmount()
           ) : interestCalc ? (
@@ -164,18 +171,6 @@ export function AmountCard() {
             </div>
           ) : (
             <div className="flex flex-col gap-2.5">
-              {/* what's owed on the supplier, loan or tax, and how much of it this settles (with its TDS): on top of the amount, there
-                  as soon as something is owed, before any amount is typed */}
-              <Reveal follow show={dueShown !== null} gap="0.625rem">
-                <DueBar
-                  due={dueShown ?? 0}
-                  showDue={kind === "supplier"}
-                  green
-                  settles={
-                    kind === "supplier" ? Math.min(settlesTotal, dueShown ?? 0) : settlesTotal
-                  }
-                />
-              </Reveal>
               <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
                 <span>
                   {tc("q.amount")}
@@ -279,7 +274,7 @@ export function AmountCard() {
         </div>
 
         {/* where it's paid from, in this same card */}
-        <div className="flex min-w-0 flex-col gap-2.5">
+        <div className={cn("flex min-w-0 flex-col gap-2.5", dueShown !== null && "sm:col-start-2 sm:row-start-2")}>
           <h3 className="text-xs font-semibold">{t("steps.source")}</h3>
           {<PaidFrom />}
         </div>

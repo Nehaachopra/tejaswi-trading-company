@@ -1,6 +1,6 @@
 "use client";
 
-import { IndianRupee } from "lucide-react";
+import { HandCoins, IndianRupee } from "lucide-react";
 
 import { FieldMessage } from "~/components/ui/field-message";
 import { MicField } from "~/components/ui/mic-button";
@@ -14,7 +14,7 @@ import { SCRAP_GST } from "@repo/trpc/client";
 import { cn } from "~/lib/utils";
 
 import { type AmountRow, AmountTable, BreakdownButton, hasBreakdown } from "../shared/amount-table";
-import { DueBar } from "../shared/due-bar";
+import { AmountBox } from "../shared/amount-box";
 import { ReceivedInto } from "./received-into";
 import { input, saidAmount } from "./shared";
 import { useReceiptEntry } from "./state";
@@ -35,7 +35,6 @@ export function AmountCard() {
     typeAmount,
     loanOver,
     dueShown,
-    total,
     heldAdvance,
     advance,
     tdsCan,
@@ -64,7 +63,15 @@ export function AmountCard() {
   );
   return (
     <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-6">
-      <div className="flex min-w-0 flex-col gap-4">
+      {/* the due (or cash in hand) in a row of its own on top; under it the amount on the left and where the money goes
+          on the right, both starting level. One column on a phone */}
+      {/* what's owed, in a box like a deposit's cash in hand, as soon as something is owed */}
+      {dueShown !== null && (
+        <div className="min-w-0 sm:col-start-1">
+          <AmountBox icon={HandCoins} label={t("due")} amount={dueShown} />
+        </div>
+      )}
+      <div className={cn("flex min-w-0 flex-col gap-4", dueShown !== null && "sm:col-start-1 sm:row-start-2")}>
         {interestCalc ? (
           // interest on a loan we gave: the months, and what they come to (or a figure typed from a statement)
           <div className="grid grid-cols-[6rem_minmax(0,1fr)] items-end gap-x-6">
@@ -109,16 +116,6 @@ export function AmountCard() {
           </div>
         ) : (
           <div className="flex flex-col gap-2.5">
-            {/* what's owed, and how much of it this settles (with any TDS they deducted): on top of the amount, there
-                as soon as something is owed, before any amount is typed */}
-            <Reveal follow show={dueShown !== null} gap="0.625rem">
-              <DueBar
-                due={dueShown ?? 0}
-                showDue={kind === "customer"}
-                green
-                settles={kind === "customer" ? Math.min(total, dueShown ?? 0) : total}
-              />
-            </Reveal>
             <WithBreakdown>
               <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
                 <span>
@@ -172,7 +169,7 @@ export function AmountCard() {
       </div>
 
       {/* where it came into, in this same card */}
-      <div className="flex min-w-0 flex-col gap-2.5">
+      <div className={cn("flex min-w-0 flex-col gap-2.5", dueShown !== null && "sm:col-start-2 sm:row-start-2")}>
         <h3 className="text-xs font-semibold">{t("steps.into")}</h3>
         <ReceivedInto />
       </div>

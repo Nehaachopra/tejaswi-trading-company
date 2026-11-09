@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
+
+import { PlacePicker } from "../shared/place-picker";
 import { ChevronDown, IndianRupee, Plus, Trash2 } from "lucide-react";
 
-import { PickMenu } from "~/components/stock/pick-menu";
 import { FieldMessage } from "~/components/ui/field-message";
 import { NumberInput } from "~/components/ui/number-input";
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
@@ -14,6 +16,7 @@ import { cn } from "~/lib/utils";
 import { type BankMode } from "@repo/trpc/client";
 
 import { ModeChips } from "../shared/bank-mode";
+import { UpiLine } from "../shared/upi-line";
 import { UpiQr } from "../shared/upi-qr";
 import { input, money } from "./shared";
 import { useReceiptEntry } from "./state";
@@ -29,7 +32,6 @@ export function OneAccount() {
     setBankId,
     bankMode,
     setBankMode,
-    accountsOpen,
     setAccountsOpen,
     tried,
     bank,
@@ -43,33 +45,18 @@ export function OneAccount() {
           {tpf("account")}
           <RequiredMark />
         </span>
-        <PickMenu
-          moneyHints
+        <PlacePicker
           label={tpf("account")}
-          current={bank ? bankNameIn(bank.bankName, locale) : tpf("pickAccount")}
-          currentSub={bank ? `••${bank.last4}` : undefined}
-          options={(banks ?? []).map((b) => {
+          places={(banks ?? []).map((b) => {
             const h = bankHeld(b.id);
-            return {
-              id: b.id,
-              name: bankNameIn(b.bankName, locale),
-              sub: `••${b.last4}`,
-              hint: h === null ? undefined : rupees(h),
-            };
+            return { id: b.id, name: bankNameIn(b.bankName, locale), sub: `••${b.last4}`, hint: h === null ? undefined : rupees(h), disabled: false };
           })}
-          picked={bankId ?? ""}
+          value={bankId ?? null}
           onPick={(id) => {
             setAccountsOpen(0);
             setBankId(id);
           }}
-          openSignal={accountsOpen}
           invalid={tried && !bank}
-          matchWidth
-          inFlow
-          className={cn(
-            "min-h-14 text-base font-semibold",
-            bank ? "bg-chestnut text-ivory" : "bg-ivory text-chestnut",
-          )}
         />
       </div>
       <Reveal follow show={!!bank} gap="0px">
@@ -269,36 +256,22 @@ export function AccountRows() {
                     {tpf("account")}
                     <RequiredMark />
                   </span>
-                  <PickMenu
-                    moneyHints
-                    label={tpf("account")}
-                    current={acc ? bankNameIn(acc.bankName, locale) : tpf("pickAccount")}
-                    currentSub={acc ? `••${acc.last4}` : undefined}
-                    options={options.map((b) => {
-                      const h = bankHeld(b.id);
-                      return {
-                        id: b.id,
-                        name: bankNameIn(b.bankName, locale),
-                        sub: `••${b.last4}`,
-                        hint: h === null ? undefined : rupees(h),
-                      };
-                    })}
-                    picked={r.id ?? ""}
-                    onPick={(id) => {
+                  <PlacePicker
+          label={tpf("account")}
+          places={options.map((b) => {
+            const h = bankHeld(b.id);
+            return { id: b.id, name: bankNameIn(b.bankName, locale), sub: `••${b.last4}`, hint: h === null ? undefined : rupees(h), disabled: false };
+          })}
+          value={r.id ?? null}
+          onPick={(id) => {
                       // the account picked: its amount is next, so the cursor goes there
                       setTimeout(() => document.getElementById(`card-amount-${r.key}`)?.focus(), 0);
                       if (r.first) return setBankId(id);
                       // another account: its amount and how it came in start again
                       if (id !== r.id) setMorePart(r.key, { bankId: id, amount: "", mode: null });
                     }}
-                    invalid={tried && !r.id}
-                    matchWidth
-                    inFlow
-                    className={cn(
-                      "min-h-14 text-base font-semibold",
-                      acc ? "bg-chestnut text-ivory" : "bg-ivory text-chestnut",
-                    )}
-                  />
+          invalid={tried && !r.id}
+        />
                 </div>
 
                 {/* what came into it, up to what's still to place */}
@@ -422,6 +395,10 @@ function OurUpiField({ accountId }: { accountId: string }) {
   const bad =
     (tried && value.trim() === "") ||
     ((tried || ourUpisLeft.includes(accountId)) && problem !== null);
+  // typed and fine: shown as text with Edit, the box back once Edit is tapped
+  const [editing, setEditing] = useState(false);
+  if (!editing && value.trim() !== "" && problem === null && ourUpisLeft.includes(accountId))
+    return <UpiLine label={t("ourUpi")} value={value.trim()} onEdit={() => setEditing(true)} />;
   return (
     <label className="flex flex-col gap-2 text-xs font-semibold">
       <span>
@@ -443,7 +420,11 @@ function OurUpiField({ accountId }: { accountId: string }) {
             [accountId]: e.target.value.toLowerCase().replace(/[^a-z0-9.@_-]/g, ""),
           }));
         }}
-        onBlur={() => setOurUpisLeft((l) => (l.includes(accountId) ? l : [...l, accountId]))}
+        autoFocus={editing}
+        onBlur={() => {
+          setEditing(false);
+          setOurUpisLeft((l) => (l.includes(accountId) ? l : [...l, accountId]));
+        }}
         placeholder="name@bank"
         aria-invalid={bad || undefined}
         className={input(bad)}

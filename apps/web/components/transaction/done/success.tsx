@@ -14,37 +14,50 @@ import { trpc } from "~/trpc/client";
 
 import { NEW_TRANSACTION_HREF } from "../../shell/nav-items";
 
-// /transaction/receipt/[id] and /transaction/payment/[id], where a saved receipt or payment lands (and its voucher
-// returns to): that it worked, its number and voucher, what the cash or bank account it used holds now (the admin's
-// only), and the way to a new transaction
+// /transaction/receipt/[id], /transaction/payment/[id] and /transaction/deposit/[id], where a saved receipt, payment or
+// deposit lands (and a voucher returns to): that it worked, its number and voucher (a deposit has none), what the cash
+// or bank account it used holds now (the admin's only), and the way to a new transaction
 export function ReceiptSuccess({
   id,
   flow = "receipt",
 }: {
   id: string;
-  flow?: "receipt" | "payment";
+  flow?: "receipt" | "payment" | "deposit";
 }) {
   // bank names in the language picked
   const bankName = useBankName();
   const base = useTranslations("transactions.receipt.success");
-  // a payment's own words where it has them, the receipt's otherwise
-  const own = useTranslations("transactions.payment.success");
+  // a payment's or deposit's own words where it has them, the receipt's otherwise
+  const ownPayment = useTranslations("transactions.payment.success");
+  const ownDeposit = useTranslations("transactions.deposit.success");
+  const own = flow === "deposit" ? ownDeposit : ownPayment;
   const t = ((key: string, values?: Record<string, string>) =>
-    flow === "payment" && own.has(key as never)
+    flow !== "receipt" && own.has(key as never)
       ? own(key as never, values as never)
       : base(key as never, values as never)) as typeof base;
   const tc = useTranslations("transactions.chat");
   const tf = useTranslations("transactions.receipt.form");
   const isPayment = flow === "payment";
+  const isDeposit = flow === "deposit";
   const receiptGet = trpc.transactions.receipt.get.useQuery(
     { transactionId: id },
-    { enabled: !isPayment },
+    { enabled: flow === "receipt" },
   );
   const paymentGet = trpc.transactions.payment.get.useQuery(
     { transactionId: id },
     { enabled: isPayment },
   );
-  const receipt = isPayment ? paymentGet : receiptGet;
+  const depositGet = trpc.transactions.deposit.get.useQuery({ transactionId: id }, { enabled: isDeposit });
+  const asked = isDeposit ? depositGet : isPayment ? paymentGet : receiptGet;
+  // what this page shows of it, the same for every flow: a deposit took cash and put it into one account
+  const d = depositGet.data;
+  const receipt = {
+    isPending: asked.isPending,
+    isError: asked.isError,
+    data: isDeposit
+      ? d && { assignedId: d.assignedId, bankDetailsId: d.bank.id, settledIn: "cashAndBank" as const, moreBankParts: [] as { bankDetailsId: string }[], split: null }
+      : (isPayment ? paymentGet : receiptGet).data,
+  };
   // what cash and each bank account hold now, asked again so it includes this one (null for staff, who don't see them)
   const sources = trpc.transactions.payment.sources.useQuery(undefined, {
     refetchOnMount: "always",
@@ -100,7 +113,7 @@ export function ReceiptSuccess({
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
         </p>
-      ) : receipt.isError ? (
+      ) : receipt.isError || !receipt.data ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
@@ -127,12 +140,14 @@ export function ReceiptSuccess({
                 <CopyButton value={receipt.data.assignedId} />
               </span>
             </p>
+            {!isDeposit && (
             <Link
               href={`/transaction/${flow}/${id}/voucher`}
               className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-chestnut/50 px-4 text-sm font-semibold sm:w-auto"
             >
               <FileText className="size-4" aria-hidden /> {t("voucher")}
             </Link>
+            )}
           </div>
 
           {/* more than was owed (a customer paying us, a supplier we paid): what settled the due and what's an advance,

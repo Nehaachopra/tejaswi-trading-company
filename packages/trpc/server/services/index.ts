@@ -2,6 +2,7 @@ import { JobsService, QueuedOtpSender } from "@repo/jobs";
 import AccountsService from "@repo/services/accounts";
 import AuthService from "@repo/services/auth";
 import BankService from "@repo/services/bank";
+import ContraService from "@repo/services/contra";
 import DocumentService from "@repo/services/document";
 import DueService from "@repo/services/due";
 import LandlordService from "@repo/services/landlord";
@@ -42,6 +43,8 @@ export const transactionService = new TransactionService();
 export const receiptService = new ReceiptService(accountsService, transactionService, partyService);
 
 export const paymentService = new PaymentService(accountsService, transactionService, partyService);
+
+export const contraService = new ContraService(accountsService, transactionService);
 
 export const documentService = new DocumentService(paymentService);
 

@@ -1,16 +1,19 @@
 "use client";
 
+import { useState } from "react";
+
+import { PlacePicker } from "../shared/place-picker";
 import { ChevronDown, IndianRupee, Plus, Trash2 } from "lucide-react";
 import { Reveal } from "~/components/ui/reveal";
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
 import { FieldMessage } from "~/components/ui/field-message";
-import { PickMenu } from "~/components/stock/pick-menu";
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { bankNameIn } from "~/lib/bank-names";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { type BankMode } from "@repo/trpc/client";
+import { UpiLine } from "../shared/upi-line";
 import { UpiQr } from "../shared/upi-qr";
 import { ModeChips } from "../shared/bank-mode";
 import { input, money } from "./shared";
@@ -27,7 +30,6 @@ export function OneAccount() {
     setBankId,
     bankMode,
     setBankMode,
-    accountsOpen,
     setAccountsOpen,
     tried,
     bank,
@@ -46,21 +48,13 @@ export function OneAccount() {
           {t("account")}
           <RequiredMark />
         </span>
-        <PickMenu
-          moneyHints
+        <PlacePicker
           label={t("account")}
-          current={bank ? bankNameIn(bank.bankName, locale) : t("pickAccount")}
-          currentSub={bank ? `••${bank.last4}` : undefined}
-          options={coveringBanks.map((b) => {
+          places={coveringBanks.map((b) => {
             const h = bankHeld(b.id);
-            return {
-              id: b.id,
-              name: bankNameIn(b.bankName, locale),
-              sub: `••${b.last4}`,
-              hint: h === null ? undefined : rupees(h),
-            };
+            return { id: b.id, name: bankNameIn(b.bankName, locale), sub: `••${b.last4}`, hint: h === null ? undefined : rupees(h), disabled: false };
           })}
-          picked={bankId ?? ""}
+          value={bankId ?? null}
           onPick={(id) => {
             setAccountsOpen(0);
             setBankId(id);
@@ -69,14 +63,7 @@ export function OneAccount() {
             if (h !== null && h < bankShare)
               setTimeout(() => document.getElementById("card-amount-first")?.focus(), 50);
           }}
-          openSignal={accountsOpen}
           invalid={tried && !bank}
-          matchWidth
-          inFlow
-          className={cn(
-            "min-h-14 text-base font-semibold",
-            bank ? "bg-chestnut text-ivory" : "bg-ivory text-chestnut",
-          )}
         />
       </div>
       <Reveal follow show={!!bank} gap="0px">
@@ -295,36 +282,22 @@ export function AccountRows() {
                     {t("account")}
                     <RequiredMark />
                   </span>
-                  <PickMenu
-                    moneyHints
-                    label={t("account")}
-                    current={acc ? bankNameIn(acc.bankName, locale) : t("pickAccount")}
-                    currentSub={acc ? `••${acc.last4}` : undefined}
-                    options={options.map((b) => {
-                      const h = bankHeld(b.id);
-                      return {
-                        id: b.id,
-                        name: bankNameIn(b.bankName, locale),
-                        sub: `••${b.last4}`,
-                        hint: h === null ? undefined : rupees(h),
-                      };
-                    })}
-                    picked={r.id ?? ""}
-                    onPick={(id) => {
+                  <PlacePicker
+          label={t("account")}
+          places={options.map((b) => {
+            const h = bankHeld(b.id);
+            return { id: b.id, name: bankNameIn(b.bankName, locale), sub: `••${b.last4}`, hint: h === null ? undefined : rupees(h), disabled: false };
+          })}
+          value={r.id ?? null}
+          onPick={(id) => {
                       // the account picked: its amount is next, so the cursor goes there
                       setTimeout(() => document.getElementById(`card-amount-${r.key}`)?.focus(), 0);
                       if (r.first) return setBankId(id);
                       // another account: its amount and how it was paid start again
                       if (id !== r.id) setMorePart(r.key, { bankId: id, amount: "", mode: null });
                     }}
-                    invalid={tried && !r.id}
-                    matchWidth
-                    inFlow
-                    className={cn(
-                      "min-h-14 text-base font-semibold",
-                      acc ? "bg-chestnut text-ivory" : "bg-ivory text-chestnut",
-                    )}
-                  />
+          invalid={tried && !r.id}
+        />
                 </div>
 
                 {/* what it pays, up to what it holds and what's still to pay */}
@@ -428,7 +401,8 @@ function PaidByChips({ mode, onPick }: { mode: BankMode | null; onPick: (m: Bank
   );
 }
 
-// paid by UPI to someone with no UPI ID on file: a box to type theirs, for the QR
+// paid by UPI: their UPI ID for the QR. One already there (saved on them, or typed and fine) shows as text with Edit;
+// the box only while there's none, or once Edit is tapped (a new one is saved on them with the payment)
 export function UpiField() {
   const {
     t,
@@ -440,13 +414,20 @@ export function UpiField() {
     upiLeft,
     setUpiLeft,
     asksUpi,
+    savedUpis,
   } = usePaymentEntry();
   const bad = (upiLeft || tried) && typedUpi.trim() !== "" && !typedUpiOk;
+  const [editing, setEditing] = useState(false);
   return (
     <Reveal follow show={asksUpi} gap="0px">
+      {/* text once it's saved on them, or typed and the box left */}
+      {!editing && typedUpiOk && (upiLeft || savedUpis.includes(typedUpi.trim().toLowerCase())) ? (
+        <UpiLine label={t("payeeUpi")} value={typedUpi.trim()} onEdit={() => setEditing(true)} />
+      ) : (
       <label className="flex flex-col gap-2 text-xs font-semibold">
         <span>{t("payeeUpi")}</span>
         <input
+          autoFocus={editing}
           type="text"
           inputMode="email"
           autoCapitalize="none"
@@ -458,7 +439,10 @@ export function UpiField() {
             setUpiLeft(false);
             setTypedUpi(e.target.value.toLowerCase().replace(/[^a-z0-9.@_-]/g, ""));
           }}
-          onBlur={() => setUpiLeft(true)}
+          onBlur={() => {
+            setUpiLeft(true);
+            setEditing(false);
+          }}
           placeholder="name@bank"
           aria-invalid={bad || undefined}
           className={input(bad)}
@@ -471,6 +455,7 @@ export function UpiField() {
           </FieldMessage>
         )}
       </label>
+      )}
     </Reveal>
   );
 }

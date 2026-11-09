@@ -12,8 +12,8 @@ import { OneAccount, AccountRows } from "./bank-cards";
 import { type Place, PlacePicker } from "../shared/place-picker";
 import { FailNote, CapWarning } from "./notes";
 
-// where it's paid from: cash, a bank or both, picked from one list with what each holds (the admin only), only the
-// pick once there is one (a dropdown back to all three); then one
+// where it's paid from: cash, a bank or both, picked from an accordion with the bank accounts' look, each with what
+// it holds (the admin only), collapsed to the pick; then one
 // panel with a row for each part in use, its amount on the right. The bank's row goes on with how it was paid (two
 // by two), the party's QR for UPI, then the account it left. Cash + Bank types either part and the other follows;
 // the bank's steps wait for its part. The cash-limit warning closes the panel
@@ -89,8 +89,8 @@ export function PaidFrom() {
   const usesBank = into === "bank" || into === "both";
   return (
     <>
-      {/* cash, bank or both: a button each with what it holds (the admin only); one that can't pay it is muted. Once
-          one is picked only it shows, as a dropdown that lists all three again */}
+      {/* cash, bank or both as an accordion with the bank accounts' look: all three with what each holds (the admin
+          only) until one is picked, then only the pick; one that can't pay it is muted */}
       <PlacePicker
         label={t("steps.source")}
         places={places}

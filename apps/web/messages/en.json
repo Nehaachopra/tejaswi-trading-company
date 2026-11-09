@@ -1612,7 +1612,8 @@
         "landlordsFailed": "Couldn't load the landlords. Check your connection and try again.",
         "tryAgain": "Try again",
         "refCash": "Reference number",
-        "refCashHint": "Bill or voucher no."
+        "refCashHint": "Bill or voucher no.",
+        "editUpi": "Edit"
       }
     },
     "tdsTypes": {
@@ -1636,6 +1637,34 @@
       "pickBank": "Pick the bank",
       "searchBank": "Search bank",
       "saveFailed": "Couldn't save the lender. Try again."
+    },
+    "deposit": {
+      "title": "Deposit",
+      "loadFailed": "Couldn't load the bank accounts. Check your connection and try again.",
+      "steps": {
+        "amount": "Amount",
+        "details": "Details"
+      },
+      "missing": {
+        "amount": "Enter the amount.",
+        "account": "Pick the bank account it went into."
+      },
+      "into": "Deposited into",
+      "cashHeld": "Cash in hand",
+      "capOnly": "Only {amount} can be deposited.",
+      "reference": "Deposit slip or reference no.",
+      "referenceHint": "e.g. 004512",
+      "saving": "Saving…",
+      "errors": {
+        "cash": "That's more than there is in cash now. Check the amount.",
+        "failed": "Couldn't save the deposit. Try again."
+      },
+      "success": {
+        "title": "Deposit successfully created",
+        "loading": "Loading the deposit…",
+        "loadError": "Couldn't load the deposit. Check your connection and try again."
+      },
+      "save": "Save deposit"
     }
   },
   "dues": {

@@ -41,9 +41,10 @@ import {
   partyDuesModel,
   writeOffInputModel,
 } from "@repo/services/due/model";
+import { createDepositInputModel, depositIdInputModel, depositModel, savedDepositModel } from "@repo/services/contra/model";
 import { opensVoucher, voucherKey } from "@repo/services/transaction/share-link";
 
-import { documentService, dueService, paymentService, receiptService, transactionService } from "../../services";
+import { contraService, documentService, dueService, paymentService, receiptService, transactionService } from "../../services";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 import { checkDate, limitSaves, onceFor } from "../../guards";
 
@@ -267,9 +268,43 @@ const dueRouter = router({
     .mutation(({ ctx, input }) => dueService.addOld(input, ctx.session.user)),
 });
 
+// deposits: cash put into a bank account, recorded by the admin or staff
+const depositRouter = router({
+  create: protectedProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/deposits", tags: ["transactions"] } })
+    .input(createDepositInputModel)
+    .output(savedDepositModel)
+    .mutation(({ ctx, input }) => {
+      // dated today or before (staff a few days back at most), within the user's saves a minute, and once per form
+      checkDate(input.dateTime, ctx.session.user.role);
+      const save = () => {
+        limitSaves(ctx.session.user.id);
+        return contraService.deposit(input, ctx.session.user);
+      };
+      return (input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save()).then((d) =>
+        ctx.session.user.role === "admin" ? d : { ...d, balances: null },
+      );
+    }),
+
+  // cash and the account with their balances now, for the page after a save; the admin's only
+  balances: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/deposits/{transactionId}/balances", tags: ["transactions"] } })
+    .input(depositIdInputModel)
+    .output(z.array(ledgerSummaryModel).nullable())
+    .query(({ ctx, input }) => (ctx.session.user.role === "admin" ? contraService.balances(input) : null)),
+
+  // its details: for staff too (no balances in it)
+  get: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/deposits/{transactionId}", tags: ["transactions"] } })
+    .input(depositIdInputModel)
+    .output(depositModel)
+    .query(({ input }) => contraService.getDeposit(input)),
+});
+
 export const transactionsRouter = router({
   history: historyRouter,
   receipt: receiptRouter,
   payment: paymentRouter,
+  deposit: depositRouter,
   due: dueRouter,
 });

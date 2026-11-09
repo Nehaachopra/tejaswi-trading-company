@@ -87,12 +87,6 @@ export default class TransactionService {
     }
   }
 
-  // refuses a date that isn't today in India (deposits, withdrawals, transfers, drawings and others)
-  assertToday(date: Date) {
-    const day = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(d);
-    if (day(date) !== day(new Date())) throw new TRPCError({ code: "BAD_REQUEST", message: "This can only be dated today." });
-  }
-
   // a new transaction, numbered from its own date's month, and its ledger lines; inside the save of its type's details,
   // so everything is saved together or not at all
   async create(

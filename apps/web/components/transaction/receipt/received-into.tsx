@@ -13,8 +13,8 @@ import { AccountRows, OneAccount } from "./bank-cards";
 import { input, money } from "./shared";
 import { useReceiptEntry } from "./state";
 
-// where it came into: Cash, Bank or Cash + Bank, a button each with what it holds (the admin only), only the pick once
-// there is one (a dropdown back to all three); then one panel with
+// where it came into: Cash, Bank or Cash + Bank as an accordion with the bank accounts' look, each with what it holds
+// (the admin only), collapsed to the pick; then one panel with
 // a row for each part in use, its amount on the right. Cash + Bank types either part and the other follows; the bank's
 // account cards wait for its part. A bank's loan comes into a bank only, so Cash and Cash + Bank are muted for it
 export function ReceivedInto() {
@@ -60,8 +60,7 @@ export function ReceivedInto() {
   const usesBank = into === "bank" || into === "both";
   return (
     <>
-      {/* stacked: name left, what it holds right; one that can't take it is muted. Once one is picked only it shows,
-          as a dropdown that lists all three again */}
+      {/* an accordion with the bank accounts' look: all three until one is picked, then only the pick */}
       <PlacePicker
         label={t("steps.into")}
         places={places}
