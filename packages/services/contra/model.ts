@@ -5,7 +5,7 @@ import { remarksModel } from "../transaction/model";
 
 const idModel = z.string().uuid();
 
-// a deposit slip's or the bank's reference: letters, digits, - and /, in capitals, up to 30 (contras.reference_number)
+// a slip's, cheque's or the bank's reference: letters, digits, - and /, in capitals, up to 30 (contras.reference_number)
 export const contraReferenceModel = z
   .string()
   .trim()
@@ -16,9 +16,15 @@ export const contraReferenceModel = z
   .nullable()
   .default(null);
 
-// a deposit: cash put into one of our active bank accounts, dated today or before (one forgotten can be put in the
-// next day), never more than the cash held; the slip's reference and remarks if any
-export const createDepositInputModel = z.object({
+// the contras built so far: a deposit (cash into a bank account) and a withdrawal (cash out of one); a transfer follows
+export const contraKindModel = z.enum(["deposit", "withdrawal"]);
+
+export type ContraKind = z.infer<typeof contraKindModel>;
+
+// a deposit or a withdrawal: one of our active bank accounts, dated today or before (one forgotten can be put in the
+// next day), never more than what it comes out of holds (the cash for a deposit, the account for a withdrawal); its
+// reference and remarks if any
+export const createContraInputModel = z.object({
   // made when the form opened: a second save with it (a retry, a double tap) gets the first one's result
   saveKey: z.string().uuid().nullable().default(null),
   dateTime: z.coerce.date(),
@@ -28,29 +34,30 @@ export const createDepositInputModel = z.object({
   remarks: remarksModel,
 });
 
-export type CreateDepositInputModel = z.infer<typeof createDepositInputModel>;
+export type CreateContraInputModel = z.infer<typeof createContraInputModel>;
 
-export const depositIdInputModel = z.object({ transactionId: idModel });
+export const contraIdInputModel = z.object({ transactionId: idModel });
 
-export type DepositIdInputModel = z.infer<typeof depositIdInputModel>;
+export type ContraIdInputModel = z.infer<typeof contraIdInputModel>;
 
-// a deposit's own details, for its page after a save and /history/[id] (no balances: staff open it too)
-export const depositModel = z.object({
+// a deposit's or withdrawal's own details, for its page after a save and /history/[id] (no balances: staff open it too)
+export const contraModel = z.object({
   transactionId: idModel,
+  kind: contraKindModel,
   assignedId: z.string(),
   dateTime: z.date(),
   status: z.enum(["active", "cancelled"]),
   amount: z.number(),
-  // the account it went into: its bank, the last 4 digits and IFSC
+  // the account it went into (a deposit) or came out of (a withdrawal): its bank, the last 4 digits and IFSC
   bank: z.object({ id: idModel, name: z.string(), last4: z.string(), ifsc: z.string().nullable() }),
   referenceNumber: z.string().nullable(),
   remarks: z.string().nullable(),
   createdByName: z.string(),
 });
 
-export type DepositModel = z.infer<typeof depositModel>;
+export type ContraModel = z.infer<typeof contraModel>;
 
-// what a saved deposit gives back: the deposit, and cash and the account with their balances now (the admin's only)
-export const savedDepositModel = depositModel.extend({ balances: z.array(ledgerSummaryModel).nullable() });
+// what a saved one gives back: it, and cash and the account with their balances now (the admin's only)
+export const savedContraModel = contraModel.extend({ balances: z.array(ledgerSummaryModel).nullable() });
 
-export type SavedDepositModel = z.infer<typeof savedDepositModel>;
+export type SavedContraModel = z.infer<typeof savedContraModel>;

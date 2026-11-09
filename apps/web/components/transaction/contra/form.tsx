@@ -2,39 +2,40 @@
 
 import { useState } from "react";
 
-import { DepositProvider } from "~/providers/deposit";
+import { type ContraKind, ContraProvider } from "~/providers/contra";
 
 import { EntryNote, EntryPage, NextButton, StepCard, SummaryBar, SummaryCard, SummaryLines } from "../shared/entry-frame";
 import { AmountCard } from "./amount-card";
 import { DetailsCard, SaveBlock } from "./details-card";
-import { type DepositStep, DepositEntryProvider, useDepositEntry, useDepositEntryState } from "./state";
+import { type ContraStep, ContraEntryProvider, useContraEntry, useContraEntryState } from "./state";
 
-// /transaction/deposit: cash put into a bank account, laid out like a receipt: one card at a time with Back and Next,
-// and a summary that goes back to any card. 1 the amount (never more than the cash held) and the account it goes into;
-// 2 the slip's reference and the remarks, the day (today, or before for one forgotten) and Save. A save goes to the
-// deposit's own page. Discarding to open a menu starts the form again
-export function DepositForm({ isAdmin }: { isAdmin: boolean }) {
+// /transaction/deposit and /transaction/withdrawal: cash put into a bank account, or taken out of one, laid out like a
+// receipt: one card at a time with Back and Next, and a summary that goes back to any card. 1 the amount (never more
+// than the cash held for a deposit, or the account for a withdrawal) and the account; 2 the reference and the remarks,
+// the day (today, or before for one forgotten) and Save. A save goes to its own page. Discarding to open a menu starts
+// the form again
+export function ContraForm({ kind, isAdmin }: { kind: ContraKind; isAdmin: boolean }) {
   const [round, setRound] = useState(0);
   return (
-    <DepositProvider>
-      <DepositEntry key={round} isAdmin={isAdmin} onDiscard={() => setRound((r) => r + 1)} />
-    </DepositProvider>
+    <ContraProvider kind={kind}>
+      <ContraEntry key={round} kind={kind} isAdmin={isAdmin} onDiscard={() => setRound((r) => r + 1)} />
+    </ContraProvider>
   );
 }
 
-function DepositEntry({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () => void }) {
-  const state = useDepositEntryState({ isAdmin, onDiscard });
+function ContraEntry({ kind, isAdmin, onDiscard }: { kind: ContraKind; isAdmin: boolean; onDiscard: () => void }) {
+  const state = useContraEntryState({ kind, isAdmin, onDiscard });
   return (
-    <DepositEntryProvider value={state}>
-      <DepositEntryView />
-    </DepositEntryProvider>
+    <ContraEntryProvider value={state}>
+      <ContraEntryView />
+    </ContraEntryProvider>
   );
 }
 
 // the page: what shows while it loads or can't, then the card on its own with the summary
-function DepositEntryView() {
+function ContraEntryView() {
   const { t, tc, tpf, loading, loadFailed, retryLoad, value, tried, complete, steps, current, index, reachable, summaryOpen, setSummaryOpen, stepName, missingOf, summary, leaveDialog, show, next } =
-    useDepositEntry();
+    useContraEntry();
 
   // the bank accounts and balances first, so the account list shows what each holds from the start
   if (loading)
@@ -51,7 +52,7 @@ function DepositEntryView() {
     );
 
   const lines = (
-    <SummaryLines<DepositStep>
+    <SummaryLines<ContraStep>
       items={summary}
       current={current}
       reachable={reachable}

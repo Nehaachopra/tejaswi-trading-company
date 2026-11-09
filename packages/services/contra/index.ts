@@ -7,74 +7,88 @@ import type { ActorModel, LedgerSummaryModel } from "../accounts/model";
 import { fromPaise, toPaise } from "../accounts/money";
 import TransactionService from "../transaction";
 import { settleLedger } from "../transaction/settle";
-import { type CreateDepositInputModel, createDepositInputModel, type DepositIdInputModel, type DepositModel, type SavedDepositModel } from "./model";
+import {
+  type ContraIdInputModel,
+  type ContraKind,
+  type ContraModel,
+  type CreateContraInputModel,
+  createContraInputModel,
+  type SavedContraModel,
+} from "./model";
 
 // what a ledger holds today, debit as plus (cash and bank accounts hold a debit balance)
 const held = (b: { amount: number; side: "debit" | "credit" } | undefined) => (b ? (b.side === "debit" ? 1 : -1) * b.amount : 0);
 
-// money moving between cash and our bank accounts (a contra): a deposit (cash into a bank account) for now; a
-// withdrawal and a transfer follow. Dated as a receipt is (today or before; staff a few days back at most, checked
-// where it's asked for), it posts Bank up and Cash down, and is kept in contras with its reference
+// money moving between cash and our bank accounts (a contra): a deposit (cash into a bank account) and a withdrawal
+// (cash out of one); a transfer follows. Dated as a receipt is (today or before; staff a few days back at most,
+// checked where it's asked for), it moves money from one to the other, never more than the one it comes out of holds,
+// and is kept in contras with its reference
 export default class ContraService {
   constructor(
     private readonly accounts = new AccountsService(),
     private readonly transactions = new TransactionService(),
   ) {}
 
-  // a deposit: never more than the cash held today; into an active bank account
-  async deposit(rawInput: CreateDepositInputModel, actor: ActorModel): Promise<SavedDepositModel> {
-    const input = createDepositInputModel.parse(rawInput);
+  // a deposit (Bank up, Cash down) or a withdrawal (Cash up, Bank down) into or out of an active bank account
+  async create(kind: ContraKind, rawInput: CreateContraInputModel, actor: ActorModel): Promise<SavedContraModel> {
+    const input = createContraInputModel.parse(rawInput);
     const saved = await db.transaction(async (tx) => {
       const cashLedger = await settleLedger(tx, this.accounts, "cash", null);
       const bankLedger = await settleLedger(tx, this.accounts, "bank", input.bankDetailsId);
-      // the cash there is today
-      const now = await this.accounts.balances([cashLedger]);
-      const cashHeld = toPaise(held(now.get(cashLedger)?.today));
-      if (toPaise(input.amount) > cashHeld) {
-        throw new TRPCError({ code: "PRECONDITION_FAILED", message: `Only ₹${(cashHeld / 100).toLocaleString("en-IN")} is in cash.` });
+      // what it comes out of: the cash for a deposit, the account for a withdrawal, as it is today
+      const from = kind === "deposit" ? cashLedger : bankLedger;
+      const to = kind === "deposit" ? bankLedger : cashLedger;
+      const now = await this.accounts.balances([from]);
+      const has = toPaise(held(now.get(from)?.today));
+      if (toPaise(input.amount) > has) {
+        const where = kind === "deposit" ? "in cash" : "in that account";
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: `Only ₹${(has / 100).toLocaleString("en-IN")} is ${where}.` });
       }
 
       const t = await this.transactions.create(
         tx,
         {
-          type: "deposit",
+          type: kind,
           dateTime: input.dateTime,
           amount: input.amount,
           remarks: input.remarks,
           lines: [
-            { ledgerId: bankLedger, side: "debit", amount: input.amount },
-            { ledgerId: cashLedger, side: "credit", amount: input.amount },
+            { ledgerId: to, side: "debit", amount: input.amount },
+            { ledgerId: from, side: "credit", amount: input.amount },
           ],
           isContra: true,
         },
         actor,
       );
+      // an empty side is cash in hand
       await tx.insert(contrasTable).values({
         transactionId: t.id,
-        fromBankDetailsId: null,
-        toBankDetailsId: input.bankDetailsId,
+        fromBankDetailsId: kind === "withdrawal" ? input.bankDetailsId : null,
+        toBankDetailsId: kind === "deposit" ? input.bankDetailsId : null,
         amount: fromPaise(toPaise(input.amount)),
         referenceNumber: input.referenceNumber,
       });
       return t;
     });
 
-    const [deposit, balances] = await Promise.all([this.getDeposit({ transactionId: saved.id }), this.balances({ transactionId: saved.id })]);
-    return { ...deposit, balances };
+    const [contra, balances] = await Promise.all([this.get(kind, { transactionId: saved.id }), this.balances({ transactionId: saved.id })]);
+    return { ...contra, balances };
   }
 
-  // a deposit's own details
-  async getDeposit(input: DepositIdInputModel): Promise<DepositModel> {
+  // a deposit's or withdrawal's own details
+  async get(kind: ContraKind, input: ContraIdInputModel): Promise<ContraModel> {
     const [row] = await db
       .select({ c: contrasTable, t: transactionsTable, bank: bankDetailsTable })
       .from(contrasTable)
       .innerJoin(transactionsTable, eq(transactionsTable.id, contrasTable.transactionId))
-      .innerJoin(bankDetailsTable, eq(bankDetailsTable.id, contrasTable.toBankDetailsId))
+      // the account on its bank side: the one it went into, or came out of
+      .innerJoin(bankDetailsTable, eq(bankDetailsTable.id, sql`coalesce(${contrasTable.toBankDetailsId}, ${contrasTable.fromBankDetailsId})`))
       .where(eq(contrasTable.transactionId, input.transactionId));
-    if (!row || row.t.type !== "deposit") throw new TRPCError({ code: "NOT_FOUND", message: "Deposit not found." });
+    if (!row || row.t.type !== kind) throw new TRPCError({ code: "NOT_FOUND", message: `${kind === "deposit" ? "Deposit" : "Withdrawal"} not found.` });
     const { c, t, bank } = row;
     return {
       transactionId: t.id,
+      kind,
       assignedId: t.assignedId,
       dateTime: t.dateTime,
       status: t.status,
@@ -86,8 +100,8 @@ export default class ContraService {
     };
   }
 
-  // the ledgers a contra moved (the bank account, then cash), each with its balance now
-  async balances(input: DepositIdInputModel): Promise<LedgerSummaryModel[]> {
+  // the ledgers a contra moved (the side it went to, then the side it came from), each with its balance now
+  async balances(input: ContraIdInputModel): Promise<LedgerSummaryModel[]> {
     const lines = await db
       .select({ ledgerId: ledgerEntriesTable.ledgerId })
       .from(ledgerEntriesTable)

@@ -11,11 +11,11 @@ import { RequiredMark } from "~/components/ui/required-mark";
 
 import { indiaDay } from "../../account/balance";
 import { earliestDay, input, REFERENCE_MAX, REMARKS_MAX } from "../shared/form-basics";
-import { useDepositEntry } from "./state";
+import { useContraEntry } from "./state";
 
 // the deposit slip's reference beside the remarks (side by side on a wider screen), as a receipt has them
 export function DetailsCard() {
-  const { t, tc, reference, setReference, remarks, setRemarks } = useDepositEntry();
+  const { t, tc, reference, setReference, remarks, setRemarks } = useContraEntry();
   return (
     <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
       <label className="flex flex-col gap-2.5 text-xs font-semibold">
@@ -49,7 +49,7 @@ export function DetailsCard() {
 // the day, as on a receipt (today to start with; never after it; staff a few days back at most), then Save with the
 // amount on it, and why a save failed
 export function SaveBlock() {
-  const { t, tc, isAdmin, day, setDay, tried, value, saving, creating, save, saveError } = useDepositEntry();
+  const { t, tc, isAdmin, day, setDay, tried, value, saving, creating, save, saveError } = useContraEntry();
   const busy = saving || creating;
   const today = indiaDay(new Date());
   return (

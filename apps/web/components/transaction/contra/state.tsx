@@ -7,27 +7,29 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { bankNameIn } from "~/lib/bank-names";
 import { rupees } from "~/lib/format";
 import { useLeaveGuard } from "~/lib/use-leave-guard";
-import { useDeposit } from "~/providers/deposit";
+import { type ContraKind, useContra } from "~/providers/contra";
 
 import { indiaDay } from "../../account/balance";
 import { moveCard, useCardHistory } from "../shared/card-steps";
 import { type SummaryItem } from "../shared/entry-frame";
 import { momentOf } from "../shared/form-basics";
 
-// the cards, in order: the amount with the account it goes into, then the slip's reference, the remarks and Save
-export type DepositStep = "amount" | "details";
-const STEPS: DepositStep[] = ["amount", "details"];
+// the cards, in order: the amount with the account it goes into or comes out of, then the reference, the remarks and
+// Save
+export type ContraStep = "amount" | "details";
+const STEPS: ContraStep[] = ["amount", "details"];
 
-// everything the deposit form holds and works out: what's typed, what the server says, and the moves between cards.
-// Made once in DepositEntry; every card reads it with useDepositEntry()
-export function useDepositEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () => void }) {
-  const t = useTranslations("transactions.deposit");
+// everything the deposit or withdrawal form holds and works out: what's typed, what the server says, and the moves
+// between cards. Made once in ContraEntry; every card reads it with useContraEntry()
+export function useContraEntryState({ kind, isAdmin, onDiscard }: { kind: ContraKind; isAdmin: boolean; onDiscard: () => void }) {
+  // its own words: a deposit's, or a withdrawal's
+  const t = useTranslations(`transactions.${kind}` as "transactions.deposit");
   const tr = useTranslations("transactions.receipt");
   const tpf = useTranslations("transactions.payment.form");
   const tc = useTranslations("transactions.chat");
   const locale = useLocale();
   const router = useRouter();
-  const { banks, sources, loading, loadFailed, retryLoad, saveDeposit, saving: creating, saved } = useDeposit();
+  const { banks, sources, loading, loadFailed, retryLoad, saveContra, saving: creating, saved } = useContra();
 
   // the answers
   const [amount, setAmount] = useState("");
@@ -38,36 +40,45 @@ export function useDepositEntryState({ isAdmin, onDiscard }: { isAdmin: boolean;
   const [saveKey] = useState(() => crypto.randomUUID());
   // the accounts' list opens by itself once the amount is in (back to 0 once one is picked)
   const [accountsOpen, setAccountsOpen] = useState(0);
-  // the amount was cut at the cash held: the warning under it
+  // the amount was cut at what it comes out of holds: the warning under it
   const [capped, setCapped] = useState<number | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   // Next or Save was tapped with something missing: what's missing shows in red
   const [tried, setTried] = useState(false);
   useEffect(() => setTried(false), [amount, bankId]);
 
-  // what's typed, worked out: the cash held today (null for staff) and the account picked
+  // what's typed, worked out: the cash held today and what each account holds (null for staff), and the account picked
   const value = Number(amount) || 0;
   const cashHeld = sources?.cash ?? null;
   const bank = banks?.find((b) => b.id === bankId);
   const bankHeld = (id: string) => sources?.banks.find((b) => b.id === id)?.available ?? null;
+  // the most it can be: the cash for a deposit; for a withdrawal what the account picked holds (none until it's picked)
+  const most = kind === "deposit" ? cashHeld : bankId ? bankHeld(bankId) : null;
+  // a withdrawal's account picked after the amount, holding less: the amount is cut to what it holds, with the warning
+  useEffect(() => {
+    if (kind !== "withdrawal" || most === null || value <= most) return;
+    setAmount(String(most));
+    setCapped(most);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the account (and so the most) changes
+  }, [bankId, most]);
   const accountName = (id: string | null) => {
     const b = banks?.find((x) => x.id === id);
     return b ? `${bankNameIn(b.bankName, locale)} ••${b.last4}` : null;
   };
-  // the day it was made: today to start with; an earlier one for a deposit forgotten (staff a few days back at most)
+  // the day it was made: today to start with; an earlier one for one forgotten (staff a few days back at most)
   const [day, setDay] = useState(() => indiaDay(new Date()));
 
   // when each card is filled in
-  const complete: Record<DepositStep, boolean> = {
-    amount: value > 0 && !!bank && (cashHeld === null || value <= cashHeld),
+  const complete: Record<ContraStep, boolean> = {
+    amount: value > 0 && !!bank && (most === null || value <= most),
     details: day !== "",
   };
-  const [at, setAt] = useState<DepositStep>("amount");
+  const [at, setAt] = useState<ContraStep>("amount");
   const current = at;
   const index = STEPS.indexOf(current);
   const firstOpen = STEPS.findIndex((s) => !complete[s]);
   const ready = firstOpen === -1;
-  const reachable = (s: DepositStep) => STEPS.indexOf(s) <= (ready ? STEPS.length - 1 : firstOpen);
+  const reachable = (s: ContraStep) => STEPS.indexOf(s) <= (ready ? STEPS.length - 1 : firstOpen);
   // phones: the summary folded into a bar above the card
   const [summaryOpen, setSummaryOpen] = useState(false);
 
@@ -77,14 +88,14 @@ export function useDepositEntryState({ isAdmin, onDiscard }: { isAdmin: boolean;
   }, [current]);
 
   // the phone's Back goes to the card before
-  const remember = useCardHistory<DepositStep>("amount", (card) => {
+  const remember = useCardHistory<ContraStep>("amount", (card) => {
     moveCard(() => {
       setTried(false);
       setAt(card);
     }, true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
-  function show(step: DepositStep) {
+  function show(step: ContraStep) {
     moveCard(
       () => {
         setTried(false);
@@ -106,11 +117,11 @@ export function useDepositEntryState({ isAdmin, onDiscard }: { isAdmin: boolean;
     show(STEPS[index + 1]!);
   }
 
-  const stepName = (s: DepositStep) => t(`steps.${s}`);
+  const stepName = (s: ContraStep) => t(`steps.${s}`);
   const missingOf = () => t(value === 0 ? "missing.amount" : !bank ? "missing.account" : "missing.amount");
 
   // what's answered so far, a line each, for the summary
-  const summary: SummaryItem<DepositStep>[] = [
+  const summary: SummaryItem<ContraStep>[] = [
     { key: "amount", step: "amount", heading: t("into"), value: accountName(bankId) },
     {
       key: "details",
@@ -120,7 +131,7 @@ export function useDepositEntryState({ isAdmin, onDiscard }: { isAdmin: boolean;
     },
   ];
 
-  // leaving with something entered asks first (not after a save, which goes on to the deposit's page)
+  // leaving with something entered asks first (not after a save, which goes on to its own page)
   const { dialog: leaveDialog } = useLeaveGuard(!saved && (value > 0 || bankId !== null || remarks !== ""), onDiscard);
 
   // Save tapped and still working: the button says so and can't be tapped again
@@ -133,7 +144,7 @@ export function useDepositEntryState({ isAdmin, onDiscard }: { isAdmin: boolean;
     setSaving(true);
     setSaveError(null);
     try {
-      const d = await saveDeposit({
+      const d = await saveContra({
         saveKey,
         dateTime: momentOf(day),
         bankDetailsId: bankId!,
@@ -141,8 +152,8 @@ export function useDepositEntryState({ isAdmin, onDiscard }: { isAdmin: boolean;
         referenceNumber: reference.trim() || null,
         remarks,
       });
-      // on to the deposit's own page; replace, so going back doesn't land on the filled form
-      router.replace(`/transaction/deposit/${d.transactionId}`);
+      // on to its own page; replace, so going back doesn't land on the filled form
+      router.replace(`/transaction/${kind}/${d.transactionId}`);
     } catch (err) {
       setSaving(false);
       const code = (err as { data?: { code?: string } })?.data?.code;
@@ -161,6 +172,7 @@ export function useDepositEntryState({ isAdmin, onDiscard }: { isAdmin: boolean;
   }
 
   return {
+    kind,
     isAdmin,
     t,
     tr,
@@ -189,6 +201,7 @@ export function useDepositEntryState({ isAdmin, onDiscard }: { isAdmin: boolean;
     tried,
     value,
     cashHeld,
+    most,
     bank,
     bankHeld,
     day,
@@ -211,13 +224,13 @@ export function useDepositEntryState({ isAdmin, onDiscard }: { isAdmin: boolean;
   };
 }
 
-export type DepositEntryState = ReturnType<typeof useDepositEntryState>;
+export type ContraEntryState = ReturnType<typeof useContraEntryState>;
 
-const DepositEntryContext = createContext<DepositEntryState | null>(null);
-export const DepositEntryProvider = DepositEntryContext.Provider;
+const ContraEntryContext = createContext<ContraEntryState | null>(null);
+export const ContraEntryProvider = ContraEntryContext.Provider;
 
-export function useDepositEntry() {
-  const value = useContext(DepositEntryContext);
-  if (!value) throw new Error("useDepositEntry is used outside DepositEntryProvider");
+export function useContraEntry() {
+  const value = useContext(ContraEntryContext);
+  if (!value) throw new Error("useContraEntry is used outside ContraEntryProvider");
   return value;
 }

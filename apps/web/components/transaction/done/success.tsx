@@ -22,15 +22,16 @@ export function ReceiptSuccess({
   flow = "receipt",
 }: {
   id: string;
-  flow?: "receipt" | "payment" | "deposit";
+  flow?: "receipt" | "payment" | "deposit" | "withdrawal";
 }) {
   // bank names in the language picked
   const bankName = useBankName();
   const base = useTranslations("transactions.receipt.success");
-  // a payment's or deposit's own words where it has them, the receipt's otherwise
+  // a payment's, deposit's or withdrawal's own words where it has them, the receipt's otherwise
   const ownPayment = useTranslations("transactions.payment.success");
   const ownDeposit = useTranslations("transactions.deposit.success");
-  const own = flow === "deposit" ? ownDeposit : ownPayment;
+  const ownWithdrawal = useTranslations("transactions.withdrawal.success");
+  const own = flow === "deposit" ? ownDeposit : flow === "withdrawal" ? ownWithdrawal : ownPayment;
   const t = ((key: string, values?: Record<string, string>) =>
     flow !== "receipt" && own.has(key as never)
       ? own(key as never, values as never)
@@ -38,7 +39,8 @@ export function ReceiptSuccess({
   const tc = useTranslations("transactions.chat");
   const tf = useTranslations("transactions.receipt.form");
   const isPayment = flow === "payment";
-  const isDeposit = flow === "deposit";
+  // a deposit or a withdrawal: cash and one account, no voucher
+  const isDeposit = flow === "deposit" || flow === "withdrawal";
   const receiptGet = trpc.transactions.receipt.get.useQuery(
     { transactionId: id },
     { enabled: flow === "receipt" },
@@ -47,10 +49,12 @@ export function ReceiptSuccess({
     { transactionId: id },
     { enabled: isPayment },
   );
-  const depositGet = trpc.transactions.deposit.get.useQuery({ transactionId: id }, { enabled: isDeposit });
-  const asked = isDeposit ? depositGet : isPayment ? paymentGet : receiptGet;
-  // what this page shows of it, the same for every flow: a deposit took cash and put it into one account
-  const d = depositGet.data;
+  const depositGet = trpc.transactions.deposit.get.useQuery({ transactionId: id }, { enabled: flow === "deposit" });
+  const withdrawalGet = trpc.transactions.withdrawal.get.useQuery({ transactionId: id }, { enabled: flow === "withdrawal" });
+  const contraGet = flow === "withdrawal" ? withdrawalGet : depositGet;
+  const asked = isDeposit ? contraGet : isPayment ? paymentGet : receiptGet;
+  // what this page shows of it, the same for every flow: a deposit or withdrawal moved cash and one account
+  const d = contraGet.data;
   const receipt = {
     isPending: asked.isPending,
     isError: asked.isError,

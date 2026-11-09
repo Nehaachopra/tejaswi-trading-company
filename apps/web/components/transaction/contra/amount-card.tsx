@@ -13,12 +13,15 @@ import { cn } from "~/lib/utils";
 
 import { AmountBox } from "../shared/amount-box";
 import { input, saidAmount } from "../shared/form-basics";
-import { useDepositEntry } from "./state";
+import { useContraEntry } from "./state";
 
-// the Amount card, laid out like a receipt's: on a phone one column; on a wider screen the cash in hand and the amount
-// (never more than the cash, cut there with a warning) on the left, and the account it goes into on the right
+// the Amount card, laid out like a receipt's: on a phone one column; on a wider screen the amount on the left (never more
+// than what it comes out of holds, cut there with a warning; a deposit's cash in hand above it) and the account it goes
+// into or comes out of on the right
 export function AmountCard() {
-  const { t, tc, amount, setAmount, setCapped, capText, value, cashHeld, tried } = useDepositEntry();
+  const { kind, t, tc, amount, setAmount, setCapped, capText, value, cashHeld: held, most, tried } = useContraEntry();
+  // the cash in hand: a deposit's alone (a withdrawal's account shows what each holds)
+  const cashHeld = kind === "deposit" ? held : null;
   const filled = value > 0;
   return (
     <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-6">
@@ -50,7 +53,7 @@ export function AmountCard() {
                 onCapped={setCapped}
                 decimals={2}
                 maxDigits={13}
-                max={cashHeld ?? undefined}
+                max={most ?? undefined}
                 placeholder="0"
                 aria-invalid={(tried && value === 0) || undefined}
                 className={cn(input(tried && value === 0), "min-h-14 pl-10 pr-11 font-heading text-2xl font-bold", filled && "bg-chestnut text-ivory caret-ivory")}
@@ -73,9 +76,9 @@ export function AmountCard() {
   );
 }
 
-// the bank account it goes into: each active one with what it holds (the admin only), as on a receipt
+// the bank account it goes into or comes out of: each active one with what it holds (the admin only), as on a receipt
 function IntoAccount() {
-  const { tpf, locale, banks, bankId, setBankId, setAccountsOpen, tried, bank, bankHeld } = useDepositEntry();
+  const { tpf, locale, banks, bankId, setBankId, setAccountsOpen, tried, bank, bankHeld } = useContraEntry();
   return (
     <PlacePicker
           label={tpf("account")}

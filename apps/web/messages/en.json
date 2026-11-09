@@ -1665,6 +1665,34 @@
         "loadError": "Couldn't load the deposit. Check your connection and try again."
       },
       "save": "Save deposit"
+    },
+    "withdrawal": {
+      "title": "Withdrawal",
+      "loadFailed": "Couldn't load the bank accounts. Check your connection and try again.",
+      "steps": {
+        "amount": "Amount",
+        "details": "Details"
+      },
+      "missing": {
+        "amount": "Enter the amount.",
+        "account": "Pick the bank account it came out of."
+      },
+      "into": "Withdrawn from",
+      "cashHeld": "Cash in hand",
+      "capOnly": "Only {amount} can be withdrawn.",
+      "reference": "Cheque or reference no.",
+      "referenceHint": "e.g. 000123",
+      "saving": "Saving…",
+      "save": "Save withdrawal",
+      "errors": {
+        "cash": "That's more than there is in the account now. Check the amount.",
+        "failed": "Couldn't save the withdrawal. Try again."
+      },
+      "success": {
+        "title": "Withdrawal successfully created",
+        "loading": "Loading the withdrawal…",
+        "loadError": "Couldn't load the withdrawal. Check your connection and try again."
+      }
     }
   },
   "dues": {
