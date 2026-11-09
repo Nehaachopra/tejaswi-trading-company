@@ -703,7 +703,8 @@
       "added": "Added",
       "inactive": "Inactive",
       "search": "Ledger or group",
-      "noMatch": "Nothing matches."
+      "noMatch": "Nothing matches.",
+      "searchName": "Name"
     },
     "fixed": {
       "cash": "Cash",

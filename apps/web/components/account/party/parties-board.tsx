@@ -1,12 +1,11 @@
 "use client";
 
-import { ArrowLeft, ChevronDown, ChevronRight, CircleAlert, MapPin, Phone, Search } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, CircleAlert, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { FILTER_BAR, FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
-import { ClearButton } from "~/components/ui/clear-button";
+import { FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
@@ -15,6 +14,7 @@ import { trpc } from "~/trpc/client";
 
 import { chip } from "../../product/row-styles";
 import { postDatedText } from "../balance";
+import { GroupHeader, GroupSearch } from "../group-header";
 import { SignedAmount } from "../signed-amount";
 import { PARTY_KINDS, partyLabel, type PartyType } from "./party-kinds";
 
@@ -23,7 +23,6 @@ import { PARTY_KINDS, partyLabel, type PartyType } from "./party-kinds";
 // then a card per party (short name, phone and city on the left, its balance signed by its head on the right)
 // opening its page. Parties are added where they belong, not here: in Parties, or while making a transaction
 export function PartiesBoard({ type }: { type: PartyType }) {
-  const tc = useTranslations("common");
   const t = useTranslations("accounts.party");
   const tf = useTranslations("accounts.party.form");
   const th = useTranslations("accounts.overview.heads");
@@ -47,28 +46,14 @@ export function PartiesBoard({ type }: { type: PartyType }) {
 
   return (
     <main className={`${PAGE} pb-16`}>
-      <h1 className="sr-only">{t(`titles.${type}`)}</h1>
-
       {/* back to the head it sits under */}
       <Link href={`/account/${kind.head}`} className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
         <ArrowLeft className="size-4" aria-hidden /> {th(kind.head)}
       </Link>
 
-      {/* search, then the place filter and Show inactive, under the header while the list scrolls */}
-      <div className={`mt-3 ${FILTER_BAR}`}>
-        <label className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory sm:w-auto sm:flex-1">
-          <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
-          <span className="sr-only">{t("search")}</span>
-          <input
-            type="search"
-            value={typed}
-            maxLength={150}
-            onChange={(e) => setTyped(e.target.value)}
-            placeholder={t("search")}
-            className="min-w-0 flex-1 bg-transparent text-base text-ivory outline-none placeholder:text-ivory/60"
-          />
-          {typed && <ClearButton onClear={() => setTyped("")} label={tc("clearSearch")} />}
-        </label>
+      {/* the group's name and total on the left; the search, the place filter and Show inactive on the right */}
+      <GroupHeader title={t(`titles.${type}`)} head={kind.head} master={kind.master}>
+        <GroupSearch value={typed} onChange={setTyped} label={t("search")} maxLength={150} />
         <Menu
           label={t("place")}
           surface="chestnut"
@@ -100,7 +85,7 @@ export function PartiesBoard({ type }: { type: PartyType }) {
         <button type="button" aria-pressed={showInactive} onClick={() => setShowInactive((v) => !v)} className={chip(showInactive)}>
           {t("showInactive")}
         </button>
-      </div>
+      </GroupHeader>
 
       {/* the parties */}
       {parties.isPending ? (

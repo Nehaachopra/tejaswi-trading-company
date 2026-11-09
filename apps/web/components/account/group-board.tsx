@@ -3,6 +3,7 @@
 import { ArrowLeft, ChevronRight, CircleAlert } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
@@ -11,6 +12,7 @@ import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 
 import { postDatedText } from "./balance";
+import { GroupHeader, GroupSearch } from "./group-header";
 import { useLedgerName } from "./ledger-name";
 import { SignedAmount } from "./signed-amount";
 
@@ -26,15 +28,22 @@ export function GroupBoard({ master }: { master: Group }) {
   const ledgers = trpc.accounts.ledger.group.useQuery({ master });
   // every one of these sits under Liability
   const head = "liability" as const;
+  // a search over the ledger's name and a party's full name
+  const [search, setSearch] = useState("");
+  const needle = search.trim().toLowerCase();
+  const shown = (ledgers.data ?? []).filter((l) => needle === "" || [nameOf(l), l.fullName ?? ""].some((v) => v.toLowerCase().includes(needle)));
 
   return (
     <main className={`${PAGE} pb-16`}>
-      <h1 className="sr-only">{t(`masters.${master}`)}</h1>
-
       {/* back to the head it sits under */}
       <Link href={`/account/${head}`} className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
         <ArrowLeft className="size-4" aria-hidden /> {t(`heads.${head}`)}
       </Link>
+
+      {/* the group's name and total on the left; its search on the right */}
+      <GroupHeader title={t(`masters.${master}`)} head={head} master={master}>
+        <GroupSearch value={search} onChange={setSearch} label={t("searchName")} maxLength={150} />
+      </GroupHeader>
 
       {ledgers.isPending ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
@@ -44,12 +53,12 @@ export function GroupBoard({ master }: { master: Group }) {
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
-      ) : ledgers.data.length === 0 ? (
-        <p className="mt-16 text-center text-ivory/70">{t("ledgers", { count: 0 })}</p>
+      ) : shown.length === 0 ? (
+        <p className="mt-16 text-center text-ivory/70">{needle ? t("noMatch") : t("ledgers", { count: 0 })}</p>
       ) : (
-        <ul className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {/* by name; GST payable keeps the server's order (output GST, then reverse charge) */}
-          {[...ledgers.data]
+          {[...shown]
             .sort((a, b) => (master === "gstPayable" ? 0 : nameOf(a).localeCompare(nameOf(b))))
             .map((l) => {
               const full = l.fullName && titleCase(l.fullName.toLowerCase()) !== nameOf(l) ? titleCase(l.fullName.toLowerCase()) : null;

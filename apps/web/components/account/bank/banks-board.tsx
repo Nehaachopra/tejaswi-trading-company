@@ -1,12 +1,11 @@
 "use client";
 
-import { ArrowLeft, ChevronRight, CircleAlert, Search } from "lucide-react";
+import { ArrowLeft, ChevronRight, CircleAlert } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
-import { FILTER_BAR, PAGE } from "~/components/ui/page-styles";
-import { ClearButton } from "~/components/ui/clear-button";
+import { PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
 import { cn } from "~/lib/utils";
 import { useBankName } from "~/lib/bank-names";
@@ -15,6 +14,7 @@ import { trpc } from "~/trpc/client";
 
 import { chip } from "../../product/row-styles";
 import { postDatedText } from "../balance";
+import { GroupHeader, GroupSearch } from "../group-header";
 import { SignedAmount } from "../signed-amount";
 
 // /account/bank, admin only and view only (accounts are added and edited in Entities → Bank accounts): a search (bank, branch, IFSC or account number) with Show
@@ -23,7 +23,6 @@ import { SignedAmount } from "../signed-amount";
 export function BanksBoard() {
   // bank names in the language picked
   const bankName = useBankName();
-  const tc = useTranslations("common");
   const t = useTranslations("accounts.bank");
   const [showInactive, setShowInactive] = useState(false);
   const banks = trpc.accounts.bank.list.useQuery({ includeInactive: showInactive });
@@ -35,33 +34,18 @@ export function BanksBoard() {
 
   return (
     <main className={`${PAGE} pb-16`}>
-      <h1 className="sr-only">{t("title")}</h1>
-
       {/* back to Asset, where Bank sits */}
       <Link href="/account/asset" className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
         <ArrowLeft className="size-4" aria-hidden /> {t("toAccounts")}
       </Link>
 
-
-      {/* search and Show inactive, under the header while the list scrolls */}
-      <div className={`mt-3 ${FILTER_BAR}`}>
-        <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory">
-          <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
-          <span className="sr-only">{t("search")}</span>
-          <input
-            type="search"
-            value={search}
-            maxLength={50}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t("search")}
-            className="min-w-0 flex-1 bg-transparent text-base text-ivory outline-none placeholder:text-ivory/60"
-          />
-          {search && <ClearButton onClear={() => setSearch("")} label={tc("clearSearch")} />}
-        </label>
+      {/* the group's name and total on the left; the search and Show inactive on the right */}
+      <GroupHeader title={t("title")} head="asset" master="bank">
+        <GroupSearch value={search} onChange={setSearch} label={t("search")} maxLength={50} />
         <button type="button" aria-pressed={showInactive} onClick={() => setShowInactive((v) => !v)} className={chip(showInactive)}>
           {t("showInactive")}
         </button>
-      </div>
+      </GroupHeader>
 
       {/* the accounts */}
       {banks.isPending ? (
