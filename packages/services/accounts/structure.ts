@@ -1,14 +1,17 @@
 // the accounting structure the app creates itself (the one exception to "no seed data"):
 // groups, the masters that hold one ledger per bank account, party or employee, and the fixed ledgers
 
-export type GroupType = "asset" | "liability" | "income" | "expense";
+export type GroupType = "asset" | "liability" | "income" | "expense" | "profit" | "loss";
 
-// profit and loss has no group of its own: it is worked out from income and expense
+// the six heads. Profit and Loss hold ledgers of their own (profit on selling machinery, a loss by theft) besides the
+// result worked out from everything (see overview)
 export const GROUPS: Record<GroupType, string> = {
   asset: "Asset",
   liability: "Liability",
   income: "Income",
   expense: "Expense",
+  profit: "Profit",
+  loss: "Loss",
 };
 
 export const MASTERS = {

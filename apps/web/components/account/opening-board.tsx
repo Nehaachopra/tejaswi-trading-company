@@ -22,13 +22,15 @@ import { SignedAmount } from "./signed-amount";
 
 type Row = RouterOutputs["accounts"]["opening"]["get"]["rows"][number];
 
-const HEADS = ["asset", "liability", "income", "expense"] as const;
+const HEADS = ["asset", "liability", "income", "expense", "profit", "loss"] as const;
 // the sub-groups in each head, in the order /account shows them
 const MASTERS: Record<(typeof HEADS)[number], string[]> = {
   asset: ["bank", "debtors", "debtorCreditors", "parties"],
   liability: ["creditors", "employees"],
   income: [],
   expense: [],
+  profit: [],
+  loss: [],
 };
 
 // an amount as typed, signed by its head, in paise on the debit side (debit plus, credit minus)

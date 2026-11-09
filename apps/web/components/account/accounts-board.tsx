@@ -39,7 +39,8 @@ const MASTER_PAGE: Record<string, string | undefined> = {
 
 // /account, admin only: every ledger account under its head (Asset, Liability, Income, Expense, Profit, Loss),
 // each head with its total (or one head, on its own page). Sub-groups (Bank, Debtors ...) are cards with the total of their ledgers; the
-// ledgers directly under a head are rows opening their statements; Profit and Loss are worked out
+// ledgers directly under a head are rows opening their statements; Profit and Loss show the worked-out result, with their
+// own ledgers under it
 export function AccountsBoard({ only }: { only?: Head["head"] }) {
   const t = useTranslations("accounts.overview");
   const overview = trpc.accounts.overview.useQuery();
@@ -47,8 +48,8 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
   const soon = () => toast.info(t("comingSoon"));
   const nameOf = useLedgerName();
   const [sheet, setSheet] = useState<LedgerSheetFor | null>(null);
-  // a ledger of its own can be added under Asset, Liability, Income and Expense (Profit and Loss are worked out)
-  const addable = only && only !== "profit" && only !== "loss" ? only : null;
+  // a ledger of its own can be added under any of the six heads (one under Profit or Loss counts in the worked-out result)
+  const addable = only ?? null;
 
   // the search: ledger and sub-group names, as they read in this language
   const [search, setSearch] = useState("");
@@ -97,7 +98,7 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
                 {addable ? <HeadSearch value={search} onChange={setSearch} label={t("search")} /> : <span className="flex-1" />}
               </header>
 
-              {/* profit and loss: worked out, nothing posts to them */}
+              {/* profit and loss: their total is worked out from everything; their own ledgers are listed under it */}
               {(h.head === "profit" || h.head === "loss") && <p className="text-sm text-ivory/70">{t("worked")}</p>}
 
               {/* its sub-groups */}

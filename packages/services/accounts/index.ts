@@ -50,6 +50,7 @@ import {
   groupLedgersInputModel,
   type GroupLedgerModel,
   GST_PAYABLE_KEYS,
+  fitsJournal,
 } from "./model";
 import { GROUPS, type GroupType, LEDGERS, type LedgerKey, MASTERS, type MasterKey } from "./structure";
 
@@ -387,6 +388,11 @@ export default class AccountsService {
     return { ...ledger, openingBalance, hasEntries: withEntries.has(ledger.id) };
   }
 
+  // the ledgers a journal entry (Others) can use: our own heads only, active ones (see fitsJournal), by name
+  async journalLedgers(): Promise<LedgerSummaryModel[]> {
+    return (await this.summaries()).filter((l) => l.isActive && fitsJournal(l));
+  }
+
   // one sub-group's ledgers (bank loans, rent payable, employees), with a party's full name (its ledger is named by
   // its short name)
   async groupLedgers(rawInput: GroupLedgersInputModel): Promise<GroupLedgerModel[]> {
@@ -428,10 +434,16 @@ export default class AccountsService {
       };
     });
 
-    // income is a credit and expense a debit: what's left of income is the profit, a shortfall the loss
-    const net = -heads.filter((h) => h.head === "income" || h.head === "expense").reduce((sum, h) => sum + (h.total.side === "debit" ? 1 : -1) * toPaise(h.total.amount), 0);
-    const worked = (head: "profit" | "loss", paise: number) => ({ head, total: asBalance(head === "profit" ? -paise : paise), masters: [], ledgers: [] });
-    return { heads: [...heads, worked("profit", Math.max(net, 0)), worked("loss", Math.max(-net, 0))] };
+    // the result: income and profit ledgers are credits, expense and loss ledgers debits; what's left over is the
+    // profit, a shortfall the loss. Profit and Loss show it as their total, with their own ledgers listed under it
+    const net = -heads
+      .filter((h) => h.head === "income" || h.head === "expense" || h.head === "profit" || h.head === "loss")
+      .reduce((sum, h) => sum + (h.total.side === "debit" ? 1 : -1) * toPaise(h.total.amount), 0);
+    return {
+      heads: heads.map((h) =>
+        h.head === "profit" ? { ...h, total: asBalance(-Math.max(net, 0)) } : h.head === "loss" ? { ...h, total: asBalance(Math.max(-net, 0)) } : h,
+      ),
+    };
   }
 
   // a ledger name can't repeat within its head (built-in ones included)

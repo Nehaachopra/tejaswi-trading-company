@@ -22,7 +22,7 @@ export function ReceiptSuccess({
   flow = "receipt",
 }: {
   id: string;
-  flow?: "receipt" | "payment" | "deposit" | "withdrawal" | "transfer";
+  flow?: "receipt" | "payment" | "deposit" | "withdrawal" | "transfer" | "other";
 }) {
   // bank names in the language picked
   const bankName = useBankName();
@@ -32,7 +32,9 @@ export function ReceiptSuccess({
   const ownDeposit = useTranslations("transactions.deposit.success");
   const ownWithdrawal = useTranslations("transactions.withdrawal.success");
   const ownTransfer = useTranslations("transactions.transfer.success");
-  const own = flow === "deposit" ? ownDeposit : flow === "withdrawal" ? ownWithdrawal : flow === "transfer" ? ownTransfer : ownPayment;
+  const ownOther = useTranslations("transactions.other.success");
+  const own =
+    flow === "deposit" ? ownDeposit : flow === "withdrawal" ? ownWithdrawal : flow === "transfer" ? ownTransfer : flow === "other" ? ownOther : ownPayment;
   const t = ((key: string, values?: Record<string, string>) =>
     flow !== "receipt" && own.has(key as never)
       ? own(key as never, values as never)
@@ -42,6 +44,9 @@ export function ReceiptSuccess({
   const isPayment = flow === "payment";
   // a deposit, withdrawal or transfer: cash and an account, or two accounts; no voucher
   const isDeposit = flow === "deposit" || flow === "withdrawal" || flow === "transfer";
+  // a journal entry (Others): no cash or bank, no voucher; only its number
+  const isOther = flow === "other";
+  const otherGet = trpc.transactions.other.get.useQuery({ transactionId: id }, { enabled: isOther });
   const receiptGet = trpc.transactions.receipt.get.useQuery(
     { transactionId: id },
     { enabled: flow === "receipt" },
@@ -54,7 +59,7 @@ export function ReceiptSuccess({
   const withdrawalGet = trpc.transactions.withdrawal.get.useQuery({ transactionId: id }, { enabled: flow === "withdrawal" });
   const transferGet = trpc.transactions.transfer.get.useQuery({ transactionId: id }, { enabled: flow === "transfer" });
   const contraGet = flow === "withdrawal" ? withdrawalGet : flow === "transfer" ? transferGet : depositGet;
-  const asked = isDeposit ? contraGet : isPayment ? paymentGet : receiptGet;
+  const asked = isOther ? otherGet : isDeposit ? contraGet : isPayment ? paymentGet : receiptGet;
   // what this page shows of it, the same for every flow: a deposit or withdrawal moved cash and one account (shown as
   // cash and a bank), a transfer two accounts (the one it left, then the one it went into)
   const d = contraGet.data;
@@ -62,7 +67,15 @@ export function ReceiptSuccess({
   const receipt = {
     isPending: asked.isPending,
     isError: asked.isError,
-    data: isDeposit
+    data: isOther
+      ? otherGet.data && {
+          assignedId: otherGet.data.assignedId,
+          bankDetailsId: "",
+          settledIn: "bank" as const,
+          moreBankParts: [] as { bankDetailsId: string }[],
+          split: null,
+        }
+      : isDeposit
       ? d &&
         contraBank && {
           assignedId: d.assignedId,
@@ -155,7 +168,7 @@ export function ReceiptSuccess({
                 <CopyButton value={receipt.data.assignedId} />
               </span>
             </p>
-            {!isDeposit && (
+            {!isDeposit && !isOther && (
             <Link
               href={`/transaction/${flow}/${id}/voucher`}
               className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-chestnut/50 px-4 text-sm font-semibold sm:w-auto"

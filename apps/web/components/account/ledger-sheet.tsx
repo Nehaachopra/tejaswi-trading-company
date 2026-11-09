@@ -15,7 +15,7 @@ import { type Head, usualSide } from "./balance";
 
 // what the sheet is for: a new ledger under a head, or a new name for one the admin added
 export type LedgerSheetFor =
-  | { kind: "new"; head: Exclude<Head, "profit" | "loss"> }
+  | { kind: "new"; head: Head }
   | { kind: "rename"; id: string; head: Head; name: string; tdsType: TdsType | null };
 
 const NAME_MAX = 150;

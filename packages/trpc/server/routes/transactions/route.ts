@@ -42,9 +42,10 @@ import {
   writeOffInputModel,
 } from "@repo/services/due/model";
 import { contraIdInputModel, contraModel, type ContraKind, createContraInputModel, createTransferInputModel, savedContraModel } from "@repo/services/contra/model";
+import { createOtherInputModel, otherIdInputModel, otherModel, savedOtherModel } from "@repo/services/other/model";
 import { opensVoucher, voucherKey } from "@repo/services/transaction/share-link";
 
-import { contraService, documentService, dueService, paymentService, receiptService, transactionService } from "../../services";
+import { accountsService, contraService, documentService, dueService, otherService, paymentService, receiptService, transactionService } from "../../services";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 import { checkDate, limitSaves, onceFor } from "../../guards";
 
@@ -323,6 +324,33 @@ const transferRouter = router({
   ...contraReads("transfer"),
 });
 
+// Others: a journal entry for anything no other page covers; the admin's only
+const otherRouter = router({
+  create: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/others", tags: ["transactions"] } })
+    .input(createOtherInputModel)
+    .output(savedOtherModel)
+    .mutation(({ ctx, input }) => saveContra(ctx.session.user, input, () => otherService.create(input, ctx.session.user)) as ReturnType<typeof otherService.create>),
+
+  // the ledgers it can use: our own heads only, with their balances
+  ledgers: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/others/ledgers", tags: ["transactions"] } })
+    .output(z.array(ledgerSummaryModel))
+    .query(() => accountsService.journalLedgers()),
+
+  balances: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/others/{transactionId}/balances", tags: ["transactions"] } })
+    .input(otherIdInputModel)
+    .output(z.array(ledgerSummaryModel))
+    .query(({ input }) => otherService.balances(input)),
+
+  get: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/others/{transactionId}", tags: ["transactions"] } })
+    .input(otherIdInputModel)
+    .output(otherModel)
+    .query(({ input }) => otherService.get(input)),
+});
+
 export const transactionsRouter = router({
   history: historyRouter,
   receipt: receiptRouter,
@@ -330,5 +358,6 @@ export const transactionsRouter = router({
   deposit: contraRouter("deposit"),
   withdrawal: contraRouter("withdrawal"),
   transfer: transferRouter,
+  other: otherRouter,
   due: dueRouter,
 });

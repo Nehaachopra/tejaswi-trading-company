@@ -7,6 +7,7 @@ import DocumentService from "@repo/services/document";
 import DueService from "@repo/services/due";
 import LandlordService from "@repo/services/landlord";
 import LenderService from "@repo/services/lender";
+import OtherService from "@repo/services/other";
 import PartyService from "@repo/services/party";
 import PaymentService from "@repo/services/payment";
 import ReceiptService from "@repo/services/receipt";
@@ -45,6 +46,8 @@ export const receiptService = new ReceiptService(accountsService, transactionSer
 export const paymentService = new PaymentService(accountsService, transactionService, partyService);
 
 export const contraService = new ContraService(accountsService, transactionService);
+
+export const otherService = new OtherService(accountsService, transactionService);
 
 export const documentService = new DocumentService(paymentService);
 

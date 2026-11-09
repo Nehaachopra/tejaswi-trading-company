@@ -169,7 +169,8 @@ export const groupLedgerModel = ledgerSummaryModel.extend({ fullName: z.string()
 
 export type GroupLedgerModel = z.infer<typeof groupLedgerModel>;
 
-export const customHeadModel = z.enum(["asset", "liability", "income", "expense"]);
+// the heads a ledger the admin adds can sit under: all six (a profit or loss ledger counts in the worked-out result)
+export const customHeadModel = z.enum(["asset", "liability", "income", "expense", "profit", "loss"]);
 
 // names are stored in lowercase; screens start each word with a capital
 export const ledgerNameModel = z.string().trim().toLowerCase().min(1).max(150);
@@ -241,6 +242,14 @@ export type ReceiptKind = z.infer<typeof receiptKindModel>;
 // built-in ledgers that only their own screens post to (a sale, a purchase, their returns, salary, a bad debt written
 // off on Dues, a discount given with a sale or receipt), never a receipt or payment: no money moves for them by itself
 export const OWN_SCREEN_LEDGERS = ["sale", "purchase", "saleReturn", "purchaseReturn", "salary", "badDebts", "discountGiven", "interestPaid"];
+
+// whether a journal entry (Others) can use a ledger: one of our own heads only. Never cash or a bank account (their
+// own pages move money), never a party, lender, landlord or employee (their dues would go out of step), never one only
+// its own page posts to, nor Drawings (its own page)
+export function fitsJournal(l: { masterKey: string | null; key: string | null; referenceId: string | null }) {
+  if (l.masterKey !== null || l.referenceId !== null) return false;
+  return l.key === null || !(OWN_SCREEN_LEDGERS.includes(l.key) || l.key === "cash" || l.key === "drawings");
+}
 
 // the kinds that come from a party (its own ledger, whatever its type); a loan returned and its interest come from the
 // party of the loan picked

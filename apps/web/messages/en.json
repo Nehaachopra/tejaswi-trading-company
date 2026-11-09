@@ -699,7 +699,7 @@
       },
       "ledgers": "{count, plural, =0 {No accounts yet} one {# account} other {# accounts}}",
       "postDated": "{amount} post-dated",
-      "worked": "Worked out from income and expense.",
+      "worked": "Worked out from income, expenses and the profit and loss ledgers.",
       "comingSoon": "Coming soon.",
       "newLedger": "New ledger",
       "added": "Added",
@@ -902,7 +902,9 @@
         "asset": "Security deposit",
         "liability": "HDFC term loan",
         "income": "Interest received",
-        "expense": "Loading charges"
+        "expense": "Loading charges",
+        "profit": "Profit on sale of machinery",
+        "loss": "Loss by theft"
       },
       "toast": {
         "added": "{name} added",
@@ -1723,6 +1725,43 @@
         "loading": "Loading the transfer…",
         "loadError": "Couldn't load the transfer. Check your connection and try again."
       }
+    },
+    "other": {
+      "title": "Others",
+      "loadFailed": "Couldn't load the ledgers. Check your connection and try again.",
+      "steps": {
+        "entry": "Entry",
+        "details": "Details"
+      },
+      "missing": {
+        "amount": "Enter the amount.",
+        "debit": "Pick the ledger to debit.",
+        "credit": "Pick the ledger to credit.",
+        "remarks": "Say why this entry is made.",
+        "head": "Pick the head the new ledger sits under.",
+        "name": "Type the new ledger’s name."
+      },
+      "debit": "Debit (Dr)",
+      "credit": "Credit (Cr)",
+      "pickLedger": "Pick a ledger",
+      "searchLedger": "Search ledgers",
+      "noLedger": "No ledger by that name.",
+      "why": "Why",
+      "whyHint": "e.g. Depreciation on the scale for 2026-27",
+      "saving": "Saving…",
+      "save": "Save entry",
+      "errors": {
+        "failed": "Couldn't save the entry. Try again.",
+        "taken": "A ledger with that name is already under that head."
+      },
+      "success": {
+        "title": "Entry successfully created",
+        "loading": "Loading the entry…",
+        "loadError": "Couldn't load the entry. Check your connection and try again."
+      },
+      "head": "Head",
+      "addLedger": "New ledger",
+      "ledgerName": "Ledger name"
     }
   },
   "dues": {

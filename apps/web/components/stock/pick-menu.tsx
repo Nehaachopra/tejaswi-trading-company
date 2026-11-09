@@ -1,11 +1,12 @@
 "use client";
 
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown, Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { ClearButton } from "~/components/ui/clear-button";
 import { Menu, MenuItem } from "~/components/ui/menu";
+import { ADD_ON_IVORY, PICK_NEW } from "~/components/ui/page-styles";
 import { cn } from "~/lib/utils";
 
 // a dropdown on an ivory sheet: the trigger shows the current choice, the panel lists the options. A long list
@@ -31,6 +32,8 @@ export function PickMenu<T extends string | null>({
   typedLabel,
   openSignal,
   moneyHints = false,
+  addLabel,
+  onAdd,
 }: {
   label: string;
   current: string;
@@ -63,6 +66,9 @@ export function PickMenu<T extends string | null>({
   openSignal?: number;
   // the hints are money (balances): shown large and bold, never muted
   moneyHints?: boolean;
+  // something new, the list's last row as a payment's ledger list has it ("+ New ledger"), always in view as it scrolls
+  addLabel?: string;
+  onAdd?: () => void;
 }) {
   const tc = useTranslations("common");
   const [search, setSearch] = useState("");
@@ -185,6 +191,21 @@ export function PickMenu<T extends string | null>({
             </MenuItem>
           )}
           {shown.length > 100 && <p className="px-3 py-2 text-xs">{`+${shown.length - 100}`}</p>}
+          {onAdd && addLabel && (
+            <div className={cn(PICK_NEW, "pb-1 pt-3")}>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  close();
+                  onAdd();
+                }}
+                className={ADD_ON_IVORY}
+              >
+                <Plus className="size-4" aria-hidden /> {addLabel}
+              </button>
+            </div>
+          )}
         </>
       )}
     </Menu>

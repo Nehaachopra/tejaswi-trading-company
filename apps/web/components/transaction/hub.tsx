@@ -36,7 +36,7 @@ const KINDS: Kind[] = [
   { key: "purchaseReturn", icon: Redo2 },
   { key: "salary", icon: Users, adminOnly: true },
   { key: "drawing", icon: HandCoins, adminOnly: true },
-  { key: "others", icon: BookOpen, adminOnly: true },
+  { key: "others", icon: BookOpen, adminOnly: true, href: "/transaction/other" },
 ];
 
 const tile =
