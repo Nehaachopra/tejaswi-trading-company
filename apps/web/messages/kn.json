@@ -663,7 +663,9 @@
         "upiWrongHandle": "ಈ ಹ್ಯಾಂಡಲ್ {app} ನದ್ದಲ್ಲ. ಪರಿಶೀಲಿಸಿ, ಅಥವಾ ಅದು ಇರುವ ಆ್ಯಪ್ ಆಯ್ಕೆಮಾಡಿ.",
         "upiPickApp": "ಈ UPI ID ಇರುವ ಆ್ಯಪ್ ಆಯ್ಕೆಮಾಡಿ.",
         "upiFormat": "UPI ID name@ybl ರೀತಿ ಇರುತ್ತದೆ.",
-        "upiN": "UPI ID {n}"
+        "upiN": "UPI ID {n}",
+        "upiDefault": "ಡೀಫಾಲ್ಟ್",
+        "makeUpiDefault": "ಡೀಫಾಲ್ಟ್ ಮಾಡಿ"
       },
       "toAccounts": "ಆಸ್ತಿ",
       "showDetails": "ವಿವರ ತೋರಿಸಿ ಅಥವಾ ಮರೆಮಾಡಿ",
@@ -888,7 +890,8 @@
         "days": "{count, plural, one {# ದಿನ} other {# ದಿನಗಳು}}",
         "perMonth": "ತಿಂಗಳಿಗೆ ವಹಿವಾಟುಗಳು"
       },
-      "addFirst": "ಅವರನ್ನು ಪಾರ್ಟಿಗಳಲ್ಲಿ ಸೇರಿಸಿ"
+      "addFirst": "ಅವರನ್ನು ಪಾರ್ಟಿಗಳಲ್ಲಿ ಸೇರಿಸಿ",
+      "edit": "ವಿವರ ಬದಲಿಸಿ"
     },
     "ledgerForm": {
       "addTitle": "{head} ಅಡಿಯಲ್ಲಿ ಹೊಸ ಲೆಡ್ಜರ್",

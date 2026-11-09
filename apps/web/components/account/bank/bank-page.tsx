@@ -3,6 +3,7 @@
 import { ArrowLeft, CircleAlert } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
@@ -10,17 +11,20 @@ import { useBankName } from "~/lib/bank-names";
 import { titleCase } from "~/lib/format";
 import { trpc } from "~/trpc/client";
 
-import { DetailRows, DetailsCard } from "../details-card";
+import { DetailRows, DetailsCard, DetailsEdit } from "../details-card";
 import { LedgerStatement } from "../ledger-statement";
+import { BankSheet } from "./bank-sheet";
 
-// /account/bank/[account], admin only and view only: the account's details on top, its ledger below (it is
-// added, edited and made inactive in Entities → Bank accounts)
+// /account/bank/[account], admin only: the account's details on top (with Edit below them, opening the same form as
+// Entities → Bank accounts), its ledger below. It is added and made inactive in Entities → Bank accounts
 export function BankPage({ bankId }: { bankId: string }) {
   // bank names in the language picked
   const bankName = useBankName();
   const t = useTranslations("accounts.bank");
   const tf = useTranslations("accounts.bank.form");
   const bank = trpc.accounts.bank.get.useQuery({ id: bankId });
+  // its details being changed, in the bank form
+  const [editing, setEditing] = useState(false);
 
   return (
     <main className={`${PAGE} pb-16`}>
@@ -60,7 +64,9 @@ export function BankPage({ bankId }: { bankId: string }) {
                 tags={!b.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
               >
                 <DetailRows rows={rows} />
+                <DetailsEdit label={t("edit")} onClick={() => setEditing(true)} />
               </DetailsCard>
+              <BankSheet bankId={editing ? b.id : null} onClose={() => setEditing(false)} />
 
               {/* its ledger, titled with the account's name (the header above carries the bank and ••last 4) */}
               <LedgerStatement ledgerId={b.ledgerId} name={name} head="asset" balance={b.balance} />

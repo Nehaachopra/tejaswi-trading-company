@@ -1,0 +1,2 @@
+ALTER TABLE "bank_upi_ids" ADD COLUMN "is_default" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "bank_upi_ids_one_default" ON "bank_upi_ids" USING btree ("bank_details_id") WHERE "bank_upi_ids"."is_default";

@@ -1,6 +1,7 @@
 // bank-upi-id.ts
 
-import { index, pgEnum, pgTable, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, index, pgEnum, pgTable, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 
 import { timestamps } from "../utils/common/column-type";
 import { bankDetailsTable } from "./bank-detail";
@@ -23,12 +24,17 @@ export const bankUpiIdsTable = pgTable(
 
     provider: upiProviderEnum("provider").notNull(),
 
+    // the one a receipt shows the QR of first (the others are a tap away); one per account
+    isDefault: boolean("is_default").notNull().default(false),
+
     ...timestamps,
   },
   (table) => [
     // one UPI ID belongs to one account
     uniqueIndex("bank_upi_ids_upi_id_unique").on(table.upiId),
     index("bank_upi_ids_bank_details_id_idx").on(table.bankDetailsId),
+    // at most one default per account
+    uniqueIndex("bank_upi_ids_one_default").on(table.bankDetailsId).where(sql`${table.isDefault}`),
   ],
 );
 

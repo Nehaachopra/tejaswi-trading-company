@@ -337,7 +337,22 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
                     invalid={tried && u.upiId.trim() !== "" && u.provider === null}
                   />
                 </div>
-                <span className="flex-1" />
+                {/* with more than one: the first is the default (its QR shows first on a receipt); another is made the
+                    default by moving it to the top */}
+                <span className="flex flex-1 justify-end">
+                  {draft.upiIds.length > 1 &&
+                    (i === 0 ? (
+                      <span className="rounded-control bg-chestnut px-2 py-0.5 text-xs font-semibold text-ivory">{t("upiDefault")}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onChange({ upiIds: [u, ...draft.upiIds.filter((x) => x.key !== u.key)] })}
+                        className="min-h-9 rounded-control border border-chestnut/50 px-2.5 text-xs font-medium hover:border-chestnut"
+                      >
+                        {t("makeUpiDefault")}
+                      </button>
+                    ))}
+                </span>
                 <button
                   type="button"
                   onClick={() => onChange({ upiIds: draft.upiIds.filter((x) => x.key !== u.key) })}

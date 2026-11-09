@@ -197,7 +197,11 @@ export default class ReceiptService {
       for (const u of input.bankUpiIds) {
         const [held] = await tx.select({ bankDetailsId: bankUpiIdsTable.bankDetailsId }).from(bankUpiIdsTable).where(eq(bankUpiIdsTable.upiId, u.upiId));
         if (held && held.bankDetailsId !== u.bankDetailsId) throw new TRPCError({ code: "BAD_REQUEST", message: "That UPI ID is on another account." });
-        if (!held) await tx.insert(bankUpiIdsTable).values({ bankDetailsId: u.bankDetailsId, upiId: u.upiId, provider: appOfUpi(u.upiId)! });
+        // the account's default when it has no other
+        if (!held) {
+          const [other] = await tx.select({ id: bankUpiIdsTable.id }).from(bankUpiIdsTable).where(eq(bankUpiIdsTable.bankDetailsId, u.bankDetailsId)).limit(1);
+          await tx.insert(bankUpiIdsTable).values({ bankDetailsId: u.bankDetailsId, upiId: u.upiId, provider: appOfUpi(u.upiId)!, isDefault: !other });
+        }
       }
 
       // what it does to the dues: a customer's settled oldest first (with the TDS), the loan given back brought down, a

@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, db, eq, inArray, ne, sql } from "@repo/database";
+import { and, asc, db, desc, eq, inArray, ne, sql } from "@repo/database";
 import { bankDetailsTable, bankUpiIdsTable, ifscBranchesTable, ledgersTable } from "@repo/database/schema";
 
 import AccountsService from "../accounts";
@@ -58,7 +58,9 @@ export default class BankService {
       this.accounts.withEntries(ledgerIds),
       ids.length === 0
         ? []
-        : db.select().from(bankUpiIdsTable).where(inArray(bankUpiIdsTable.bankDetailsId, ids)).orderBy(asc(bankUpiIdsTable.createdAt)),
+        // the default first, then in the order they were added (an account saved before defaults were kept starts
+        // with its first)
+        : db.select().from(bankUpiIdsTable).where(inArray(bankUpiIdsTable.bankDetailsId, ids)).orderBy(desc(bankUpiIdsTable.isDefault), asc(bankUpiIdsTable.createdAt)),
     ]);
 
     return Promise.all(
@@ -147,10 +149,13 @@ export default class BankService {
     }
   }
 
-  // the account's UPI IDs, as given (the old ones are replaced)
+  // the account's UPI IDs, as given (the old ones are replaced); the first is its default, the one a receipt's QR shows
+  // first. Each a millisecond apart, so they read back in the order given
   private async setUpiIds(tx: Tx, bankId: string, upiIds: BankDetailsInputModel["upiIds"]) {
     await tx.delete(bankUpiIdsTable).where(eq(bankUpiIdsTable.bankDetailsId, bankId));
-    if (upiIds.length > 0) await tx.insert(bankUpiIdsTable).values(upiIds.map((u) => ({ bankDetailsId: bankId, ...u })));
+    const at = Date.now();
+    if (upiIds.length > 0)
+      await tx.insert(bankUpiIdsTable).values(upiIds.map((u, i) => ({ bankDetailsId: bankId, ...u, isDefault: i === 0, createdAt: new Date(at + i) })));
   }
 
   // a new account, its UPI IDs and its ledger, saved together or not at all (its opening balance is set on the

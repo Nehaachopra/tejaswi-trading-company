@@ -218,6 +218,13 @@
       "when": 1794192015722,
       "tag": "0030_bent_power_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1794203208204,
+      "tag": "0031_tidy_supreme_intelligence",
+      "breakpoints": true
     }
   ]
 }

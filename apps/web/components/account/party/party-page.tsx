@@ -3,15 +3,17 @@
 import { ArrowLeft, CircleAlert } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
 import { trpc } from "~/trpc/client";
 import type { RouterOutputs } from "@repo/trpc/client";
 
-import { DetailRows, DetailsCard } from "../details-card";
+import { DetailRows, DetailsCard, DetailsEdit } from "../details-card";
 import { LedgerStatement } from "../ledger-statement";
 import { kindOf, PARTY_KINDS, partyLabel, type PartyType } from "./party-kinds";
+import { PartyEdit } from "./party-sheet";
 
 // a party's details as its card opens to: each detail (the full name first), then its addresses
 function PartyDetails({ party: p }: { party: RouterOutputs["accounts"]["party"]["get"] }) {
@@ -53,12 +55,14 @@ function PartyDetails({ party: p }: { party: RouterOutputs["accounts"]["party"][
   );
 }
 
-// a party's page in Accounts, admin only and view only: its details (opening to its addresses), its insights, then
-// its ledger. Parties are added, edited and made inactive in Parties
+// a party's page in Accounts, admin only: its details (opening to its addresses, with Edit below them), its insights,
+// then its ledger. Parties are added and made inactive in Parties
 export function PartyPage({ partyId, type }: { partyId: string; type: PartyType }) {
   const t = useTranslations("accounts.party");
   const tf = useTranslations("accounts.party.form");
   const party = trpc.accounts.party.get.useQuery({ id: partyId });
+  // its details being changed, in the card
+  const [editing, setEditing] = useState(false);
   const list = party.data ? kindOf(party.data.type) : type;
   const kind = PARTY_KINDS[list];
 
@@ -93,14 +97,23 @@ export function PartyPage({ partyId, type }: { partyId: string; type: PartyType 
 
           return (
             <div className="mt-2 flex flex-col gap-4">
-              {/* the details: short name, opening to each detail (the full name first) and its addresses; it is edited in
-                  Parties */}
+              {/* the details: short name, opening to each detail (the full name first) and its addresses, with Edit below
+                  them; the form opens right in the card, the same one as in a receipt */}
               <DetailsCard
                 title={partyLabel(p)}
                 openLabel={t("showDetails")}
                 tags={!p.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
               >
-                <PartyDetails party={p} />
+                {editing ? (
+                  <div className="p-4">
+                    <PartyEdit partyId={p.id} onCancel={() => setEditing(false)} onSaved={() => setEditing(false)} />
+                  </div>
+                ) : (
+                  <>
+                    <PartyDetails party={p} />
+                    <DetailsEdit label={t("edit")} onClick={() => setEditing(true)} />
+                  </>
+                )}
               </DetailsCard>
 
               {/* insights: how it deals with us, always in view under the details */}

@@ -663,7 +663,9 @@
         "upiWrongHandle": "This handle isn't a {app} one. Check it, or pick the app it's in.",
         "upiPickApp": "Pick the app this UPI ID is in.",
         "upiFormat": "A UPI ID looks like name@ybl.",
-        "upiN": "UPI ID {n}"
+        "upiN": "UPI ID {n}",
+        "upiDefault": "Default",
+        "makeUpiDefault": "Make default"
       },
       "toAccounts": "Asset",
       "showDetails": "Show or hide details",
@@ -888,7 +890,8 @@
         "days": "{count, plural, one {# day} other {# days}}",
         "perMonth": "Transactions a month"
       },
-      "addFirst": "Add them in Parties"
+      "addFirst": "Add them in Parties",
+      "edit": "Edit details"
     },
     "ledgerForm": {
       "addTitle": "New ledger under {head}",

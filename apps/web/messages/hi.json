@@ -663,7 +663,9 @@
         "upiWrongHandle": "यह हैंडल {app} का नहीं है। जाँचें, या जिस ऐप में है वह चुनें।",
         "upiPickApp": "यह UPI ID जिस ऐप में है वह चुनें।",
         "upiFormat": "UPI ID name@ybl जैसी होती है।",
-        "upiN": "UPI ID {n}"
+        "upiN": "UPI ID {n}",
+        "upiDefault": "डिफ़ॉल्ट",
+        "makeUpiDefault": "डिफ़ॉल्ट बनाएँ"
       },
       "toAccounts": "संपत्ति",
       "showDetails": "विवरण दिखाएँ या छिपाएँ",
@@ -888,7 +890,8 @@
         "days": "{count, plural, one {# दिन} other {# दिन}}",
         "perMonth": "महीने में लेन-देन"
       },
-      "addFirst": "उन्हें पार्टियों में जोड़ें"
+      "addFirst": "उन्हें पार्टियों में जोड़ें",
+      "edit": "विवरण बदलें"
     },
     "ledgerForm": {
       "addTitle": "{head} में नया खाता",

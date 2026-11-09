@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Pencil } from "lucide-react";
 import { useId, useState } from "react";
 
 import { cn } from "~/lib/utils";
@@ -44,6 +44,21 @@ export function DetailsCard({
         </div>
       )}
     </section>
+  );
+}
+
+// the Edit button under a card's details: full width on a phone, its own size from 640px
+export function DetailsEdit({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <div className="border-t border-chestnut/15 px-4 py-3">
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-chestnut px-4 font-semibold hover:bg-chestnut/[0.06] sm:w-auto"
+      >
+        <Pencil className="size-4" aria-hidden /> {label}
+      </button>
+    </div>
   );
 }
 

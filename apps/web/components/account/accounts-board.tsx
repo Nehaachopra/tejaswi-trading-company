@@ -88,7 +88,7 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
             <section key={h.head} aria-labelledby={`head-${h.head}`}>
               {/* the head with its total beside it, then a search over its ledgers and sub-groups (on its own page),
                   staying under the page header while its accounts scroll by */}
-              <header className="sticky top-16 z-10 -mx-4 mb-3 flex items-center gap-2 border-b border-ivory/20 bg-chestnut px-4 py-3 sm:-mx-6 sm:px-6">
+              <header className="sticky top-16 z-10 -mx-4 mb-3 flex flex-wrap items-center gap-x-2 gap-y-2.5 border-b border-ivory/20 bg-chestnut px-4 py-3 sm:-mx-6 sm:flex-nowrap sm:px-6">
                 <h2 id={`head-${h.head}`} className="shrink-0 font-heading text-2xl font-bold">
                   {t(`heads.${h.head}`)}
                 </h2>
