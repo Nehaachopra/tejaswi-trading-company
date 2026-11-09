@@ -49,7 +49,13 @@ export function OneAccount() {
           label={tpf("account")}
           places={(banks ?? []).map((b) => {
             const h = bankHeld(b.id);
-            return { id: b.id, name: bankNameIn(b.bankName, locale), sub: `••${b.last4}`, hint: h === null ? undefined : rupees(h), disabled: false };
+            return {
+              id: b.id,
+              name: bankNameIn(b.bankName, locale),
+              sub: `••${b.last4}`,
+              hint: h === null ? undefined : rupees(h),
+              disabled: false,
+            };
           })}
           value={bankId ?? null}
           onPick={(id) => {
@@ -257,21 +263,27 @@ export function AccountRows() {
                     <RequiredMark />
                   </span>
                   <PlacePicker
-          label={tpf("account")}
-          places={options.map((b) => {
-            const h = bankHeld(b.id);
-            return { id: b.id, name: bankNameIn(b.bankName, locale), sub: `••${b.last4}`, hint: h === null ? undefined : rupees(h), disabled: false };
-          })}
-          value={r.id ?? null}
-          onPick={(id) => {
+                    label={tpf("account")}
+                    places={options.map((b) => {
+                      const h = bankHeld(b.id);
+                      return {
+                        id: b.id,
+                        name: bankNameIn(b.bankName, locale),
+                        sub: `••${b.last4}`,
+                        hint: h === null ? undefined : rupees(h),
+                        disabled: false,
+                      };
+                    })}
+                    value={r.id ?? null}
+                    onPick={(id) => {
                       // the account picked: its amount is next, so the cursor goes there
                       setTimeout(() => document.getElementById(`card-amount-${r.key}`)?.focus(), 0);
                       if (r.first) return setBankId(id);
                       // another account: its amount and how it came in start again
                       if (id !== r.id) setMorePart(r.key, { bankId: id, amount: "", mode: null });
                     }}
-          invalid={tried && !r.id}
-        />
+                    invalid={tried && !r.id}
+                  />
                 </div>
 
                 {/* what came into it, up to what's still to place */}
@@ -348,6 +360,19 @@ function ReceivedByChips({
 // by UPI into an account: its QR for this amount, for the payer to scan, from the UPI ID saved on it; with none, the
 // admin must type one here (it's added to the account with the receipt), and staff are told to ask the admin or pick
 // another way (they can't go on with UPI into it)
+// by UPI into an account with no UPI ID of ours: the admin types one (added to it with the receipt); staff are told
+export function OurUpiNeeded({ bankId, mode }: { bankId: string; mode: BankMode | null }) {
+  const { t, isAdmin, banks } = useReceiptEntry();
+  const acc = banks?.find((b) => b.id === bankId);
+  const none = mode === "upi" && !!acc && acc.upiIds.length === 0;
+  if (!none) return null;
+  return isAdmin ? (
+    <OurUpiField accountId={acc.id} />
+  ) : (
+    <FieldMessage className="mt-0">{t("noUpiStaff")}</FieldMessage>
+  );
+}
+
 function OurQr({
   bankId,
   mode,

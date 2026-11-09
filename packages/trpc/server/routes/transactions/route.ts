@@ -43,9 +43,10 @@ import {
 } from "@repo/services/due/model";
 import { contraIdInputModel, contraModel, type ContraKind, createContraInputModel, createTransferInputModel, savedContraModel } from "@repo/services/contra/model";
 import { createOtherInputModel, otherIdInputModel, otherModel, savedOtherModel } from "@repo/services/other/model";
+import { paySalariesInputModel, paySalaryInputModel, salaryEmployeeModel, salaryIdInputModel, salaryPaymentModel } from "@repo/services/salary/model";
 import { opensVoucher, voucherKey } from "@repo/services/transaction/share-link";
 
-import { accountsService, contraService, documentService, dueService, otherService, paymentService, receiptService, transactionService } from "../../services";
+import { accountsService, contraService, documentService, dueService, otherService, paymentService, receiptService, salaryService, transactionService } from "../../services";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 import { checkDate, limitSaves, onceFor } from "../../guards";
 
@@ -351,6 +352,49 @@ const otherRouter = router({
     .query(({ input }) => otherService.get(input)),
 });
 
+// salary: what each employee is owed, and paying them (a month's salary or an advance); the admin's only. Months are
+// posted by the jobs on each pay day
+const salaryRouter = router({
+  employees: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/salaries/employees", tags: ["transactions"] } })
+    .output(z.array(salaryEmployeeModel))
+    .query(() => salaryService.employees()),
+
+  pay: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/salaries", tags: ["transactions"] } })
+    .input(paySalaryInputModel)
+    .output(salaryPaymentModel)
+    .mutation(({ ctx, input }) => {
+      // dated today or before, within the user's saves a minute, and once per form
+      checkDate(input.dateTime, ctx.session.user.role);
+      const save = () => {
+        limitSaves(ctx.session.user.id);
+        return salaryService.pay(input, ctx.session.user);
+      };
+      return input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save();
+    }),
+
+  // salary to many employees in one save: a transaction each
+  payAll: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/salaries/many", tags: ["transactions"] } })
+    .input(paySalariesInputModel)
+    .output(z.array(salaryPaymentModel))
+    .mutation(({ ctx, input }) => {
+      checkDate(input.dateTime, ctx.session.user.role);
+      const save = () => {
+        limitSaves(ctx.session.user.id);
+        return salaryService.payAll(input, ctx.session.user);
+      };
+      return input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save();
+    }),
+
+  get: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/salaries/{transactionId}", tags: ["transactions"] } })
+    .input(salaryIdInputModel)
+    .output(salaryPaymentModel)
+    .query(({ input }) => salaryService.get(input)),
+});
+
 export const transactionsRouter = router({
   history: historyRouter,
   receipt: receiptRouter,
@@ -359,5 +403,6 @@ export const transactionsRouter = router({
   withdrawal: contraRouter("withdrawal"),
   transfer: transferRouter,
   other: otherRouter,
+  salary: salaryRouter,
   due: dueRouter,
 });

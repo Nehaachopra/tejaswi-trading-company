@@ -35,7 +35,7 @@ export function upiLink({
 // a bank account's UPI QR for the amount, shown in the card as soon as there is one: with more than one UPI ID a
 // dropdown above the code naming each by its app (PhonePe, GPay ...; the ID too when two share an app), the first, the
 // account's default, picked to start with; the code on white (so any phone camera reads it), the amount large under
-// it, and which UPI ID it pays
+// it, then the UPI ID it pays (the dropdown, when there's more than one)
 export function UpiQr({
   upiIds,
   payee,
@@ -62,10 +62,20 @@ export function UpiQr({
   };
 
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-chestnut/20 p-4">
-      <span className="text-xs font-semibold">{t("scanToPay")}</span>
-      {/* more than one UPI ID: which one this code pays, by its app, the default first */}
-      {upiIds.length > 1 && (
+    <div className="flex flex-col items-center gap-3">
+      {/* the code: dark on white with a quiet margin, the size a phone reads from arm's length */}
+      <div className="rounded-xl bg-white p-3">
+        <QRCode
+          value={upiLink({ upiId: picked, payee: name, amount, note })}
+          size={208}
+          fgColor="#2b160e"
+          bgColor="#ffffff"
+          level="M"
+        />
+      </div>
+      <p className="tabular font-heading text-3xl font-bold leading-none">{rupees(amount)}</p>
+      {/* the UPI ID it pays; with more than one, a dropdown naming each by its app, the default first */}
+      {upiIds.length > 1 ? (
         <div className="w-full">
           <PickMenu
             label={t("upiId")}
@@ -78,22 +88,9 @@ export function UpiQr({
             className="bg-ivory text-chestnut"
           />
         </div>
+      ) : (
+        <p className="text-center text-xs opacity-70">{picked}</p>
       )}
-      {/* the code: dark on white with a quiet margin, the size a phone reads from arm's length */}
-      <div className="rounded-xl bg-white p-3">
-        <QRCode
-          value={upiLink({ upiId: picked, payee: name, amount, note })}
-          size={208}
-          fgColor="#2b160e"
-          bgColor="#ffffff"
-          level="M"
-        />
-      </div>
-      <p className="tabular font-heading text-3xl font-bold leading-none">{rupees(amount)}</p>
-      <p className="text-center text-xs">
-        <span className="block font-semibold">{name}</span>
-        <span className="block opacity-70">{picked}</span>
-      </p>
     </div>
   );
 }

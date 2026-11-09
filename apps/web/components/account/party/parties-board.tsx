@@ -39,7 +39,7 @@ export function PartiesBoard({ type }: { type: PartyType }) {
     return () => clearTimeout(timer);
   }, [typed]);
 
-  const parties = trpc.accounts.party.list.useQuery({ type, includeInactive: showInactive, search }, { placeholderData: (previous) => previous });
+  const parties = trpc.accounts.party.list.useQuery({ master: kind.master, includeInactive: showInactive, search }, { placeholderData: (previous) => previous });
   // the places these parties are in, and the ones in the picked place
   const cities = [...new Set((parties.data ?? []).map((p) => p.city).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b));
   const shown = (parties.data ?? []).filter((p) => city === null || p.city === city);

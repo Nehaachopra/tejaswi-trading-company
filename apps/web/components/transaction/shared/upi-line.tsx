@@ -5,7 +5,15 @@ import { useTranslations } from "next-intl";
 
 // a UPI ID that's already there (saved, or typed and fine), shown as text under its name with Edit beside it; Edit
 // brings back the box to change it. The forms show the box itself only while there's none, or once Edit is tapped
-export function UpiLine({ label, value, onEdit }: { label: string; value: string; onEdit: () => void }) {
+export function UpiLine({
+  label,
+  value,
+  onEdit,
+}: {
+  label: string;
+  value: string;
+  onEdit: () => void;
+}) {
   const t = useTranslations("transactions.payment.form");
   return (
     <div className="flex flex-col gap-2 text-xs font-semibold">

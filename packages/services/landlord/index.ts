@@ -214,7 +214,7 @@ export default class LandlordService {
         await this.assertGstinFree(tx, details.gstin);
         const [party] = await tx
           .insert(partiesTable)
-          .values({ ...partyValues(details), type: "landlord" })
+          .values({ ...partyValues(details), type: "landlord", types: ["landlord"] })
           .returning({ id: partiesTable.id });
         await this.saveAddress(tx, party!.id, details);
         await this.saveUpiIds(tx, party!.id, details.upiIds);

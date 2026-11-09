@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, db, eq, inArray, sql } from "@repo/database";
-import { bankDetailsTable, bankUpiIdsTable, dueSettlementsTable, duesTable, ledgerEntriesTable, ledgersTable, partiesTable, partyAddressesTable, receiptBankDetailsTable, receiptsTable, transactionsTable } from "@repo/database/schema";
+import { bankDetailsTable, bankUpiIdsTable, dueSettlementsTable, duesTable, ledgerEntriesTable, ledgersTable, partiesTable, partyAddressesTable, receiptsTable, transactionBankDetailsTable, transactionsTable } from "@repo/database/schema";
 
 import AccountsService from "../accounts";
 import { type ActorModel, fitsReceiptKind, type LedgerSummaryModel, type PostingLine, type ReceiptKind } from "../accounts/model";
@@ -53,7 +53,7 @@ export default class ReceiptService {
         // capital: the one Capital ledger
         (input.receivedFor === "capital" ? await this.accounts.ledgerId(tx, "capital") : null) ??
         (input.newParty
-          ? (await this.parties.createIn(tx, input.newParty, input.receivedFor === "customer" ? "customer" : null)).ledgerId
+          ? (await this.parties.createIn(tx, input.newParty, input.receivedFor === "customer" ? "customer" : input.receivedFor === "loanTaken" ? "lender" : null)).ledgerId
           : await this.accounts.createLedgerIn(tx, { ...NEW_LEDGER_FOR[input.receivedFor]!, name: input.newLedger!.name }));
       const { ledger: from, party } = await counterLedger(tx, this.accounts, fromId);
       // and it must be a ledger of that kind: a loan for a loan, income for income
@@ -165,9 +165,9 @@ export default class ReceiptService {
       // a millisecond apart, so they read back in the order saved (the first account, then the others)
       const savedAt = Date.now();
       if (bank && input.bankDetailsId) {
-        await tx.insert(receiptBankDetailsTable).values({
+        await tx.insert(transactionBankDetailsTable).values({
           createdAt: new Date(savedAt),
-          receiptId: row!.id,
+          transactionId: t.id,
           bankDetailsId: input.bankDetailsId,
           amount: fromPaise(into.bankPart),
           mode: BANK_MODE_DB[input.bankMode!],
@@ -180,9 +180,9 @@ export default class ReceiptService {
       for (const [i, part] of input.moreBankParts.entries()) {
         const acc = moreBanks.find((m) => m.id === part.bankDetailsId);
         if (!acc) throw new TRPCError({ code: "BAD_REQUEST", message: "Pick the bank account." });
-        await tx.insert(receiptBankDetailsTable).values({
+        await tx.insert(transactionBankDetailsTable).values({
           createdAt: new Date(savedAt + i + 1),
-          receiptId: row!.id,
+          transactionId: t.id,
           bankDetailsId: part.bankDetailsId,
           amount: fromPaise(into.more[i]!.part),
           mode: BANK_MODE_DB[part.mode],
@@ -210,6 +210,8 @@ export default class ReceiptService {
       if (input.receivedFor === "loanReturned") await this.dues.settleLoanIn(tx, loan!.due, t.id, input.amount);
       if (input.loan) {
         if (!party && !lent) throw new TRPCError({ code: "BAD_REQUEST", message: "A loan comes from a party." });
+        // a person lending to us is a lender (their ledger moves to Lenders unless they're a customer or supplier)
+        if (party) await this.parties.addRoleIn(tx, party.id, "lender");
         const { dueOn, ...terms } = input.loan;
         await this.dues.createIn(tx, { kind: "loanTaken", party, lender: lent?.due ?? null, transactionId: t.id, amount: input.amount, dueOn, terms });
       }
@@ -249,9 +251,9 @@ export default class ReceiptService {
     // its bank rows in the order they were saved: the first account, then any more; the rest came in cash
     const [b, ...more] = await db
       .select()
-      .from(receiptBankDetailsTable)
-      .where(eq(receiptBankDetailsTable.receiptId, r.id))
-      .orderBy(asc(receiptBankDetailsTable.createdAt), asc(receiptBankDetailsTable.id));
+      .from(transactionBankDetailsTable)
+      .where(eq(transactionBankDetailsTable.transactionId, r.transactionId))
+      .orderBy(asc(transactionBankDetailsTable.createdAt), asc(transactionBankDetailsTable.id));
     const bankAmount = [b, ...more].reduce((sum, x) => (x ? sum + toPaise(x.amount) : sum), 0) / 100;
 
     // the party's default address (only for those older receipts), and a loan's interest

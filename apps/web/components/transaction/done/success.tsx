@@ -20,9 +20,12 @@ import { NEW_TRANSACTION_HREF } from "../../shell/nav-items";
 export function ReceiptSuccess({
   id,
   flow = "receipt",
+  also = [],
 }: {
   id: string;
-  flow?: "receipt" | "payment" | "deposit" | "withdrawal" | "transfer" | "other";
+  flow?: "receipt" | "payment" | "deposit" | "withdrawal" | "transfer" | "other" | "salary";
+  // salary paid to many in one save: the other payments' ids
+  also?: string[];
 }) {
   // bank names in the language picked
   const bankName = useBankName();
@@ -33,8 +36,19 @@ export function ReceiptSuccess({
   const ownWithdrawal = useTranslations("transactions.withdrawal.success");
   const ownTransfer = useTranslations("transactions.transfer.success");
   const ownOther = useTranslations("transactions.other.success");
+  const ownSalary = useTranslations("transactions.salary.success");
   const own =
-    flow === "deposit" ? ownDeposit : flow === "withdrawal" ? ownWithdrawal : flow === "transfer" ? ownTransfer : flow === "other" ? ownOther : ownPayment;
+    flow === "deposit"
+      ? ownDeposit
+      : flow === "withdrawal"
+        ? ownWithdrawal
+        : flow === "transfer"
+          ? ownTransfer
+          : flow === "other"
+            ? ownOther
+            : flow === "salary"
+              ? ownSalary
+              : ownPayment;
   const t = ((key: string, values?: Record<string, string>) =>
     flow !== "receipt" && own.has(key as never)
       ? own(key as never, values as never)
@@ -47,6 +61,12 @@ export function ReceiptSuccess({
   // a journal entry (Others): no cash or bank, no voucher; only its number
   const isOther = flow === "other";
   const otherGet = trpc.transactions.other.get.useQuery({ transactionId: id }, { enabled: isOther });
+  // a salary or advance: cash or one bank account, no voucher yet
+  const isSalary = flow === "salary";
+  const salaryGet = trpc.transactions.salary.get.useQuery({ transactionId: id }, { enabled: isSalary });
+  // salary paid to many: every payment, each with its employee and number
+  const salaryMany = trpc.useQueries((q) => (isSalary ? also : []).map((x) => q.transactions.salary.get({ transactionId: x })));
+  const many = isSalary && also.length > 0 && salaryGet.data && salaryMany.every((m) => m.data) ? [salaryGet.data, ...salaryMany.map((m) => m.data!)] : null;
   const receiptGet = trpc.transactions.receipt.get.useQuery(
     { transactionId: id },
     { enabled: flow === "receipt" },
@@ -59,7 +79,7 @@ export function ReceiptSuccess({
   const withdrawalGet = trpc.transactions.withdrawal.get.useQuery({ transactionId: id }, { enabled: flow === "withdrawal" });
   const transferGet = trpc.transactions.transfer.get.useQuery({ transactionId: id }, { enabled: flow === "transfer" });
   const contraGet = flow === "withdrawal" ? withdrawalGet : flow === "transfer" ? transferGet : depositGet;
-  const asked = isOther ? otherGet : isDeposit ? contraGet : isPayment ? paymentGet : receiptGet;
+  const asked = isSalary ? salaryGet : isOther ? otherGet : isDeposit ? contraGet : isPayment ? paymentGet : receiptGet;
   // what this page shows of it, the same for every flow: a deposit or withdrawal moved cash and one account (shown as
   // cash and a bank), a transfer two accounts (the one it left, then the one it went into)
   const d = contraGet.data;
@@ -67,7 +87,15 @@ export function ReceiptSuccess({
   const receipt = {
     isPending: asked.isPending,
     isError: asked.isError,
-    data: isOther
+    data: isSalary
+      ? salaryGet.data && {
+          assignedId: salaryGet.data.assignedId,
+          bankDetailsId: salaryGet.data.bankDetailsId ?? "",
+          settledIn: salaryGet.data.settledIn,
+          moreBankParts: [] as { bankDetailsId: string }[],
+          split: null,
+        }
+      : isOther
       ? otherGet.data && {
           assignedId: otherGet.data.assignedId,
           bankDetailsId: "",
@@ -160,6 +188,20 @@ export function ReceiptSuccess({
 
           {/* its number in a box like the rows below (label left, the ID and its copy button right), and the voucher
               beside it (under it on the phone) */}
+          {many ? (
+            <div className="flex w-full max-w-lg flex-col gap-2">
+              <p className="text-sm font-semibold">{ownSalary("paidCount", { count: many.length })}</p>
+              {many.map((m) => (
+                <p key={m.transactionId} className="flex min-w-0 items-center justify-between gap-4 rounded-control border border-chestnut/25 py-1.5 pl-4 pr-2 text-left">
+                  <span className="truncate text-sm font-semibold">{m.employee.name}</span>
+                  <span className="flex shrink-0 items-center gap-1">
+                    <span className="font-heading text-lg font-bold">{m.assignedId}</span>
+                    <CopyButton value={m.assignedId} />
+                  </span>
+                </p>
+              ))}
+            </div>
+          ) : (
           <div className="flex w-full max-w-lg flex-col gap-3 sm:flex-row sm:items-stretch">
             <p className="flex min-w-0 flex-1 items-center justify-between gap-4 rounded-control border border-chestnut/25 py-1.5 pl-4 pr-2 text-left">
               <span className="text-sm font-semibold">{t("number")}</span>
@@ -168,7 +210,7 @@ export function ReceiptSuccess({
                 <CopyButton value={receipt.data.assignedId} />
               </span>
             </p>
-            {!isDeposit && !isOther && (
+            {!isDeposit && !isOther && !isSalary && (
             <Link
               href={`/transaction/${flow}/${id}/voucher`}
               className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-chestnut/50 px-4 text-sm font-semibold sm:w-auto"
@@ -177,6 +219,7 @@ export function ReceiptSuccess({
             </Link>
             )}
           </div>
+          )}
 
           {/* more than was owed (a customer paying us, a supplier we paid): what settled the due and what's an advance,
               a row each in one box */}

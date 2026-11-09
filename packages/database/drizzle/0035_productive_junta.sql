@@ -1,0 +1,1 @@
+ALTER TABLE "salaries" DROP CONSTRAINT "salaries_posting_by_kind";

@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { asPartyType } from "../party/model";
+import { rolesOf } from "../party/model";
 import { and, asc, db, eq, inArray, or, type SQL, sql } from "@repo/database";
 import { duesTable, dueSettlementsTable, lendersTable, partiesTable, partyAddressesTable, transactionsTable } from "@repo/database/schema";
 
@@ -224,7 +224,7 @@ export default class DueService {
           shortName: partiesTable.shortName,
           phone: partiesTable.phone,
           countryCode: partiesTable.countryCode,
-          type: partiesTable.type,
+          types: partiesTable.types,
           city: partyAddressesTable.city,
         })
         .from(partiesTable)
@@ -243,7 +243,7 @@ export default class DueService {
     ]);
     // a bank or NBFC stands where a party would, with its branch as the place
     const [lender] = party ? [] : await db.select({ id: lendersTable.id, name: lendersTable.name, city: lendersTable.branch }).from(lendersTable).where(eq(lendersTable.id, input.partyId));
-    const holder = party ? { ...party, type: asPartyType(party.type) } : (lender ? { ...lender, shortName: null, phone: null, countryCode: "+91", type: null } : null);
+    const holder = party ? { ...party, types: rolesOf(party.types) } : (lender ? { ...lender, shortName: null, phone: null, countryCode: "+91", types: [] } : null);
     if (!holder) throw new TRPCError({ code: "NOT_FOUND", message: "Party not found." });
     const settlements = settled.rows.map((r) => ({
       transactionId: r.transaction_id,
@@ -315,7 +315,7 @@ export default class DueService {
       const ledgerId =
         lent?.ledgerId ??
         input.partyLedgerId ??
-        (await this.parties.createIn(tx, input.newParty!, input.kind === "debtor" ? "customer" : input.kind === "creditor" ? "supplier" : null)).ledgerId;
+        (await this.parties.createIn(tx, input.newParty!, input.kind === "debtor" ? "customer" : input.kind === "creditor" ? "supplier" : input.kind === "loanTaken" ? "lender" : null)).ledgerId;
       const { ledger, party } = await counterLedger(tx, this.accounts, ledgerId);
       if (!party && !lent) throw new TRPCError({ code: "BAD_REQUEST", message: "A due is on a party." });
 

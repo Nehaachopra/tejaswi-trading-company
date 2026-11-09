@@ -11,7 +11,7 @@ import { toast } from "~/components/ui/toast";
 import { trpc } from "~/trpc/client";
 import type { RouterOutputs } from "@repo/trpc/client";
 
-import { draftFrom, draftInput, draftOk, emptyDraft, PartyFields, tdsOver, type PartyDraft } from "./party-fields";
+import { draftFrom, draftInput, draftOk, emptyDraft, PartyFields, tdsOver, type PartyDraft, type PickedRole } from "./party-fields";
 import { kindOf, partyLabel, type PartyType } from "./party-kinds";
 import { useSameNameConfirm } from "./same-name";
 
@@ -77,6 +77,7 @@ export function PartyEdit({ partyId, onSaved, onCancel }: { partyId: string; onS
   return (
     <div className="flex flex-col gap-4">
       <PartyFields
+          asksTypes
         draft={draft}
         onAddressesOpen={() => setTried(false)}
         onChange={(patch) => {
@@ -115,11 +116,14 @@ export function PartyEdit({ partyId, onSaved, onCancel }: { partyId: string; onS
 export function PartySheet({
   partyId,
   type,
+  startTypes,
   onClose,
   onSaved,
 }: {
   partyId: string | "new" | null;
   type: PartyType;
+  // the types a new one starts with (Entities → Parties, from the type picked there)
+  startTypes?: PickedRole[];
   onClose: () => void;
   onSaved?: (party: { id: string; type: PartyType }) => void;
 }) {
@@ -135,12 +139,13 @@ export function PartySheet({
   const [tried, setTried] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // paid so far this year, only while TDS is on: a party with no sale or purchase can be paid for transport or brokerage
-  // (which needs the TDS taken too) or be a supplier; a supplier only the amount; never a customer
-  const kind = editing ? kindOf(party.data?.type ?? null) : type;
+  // by the types ticked on the form: paid so far this year, only while TDS is on, for someone with no type (paid for
+  // transport or labour) or an agent alone (brokerage), with the TDS taken too; a supplier only the amount; never a
+  // customer or an employee. A transporter's declaration only for someone with no type
   const taxes = trpc.settings.page.useQuery(undefined, { enabled: !!partyId });
-  const asksTds = kind === "none" && !!taxes.data?.taxAudit;
-  const asksPaid = asksTds || ((kind === "supplier" || kind === "customer_supplier") && !!taxes.data?.tds194q);
+  const paidForWork = draft.types.length === 0 || draft.types.every((r) => r === "agent");
+  const asksTds = paidForWork && !!taxes.data?.taxAudit;
+  const asksPaid = asksTds || (draft.types.includes("supplier") && !!taxes.data?.tds194q);
   const ok = draftOk(draft) && !(asksTds && tdsOver(draft));
   // sent only when asked, so it stays as saved otherwise; a TDS that isn't asked stays within the amount
   const paidBefore = () => {
@@ -151,7 +156,12 @@ export function PartySheet({
   const loaded = !editing || !!party.data;
   useEffect(() => {
     if (!partyId || !loaded) return;
-    setDraft(editing ? draftFrom(party.data!) : emptyDraft());
+    // a new one starts with the types of the list it's added from
+    setDraft(
+      editing
+        ? draftFrom(party.data!)
+        : { ...emptyDraft(), types: startTypes ?? (type === "customer_supplier" ? ["customer", "supplier"] : type === "none" ? [] : [type]) },
+    );
     setTried(false);
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when it opens or first loads
@@ -169,7 +179,7 @@ export function PartySheet({
       const saved = editing ? await update.mutateAsync({ id: partyId, ...details }) : await create.mutateAsync(details);
       toast.success(t(editing ? "toast.saved" : "toast.added", { name: partyLabel(saved) }));
       void utils.accounts.invalidate();
-      onSaved?.({ id: saved.id, type: kindOf(saved.type) });
+      onSaved?.({ id: saved.id, type: kindOf(saved.types) });
       onClose();
     } catch (err) {
       setError(t(`errors.${errorKey(err)}`));
@@ -186,10 +196,11 @@ export function PartySheet({
       ) : (
         <form onSubmit={save} noValidate className="flex min-h-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
-            <PartyFields draft={draft} onAddressesOpen={() => setTried(false)} onChange={(patch) => {
+            <PartyFields
+          asksTypes draft={draft} onAddressesOpen={() => setTried(false)} onChange={(patch) => {
                 setError(null);
                 setDraft((d) => ({ ...d, ...patch }));
-              }} tried={tried} partyId={editing ? partyId : null} transporter={kind === "none"} asksPaid={asksPaid} asksTds={asksTds} />
+              }} tried={tried} partyId={editing ? partyId : null} transporter={draft.types.length === 0} asksPaid={asksPaid} asksTds={asksTds} />
           </div>
           <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
             {tried && !ok && <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>}

@@ -21,7 +21,8 @@ function PartyDetails({ party: p }: { party: RouterOutputs["accounts"]["party"][
   const tf = useTranslations("accounts.party.form");
   const rows = [
     { label: t("details.name"), value: p.name },
-    { label: t("details.type"), value: tf(`types.${kindOf(p.type)}`) },
+    // what it is to us, every type it has
+    { label: t("details.type"), value: p.types.length ? p.types.map((r) => tf(`types.${r}`)).join(", ") : tf("types.none") },
     { label: t("details.phone"), value: p.phone ? `${p.countryCode} ${p.phone}` : "—", number: true },
     { label: t("details.email"), value: p.email ?? "—" },
     { label: t("details.pan"), value: p.pan ?? "—", number: true },
@@ -63,7 +64,7 @@ export function PartyPage({ partyId, type }: { partyId: string; type: PartyType 
   const party = trpc.accounts.party.get.useQuery({ id: partyId });
   // its details being changed, in the card
   const [editing, setEditing] = useState(false);
-  const list = party.data ? kindOf(party.data.type) : type;
+  const list = party.data ? kindOf(party.data.types) : type;
   const kind = PARTY_KINDS[list];
 
   return (
@@ -89,7 +90,7 @@ export function PartyPage({ partyId, type }: { partyId: string; type: PartyType 
             { label: t("insights.transactions"), value: p.insights.transactions.toLocaleString("en-IN") },
             { label: t("insights.pendingOrders"), value: p.insights.pendingOrders.toLocaleString("en-IN") },
             {
-              label: t(p.type === "supplier" ? "insights.paymentTime" : "insights.collectionTime"),
+              label: t(kindOf(p.types) === "supplier" ? "insights.paymentTime" : "insights.collectionTime"),
               value: p.insights.averageDays === null ? "—" : t("insights.days", { count: p.insights.averageDays }),
             },
             { label: t("insights.perMonth"), value: p.insights.perMonth.toLocaleString("en-IN") },

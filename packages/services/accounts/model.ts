@@ -154,7 +154,7 @@ export type OverviewModel = z.infer<typeof overviewModel>;
 
 // the sub-groups with no list of their own elsewhere in /account (bank accounts and parties have theirs): bank loans,
 // rent payable to landlords, employees
-export const GROUP_PAGES = ["lenders", "rentPayable", "employees", "gstPayable"] as const;
+export const GROUP_PAGES = ["lenders", "personalLenders", "agents", "rentPayable", "employees", "gstPayable"] as const;
 
 // the GST owed, gathered on /account as one group under Liability (they stay built-in ledgers under the head itself):
 // output GST, then reverse-charge GST
@@ -241,6 +241,9 @@ export type ReceiptKind = z.infer<typeof receiptKindModel>;
 
 // built-in ledgers that only their own screens post to (a sale, a purchase, their returns, salary, a bad debt written
 // off on Dues, a discount given with a sale or receipt), never a receipt or payment: no money moves for them by itself
+// the sub-groups a party's ledger can sit in (a landlord's Rent payable aside, which its own pages use)
+export const PARTY_MASTERS = ["debtors", "creditors", "debtorCreditors", "parties", "personalLenders", "agents", "employees"];
+
 export const OWN_SCREEN_LEDGERS = ["sale", "purchase", "saleReturn", "purchaseReturn", "salary", "badDebts", "discountGiven", "interestPaid"];
 
 // whether a journal entry (Others) can use a ledger: one of our own heads only. Never cash or a bank account (their
@@ -261,7 +264,7 @@ export const LOAN_RECEIPT_KINDS: ReceiptKind[] = ["loanReturned", "interestRecei
 // whether a ledger can take money in for a kind: a party's ledger for a payment or a loan; Capital for capital; any
 // income head of our own for other income; any asset or expense head of our own (not cash) for a refund
 export function fitsReceiptKind(kind: ReceiptKind, l: { head: string; masterKey: string | null; key: string | null; referenceId: string | null }) {
-  const party = l.masterKey === "debtors" || l.masterKey === "creditors" || l.masterKey === "debtorCreditors" || l.masterKey === "parties";
+  const party = PARTY_MASTERS.includes(l.masterKey ?? "");
   // a loan received can come from a bank or NBFC
   if (kind === "loanTaken" && l.masterKey === "lenders") return true;
   // money from someone buying from us: a customer or a both, never only a supplier
@@ -291,7 +294,7 @@ export const TAX_LEDGERS = ["tdsPayable", "tcs", "outputCgst", "outputSgst", "ou
 // whether a ledger can take money paid out for a kind: a party's ledger for a supplier, a loan or a refund; a tax
 // ledger for a tax; any expense head of our own (not salary, purchase or a sale return) for an expense
 export function fitsPaymentKind(kind: PaymentKind, l: { head: string; masterKey: string | null; key: string | null; referenceId: string | null }) {
-  const party = l.masterKey === "debtors" || l.masterKey === "creditors" || l.masterKey === "debtorCreditors" || l.masterKey === "parties";
+  const party = PARTY_MASTERS.includes(l.masterKey ?? "");
   // a loan from a bank or NBFC, and its interest, go to that lender
   if (LOAN_PAYMENT_KINDS.includes(kind) && l.masterKey === "lenders") return true;
   // money to someone we buy from: a supplier or a both, never only a customer
@@ -310,7 +313,8 @@ export const pickLedgersInputModel = z.object({
   paymentKind: paymentKindModel.nullable().default(null),
   // who an expense was paid to, not customers or suppliers: for rent the landlords, otherwise (a transporter, a broker)
   // parties with no sale or purchase
-  payee: z.enum(["other"]).nullable().default(null),
+  // (or "employee": the salary form's search, the ledgers in Employees)
+  payee: z.enum(["other", "employee"]).nullable().default(null),
   search: z.string().trim().max(60).default(""),
 });
 
@@ -323,7 +327,8 @@ export const pickedPartyModel = z.object({
   shortName: z.string().nullable(),
   phone: z.string().nullable(),
   city: z.string().nullable(),
-  type: z.enum(["customer", "supplier", "customer_supplier"]).nullable(),
+  // what it is to us (any of customer, supplier, landlord, lender, agent)
+  types: z.array(z.enum(["customer", "supplier", "employee", "landlord", "lender", "agent"])),
   // what they're paid on, for a payment's UPI QR
   upiIds: z.array(z.string()),
 });

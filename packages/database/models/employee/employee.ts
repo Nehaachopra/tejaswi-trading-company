@@ -1,28 +1,27 @@
 // employee.ts
 
-import { boolean, check, date, pgTable, smallint, text, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
+import { check, date, pgTable, smallint, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 import { money, timestamps } from "../../utils/common/column-type";
 import { usersTable } from "../auth/user";
+import { partiesTable } from "../party/party";
 
-// an employee on fixed monthly pay; linked to a user account only when they log in
+// a party who works for us on fixed monthly pay (a party with the employee type): what only an employee has. Their
+// name, phone, address, ledger and whether they're still active are the party's; salary postings and payments point
+// here. Linked to a user account only when they log in
 export const employeesTable = pgTable(
   "employees",
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
+    partyId: uuid("party_id")
+      .notNull()
+      .references(() => partiesTable.id, { onDelete: "restrict" }),
+
     userId: uuid("user_id").references(() => usersTable.id, {
       onDelete: "set null",
     }),
-
-    name: varchar("name", { length: 150 }).notNull(),
-
-    countryCode: varchar("country_code", { length: 5 }).default("+91"),
-
-    phone: varchar("phone", { length: 20 }),
-
-    address: text("address"),
 
     joiningDate: date("joining_date").notNull(),
 
@@ -31,11 +30,12 @@ export const employeesTable = pgTable(
     // day of the month salary falls due
     payDay: smallint("pay_day").notNull(),
 
-    isActive: boolean("is_active").default(true).notNull(),
-
     ...timestamps,
   },
   (table) => [
+    // one employee record per party
+    uniqueIndex("employees_party_id_unique").on(table.partyId),
+
     uniqueIndex("employees_user_id_unique")
       .on(table.userId)
       .where(sql`${table.userId} IS NOT NULL`),

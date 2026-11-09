@@ -152,8 +152,9 @@ export function StepCard({
           </button>
         )}
       </div>
-      {missing && <FieldMessage className="mt-0">{missing}</FieldMessage>}
       {children}
+      {/* what's still missing, just above Next or Save */}
+      {missing && <FieldMessage className="mt-0">{missing}</FieldMessage>}
       {end}
     </section>
   );

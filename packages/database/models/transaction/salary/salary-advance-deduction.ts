@@ -6,8 +6,8 @@ import { sql } from "drizzle-orm";
 import { money, timestamps } from "../../../utils/common/column-type";
 import { salariesTable } from "./salary";
 
-// one month's share of an advance; the service keeps the shares adding up to the advance
-// and takes each share off that month's salary posting
+// a share of an advance taken back: in a salary payment, when the user chose to take it (payment_salary_id; the cash
+// paid is the salary settled less this). Older ones were taken off a posted month (year, month) by the app
 export const salaryAdvanceDeductionsTable = pgTable(
   "salary_advance_deductions",
   {
@@ -17,8 +17,12 @@ export const salaryAdvanceDeductionsTable = pgTable(
       .notNull()
       .references(() => salariesTable.id, { onDelete: "restrict" }),
 
-    year: smallint("year").notNull(),
-    month: smallint("month").notNull(),
+    // the salary payment it was taken back in
+    paymentSalaryId: uuid("payment_salary_id").references(() => salariesTable.id, { onDelete: "restrict" }),
+
+    // older ones: the posted month it was taken off
+    year: smallint("year"),
+    month: smallint("month"),
 
     amount: money("amount").notNull(),
 
@@ -31,7 +35,16 @@ export const salaryAdvanceDeductionsTable = pgTable(
       table.month,
     ),
 
-    check("salary_advance_deductions_month_range", sql`${table.month} BETWEEN 1 AND 12`),
+    uniqueIndex("salary_advance_deductions_advance_payment_unique").on(table.salaryId, table.paymentSalaryId),
+
+    check("salary_advance_deductions_month_range", sql`${table.month} IS NULL OR ${table.month} BETWEEN 1 AND 12`),
+
+    // taken in a payment, or off a posted month
+    check(
+      "salary_advance_deductions_payment_or_month",
+      sql`(${table.paymentSalaryId} IS NOT NULL AND ${table.year} IS NULL AND ${table.month} IS NULL)
+        OR (${table.paymentSalaryId} IS NULL AND ${table.year} IS NOT NULL AND ${table.month} IS NOT NULL)`,
+    ),
 
     check("salary_advance_deductions_amount_positive", sql`${table.amount} > 0`),
   ],

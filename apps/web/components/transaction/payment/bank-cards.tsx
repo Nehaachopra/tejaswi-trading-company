@@ -52,7 +52,13 @@ export function OneAccount() {
           label={t("account")}
           places={coveringBanks.map((b) => {
             const h = bankHeld(b.id);
-            return { id: b.id, name: bankNameIn(b.bankName, locale), sub: `••${b.last4}`, hint: h === null ? undefined : rupees(h), disabled: false };
+            return {
+              id: b.id,
+              name: bankNameIn(b.bankName, locale),
+              sub: `••${b.last4}`,
+              hint: h === null ? undefined : rupees(h),
+              disabled: false,
+            };
           })}
           value={bankId ?? null}
           onPick={(id) => {
@@ -283,21 +289,27 @@ export function AccountRows() {
                     <RequiredMark />
                   </span>
                   <PlacePicker
-          label={t("account")}
-          places={options.map((b) => {
-            const h = bankHeld(b.id);
-            return { id: b.id, name: bankNameIn(b.bankName, locale), sub: `••${b.last4}`, hint: h === null ? undefined : rupees(h), disabled: false };
-          })}
-          value={r.id ?? null}
-          onPick={(id) => {
+                    label={t("account")}
+                    places={options.map((b) => {
+                      const h = bankHeld(b.id);
+                      return {
+                        id: b.id,
+                        name: bankNameIn(b.bankName, locale),
+                        sub: `••${b.last4}`,
+                        hint: h === null ? undefined : rupees(h),
+                        disabled: false,
+                      };
+                    })}
+                    value={r.id ?? null}
+                    onPick={(id) => {
                       // the account picked: its amount is next, so the cursor goes there
                       setTimeout(() => document.getElementById(`card-amount-${r.key}`)?.focus(), 0);
                       if (r.first) return setBankId(id);
                       // another account: its amount and how it was paid start again
                       if (id !== r.id) setMorePart(r.key, { bankId: id, amount: "", mode: null });
                     }}
-          invalid={tried && !r.id}
-        />
+                    invalid={tried && !r.id}
+                  />
                 </div>
 
                 {/* what it pays, up to what it holds and what's still to pay */}
@@ -424,37 +436,37 @@ export function UpiField() {
       {!editing && typedUpiOk && (upiLeft || savedUpis.includes(typedUpi.trim().toLowerCase())) ? (
         <UpiLine label={t("payeeUpi")} value={typedUpi.trim()} onEdit={() => setEditing(true)} />
       ) : (
-      <label className="flex flex-col gap-2 text-xs font-semibold">
-        <span>{t("payeeUpi")}</span>
-        <input
-          autoFocus={editing}
-          type="text"
-          inputMode="email"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          value={typedUpi}
-          maxLength={255}
-          onChange={(e) => {
-            setUpiLeft(false);
-            setTypedUpi(e.target.value.toLowerCase().replace(/[^a-z0-9.@_-]/g, ""));
-          }}
-          onBlur={() => {
-            setUpiLeft(true);
-            setEditing(false);
-          }}
-          placeholder="name@bank"
-          aria-invalid={bad || undefined}
-          className={input(bad)}
-        />
-        {bad && (
-          <FieldMessage className="mt-0">
-            {typedUpiShapeOk
-              ? t("payeeUpiHandle", { handle: `@${typedUpi.trim().split("@")[1]}` })
-              : t("payeeUpiBad")}
-          </FieldMessage>
-        )}
-      </label>
+        <label className="flex flex-col gap-2 text-xs font-semibold">
+          <span>{t("payeeUpi")}</span>
+          <input
+            autoFocus={editing}
+            type="text"
+            inputMode="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            value={typedUpi}
+            maxLength={255}
+            onChange={(e) => {
+              setUpiLeft(false);
+              setTypedUpi(e.target.value.toLowerCase().replace(/[^a-z0-9.@_-]/g, ""));
+            }}
+            onBlur={() => {
+              setUpiLeft(true);
+              setEditing(false);
+            }}
+            placeholder="name@bank"
+            aria-invalid={bad || undefined}
+            className={input(bad)}
+          />
+          {bad && (
+            <FieldMessage className="mt-0">
+              {typedUpiShapeOk
+                ? t("payeeUpiHandle", { handle: `@${typedUpi.trim().split("@")[1]}` })
+                : t("payeeUpiBad")}
+            </FieldMessage>
+          )}
+        </label>
       )}
     </Reveal>
   );

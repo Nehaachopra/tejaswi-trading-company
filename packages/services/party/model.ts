@@ -6,12 +6,31 @@ import { ledgerBalanceModel, savedOpeningBalanceModel } from "../accounts/model"
 
 const idModel = z.string().uuid();
 
-export const partyTypeModel = z.enum(["customer", "supplier", "customer_supplier"]);
+// what a party is to us; a party can be several at once (none for anyone else)
+export const partyRoleModel = z.enum(["customer", "supplier", "employee", "landlord", "lender", "agent"]);
 
-// a party's type where landlords never show (party lists, pickers, dues): landlord counts as none
-export const asPartyType = (t: z.infer<typeof partyTypeModel> | "landlord" | null) => (t === "landlord" ? null : t);
+export type PartyRoleModel = z.infer<typeof partyRoleModel>;
 
-export type PartyTypeModel = z.infer<typeof partyTypeModel>;
+// the roles picked on a party's form (a landlord is added in Entities → Landlords)
+export const pickedRoleModel = z.enum(["customer", "supplier", "employee", "lender", "agent"]);
+
+// a party's types as stored, in a fixed order (the old customer_supplier never appears in them)
+const ROLE_ORDER: PartyRoleModel[] = ["customer", "supplier", "employee", "landlord", "lender", "agent"];
+export const rolesOf = (types: readonly string[]): PartyRoleModel[] => ROLE_ORDER.filter((r) => types.includes(r));
+
+// the sub-group a party's one ledger sits under, by its types: customer and supplier → Customers & suppliers, customer
+// → Customers, supplier → Suppliers, else employee → Employees, landlord → Rent payable, lender → Lenders, agent →
+// Agents, none → Others
+export function masterOfRoles(types: readonly PartyRoleModel[]) {
+  if (types.includes("customer") && types.includes("supplier")) return "debtorCreditors" as const;
+  if (types.includes("customer")) return "debtors" as const;
+  if (types.includes("supplier")) return "creditors" as const;
+  if (types.includes("employee")) return "employees" as const;
+  if (types.includes("landlord")) return "rentPayable" as const;
+  if (types.includes("lender")) return "personalLenders" as const;
+  if (types.includes("agent")) return "agents" as const;
+  return "parties" as const;
+}
 
 // the GST state codes (the first two digits of a GSTIN)
 export const stateCodeModel = z.enum([
@@ -127,8 +146,24 @@ export const partyUpiIdModel = z
   .max(255)
   .refine(upiFormatOk, "A UPI ID looks like name@bank.");
 
+// an employee's pay: monthly salary, the day of the month it falls due, and when they joined (never after today)
+export const employmentInputModel = z.object({
+  monthlySalary: z.number().positive().max(9_999_999_999_999).multipleOf(0.01),
+  payDay: z.number().int().min(1).max(31),
+  joiningDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine((d) => d <= new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date()), "The joining date can't be after today."),
+});
+
+export type EmploymentInputModel = z.infer<typeof employmentInputModel>;
+
 export const createPartyInputModel = z.object({
   details: partyDetailsInputModel,
+  // what they are to us, any of customer, supplier, employee, lender and agent (none for anyone else)
+  types: z.array(pickedRoleModel).max(5).default([]).transform((t) => [...new Set(t)]),
+  // an employee's pay; sent with the employee type (left out, the saved one stays)
+  employment: employmentInputModel.nullable().optional(),
   addresses: z.array(partyAddressInputModel).max(10).default([]),
   paidBefore: partyPaidBeforeModel.optional(),
   // the UPI ID they're paid on (one for now; the table takes more); left out, the saved one stays as it is
@@ -166,10 +201,11 @@ export const partyIdInputModel = z.object({ id: idModel });
 
 export type PartyIdInputModel = z.infer<typeof partyIdInputModel>;
 
-// the lists: one type (customers, suppliers, both, or "none" for parties with no sale or purchase yet), active only
-// unless asked, and a search over name and phone
+// the lists: by a type (a party with several shows under each; "none" for those with none), or by the sub-group its
+// ledger sits in (the Accounts pages); active only unless asked, and a search over name and phone
 export const listPartiesInputModel = z.object({
-  type: z.enum(["customer", "supplier", "customer_supplier", "none"]).optional(),
+  type: z.enum(["customer", "supplier", "employee", "landlord", "lender", "agent", "none"]).optional(),
+  master: z.enum(["debtors", "creditors", "debtorCreditors", "parties"]).optional(),
   includeInactive: z.boolean().default(false),
   search: z.string().trim().max(150).default(""),
 });
@@ -242,8 +278,8 @@ export const partySummaryModel = z.object({
   ledgerId: idModel,
   name: z.string(),
   shortName: z.string().nullable(),
-  // set by its sales and purchases; null until the first
-  type: partyTypeModel.nullable(),
+  // what it is to us: any of customer, supplier, landlord, lender, agent (none for anyone else)
+  types: z.array(partyRoleModel),
   phone: z.string().nullable(),
   city: z.string().nullable(),
   gstin: z.string().nullable(),
@@ -255,6 +291,8 @@ export type PartySummaryModel = z.infer<typeof partySummaryModel>;
 
 // one party in full: its details, addresses, opening balance, and what's still pending with it
 export const partyModel = partySummaryModel.extend({
+  // an employee's pay (null for anyone else)
+  employment: z.object({ monthlySalary: z.number(), payDay: z.number(), joiningDate: z.string() }).nullable(),
   countryCode: z.string(),
   email: z.string().nullable(),
   pan: z.string().nullable(),

@@ -85,7 +85,7 @@ export function PartyDues({ kind, partyId }: { kind: DueKind; partyId: string })
   const d = page.data;
   const name = local(d.party.name);
   const owedToUs = OWED_TO_US.includes(kind);
-  const ledger = `${PARTY_KINDS[kindOf(d.party.type)].path}/${d.party.id}`;
+  const ledger = `${PARTY_KINDS[kindOf(d.party.types)].path}/${d.party.id}`;
   const oldestLate = d.dues.filter((x) => x.overdue && x.dueOn).reduce((most, x) => Math.max(most, -daysUntil(x.dueOn!)), 0);
   const button =
     "inline-flex min-h-10 items-center gap-2 rounded-control border-2 border-chestnut px-3.5 text-sm font-semibold transition-colors hover:bg-chestnut/[0.06]";

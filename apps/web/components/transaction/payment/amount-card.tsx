@@ -13,6 +13,7 @@ import { cn } from "~/lib/utils";
 import { type AmountRow, AmountTable } from "../shared/amount-table";
 import { AmountBox } from "../shared/amount-box";
 import { LABOUR_SKIP_MAX, input, saidAmount } from "./shared";
+import { QrSpot } from "../shared/qr-spot";
 import { usePaymentEntry } from "./state";
 import { FailNote, CapWarning } from "./notes";
 import { PaidFrom } from "./paid-from";
@@ -87,6 +88,7 @@ export function AmountCard() {
     taxFailed,
     retryTax,
     show,
+    qrItem,
   } = usePaymentEntry();
   // the amount's breakdown, by itself once there's something to break down (paid, any TDS and reverse-charge GST, the total, a due and an
   // advance); then how the TDS and GST were worked out
@@ -119,166 +121,178 @@ export function AmountCard() {
     <div className="flex flex-col gap-4">
       {rentCalc && <div className="min-w-0 sm:w-[calc(50%-0.75rem)]">{rentBreakdown()}</div>}
       <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-6">
-        {/* the due (or cash in hand) in a row of its own on top; under it the amount on the left and where the money goes
-          on the right, both starting level. One column on a phone */}
-        {/* what's owed on the supplier, loan or tax, in a box like a deposit's cash in hand, as soon as something is owed */}
-        {dueShown !== null && (
-          <div className="min-w-0 sm:col-start-1">
-            <AmountBox icon={HandCoins} label={t("due")} amount={dueShown} />
-          </div>
-        )}
-        <div className={cn("flex min-w-0 flex-col gap-4", dueShown !== null && "sm:col-start-1 sm:row-start-2")}>
-          {rentCalc ? (
-            rentAmount()
-          ) : interestCalc ? (
-            <div className="grid grid-cols-[6rem_minmax(0,1fr)] items-end gap-x-6">
-              <label className="flex flex-col gap-2.5 text-xs font-semibold">
-                {t("months")}
-                <NumberInput
-                  value={interestTyped !== null ? "" : interestMonths}
-                  onChange={(v) => {
-                    setInterestTyped(null);
-                    setInterestMonths(atLeastOne(v));
-                  }}
-                  maxDigits={3}
-                  max={120}
-                  placeholder="--"
-                  className={cn(input(false), "min-h-14 tabular")}
-                />
-              </label>
-              <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
-                {t("interestDue")}
-                <span className={cn("relative block", calcDue > 0 && !tooMuch && "text-ivory")}>
-                  <IndianRupee
-                    className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2"
-                    aria-hidden
-                  />
-                  <NumberInput
-                    value={interestTyped ?? (interestWorked > 0 ? String(interestWorked) : "")}
-                    onChange={setInterestTyped}
-                    decimals={2}
-                    maxDigits={13}
-                    placeholder="0"
-                    aria-invalid={(tried && calcDue === 0) || tooMuch || undefined}
-                    className={cn(
-                      input((tried && calcDue === 0) || tooMuch),
-                      "min-h-14 pl-10 font-heading text-2xl font-bold",
-                      calcDue > 0 && !tooMuch && "bg-chestnut text-ivory caret-ivory",
-                    )}
-                  />
-                </span>
-              </label>
+        {/* on the left, one under another: the due, the amount, then where it's paid from; on the right the QR, when
+          there's one. One column on a phone */}
+        <div className="flex min-w-0 flex-col gap-4">
+          {/* what's owed on the supplier, loan or tax, in a box like a deposit's cash in hand, as soon as something is owed */}
+          {dueShown !== null && (
+            <div className="min-w-0">
+              <AmountBox icon={HandCoins} label={t("due")} amount={dueShown} />
             </div>
-          ) : (
-            <div className="flex flex-col gap-2.5">
-              <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
-                <span>
-                  {tc("q.amount")}
-                  <RequiredMark />
-                </span>
-                {/* a chestnut fill once there's an amount */}
-                <div className={filled ? "text-ivory [&_button]:text-ivory" : undefined}>
-                  <MicField onText={(said) => saidAmount(said, typeAmount)}>
+          )}
+          <div className="flex min-w-0 flex-col gap-4">
+            {rentCalc ? (
+              rentAmount()
+            ) : interestCalc ? (
+              <div className="grid grid-cols-[6rem_minmax(0,1fr)] items-end gap-x-6">
+                <label className="flex flex-col gap-2.5 text-xs font-semibold">
+                  {t("months")}
+                  <NumberInput
+                    value={interestTyped !== null ? "" : interestMonths}
+                    onChange={(v) => {
+                      setInterestTyped(null);
+                      setInterestMonths(atLeastOne(v));
+                    }}
+                    maxDigits={3}
+                    max={120}
+                    placeholder="--"
+                    className={cn(input(false), "min-h-14 tabular")}
+                  />
+                </label>
+                <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
+                  {t("interestDue")}
+                  <span className={cn("relative block", calcDue > 0 && !tooMuch && "text-ivory")}>
                     <IndianRupee
                       className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2"
                       aria-hidden
                     />
                     <NumberInput
-                      id="amount-field"
-                      value={amount}
-                      onChange={(v) => {
-                        setCapNote(null);
-                        typeAmount(v);
-                      }}
-                      onCapped={(most) =>
-                        setCapNote({
-                          key: "amount",
-                          text: t("capOnly", { amount: rupees(most) }),
-                        })
-                      }
+                      value={interestTyped ?? (interestWorked > 0 ? String(interestWorked) : "")}
+                      onChange={setInterestTyped}
                       decimals={2}
                       maxDigits={13}
-                      max={cap}
                       placeholder="0"
-                      aria-invalid={amountOver || tooMuch || (tried && value === 0) || undefined}
+                      aria-invalid={(tried && calcDue === 0) || tooMuch || undefined}
                       className={cn(
-                        input(amountOver || tooMuch || (tried && value === 0)),
-                        "min-h-14 pl-10 pr-11 font-heading text-2xl font-bold",
-                        filled && !tooMuch && "bg-chestnut text-ivory caret-ivory",
+                        input((tried && calcDue === 0) || tooMuch),
+                        "min-h-14 pl-10 font-heading text-2xl font-bold",
+                        calcDue > 0 && !tooMuch && "bg-chestnut text-ivory caret-ivory",
                       )}
                     />
-                  </MicField>
-                </div>
-              </label>
-              {<CapWarning at={"amount"} />}
-              {/* their PAN, where TDS applies and there's none on record: above the breakdown it changes */}
-              {panField()}
-              {/* the breakdown right under the amount */}
-              {breakdown}
-              {/* labour with nobody named stops at the limit: naming who was paid lifts it */}
-              {skipped && (
-                <Note className="tabular text-chestnut/70">
-                  {t("labourOver", { amount: rupees(LABOUR_SKIP_MAX) })}{" "}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPayeeSkipped(false);
-                      show("payee");
-                    }}
-                    className="font-semibold text-chestnut underline underline-offset-2"
-                  >
-                    {t("namePayee")}
-                  </button>
-                </Note>
-              )}
-              {/* an advance we already have with them, before anything's typed */}
-              <Reveal follow show={heldAdvance > 0 && advance === 0} gap="0.625rem">
-                <Note className="tabular text-chestnut/70">
-                  {t("heldAdvance", { amount: rupees(heldAdvance) })}
-                </Note>
-              </Reveal>
-            </div>
-          )}
-          {taxFailed && <FailNote text={t("taxFailed")} retry={retryTax} />}
-          {fitsFailed && <FailNote text={t("fitsFailed")} retry={retryFits} />}
-          {tooMuch && mostHeld !== null && (
-            <FieldMessage className="mt-0">
-              {t("tooMuch", { amount: rupees(mostHeld) })}
-            </FieldMessage>
-          )}
-          {amountOver && !tooMuch && <FieldMessage className="mt-0">{overMessage()}</FieldMessage>}
-          {loanOver && (
-            <FieldMessage className="mt-0">
-              {tc("problems.loanLeft", { left: rupees(loan!.left) })}
-            </FieldMessage>
-          )}
-
-          {/* rent and interest: their PAN (where TDS applies and there's none on record), then their breakdown */}
-          {(rentCalc || interestCalc) && panField()}
-          {/* rent and interest: their breakdown under their figures */}
-          {(rentCalc || interestCalc) && breakdown}
-
-          {/* the EMI in one tap */}
-          {kind === "loanRepaid" &&
-            loan?.emiAmount != null &&
-            loan.emiAmount <= loan.left &&
-            value !== loan.emiAmount && (
-              <button
-                type="button"
-                onClick={() => typeAmount(String(loan.emiAmount))}
-                className={ADD_ON_IVORY}
-              >
-                {t("payEmi", { amount: rupees(loan.emiAmount) })}
-              </button>
+                  </span>
+                </label>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
+                  <span>
+                    {tc("q.amount")}
+                    <RequiredMark />
+                  </span>
+                  {/* a chestnut fill once there's an amount */}
+                  <div className={filled ? "text-ivory [&_button]:text-ivory" : undefined}>
+                    <MicField onText={(said) => saidAmount(said, typeAmount)}>
+                      <IndianRupee
+                        className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2"
+                        aria-hidden
+                      />
+                      <NumberInput
+                        id="amount-field"
+                        value={amount}
+                        onChange={(v) => {
+                          setCapNote(null);
+                          typeAmount(v);
+                        }}
+                        onCapped={(most) =>
+                          setCapNote({
+                            key: "amount",
+                            text: t("capOnly", { amount: rupees(most) }),
+                          })
+                        }
+                        decimals={2}
+                        maxDigits={13}
+                        max={cap}
+                        placeholder="0"
+                        aria-invalid={amountOver || tooMuch || (tried && value === 0) || undefined}
+                        className={cn(
+                          input(amountOver || tooMuch || (tried && value === 0)),
+                          "min-h-14 pl-10 pr-11 font-heading text-2xl font-bold",
+                          filled && !tooMuch && "bg-chestnut text-ivory caret-ivory",
+                        )}
+                      />
+                    </MicField>
+                  </div>
+                </label>
+                {<CapWarning at={"amount"} />}
+                {/* their PAN, where TDS applies and there's none on record: above the breakdown it changes */}
+                {panField()}
+                {/* the breakdown right under the amount */}
+                {breakdown}
+                {/* labour with nobody named stops at the limit: naming who was paid lifts it */}
+                {skipped && (
+                  <Note className="tabular text-chestnut/70">
+                    {t("labourOver", { amount: rupees(LABOUR_SKIP_MAX) })}{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPayeeSkipped(false);
+                        show("payee");
+                      }}
+                      className="font-semibold text-chestnut underline underline-offset-2"
+                    >
+                      {t("namePayee")}
+                    </button>
+                  </Note>
+                )}
+                {/* an advance we already have with them, before anything's typed */}
+                <Reveal follow show={heldAdvance > 0 && advance === 0} gap="0.625rem">
+                  <Note className="tabular text-chestnut/70">
+                    {t("heldAdvance", { amount: rupees(heldAdvance) })}
+                  </Note>
+                </Reveal>
+              </div>
             )}
+            {taxFailed && <FailNote text={t("taxFailed")} retry={retryTax} />}
+            {fitsFailed && <FailNote text={t("fitsFailed")} retry={retryFits} />}
+            {tooMuch && mostHeld !== null && (
+              <FieldMessage className="mt-0">
+                {t("tooMuch", { amount: rupees(mostHeld) })}
+              </FieldMessage>
+            )}
+            {amountOver && !tooMuch && (
+              <FieldMessage className="mt-0">{overMessage()}</FieldMessage>
+            )}
+            {loanOver && (
+              <FieldMessage className="mt-0">
+                {tc("problems.loanLeft", { left: rupees(loan!.left) })}
+              </FieldMessage>
+            )}
+
+            {/* rent and interest: their PAN (where TDS applies and there's none on record), then their breakdown */}
+            {(rentCalc || interestCalc) && panField()}
+            {/* rent and interest: their breakdown under their figures */}
+            {(rentCalc || interestCalc) && breakdown}
+
+            {/* the EMI in one tap */}
+            {kind === "loanRepaid" &&
+              loan?.emiAmount != null &&
+              loan.emiAmount <= loan.left &&
+              value !== loan.emiAmount && (
+                <button
+                  type="button"
+                  onClick={() => typeAmount(String(loan.emiAmount))}
+                  className={ADD_ON_IVORY}
+                >
+                  {t("payEmi", { amount: rupees(loan.emiAmount) })}
+                </button>
+              )}
+          </div>
+
+          {/* where it's paid from, in this same card */}
+          <div className="flex min-w-0 flex-col gap-2.5">
+            <h3 className="text-xs font-semibold">{t("steps.source")}</h3>
+            <PaidFrom part="top" />
+          </div>
         </div>
 
-        {/* where it's paid from, in this same card */}
-        <div className={cn("flex min-w-0 flex-col gap-2.5", dueShown !== null && "sm:col-start-2 sm:row-start-2")}>
-          <h3 className="text-xs font-semibold">{t("steps.source")}</h3>
-          {<PaidFrom />}
+        {/* the QR for paying by UPI, or an empty spot for it, beside the due down to where it's paid from */}
+        <div className="min-w-0 sm:self-stretch">
+          {/* the bank account it's for, centred over the code */}
+          <QrSpot item={qrItem} centered />
         </div>
       </div>
+      {/* the boxes for each place, its UPI ID and the cash warning, the card's full width */}
+      <PaidFrom part="rest" />
     </div>
   );
 

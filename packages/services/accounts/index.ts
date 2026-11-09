@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { asPartyType } from "../party/model";
+import { rolesOf } from "../party/model";
 import { and, asc, count, db, desc, eq, gte, inArray, isNull, lt, lte, ne, notInArray, type SQL, sql } from "@repo/database";
 import { ledgerEntriesTable, ledgerGroupsTable, ledgerMastersTable, ledgersTable, partiesTable, partyAddressesTable, partyUpiIdsTable, paymentsTable, receiptsTable, transactionsTable } from "@repo/database/schema";
 
@@ -120,6 +120,13 @@ export default class AccountsService {
           await tx.update(ledgersTable).set({ ledgerGroupId, name: l.name }).where(eq(ledgersTable.id, found.id));
         }
       }
+
+      // parties saved with one type (the old column) get it as their list of types; customer_supplier is both
+      await tx.execute(sql`
+        update parties
+        set types = case when type = 'customer_supplier' then array['customer', 'supplier']::party_type[] else array[type]::party_type[] end
+        where type is not null and cardinality(types) = 0
+      `);
     });
   }
 
@@ -512,14 +519,19 @@ export default class AccountsService {
       l.masterKey !== "bank" &&
       l.head !== "profit" &&
       l.head !== "loss" &&
-      (input.purpose === "receipt" || (l.masterKey !== "employees" && l.key !== "drawings")) &&
+      (input.purpose === "receipt" || input.payee === "employee" || (l.masterKey !== "employees" && l.key !== "drawings")) &&
       (input.receiptKind === null || fitsReceiptKind(input.receiptKind, l)) &&
-      // an expense's payee (professional, advocate, labour…) is anyone in Parties, whatever the payment's kind
-      (input.payee === "other"
-        ? l.masterKey === "parties"
+      // an expense's payee (professional, advocate, labour, a broker…) is anyone in Others or Agents, whatever the
+      // payment's kind
+      (input.payee === "employee"
+        ? l.masterKey === "employees"
+        : input.payee === "other"
+        ? l.masterKey === "parties" || l.masterKey === "agents"
         : input.paymentKind === null || fitsPaymentKind(input.paymentKind, l));
-    const kindWhere = input.payee === "other"
-      ? eq(ledgerMastersTable.name, MASTERS.parties.name)
+    const kindWhere = input.payee === "employee"
+      ? eq(ledgerMastersTable.name, MASTERS.employees.name)
+      : input.payee === "other"
+      ? inArray(ledgerMastersTable.name, [MASTERS.parties.name, MASTERS.agents.name])
       : input.receiptKind
         ? this.receiptKindWhere(input.receiptKind)
         : input.paymentKind
@@ -567,7 +579,7 @@ export default class AccountsService {
     const ids = ledgers.map((l) => l.referenceId).filter((id): id is string => id !== null);
     const rows = ids.length
       ? await db
-          .select({ id: partiesTable.id, name: partiesTable.name, shortName: partiesTable.shortName, phone: partiesTable.phone, type: partiesTable.type, city: partyAddressesTable.city })
+          .select({ id: partiesTable.id, name: partiesTable.name, shortName: partiesTable.shortName, phone: partiesTable.phone, types: partiesTable.types, city: partyAddressesTable.city })
           .from(partiesTable)
           .leftJoin(partyAddressesTable, and(eq(partyAddressesTable.partyId, partiesTable.id), eq(partyAddressesTable.isActive, true), eq(partyAddressesTable.isDefault, true)))
           .where(inArray(partiesTable.id, ids))
@@ -575,7 +587,7 @@ export default class AccountsService {
     const upis = ids.length
       ? await db.select({ partyId: partyUpiIdsTable.partyId, upiId: partyUpiIdsTable.upiId }).from(partyUpiIdsTable).where(inArray(partyUpiIdsTable.partyId, ids)).orderBy(asc(partyUpiIdsTable.createdAt))
       : [];
-    const byId = new Map(rows.map(({ id, ...p }) => [id, { ...p, type: asPartyType(p.type), upiIds: upis.filter((u) => u.partyId === id).map((u) => u.upiId) }]));
+    const byId = new Map(rows.map(({ id, ...p }) => [id, { ...p, types: rolesOf(p.types), upiIds: upis.filter((u) => u.partyId === id).map((u) => u.upiId) }]));
     return ledgers.map((l) => ({ ...l, party: (l.referenceId && byId.get(l.referenceId)) || null }));
   }
 
@@ -593,7 +605,7 @@ export default class AccountsService {
       case "loanTaken":
       case "loanReturned":
       case "interestReceived":
-        return inMaster("debtors", "creditors", "debtorCreditors", "parties");
+        return inMaster("debtors", "creditors", "debtorCreditors", "parties", "personalLenders", "agents");
       case "capital":
         return and(own, eq(ledgersTable.name, LEDGERS.capital.name));
       case "otherIncome":
@@ -613,7 +625,7 @@ export default class AccountsService {
       case "interestPaid":
       case "loanGiven":
       case "refund":
-        return inMaster("debtors", "creditors", "debtorCreditors", "parties");
+        return inMaster("debtors", "creditors", "debtorCreditors", "parties", "personalLenders", "agents");
       case "taxPaid":
         return and(
           isNull(ledgersTable.ledgerMasterId),

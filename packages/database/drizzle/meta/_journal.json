@@ -225,6 +225,48 @@
       "when": 1794203208204,
       "tag": "0031_tidy_supreme_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1794218920365,
+      "tag": "0032_chubby_madrox",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1794219542873,
+      "tag": "0033_yummy_captain_america",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1794225995383,
+      "tag": "0034_aromatic_absorbing_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1794227775690,
+      "tag": "0035_productive_junta",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1794229448124,
+      "tag": "0036_wild_pretty_boy",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1794234370677,
+      "tag": "0037_fresh_captain_britain",
+      "breakpoints": true
     }
   ]
 }

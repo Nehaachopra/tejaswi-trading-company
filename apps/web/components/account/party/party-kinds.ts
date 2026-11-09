@@ -7,8 +7,19 @@ export const partyLabel = (p: { shortName: string | null; name: string }) => p.s
 
 export type PartyType = "customer" | "supplier" | "customer_supplier" | "none";
 
-// a party's list: its type, or "none" until its first sale or purchase
-export const kindOf = (type: Exclude<PartyType, "none"> | null): PartyType => type ?? "none";
+// what a party is to us (several at once)
+export type PartyRole = "customer" | "supplier" | "employee" | "landlord" | "lender" | "agent";
+
+// the Accounts list a party's ledger is in, by its types: customer and supplier, customer, supplier, or the rest (whose
+// ledger page is under Others)
+export const kindOf = (types: readonly PartyRole[]): PartyType =>
+  types.includes("customer") && types.includes("supplier")
+    ? "customer_supplier"
+    : types.includes("customer")
+      ? "customer"
+      : types.includes("supplier")
+        ? "supplier"
+        : "none";
 
 // the four party lists: which type each holds, where it lives, the head its ledgers sit under, and its
 // sub-group's key (as /account and the sidebar know it)

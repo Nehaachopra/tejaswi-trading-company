@@ -7,7 +7,9 @@ import { useEffect, useRef, useState } from "react";
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
 import { fieldClass } from "~/components/ui/card-form";
 import { capPhone, phoneStartsBad, spokenDigits, wholePhone } from "~/lib/number-words";
+import { DateInput } from "~/components/ui/date-input";
 import { FieldMessage } from "~/components/ui/field-message";
+import { MultiAccordion } from "~/components/ui/multi-accordion";
 import { MicButton, MicField } from "~/components/ui/mic-button";
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
@@ -53,7 +55,17 @@ export type AddressDraft = {
 };
 
 // a party as typed
+// what a party can be picked as on its form (a landlord is added in Entities → Landlords)
+export const PICKED_ROLES = ["customer", "supplier", "employee", "lender", "agent"] as const;
+export type PickedRole = (typeof PICKED_ROLES)[number];
+
 export type PartyDraft = {
+  // what they are to us, any of PICKED_ROLES (none for anyone else)
+  types: PickedRole[];
+  // an employee's pay, as typed: monthly salary, the day of the month it falls due, the day they joined
+  monthlySalary: string;
+  payDay: string;
+  joiningDate: string;
   name: string;
   shortName: string;
   // another party already has this short name (checked as it's typed)
@@ -92,6 +104,10 @@ export const emptyAddress = (isDefault: boolean): AddressDraft => ({
 });
 
 export const emptyDraft = (): PartyDraft => ({
+  types: [],
+  monthlySalary: "",
+  payDay: "",
+  joiningDate: "",
   name: "",
   shortName: "",
   shortNameTaken: false,
@@ -107,6 +123,10 @@ export const emptyDraft = (): PartyDraft => ({
 });
 
 export const draftFrom = (p: Party): PartyDraft => ({
+  types: PICKED_ROLES.filter((r) => p.types.includes(r)),
+  monthlySalary: p.employment ? String(p.employment.monthlySalary) : "",
+  payDay: p.employment ? String(p.employment.payDay) : "",
+  joiningDate: p.employment?.joiningDate ?? "",
   name: p.name,
   shortName: p.shortName ?? "",
   shortNameTaken: false,
@@ -166,9 +186,24 @@ export function draftProblems(d: PartyDraft, strict = false, phoneOptional = fal
   };
 }
 
+// an employee's pay that isn't in yet (only with the employee type)
+export const employmentProblems = (d: PartyDraft) => {
+  const employee = d.types.includes("employee");
+  const day = Number(d.payDay);
+  return {
+    monthlySalary: employee && !(Number(d.monthlySalary) > 0),
+    payDay: employee && !(Number.isInteger(day) && day >= 1 && day <= 31),
+    joiningDate: employee && d.joiningDate === "",
+  };
+};
+
 export const draftOk = (d: PartyDraft, strict = false, phoneOptional = false) => {
   const p = draftProblems(d, strict, phoneOptional);
-  return Object.values(p.party).every((bad) => !bad) && p.addresses.every((a) => !a || Object.values(a).every((bad) => !bad));
+  return (
+    Object.values(p.party).every((bad) => !bad) &&
+    p.addresses.every((a) => !a || Object.values(a).every((bad) => !bad)) &&
+    Object.values(employmentProblems(d)).every((bad) => !bad)
+  );
 };
 
 // TDS typed above what was paid
@@ -202,6 +237,12 @@ export const addressInput = (a: AddressDraft) => ({
 export function draftInput(d: PartyDraft) {
   const kept = d.addresses.filter((a) => !blank(a));
   return {
+    // always sent, so a party saved from anywhere keeps its types
+    types: d.types,
+    // an employee's pay with the employee type (left out otherwise)
+    employment: d.types.includes("employee")
+      ? { monthlySalary: Number(d.monthlySalary), payDay: Number(d.payDay), joiningDate: d.joiningDate }
+      : null,
     upiIds: d.upiIds.map((u) => u.upiId.trim()).filter((u) => u !== ""),
     details: { name: d.name.trim(), shortName: d.shortName.trim() || null, phone: d.phone, email: d.email.trim(), pan: d.pan.trim(), remarks: d.remarks.trim(), transportDeclaration: d.transportDeclaration },
     addresses: kept.map(addressInput),
@@ -556,6 +597,7 @@ export function PartyFields({
   asksPan = true,
   onAddressesOpen,
   phoneOptional = false,
+  asksTypes = false,
 }: {
   draft: PartyDraft;
   onChange: (patch: Partial<PartyDraft>) => void;
@@ -581,6 +623,8 @@ export function PartyFields({
   onAddressesOpen?: () => void;
   // someone paid legal or professional fees needn't give a phone
   phoneOptional?: boolean;
+  // Entities and Accounts: what they are to us, as chips on top (a party added from a transaction gets its role from it)
+  asksTypes?: boolean;
 }) {
   const t = useTranslations("accounts.party.form");
   const bad = draftProblems(draft, strict, phoneOptional).party;
@@ -687,6 +731,22 @@ export function PartyFields({
 
   return (
     <div className="flex flex-col gap-5">
+      {/* what they are to us: any of customer, supplier, employee, lender and agent (none for anyone else), as an
+          accordion that folds to the picks */}
+      {asksTypes && (
+        <section className="flex flex-col gap-3">
+          <h3 className={SECTION_TITLE}>{t("typesTitle")}</h3>
+          <MultiAccordion
+            label={t("typesTitle")}
+            options={PICKED_ROLES.map((r) => ({ id: r, name: t(`types.${r}`) }))}
+            value={draft.types}
+            onChange={(types) => onChange({ types })}
+            noneLabel={t("types.none")}
+          />
+          {/* an employee: their pay, each field the full width */}
+          {draft.types.includes("employee") && <EmploymentFields draft={draft} onChange={onChange} tried={tried} />}
+        </section>
+      )}
       {/* personal details: phone and email in a row where both fit, then name and short name, then the PAN set apart */}
       <section className="@container flex flex-col gap-3">
         <h3 className={SECTION_TITLE}>{t("personal")}</h3>
@@ -894,3 +954,59 @@ export function UpiIdsField({ upiIds, onChange, tried, max = 5 }: { upiIds: Part
 
 // a new UPI row's key, for forms outside this file
 export const upiKey = () => newKey();
+
+// an employee's pay: the day they joined (never after today), monthly salary (₹, grouped as it's typed), and the day of
+// the month it falls due (1 to 31)
+function EmploymentFields({ draft, onChange, tried }: { draft: PartyDraft; onChange: (patch: Partial<PartyDraft>) => void; tried: boolean }) {
+  const t = useTranslations("accounts.party.form");
+  const bad = employmentProblems(draft);
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+  return (
+    <div className="flex flex-col gap-3">
+      <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold">
+        <span>
+          {t("joiningDate")}
+          <RequiredMark />
+        </span>
+        <DateInput
+          value={draft.joiningDate}
+          max={today}
+          onChange={(d) => onChange({ joiningDate: d !== "" && d > today ? draft.joiningDate : d })}
+          calendarLabel={t("joiningDate")}
+          aria-invalid={(tried && bad.joiningDate) || undefined}
+          className={input(tried && bad.joiningDate)}
+        />
+      </label>
+      <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold">
+        <span>
+          {t("monthlySalary")}
+          <RequiredMark />
+        </span>
+        <NumberInput
+          value={draft.monthlySalary}
+          onChange={(v) => onChange({ monthlySalary: v })}
+          decimals={2}
+          maxDigits={13}
+          placeholder="0"
+          aria-invalid={(tried && bad.monthlySalary) || undefined}
+          className={cn(input(tried && bad.monthlySalary), "tabular")}
+        />
+      </label>
+      <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold">
+        <span>
+          {t("payDay")}
+          <RequiredMark />
+        </span>
+        <NumberInput
+          value={draft.payDay}
+          onChange={(v) => onChange({ payDay: v })}
+          maxDigits={2}
+          max={31}
+          placeholder="1"
+          aria-invalid={(tried && bad.payDay) || undefined}
+          className={cn(input(tried && bad.payDay), "tabular")}
+        />
+      </label>
+    </div>
+  );
+}

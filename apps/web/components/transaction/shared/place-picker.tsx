@@ -7,7 +7,13 @@ import { cn } from "~/lib/utils";
 
 // a place money comes into or goes out of (cash, a bank account ...): its name, a second line under it (an account's last
 // digits), what it holds (the admin only), and whether it can be used
-export type Place<Id extends string> = { id: Id; name: string; sub?: string; hint?: string; disabled: boolean };
+export type Place<Id extends string> = {
+  id: Id;
+  name: string;
+  sub?: string;
+  hint?: string;
+  disabled: boolean;
+};
 
 // Cash, Bank or Cash + Bank (a receipt's Received into, a payment's Paid from), or one of the bank accounts, as an
 // accordion: every choice open as a row in one box until one is picked (each with what it holds, large; one that
@@ -34,7 +40,8 @@ export function PlacePicker<Id extends string>({
   // opened again from the pick: it collapses on a tap anywhere else, or Escape
   useEffect(() => {
     if (!open) return;
-    const onPointer = (e: PointerEvent) => !root.current?.contains(e.target as Node) && setOpen(false);
+    const onPointer = (e: PointerEvent) =>
+      !root.current?.contains(e.target as Node) && setOpen(false);
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("pointerdown", onPointer);
     document.addEventListener("keydown", onKey);
@@ -75,9 +82,13 @@ export function PlacePicker<Id extends string>({
               >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">{o.name}</span>
-                  {o.sub && <span className="tabular block text-xs font-normal opacity-70">{o.sub}</span>}
+                  {o.sub && (
+                    <span className="tabular block text-xs font-normal opacity-70">{o.sub}</span>
+                  )}
                 </span>
-                {o.hint && <span className="tabular shrink-0 font-heading text-lg font-bold">{o.hint}</span>}
+                {o.hint && (
+                  <span className="tabular shrink-0 font-heading text-lg font-bold">{o.hint}</span>
+                )}
               </button>
             );
           })}
@@ -93,7 +104,9 @@ export function PlacePicker<Id extends string>({
         >
           <span className="min-w-0 flex-1">
             <span className="block truncate">{picked.name}</span>
-            {picked.sub && <span className="tabular block text-xs font-normal opacity-70">{picked.sub}</span>}
+            {picked.sub && (
+              <span className="tabular block text-xs font-normal opacity-70">{picked.sub}</span>
+            )}
           </span>
           <ChevronDown className="size-4 shrink-0" aria-hidden />
         </button>

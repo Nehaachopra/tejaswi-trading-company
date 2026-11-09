@@ -7,8 +7,10 @@ import { money, timestamps } from "../../../utils/common/column-type";
 import { employeesTable } from "../../employee/employee";
 import { transactionsTable } from "../transaction";
 
-// a month's salary booked as owed when the admin presses "Post salaries":
-// debit Salary expense, credit the employee's ledger
+// a month's salary booked as owed, posted by the app on the employee's pay day (the month's last day when the pay day
+// isn't in it): debit Salary expense, credit the employee's ledger. The month they joined is for the days from their
+// joining date; advances still owed are taken off it in full (what's left carries on). Paid in one go or in parts
+// (salaries), paid off once those add up to the net
 export const salaryPostingsTable = pgTable(
   "salary_postings",
   {
@@ -30,11 +32,6 @@ export const salaryPostingsTable = pgTable(
     advanceDeducted: money("advance_deducted").notNull().default("0.00"),
 
     netAmount: money("net_amount").notNull(),
-
-    // set when this month's salary is paid (in full)
-    paidTransactionId: uuid("paid_transaction_id").references(() => transactionsTable.id, {
-      onDelete: "restrict",
-    }),
 
     ...timestamps,
   },

@@ -1,18 +1,24 @@
 "use client";
 
 import { ChevronDown, CircleAlert, Ellipsis, Pencil, Plus, Power, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { ADD_BUTTON, FILTER_BAR, FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
+import { ADD_BUTTON, FILTER_BAR_UNDER_TABS, FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
 import { ClearButton } from "~/components/ui/clear-button";
 import { Menu, MenuItem } from "~/components/ui/menu";
+import { PageTabs } from "~/components/ui/page-tabs";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 
-import { kindOf, partyLabel, type PartyType } from "../account/party/party-kinds";
+import { kindOf, partyLabel, type PartyRole, type PartyType } from "../account/party/party-kinds";
+
+// the types on top: a party with several shows under each, "none" those with none
+const LIST_TYPES = ["customer", "supplier", "employee", "landlord", "lender", "agent", "none"] as const;
+type ListType = (typeof LIST_TYPES)[number];
 import { PartySheet } from "../account/party/party-sheet";
 import { chip } from "../product/row-styles";
 
@@ -61,7 +67,8 @@ export function PartiesManager() {
   const utils = trpc.useUtils();
   const setActive = trpc.accounts.party.setActive.useMutation();
 
-  const [type, setType] = useState<PartyType | null>(null);
+  // a type picked from the chips on top (a party with several shows under each), or every party
+  const [type, setType] = useState<ListType | null>(null);
   const [city, setCity] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const [typed, setTyped] = useState("");
@@ -75,9 +82,14 @@ export function PartiesManager() {
     return () => clearTimeout(timer);
   }, [typed]);
 
+  const router = useRouter();
   const parties = trpc.accounts.party.list.useQuery({ type: type ?? undefined, includeInactive: showInactive, search }, { placeholderData: (previous) => previous });
   const cities = [...new Set((parties.data ?? []).map((p) => p.city).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b));
   const shown = (parties.data ?? []).filter((p) => city === null || p.city === city);
+
+  // a party tapped: its form; a landlord is changed in Entities → Landlords
+  const edit = (p: { id: string; types: PartyRole[] }) =>
+    p.types.includes("landlord") ? router.push("/entities/landlords") : setOpen({ id: p.id, type: kindOf(p.types) });
 
   // mark a party inactive (only with nothing owed either way and no pending orders) or active again
   async function toggleActive(id: string, shortName: string, makeActive: boolean) {
@@ -95,16 +107,22 @@ export function PartiesManager() {
     <main className={`${PAGE} pb-16`}>
       <h1 className="sr-only">{t("title")}</h1>
 
+      {/* the types as tabs, as Dues has them (a party with several shows under each), under the header */}
+      <PageTabs
+        label={t("type")}
+        tabs={([null, ...LIST_TYPES] as const).map((r) => ({ key: r ?? "all", label: r ? tf(`types.${r}`) : t("allTypes"), current: type === r, onPick: () => setType(r) }))}
+      />
+
       <button
         type="button"
         onClick={() => setOpen({ id: "new", type: "none" })}
-        className={ADD_BUTTON}
+        className={`mt-4 ${ADD_BUTTON}`}
       >
         <Plus className="size-5" aria-hidden /> {t("add")}
       </button>
 
-      {/* search, then the filters, under the header while the list scrolls */}
-      <div className={`mt-3 ${FILTER_BAR}`}>
+      {/* the search and the filters, under the tabs while the list scrolls */}
+      <div className={`mt-3 ${FILTER_BAR_UNDER_TABS}`}>
         <label className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory sm:w-auto sm:flex-1">
           <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
           <span className="sr-only">{t("search")}</span>
@@ -118,13 +136,6 @@ export function PartiesManager() {
           />
           {typed && <ClearButton onClear={() => setTyped("")} label={tc("clearSearch")} />}
         </label>
-        <Filter
-          label={t("type")}
-          current={type ? tf(`types.${type}`) : t("allTypes")}
-          options={[{ id: null, name: t("allTypes") }, ...(["customer", "supplier", "customer_supplier", "none"] as const).map((id) => ({ id, name: tf(`types.${id}`) }))]}
-          picked={type}
-          onPick={setType}
-        />
         <Filter label={t("place")} current={city ?? t("allPlaces")} options={[{ id: null, name: t("allPlaces") }, ...cities.map((c) => ({ id: c, name: c }))]} picked={city} onPick={setCity} />
         <button type="button" aria-pressed={showInactive} onClick={() => setShowInactive((v) => !v)} className={chip(showInactive)}>
           {t("showInactive")}
@@ -150,10 +161,15 @@ export function PartiesManager() {
               className={cn("flex items-center gap-2 rounded-control border p-2 pl-4", p.isActive ? "on-ivory border-ivory bg-ivory text-chestnut" : "border-dashed border-ivory/60 text-ivory")}
             >
               {/* the party: tap to edit */}
-              <button type="button" onClick={() => setOpen({ id: p.id, type: kindOf(p.type) })} className="min-w-0 flex-1 py-1.5 text-left">
+              <button type="button" onClick={() => edit(p)} className="min-w-0 flex-1 py-1.5 text-left">
                 <span className="flex items-center gap-2">
                   <span className="truncate font-heading text-xl font-bold leading-7">{partyLabel(p)}</span>
-                  <span className="shrink-0 rounded-control border border-current/40 px-2 py-0.5 text-xs">{tf(`types.${kindOf(p.type)}`)}</span>
+                  {/* every type it has (or none) */}
+                  {(p.types.length ? p.types : (["none"] as const)).map((r) => (
+                    <span key={r} className="shrink-0 rounded-control border border-current/40 px-2 py-0.5 text-xs">
+                      {tf(`types.${r}`)}
+                    </span>
+                  ))}
                   {!p.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
                 </span>
                 {p.shortName && (
@@ -171,7 +187,7 @@ export function PartiesManager() {
                     <MenuItem
                       onClick={() => {
                         close();
-                        setOpen({ id: p.id, type: kindOf(p.type) });
+                        edit(p);
                       }}
                     >
                       <Pencil className="size-4" aria-hidden /> {t("edit")}
@@ -192,7 +208,13 @@ export function PartiesManager() {
         </ul>
       )}
 
-      <PartySheet partyId={open?.id ?? null} type={open?.type ?? "customer"} onClose={() => setOpen(null)} />
+      <PartySheet
+        partyId={open?.id ?? null}
+        type={open?.type ?? "customer"}
+        // a new one starts with the type picked on top (a landlord is added in Landlords)
+        startTypes={type && type !== "none" && type !== "landlord" ? [type] : []}
+        onClose={() => setOpen(null)}
+      />
     </main>
   );
 }

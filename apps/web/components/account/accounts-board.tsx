@@ -31,6 +31,9 @@ const MASTER_PAGE: Record<string, string | undefined> = {
   // bank loans, the rent owed to each landlord, and employees: their ledgers listed on one page (they are added and
   // changed in Entities)
   lenders: "/account/group/lenders",
+  // people who lend to us, and brokers we pay
+  personalLenders: "/account/group/personalLenders",
+  agents: "/account/group/agents",
   rentPayable: "/account/group/rentPayable",
   employees: "/account/group/employees",
   // the GST owed: output and reverse-charge GST together

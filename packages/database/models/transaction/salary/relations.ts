@@ -1,6 +1,5 @@
 import { relations } from "drizzle-orm";
 
-import { bankDetailsTable } from "../../bank-detail";
 import { employeesTable } from "../../employee/employee";
 import { transactionsTable } from "../transaction";
 import { salariesTable } from "./salary";
@@ -12,12 +11,6 @@ export const salaryPostingsRelations = relations(salaryPostingsTable, ({ one }) 
     fields: [salaryPostingsTable.transactionId],
     references: [transactionsTable.id],
     relationName: "salary_posting_transaction",
-  }),
-
-  paidTransaction: one(transactionsTable, {
-    fields: [salaryPostingsTable.paidTransactionId],
-    references: [transactionsTable.id],
-    relationName: "salary_posting_paid_transaction",
   }),
 
   employee: one(employeesTable, {
@@ -42,11 +35,6 @@ export const salariesRelations = relations(salariesTable, ({ one, many }) => ({
   salaryPosting: one(salaryPostingsTable, {
     fields: [salariesTable.salaryPostingId],
     references: [salaryPostingsTable.id],
-  }),
-
-  bankDetails: one(bankDetailsTable, {
-    fields: [salariesTable.bankDetailsId],
-    references: [bankDetailsTable.id],
   }),
 
   advanceDeductions: many(salaryAdvanceDeductionsTable),

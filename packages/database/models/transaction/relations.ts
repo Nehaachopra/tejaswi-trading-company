@@ -8,13 +8,12 @@ import { drawingsTable } from "./drawing/drawing";
 import { drawingProductsTable } from "./drawing/drawing-product";
 import { othersTable } from "./other";
 import { paymentsTable } from "./payment";
-import { paymentBankDetailsTable } from "./payment-bank-detail";
 import { purchasesTable } from "./purchase/purchase";
 import { purchaseReturnsTable } from "./purchase-return/purchase-return";
 import { receiptsTable } from "./receipt";
-import { receiptBankDetailsTable } from "./receipt-bank-detail";
 import { bankDetailsTable } from "../bank-detail";
 import { salePurchaseCreditDetailsTable } from "./sale-purchase-credit-detail";
+import { transactionBankDetailsTable } from "./transaction-bank-detail";
 import { transactionPaymentsTable } from "./transaction-payment";
 import { transactionEditLogsTable } from "./transaction-edit-log";
 import { salesTable } from "./sale/sale";
@@ -89,31 +88,17 @@ export const paymentsRelations = relations(paymentsTable, ({ one }) => ({
     fields: [paymentsTable.transactionId],
     references: [transactionsTable.id],
   }),
-
-  bankPart: one(paymentBankDetailsTable),
 }));
 
-export const paymentBankDetailsRelations = relations(paymentBankDetailsTable, ({ one }) => ({
-  payment: one(paymentsTable, {
-    fields: [paymentBankDetailsTable.paymentId],
-    references: [paymentsTable.id],
+// a transaction's bank part rows, one per account it went through
+export const transactionBankDetailsRelations = relations(transactionBankDetailsTable, ({ one }) => ({
+  transaction: one(transactionsTable, {
+    fields: [transactionBankDetailsTable.transactionId],
+    references: [transactionsTable.id],
   }),
 
   bankDetails: one(bankDetailsTable, {
-    fields: [paymentBankDetailsTable.bankDetailsId],
-    references: [bankDetailsTable.id],
-  }),
-}));
-
-// a receipt's bank part rows, one per account it came into
-export const receiptBankDetailsRelations = relations(receiptBankDetailsTable, ({ one }) => ({
-  receipt: one(receiptsTable, {
-    fields: [receiptBankDetailsTable.receiptId],
-    references: [receiptsTable.id],
-  }),
-
-  bankDetails: one(bankDetailsTable, {
-    fields: [receiptBankDetailsTable.bankDetailsId],
+    fields: [transactionBankDetailsTable.bankDetailsId],
     references: [bankDetailsTable.id],
   }),
 }));

@@ -6,6 +6,9 @@ import { createContext, useContext, useEffect, useId, useRef, useState } from "r
 
 import { dayInWords } from "~/components/ui/date-input";
 import { bankNameIn } from "~/lib/bank-names";
+
+import { type QrItem } from "../shared/qr-spot";
+import { type GridPlace } from "../shared/split-grid";
 import { rupees, titleCase } from "~/lib/format";
 import { useLeaveGuard } from "~/lib/use-leave-guard";
 import { useLoansGiven, useReceipt } from "~/providers/receipt";
@@ -206,7 +209,8 @@ export function useReceiptEntryState({
   const total = Math.round((value + tdsAmount) * 100) / 100;
   // a scrap sale's GST, taken out of what came in at the law's rate (the split into CGST + SGST or IGST is the server's,
   // by the buyer's state): the price before GST and the GST
-  const scrapGst = scrap && value > 0 ? gstOutOf(Math.round(value * 100), SCRAP_GST.rate, true) : null;
+  const scrapGst =
+    scrap && value > 0 ? gstOutOf(Math.round(value * 100), SCRAP_GST.rate, true) : null;
 
   // interest on a loan we gave: what's left at its rate for the months, or a figure typed in (then the months show --)
   const interestCalc = kind === "interestReceived" && !!loan?.interestRate;
@@ -331,6 +335,7 @@ export function useReceiptEntryState({
     setMoreParts([]);
     setFirstAmount("");
     setFoldedCards([]);
+    setGridTexts({});
   }, [value]);
   // the first account changed: what came after it starts again (how it came in, its amount, the other cards)
   const accountSeen = useRef(bankId);
@@ -379,6 +384,59 @@ export function useReceiptEntryState({
       { id: bankId, mode: bankMode },
       ...moreParts.map((m) => ({ id: m.bankId, mode: m.mode })),
     ].every(({ id, mode }) => mode !== "upi" || !id || upiIdsOf(id).length > 0);
+  // Bank, or Cash + Bank: a box each for cash (only when it's Cash + Bank) and every bank account, what came into it
+  // typed. The first account with an amount is the bank's main part (bankId, firstAmount, bankMode), the others its
+  // more parts, the cash box the cash part
+  const usesGrid = into === "bank" || into === "both";
+  const [gridTexts, setGridTexts] = useState<Record<string, string>>({});
+  const [gridModes, setGridModes] = useState<Record<string, BankMode | null>>({});
+  const gridIds = [...(into === "both" ? ["cash"] : []), ...(banks ?? []).map((b) => b.id)];
+  const gridPlaces: GridPlace[] = gridIds.map((id) => {
+    const b = banks?.find((x) => x.id === id);
+    return {
+      id,
+      name: id === "cash" ? tc("cash") : b ? bankNameIn(b.bankName, locale) : "",
+      sub: id === "cash" ? null : `••${b?.last4 ?? ""}`,
+      held: id === "cash" ? cashHeld : bankHeld(id),
+      text: gridTexts[id] ?? "",
+      amount: Number(gridTexts[id]) || 0,
+      mode: id === "cash" ? null : (gridModes[id] ?? null),
+    };
+  });
+  const gridTotal = Math.round(gridPlaces.reduce((sum, p) => sum + p.amount, 0) * 100) / 100;
+  const gridAccs = gridPlaces.filter((p) => p.id !== "cash" && p.amount > 0);
+  // what the grid still needs: it adds up to the amount, every account taking something says how, and Cash + Bank
+  // has something in each
+  const gridOk =
+    !usesGrid ||
+    (gridTotal === value &&
+      gridAccs.length > 0 &&
+      gridAccs.every((p) => p.mode !== null) &&
+      (into !== "both" || (gridPlaces[0]?.amount ?? 0) > 0));
+  function setGridText(id: string, text: string) {
+    setGridTexts((all) => ({ ...all, [id]: text }));
+  }
+  function setGridMode(id: string, mode: BankMode) {
+    setGridModes((all) => ({ ...all, [id]: mode }));
+  }
+  // the grid feeds what's saved: the cash part, the first account, and the more parts (kept in step: set again when
+  // anything else resets them)
+  const gridKey = JSON.stringify([gridAccs, gridTexts.cash ?? ""]);
+  useEffect(() => {
+    if (!usesGrid) return;
+    const first = gridAccs[0];
+    const cash = into === "both" ? (gridTexts.cash ?? "") : "";
+    const more: MorePart[] = gridAccs
+      .slice(1)
+      .map((p) => ({ key: `acc-${p.id}`, bankId: p.id, amount: p.text, mode: p.mode }));
+    if (into === "both" && cashPart !== cash) setCashPart(cash);
+    if (bankId !== (first?.id ?? null)) setBankId(first?.id ?? null);
+    if (firstAmount !== (first?.text ?? "")) setFirstAmount(first?.text ?? "");
+    if (bankMode !== (first?.mode ?? null)) setBankMode(first?.mode ?? null);
+    if (JSON.stringify(moreParts) !== JSON.stringify(more)) setMoreParts(more);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gridKey stands for the grid's accounts and cash
+  }, [usesGrid, into, gridKey, cashPart, bankId, firstAmount, bankMode, moreParts]);
+
   const intoDone =
     upisOk &&
     (into === "cash"
@@ -392,8 +450,8 @@ export function useReceiptEntryState({
     kind: kind !== null,
     from: fromDone,
     terms: !Object.values(loanProblems(terms)).some(Boolean) && !(dueOn !== "" && dueOn < day),
-    amount: value > 0 && !loanOver && !tdsBad && intoDone,
-    into: intoDone,
+    amount: value > 0 && !loanOver && !tdsBad && intoDone && gridOk,
+    into: intoDone && gridOk,
     details: day !== "" && refAccounts.every(refOk),
   };
   // the cards that apply now; one shows at a time, and Next moves on once it's filled in
@@ -535,7 +593,7 @@ export function useReceiptEntryState({
       // it came in
       value:
         into === "cash"
-          ? tc("cash")
+          ? { name: tc("cash"), amount: rupees(value) }
           : !bank || (into === "both" && !bothBankSet)
             ? null
             : into === "both" || multi
@@ -547,7 +605,10 @@ export function useReceiptEntryState({
                     return name ? [{ name, amount: rupees(Number(m.amount) || 0) }] : [];
                   }),
                 ]
-              : [accountName(bankId)!, ...(bankMode ? [tpf(`modes.${bankMode}`)] : [])],
+              : [
+                  { name: accountName(bankId)!, amount: rupees(value) },
+                  ...(bankMode ? [tpf(`modes.${bankMode}`)] : []),
+                ],
     },
     {
       key: "details",
@@ -562,6 +623,22 @@ export function useReceiptEntryState({
       ),
     },
   ].filter((l) => l.step === "into" || steps.includes(l.step as Step)) as SummaryItem<Step>[];
+
+  // the QR spot: each account by UPI with a UPI ID of ours; the last one, unless Show QR code picked another
+  const [qrPick, setQrPick] = useState<string | null>(null);
+  const qrItems: QrItem[] = !usesGrid
+    ? []
+    : gridAccs
+        .filter((p) => p.mode === "upi" && upiIdsOf(p.id).length > 0)
+        .map((p) => ({
+          key: p.id,
+          title: `${p.name} ${p.sub ?? ""}`.trim(),
+          upiIds: upiIdsOf(p.id),
+          payee: banks?.find((b) => b.id === p.id)?.accountHolderName ?? "",
+          amount: p.amount,
+          note: fromName ?? undefined,
+        }));
+  const qrItem = qrItems.find((q) => q.key === qrPick) ?? qrItems.at(-1) ?? null;
 
   // leaving with something entered asks first (not after a save, which goes on to the receipt's page)
   const { dialog: leaveDialog } = useLeaveGuard(
@@ -763,6 +840,13 @@ export function useReceiptEntryState({
   }
 
   return {
+    usesGrid,
+    gridPlaces,
+    setGridText,
+    setGridMode,
+    qrItems,
+    qrItem,
+    setQrPick,
     isAdmin,
     t,
     tr,

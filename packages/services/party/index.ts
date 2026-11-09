@@ -1,7 +1,8 @@
 import { TRPCError } from "@trpc/server";
-import { asPartyType } from "./model";
+import { type EmploymentInputModel, masterOfRoles, type PartyRoleModel, rolesOf } from "./model";
 import { and, asc, count, db, desc, eq, ilike, inArray, isNull, ne, notInArray, or, type SQL, sql } from "@repo/database";
 import {
+  employeesTable,
   ledgerEntriesTable,
   ledgersTable,
   partiesTable,
@@ -13,6 +14,7 @@ import {
 } from "@repo/database/schema";
 
 import AccountsService from "../accounts";
+import SalaryService from "../salary";
 import { toPaise } from "../accounts/money";
 import type { ActorModel } from "../accounts/model";
 import { financialYear } from "../setting/model";
@@ -28,7 +30,6 @@ import {
   type PartyIdInputModel,
   type PartyModel,
   type PartySummaryModel,
-  type PartyTypeModel,
   type PinPlaceInputModel,
   type PinPlaceModel,
   type TownPinInputModel,
@@ -48,8 +49,6 @@ const REFERENCE = "parties";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// the sub-group a party's one ledger sits under, by its type
-const MASTER = { customer: "debtors", supplier: "creditors", customer_supplier: "debtorCreditors" } as const;
 
 const notFound = () => new TRPCError({ code: "NOT_FOUND", message: "Party not found." });
 // the short name is taken; the message's start tells the screen which field it's about
@@ -177,7 +176,7 @@ export default class PartyService {
         ledgerId,
         name: p.name,
         shortName: p.shortName,
-        type: asPartyType(p.type),
+        types: rolesOf(p.types),
         phone: p.phone,
         city: defaultOf.get(p.id)?.city ?? null,
         gstin: defaultOf.get(p.id)?.gstin ?? null,
@@ -192,8 +191,14 @@ export default class PartyService {
     const search = input.search ? `%${input.search.replace(/[%_\\]/g, "\\$&")}%` : null;
     const rows = await this.summaries(
       and(
-        // landlords are listed in Entities → Landlords, never with parties
-        input.type === "none" ? isNull(partiesTable.type) : input.type ? eq(partiesTable.type, input.type) : or(isNull(partiesTable.type), ne(partiesTable.type, "landlord")),
+        // a type: everyone with it (a party with several shows under each), or "none"; all of them otherwise
+        input.type === "none"
+          ? sql`cardinality(${partiesTable.types}) = 0`
+          : input.type
+            ? sql`${input.type}::party_type = ANY(${partiesTable.types})`
+            : undefined,
+        // the sub-group its ledger sits in (the Accounts pages)
+        input.master ? eq(ledgersTable.ledgerMasterId, (await this.accounts.master(db as unknown as Tx, input.master)).id) : undefined,
         input.includeInactive ? undefined : eq(partiesTable.isActive, true),
         search ? or(ilike(partiesTable.shortName, search), ilike(partiesTable.name, search), ilike(partiesTable.phone, search)) : undefined,
       ),
@@ -211,7 +216,7 @@ export default class PartyService {
   }
 
   // how this party deals with us: its transactions, how long its dues take to settle, and how often it trades
-  private async insights(ledgerId: string, type: PartyTypeModel | null, pendingOrders: number): Promise<PartyModel["insights"]> {
+  private async insights(ledgerId: string, types: PartyRoleModel[], pendingOrders: number): Promise<PartyModel["insights"]> {
     // each active transaction's net effect on the ledger, on its own date, up to today (an edit that posted again
     // still counts once; a cancelled one not at all)
     const rows = await db
@@ -232,7 +237,7 @@ export default class PartyService {
 
     // dues settle oldest first: a customer's debits are what it owes, its credits settle them; a supplier the
     // other way round
-    const owes = type === "supplier" ? -1 : 1;
+    const owes = types.includes("supplier") && !types.includes("customer") ? -1 : 1;
     const open: { paise: number; at: Date }[] = [];
     let settledPaise = 0;
     let weightedDays = 0;
@@ -330,7 +335,7 @@ export default class PartyService {
     const [found] = await this.summaries(eq(partiesTable.id, input.id));
     if (!found) throw notFound();
     const { row: p, summary } = found;
-    const [addresses, openingBalance, withEntries, pendingOrders, [paidBefore], upis] = await Promise.all([
+    const [addresses, openingBalance, withEntries, pendingOrders, [paidBefore], upis, [employment]] = await Promise.all([
       db
         .select()
         .from(partyAddressesTable)
@@ -344,9 +349,12 @@ export default class PartyService {
         .from(partyPaidBeforeTable)
         .where(and(eq(partyPaidBeforeTable.partyId, p.id), eq(partyPaidBeforeTable.financialYear, financialYear(new Date()).name))),
       db.select({ upiId: partyUpiIdsTable.upiId }).from(partyUpiIdsTable).where(eq(partyUpiIdsTable.partyId, p.id)).orderBy(asc(partyUpiIdsTable.createdAt)),
+      // an employee's pay
+      db.select().from(employeesTable).where(eq(employeesTable.partyId, p.id)),
     ]);
     return {
       ...summary,
+      employment: employment ? { monthlySalary: Number(employment.monthlySalary), payDay: employment.payDay, joiningDate: employment.joiningDate } : null,
       countryCode: p.countryCode,
       email: p.email,
       pan: p.pan,
@@ -371,14 +379,54 @@ export default class PartyService {
       upiIds: upis.map((u) => u.upiId),
       openingBalance,
       hasEntries: withEntries.has(summary.ledgerId),
-      insights: await this.insights(summary.ledgerId, asPartyType(p.type), pendingOrders),
+      insights: await this.insights(summary.ledgerId, rolesOf(p.types), pendingOrders),
     };
   }
 
-  // the ledger's sub-group and head for a party type (Parties until its first sale or purchase)
-  private async placeFor(tx: Tx, type: PartyTypeModel | null) {
-    const master = await this.accounts.master(tx, type ? MASTER[type] : "parties");
+  // the ledger's sub-group and head for a party's types (Others with none)
+  private async placeFor(tx: Tx, types: PartyRoleModel[]) {
+    const master = await this.accounts.master(tx, masterOfRoles(types));
     return { ledgerMasterId: master.id, ledgerGroupId: master.ledgerGroupId };
+  }
+
+  // a party's types changed: its ledger moves to the matching sub-group, every entry kept
+  async placeLedgerIn(tx: Tx, partyId: string, types: PartyRoleModel[]) {
+    const ledger = await this.accounts.ledgerOf(tx, REFERENCE, partyId);
+    await tx.update(ledgersTable).set(await this.placeFor(tx, types)).where(eq(ledgersTable.id, ledger.id));
+  }
+
+  // an employee's pay, kept with the employee type: saved (or changed) when the party is an employee; with the type
+  // taken off, its record goes (refused once salary has been posted or paid to them)
+  // (a changed pay or joining date works out again the months still owed, as the one changing it)
+  private async saveEmployment(tx: Tx, partyId: string, types: PartyRoleModel[], employment: EmploymentInputModel | null | undefined, actor?: ActorModel) {
+    const [held] = await tx
+      .select({ id: employeesTable.id, monthlySalary: employeesTable.monthlySalary, joiningDate: employeesTable.joiningDate })
+      .from(employeesTable)
+      .where(eq(employeesTable.partyId, partyId));
+    if (!types.includes("employee")) {
+      if (held) await tx.delete(employeesTable).where(eq(employeesTable.id, held.id));
+      return;
+    }
+    if (!employment) {
+      if (!held) throw new TRPCError({ code: "BAD_REQUEST", message: "An employee needs their salary, pay day and joining date." });
+      return;
+    }
+    const values = { monthlySalary: employment.monthlySalary.toFixed(2), payDay: employment.payDay, joiningDate: employment.joiningDate };
+    if (held) {
+      await tx.update(employeesTable).set(values).where(eq(employeesTable.id, held.id));
+      const changed = Number(held.monthlySalary) !== employment.monthlySalary || String(held.joiningDate) !== employment.joiningDate;
+      if (changed && actor) await new SalaryService().repriceIn(tx, held.id, actor);
+    } else await tx.insert(employeesTable).values({ partyId, ...values });
+  }
+
+  // a role given to a party by what's done with it (a new customer paying us, a person lending to us, a broker paid):
+  // added to its types if it hasn't it, and its ledger moved to match
+  async addRoleIn(tx: Tx, partyId: string, role: PartyRoleModel) {
+    const [party] = await tx.select({ types: partiesTable.types }).from(partiesTable).where(eq(partiesTable.id, partyId));
+    if (!party || party.types.includes(role)) return;
+    const types = rolesOf([...party.types, role]);
+    await tx.update(partiesTable).set({ types }).where(eq(partiesTable.id, partyId));
+    await this.placeLedgerIn(tx, partyId, types);
   }
 
   // a new party, its addresses and its ledger, saved together or not at all (its opening balance is set on the
@@ -394,38 +442,43 @@ export default class PartyService {
 
   // the same, inside another save (a receipt from someone not in the app yet), so a failed save leaves no
   // party behind; gives the party and its ledger
-  async createIn(tx: Tx, rawInput: CreatePartyInputModel | CreatePayeeInputModel, type: PartyTypeModel | null = null, phoneOptional = false) {
+  async createIn(tx: Tx, rawInput: CreatePartyInputModel | CreatePayeeInputModel, role: PartyRoleModel | null = null, phoneOptional = false) {
     const parsed = (phoneOptional ? createPayeeInputModel : createPartyInputModel).parse(rawInput);
+    // what they're picked as, and the role what they're added for gives them (a customer paying us ...)
+    const types = rolesOf([...parsed.types, ...(role ? [role] : [])]);
     const details = settledDetails(parsed.details);
     const { addresses } = parsed;
     await this.assertShortNameFree(tx, details.shortName);
     await this.assertPhoneFree(tx, details.phone);
     await this.assertGstinsFree(tx, addresses);
-    const [party] = await tx.insert(partiesTable).values({ ...details, type }).returning({ id: partiesTable.id });
+    const [party] = await tx.insert(partiesTable).values({ ...details, types }).returning({ id: partiesTable.id });
     if (addresses.length > 0) await tx.insert(partyAddressesTable).values(this.withDefault(addresses).map((a) => addressValues(party!.id, a)));
     const [ledger] = await tx
       .insert(ledgersTable)
-      .values({ name: ledgerNameOf(details), ...(await this.placeFor(tx, type)), referenceTable: REFERENCE, referenceId: party!.id, balance: "0.00" })
+      .values({ name: ledgerNameOf(details), ...(await this.placeFor(tx, types)), referenceTable: REFERENCE, referenceId: party!.id, balance: "0.00" })
       .returning({ id: ledgersTable.id });
     if (!ledger) throw notFound();
     await this.savePaidBefore(tx, party!.id, parsed.paidBefore);
     await this.saveUpiIds(tx, party!.id, parsed.upiIds);
+    await this.saveEmployment(tx, party!.id, types, parsed.employment);
     return { partyId: party!.id, ledgerId: ledger.id };
   }
 
-  // new details and addresses, saved together; a new type moves its ledger to the matching
-  // sub-group with every entry kept, and the ledger's name follows the party's short name
+  // new details, types and addresses, saved together; new types move its ledger to the matching sub-group with every
+  // entry kept, and the ledger's name follows the party's short name
   async update(rawInput: UpdatePartyInputModel, actor: ActorModel): Promise<PartyModel> {
     const parsed = updatePartyInputModel.parse(rawInput);
     const { id, addresses } = parsed;
     const details = settledDetails(parsed.details);
     await db.transaction(async (tx) => {
-      const [party] = await tx.select({ id: partiesTable.id }).from(partiesTable).where(eq(partiesTable.id, id)).for("update");
+      const [party] = await tx.select({ id: partiesTable.id, types: partiesTable.types }).from(partiesTable).where(eq(partiesTable.id, id)).for("update");
       if (!party) throw notFound();
+      // the types picked; landlord stays as it was (it's set in Entities → Landlords)
+      const types = rolesOf([...parsed.types, ...(party.types.includes("landlord") ? ["landlord"] : [])]);
       await this.assertShortNameFree(tx, details.shortName, id);
       await this.assertPhoneFree(tx, details.phone, id);
       await this.assertGstinsFree(tx, addresses, id);
-      await tx.update(partiesTable).set(details).where(eq(partiesTable.id, id));
+      await tx.update(partiesTable).set({ ...details, types }).where(eq(partiesTable.id, id));
 
       // the addresses: kept ones updated, new ones added, the rest retired
       const kept = this.withDefault(addresses);
@@ -447,11 +500,12 @@ export default class PartyService {
         }
       }
 
-      // its ledger's name follows (its place follows the type, which its transactions set)
+      // its ledger's name follows, and its place follows the types
       const ledger = await this.accounts.ledgerOf(tx, REFERENCE, id);
-      await tx.update(ledgersTable).set({ name: ledgerNameOf(details) }).where(eq(ledgersTable.id, ledger.id));
+      await tx.update(ledgersTable).set({ name: ledgerNameOf(details), ...(await this.placeFor(tx, types)) }).where(eq(ledgersTable.id, ledger.id));
       await this.savePaidBefore(tx, id, parsed.paidBefore);
       await this.saveUpiIds(tx, id, parsed.upiIds);
+      await this.saveEmployment(tx, id, types, parsed.employment, actor);
     }).catch((error: unknown) => {
       if (isUniqueViolation(error)) throw violated(error).includes("phone") ? phoneTaken(details.phone ?? "", "another party") : shortNameTaken(details.shortName);
       throw error;

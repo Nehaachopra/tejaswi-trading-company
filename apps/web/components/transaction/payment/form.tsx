@@ -20,6 +20,7 @@ import {
 import { type Step, KINDS, input, chip } from "./shared";
 import { PaymentEntryProvider, usePaymentEntry, usePaymentEntryState } from "./state";
 import { AmountCard } from "./amount-card";
+import { SalaryHeads } from "./salary-heads";
 import { SaveBlock, DetailsCard } from "./details-card";
 import { GstCard } from "./gst-card";
 import { LoanCards, ToPicker, PayeePicker } from "./paid-to";
@@ -105,6 +106,7 @@ function PaymentEntryView() {
     next,
     advance,
     askingAdvance,
+    gridShort,
   } = usePaymentEntry();
   // the balances first, so cash and bank show what they hold from the start
   if (loading)
@@ -191,13 +193,14 @@ function PaymentEntryView() {
         missing={
           tried && !complete[current]
             ? current === "amount"
-              ? t(
-                  value === 0
-                    ? "missing.amountEmpty"
-                    : into === null
-                      ? "missing.source"
-                      : "missing.details",
-                )
+              ? value === 0
+                ? t("missing.amountEmpty")
+                : into === null
+                  ? t("missing.source")
+                  : // the accounts come to less than the amount: how much is still to be put on them
+                    gridShort > 0
+                    ? t("missing.short", { amount: rupees(gridShort) })
+                    : t("missing.details")
               : t(`missing.${current}`)
             : null
         }
@@ -264,6 +267,8 @@ function PaymentEntryView() {
                   {tk(k)}
                 </button>
               ))}
+              {/* salary and an employee's advance: handed over to the salary form */}
+              <SalaryHeads />
             </div>
           </>
         );

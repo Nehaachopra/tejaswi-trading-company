@@ -49,9 +49,8 @@ export const NAV_ITEMS: NavItem[] = [
     adminOnly: true,
     place: "more",
     children: [
+      // landlords and lenders are reached from Parties (and their pages still open by address)
       { href: "/entities/parties", label: "parties" },
-      { href: "/entities/landlords", label: "landlords" },
-      { href: "/entities/lenders", label: "lenders" },
       { href: "/entities/banks", label: "banks" },
     ],
   },

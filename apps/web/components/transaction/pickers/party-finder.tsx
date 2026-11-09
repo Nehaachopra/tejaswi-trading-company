@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { titleCase } from "~/lib/format";
 import { trpc } from "~/trpc/client";
 
-import { kindOf, partyLabel } from "../../account/party/party-kinds";
+import { partyLabel } from "../../account/party/party-kinds";
 import type { Pickable, ReceiptKind } from "./ledger-picker";
 
 // a phone as shown everywhere: with its country code
@@ -23,9 +23,11 @@ export function PartyPick({ party }: { ledger: Pickable; party: NonNullable<Pick
         <span className="min-w-0 truncate font-heading text-base font-bold">
           {partyLabel(party)}
         </span>
-        <span className="shrink-0 rounded-control border border-current/40 px-1.5 py-0.5 text-xs">
-          {tt(kindOf(party.type))}
-        </span>
+        {(party.types.length ? party.types : (["none"] as const)).map((r) => (
+          <span key={r} className="shrink-0 rounded-control border border-current/40 px-1.5 py-0.5 text-xs">
+            {tt(r)}
+          </span>
+        ))}
       </span>
       {party.shortName && <span className="truncate text-sm">{titleCase(party.name)}</span>}
       <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">

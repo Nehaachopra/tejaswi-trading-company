@@ -695,7 +695,9 @@
         "parties": "ಇತರರು",
         "lenders": "ಬ್ಯಾಂಕ್ ಸಾಲಗಳು",
         "rentPayable": "ಪಾವತಿಸಬೇಕಾದ ಬಾಡಿಗೆ",
-        "gstPayable": "GST ಪಾವತಿಸಬೇಕಾದದ್ದು"
+        "gstPayable": "GST ಪಾವತಿಸಬೇಕಾದದ್ದು",
+        "personalLenders": "ಸಾಲದಾತರು",
+        "agents": "ಏಜೆಂಟರು"
       },
       "ledgers": "{count, plural, =0 {ಇನ್ನೂ ಖಾತೆ ಇಲ್ಲ} one {# ಖಾತೆ} other {# ಖಾತೆಗಳು}}",
       "postDated": "{amount} ಮುಂದಿನ ದಿನಾಂಕದ್ದು",
@@ -790,7 +792,11 @@
           "customer": "ಗ್ರಾಹಕ",
           "supplier": "ಪೂರೈಕೆದಾರ",
           "customer_supplier": "ಗ್ರಾಹಕ | ಪೂರೈಕೆದಾರ",
-          "none": "ಇನ್ನೂ ಮಾರಾಟ ಅಥವಾ ಖರೀದಿ ಇಲ್ಲ"
+          "none": "ಇತರರು",
+          "landlord": "ಮನೆ ಮಾಲೀಕ",
+          "lender": "ಸಾಲದಾತ",
+          "agent": "ಏಜೆಂಟ್",
+          "employee": "ನೌಕರ"
         },
         "name": "ಪೂರ್ಣ ಹೆಸರು",
         "phone": "ಫೋನ್ (ಐಚ್ಛಿಕ)",
@@ -877,7 +883,11 @@
         "upiIds": "UPI ID",
         "addUpi": "UPI ID ಸೇರಿಸಿ",
         "removeUpi": "ಈ UPI ID ತೆಗೆದುಹಾಕಿ",
-        "upiBad": "UPI ID name@bank ರೀತಿ ಇರುತ್ತದೆ."
+        "upiBad": "UPI ID name@bank ರೀತಿ ಇರುತ್ತದೆ.",
+        "typesTitle": "ಪ್ರಕಾರ",
+        "monthlySalary": "ಮಾಸಿಕ ಸಂಬಳ (₹)",
+        "payDay": "ಸಂಬಳದ ದಿನ (ತಿಂಗಳ)",
+        "joiningDate": "ಸೇರಿದ ದಿನಾಂಕ"
       },
       "showDetails": "ವಿವರ ತೋರಿಸಿ ಅಥವಾ ಮರೆಮಾಡಿ",
       "place": "ಸ್ಥಳ",
@@ -1402,7 +1412,10 @@
       "oldLoanLastEmi": "ಕೊನೆಯ EMI ದಿನಾಂಕ",
       "lenderNext": "ಮುಂದೆ",
       "oldLoanTo": "ಯಾರಿಗೆ ಕೊಟ್ಟಿದ್ದು",
-      "oldLoanGiven": "ಕೊಟ್ಟ ದಿನ"
+      "oldLoanGiven": "ಕೊಟ್ಟ ದಿನ",
+      "showQr": "QR ಕೋಡ್ ತೋರಿಸಿ",
+      "qrShown": "QR ಕೋಡ್ ತೋರಿಸಲಾಗುತ್ತಿದೆ",
+      "removeAccount": "ಖಾತೆ ತೆಗೆದುಹಾಕಿ"
     },
     "payment": {
       "kinds": {
@@ -1506,6 +1519,7 @@
         "available": "{held} ಲಭ್ಯವಿದೆ",
         "missing": {
           "amountEmpty": "ಮೊತ್ತವನ್ನು ನಮೂದಿಸಿ.",
+          "short": "{amount} ಇನ್ನೂ ಯಾವುದಾದರೂ ಖಾತೆಯಿಂದ ಕೊಡಬೇಕಿದೆ.",
           "source": "ಎಲ್ಲಿಂದ ಪಾವತಿಸಲಾಗಿದೆ ಎಂದು ಆಯ್ಕೆಮಾಡಿ.",
           "kind": "ಯಾವುದಕ್ಕಾಗಿ ಪಾವತಿಸಲಾಗಿದೆ ಎಂದು ಆರಿಸಿ.",
           "to": "ಯಾರಿಗೆ ಪಾವತಿಸಲಾಗಿದೆ ಎಂದು ಆರಿಸಿ, ಅಥವಾ ಕೆಂಪಿನಲ್ಲಿರುವುದನ್ನು ಭರ್ತಿ ಮಾಡಿ.",
@@ -1598,6 +1612,7 @@
         "accountN": "ಬ್ಯಾಂಕ್ ಖಾತೆ {n}",
         "removeAccount": "ಈ ಖಾತೆ ತೆಗೆದುಹಾಕಿ",
         "accountAmount": "ಈ ಖಾತೆಯಿಂದ ಮೊತ್ತ",
+        "breakdown": "ವಿಭಜನೆ",
         "payeeUpi": "ಅವರ UPI ID",
         "payeeUpiBad": "UPI ID name@bank ರೀತಿ ಇರುತ್ತದೆ.",
         "payeeUpiHandle": "{handle} UPI ಹ್ಯಾಂಡಲ್ ಅಲ್ಲ. @ ನಂತರದ ಭಾಗ ಪರಿಶೀಲಿಸಿ, ಉದಾ: @okicici ಅಥವಾ @ybl.",
@@ -1762,6 +1777,74 @@
       "head": "ಮುಖ್ಯ ಗುಂಪು",
       "addLedger": "ಹೊಸ ಲೆಡ್ಜರ್",
       "ledgerName": "ಲೆಡ್ಜರ್ ಹೆಸರು"
+    },
+    "salary": {
+      "title": "ಸಂಬಳ",
+      "loadFailed": "ನೌಕರರನ್ನು ಲೋಡ್ ಮಾಡಲಾಗಲಿಲ್ಲ. ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
+      "steps": {
+        "pay": "ಪಾವತಿ",
+        "amount": "ಮೊತ್ತ",
+        "details": "ವಿವರಗಳು"
+      },
+      "employee": "ನೌಕರ",
+      "noEmployees": "ಇನ್ನೂ ನೌಕರರಿಲ್ಲ. Entities → Parties ನಲ್ಲಿ ನೌಕರ ಪ್ರಕಾರದೊಂದಿಗೆ ಸೇರಿಸಿ.",
+      "for": "ಯಾವುದಕ್ಕೆ",
+      "kinds": {
+        "salary": "ಸಂಬಳ",
+        "advance": "ಮುಂಗಡ"
+      },
+      "advanceLeft": "ಬಾಕಿ ಮುಂಗಡ",
+      "nothingOwed": "ಈಗ ಯಾವ ತಿಂಗಳೂ ಬಾಕಿ ಇಲ್ಲ. ಪ್ರತಿ ತಿಂಗಳು ಸಂಬಳದ ದಿನ ದಾಖಲಾಗುತ್ತದೆ.",
+      "from": "ಎಲ್ಲಿಂದ ಪಾವತಿ",
+      "missing": {
+        "employee": "ನೌಕರನನ್ನು ಆರಿಸಿ.",
+        "kind": "ಸಂಬಳ ಅಥವಾ ಮುಂಗಡ ಆರಿಸಿ.",
+        "amount": "ಮೊತ್ತ ನಮೂದಿಸಿ.",
+        "from": "ಎಲ್ಲಿಂದ ಪಾವತಿ ಎಂದು ಆರಿಸಿ.",
+        "account": "ಬ್ಯಾಂಕ್ ಖಾತೆ ಆರಿಸಿ.",
+        "employees": "ಕನಿಷ್ಠ ಒಬ್ಬ ನೌಕರನನ್ನು ಆರಿಸಿ.",
+        "overHeld": "ಒಟ್ಟು ಸಂಬಳ {amount} ನಗದು + ಬ್ಯಾಂಕ್ {held} ಗಿಂತ ಹೆಚ್ಚು. ಯಾರನ್ನಾದರೂ ತೆಗೆಯಿರಿ ಅಥವಾ ಕಡಿಮೆ ತಿಂಗಳು ಆರಿಸಿ."
+      },
+      "capOnly": "ಕೇವಲ {amount} ಪಾವತಿಸಬಹುದು.",
+      "reference": "ನಗದು ವೋಚರ್ ಸಂ.",
+      "referenceHint": "ವೋಚರ್ ಸಂ.",
+      "saving": "ಉಳಿಸಲಾಗುತ್ತಿದೆ…",
+      "save": {
+        "salary": "ಸಂಬಳ ಉಳಿಸಿ",
+        "advance": "ಮುಂಗಡ ಉಳಿಸಿ"
+      },
+      "errors": {
+        "failed": "ಪಾವತಿ ಉಳಿಸಲಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."
+      },
+      "success": {
+        "title": "ಸಂಬಳ ಯಶಸ್ವಿಯಾಗಿ ಪಾವತಿಸಲಾಗಿದೆ",
+        "loading": "ಪಾವತಿ ಲೋಡ್ ಆಗುತ್ತಿದೆ…",
+        "loadError": "ಪಾವತಿ ಲೋಡ್ ಮಾಡಲಾಗಲಿಲ್ಲ. ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
+        "paidCount": "{count, plural, one {# ಪಾವತಿ ಉಳಿಸಲಾಗಿದೆ} other {# ಪಾವತಿಗಳು ಉಳಿಸಲಾಗಿದೆ}}"
+      },
+      "heads": {
+        "salary": "ಸಂಬಳ",
+        "advance": "ನೌಕರನಿಗೆ ಮುಂಗಡ"
+      },
+      "owed": "ಬಾಕಿ ಸಂಬಳ",
+      "employeesCount": "{count, plural, one {# ನೌಕರ} other {# ನೌಕರರು}}",
+      "table": {
+        "payPerMonth": "ಸಂಬಳ / ತಿಂಗಳು",
+        "monthsOwed": "ಬಾಕಿ ತಿಂಗಳುಗಳು",
+        "months": "ತಿಂಗಳುಗಳು",
+        "advance": "ಮುಂಗಡ",
+        "total": "ಒಟ್ಟು",
+        "all": "ಎಲ್ಲ ನೌಕರರು",
+        "edit": "ಬದಲಿಸಿ",
+        "takeBack": "ಈ ಪಾವತಿಯಿಂದ ಹಿಂಪಡೆಯಿರಿ",
+        "auto": "ಸ್ವಯಂ"
+      },
+      "holds": "ಬಾಕಿ",
+      "pickFrom": "ಆರಿಸಿ",
+      "ofHeld": "{held} ರಲ್ಲಿ {amount}",
+      "splitAdds": "ಒಟ್ಟು",
+      "splitShort": "ಪಾವತಿ ಮೂಲಗಳು {total} ರಲ್ಲಿ {amount} ಆಗುತ್ತವೆ.",
+      "heldBar": "ನಗದು + ಬ್ಯಾಂಕ್"
     }
   },
   "dues": {

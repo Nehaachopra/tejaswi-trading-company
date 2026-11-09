@@ -17,6 +17,7 @@ import { type AmountRow, AmountTable, BreakdownButton, hasBreakdown } from "../s
 import { AmountBox } from "../shared/amount-box";
 import { ReceivedInto } from "./received-into";
 import { input, saidAmount } from "./shared";
+import { QrSpot } from "../shared/qr-spot";
 import { useReceiptEntry } from "./state";
 
 // the Amount card: on a phone one column; on a wider screen the amount (what's owed, the TDS they deducted, the
@@ -47,6 +48,7 @@ export function AmountCard() {
     interestWorked,
     interestDue,
     breakdownOpen,
+    qrItem,
   } = useReceiptEntry();
   const rows = useAmountRows();
   // the amount's breakdown (by itself once there's TDS or an advance, else from the arrow): what came in, the TDS they deducted (its switch in the row), the
@@ -63,115 +65,122 @@ export function AmountCard() {
   );
   return (
     <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-6">
-      {/* the due (or cash in hand) in a row of its own on top; under it the amount on the left and where the money goes
-          on the right, both starting level. One column on a phone */}
-      {/* what's owed, in a box like a deposit's cash in hand, as soon as something is owed */}
-      {dueShown !== null && (
-        <div className="min-w-0 sm:col-start-1">
-          <AmountBox icon={HandCoins} label={t("due")} amount={dueShown} />
-        </div>
-      )}
-      <div className={cn("flex min-w-0 flex-col gap-4", dueShown !== null && "sm:col-start-1 sm:row-start-2")}>
-        {interestCalc ? (
-          // interest on a loan we gave: the months, and what they come to (or a figure typed from a statement)
-          <div className="grid grid-cols-[6rem_minmax(0,1fr)] items-end gap-x-6">
-            <label className="flex flex-col gap-2.5 text-xs font-semibold">
-              {tpf("months")}
-              <NumberInput
-                value={interestTyped !== null ? "" : interestMonths}
-                onChange={(v) => {
-                  setInterestTyped(null);
-                  setInterestMonths(v !== "" && Number(v) < 1 ? "1" : v);
-                }}
-                maxDigits={3}
-                max={120}
-                placeholder="--"
-                className={cn(input(false), "min-h-14 tabular")}
-              />
-            </label>
-            <WithBreakdown>
-              <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
-                {tpf("interestDue")}
-                <span className={cn("relative block", interestDue > 0 && "text-ivory")}>
-                  <IndianRupee
-                    className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2"
-                    aria-hidden
-                  />
-                  <NumberInput
-                    value={interestTyped ?? (interestWorked > 0 ? String(interestWorked) : "")}
-                    onChange={setInterestTyped}
-                    decimals={2}
-                    maxDigits={13}
-                    placeholder="0"
-                    aria-invalid={(tried && interestDue === 0) || undefined}
-                    className={cn(
-                      input(tried && interestDue === 0),
-                      "min-h-14 pl-10 font-heading text-2xl font-bold",
-                      interestDue > 0 && "bg-chestnut text-ivory caret-ivory",
-                    )}
-                  />
-                </span>
-              </label>
-            </WithBreakdown>
+      {/* on the left, one under another: the due, the amount, then where it came into; on the right the QR, when
+          there's one. One column on a phone */}
+      <div className="flex min-w-0 flex-col gap-4">
+        {/* what's owed, in a box like a deposit's cash in hand, as soon as something is owed */}
+        {dueShown !== null && (
+          <div className="min-w-0">
+            <AmountBox icon={HandCoins} label={t("due")} amount={dueShown} />
           </div>
-        ) : (
-          <div className="flex flex-col gap-2.5">
-            <WithBreakdown>
-              <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
-                <span>
-                  {tc("q.amount")}
-                  <RequiredMark />
-                </span>
-                {/* a chestnut fill once there's an amount */}
-                <div className={filled ? "text-ivory [&_button]:text-ivory" : undefined}>
-                  <MicField onText={(said) => saidAmount(said, typeAmount)}>
+        )}
+        <div className="flex min-w-0 flex-col gap-4">
+          {interestCalc ? (
+            // interest on a loan we gave: the months, and what they come to (or a figure typed from a statement)
+            <div className="grid grid-cols-[6rem_minmax(0,1fr)] items-end gap-x-6">
+              <label className="flex flex-col gap-2.5 text-xs font-semibold">
+                {tpf("months")}
+                <NumberInput
+                  value={interestTyped !== null ? "" : interestMonths}
+                  onChange={(v) => {
+                    setInterestTyped(null);
+                    setInterestMonths(v !== "" && Number(v) < 1 ? "1" : v);
+                  }}
+                  maxDigits={3}
+                  max={120}
+                  placeholder="--"
+                  className={cn(input(false), "min-h-14 tabular")}
+                />
+              </label>
+              <WithBreakdown>
+                <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
+                  {tpf("interestDue")}
+                  <span className={cn("relative block", interestDue > 0 && "text-ivory")}>
                     <IndianRupee
                       className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2"
                       aria-hidden
                     />
                     <NumberInput
-                      id="amount-field"
-                      value={amount}
-                      onChange={typeAmount}
+                      value={interestTyped ?? (interestWorked > 0 ? String(interestWorked) : "")}
+                      onChange={setInterestTyped}
                       decimals={2}
                       maxDigits={13}
-                      max={kind === "loanReturned" && loan ? loan.left : undefined}
                       placeholder="0"
-                      aria-invalid={loanOver || (tried && value === 0) || undefined}
+                      aria-invalid={(tried && interestDue === 0) || undefined}
                       className={cn(
-                        input(loanOver || (tried && value === 0)),
-                        "min-h-14 pl-10 pr-11 font-heading text-2xl font-bold",
-                        filled && "bg-chestnut text-ivory caret-ivory",
+                        input(tried && interestDue === 0),
+                        "min-h-14 pl-10 font-heading text-2xl font-bold",
+                        interestDue > 0 && "bg-chestnut text-ivory caret-ivory",
                       )}
                     />
-                  </MicField>
-                </div>
-              </label>
-            </WithBreakdown>
-            {/* the breakdown right under the amount */}
-            {breakdown}
-            {/* an advance they already have with us, before anything's typed */}
-            <Reveal follow show={heldAdvance > 0 && advance === 0} gap="0.625rem">
-              <Note className="tabular text-chestnut/70">
-                {t("heldAdvance", { amount: rupees(heldAdvance) })}
-              </Note>
-            </Reveal>
-          </div>
-        )}
-        {loanOver && (
-          <FieldMessage className="mt-0">
-            {tc("problems.loanLeft", { left: rupees(loan!.left) })}
-          </FieldMessage>
-        )}
+                  </span>
+                </label>
+              </WithBreakdown>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              <WithBreakdown>
+                <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
+                  <span>
+                    {tc("q.amount")}
+                    <RequiredMark />
+                  </span>
+                  {/* a chestnut fill once there's an amount */}
+                  <div className={filled ? "text-ivory [&_button]:text-ivory" : undefined}>
+                    <MicField onText={(said) => saidAmount(said, typeAmount)}>
+                      <IndianRupee
+                        className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2"
+                        aria-hidden
+                      />
+                      <NumberInput
+                        id="amount-field"
+                        value={amount}
+                        onChange={typeAmount}
+                        decimals={2}
+                        maxDigits={13}
+                        max={kind === "loanReturned" && loan ? loan.left : undefined}
+                        placeholder="0"
+                        aria-invalid={loanOver || (tried && value === 0) || undefined}
+                        className={cn(
+                          input(loanOver || (tried && value === 0)),
+                          "min-h-14 pl-10 pr-11 font-heading text-2xl font-bold",
+                          filled && "bg-chestnut text-ivory caret-ivory",
+                        )}
+                      />
+                    </MicField>
+                  </div>
+                </label>
+              </WithBreakdown>
+              {/* the breakdown right under the amount */}
+              {breakdown}
+              {/* an advance they already have with us, before anything's typed */}
+              <Reveal follow show={heldAdvance > 0 && advance === 0} gap="0.625rem">
+                <Note className="tabular text-chestnut/70">
+                  {t("heldAdvance", { amount: rupees(heldAdvance) })}
+                </Note>
+              </Reveal>
+            </div>
+          )}
+          {loanOver && (
+            <FieldMessage className="mt-0">
+              {tc("problems.loanLeft", { left: rupees(loan!.left) })}
+            </FieldMessage>
+          )}
 
-        {/* interest has no due bar: its breakdown goes under its figures */}
-        {interestCalc && breakdown}
+          {/* interest has no due bar: its breakdown goes under its figures */}
+          {interestCalc && breakdown}
+        </div>
+
+        {/* where it came into, in this same card */}
+        <div className="flex min-w-0 flex-col gap-2.5">
+          <h3 className="text-xs font-semibold">{t("steps.into")}</h3>
+          <ReceivedInto />
+        </div>
       </div>
 
-      {/* where it came into, in this same card */}
-      <div className={cn("flex min-w-0 flex-col gap-2.5", dueShown !== null && "sm:col-start-2 sm:row-start-2")}>
-        <h3 className="text-xs font-semibold">{t("steps.into")}</h3>
-        <ReceivedInto />
+      {/* our QR for a UPI payment */}
+      <div className="min-w-0 sm:sticky sm:top-24">
+        <QrSpot item={qrItem} />
       </div>
     </div>
   );

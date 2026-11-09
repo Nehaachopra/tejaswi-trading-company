@@ -1,16 +1,11 @@
 "use client";
 
-import { IndianRupee } from "lucide-react";
-
 import { Note } from "~/components/ui/note";
-import { NumberInput } from "~/components/ui/number-input";
-import { Reveal } from "~/components/ui/reveal";
 import { rupees } from "~/lib/format";
-import { cn } from "~/lib/utils";
 
 import { type Place, PlacePicker } from "../shared/place-picker";
-import { AccountRows, OneAccount } from "./bank-cards";
-import { input, money } from "./shared";
+import { OurUpiNeeded } from "./bank-cards";
+import { ShowQrButton, SplitGrid } from "../shared/split-grid";
 import { useReceiptEntry } from "./state";
 
 // where it came into: Cash, Bank or Cash + Bank as an accordion with the bank accounts' look, each with what it holds
@@ -33,30 +28,33 @@ export function ReceivedInto() {
     banksHeld,
     canBank,
     bankLoan,
-    multi,
-    bothBankSet,
+    gridPlaces,
+    setGridText,
+    setGridMode,
+    qrItems,
+    qrItem,
+    setQrPick,
   } = useReceiptEntry();
-  const places: Place<"cash" | "bank" | "both">[] =
-    [
-      {
-        id: "cash",
-        name: tc("cash"),
-        hint: cashHeld === null ? undefined : rupees(cashHeld),
-        disabled: !!bankLoan,
-      },
-      {
-        id: "bank",
-        name: tpf("bankPlace"),
-        hint: banksHeld === null ? undefined : rupees(banksHeld),
-        disabled: !canBank,
-      },
-      {
-        id: "both",
-        name: tpf("cashAndBank"),
-        hint: cashHeld === null || banksHeld === null ? undefined : rupees(cashHeld + banksHeld),
-        disabled: !canBank || !!bankLoan,
-      },
-    ];
+  const places: Place<"cash" | "bank" | "both">[] = [
+    {
+      id: "cash",
+      name: tc("cash"),
+      hint: cashHeld === null ? undefined : rupees(cashHeld),
+      disabled: !!bankLoan,
+    },
+    {
+      id: "bank",
+      name: tpf("bankPlace"),
+      hint: banksHeld === null ? undefined : rupees(banksHeld),
+      disabled: !canBank,
+    },
+    {
+      id: "both",
+      name: tpf("cashAndBank"),
+      hint: cashHeld === null || banksHeld === null ? undefined : rupees(cashHeld + banksHeld),
+      disabled: !canBank || !!bankLoan,
+    },
+  ];
   const usesBank = into === "bank" || into === "both";
   return (
     <>
@@ -81,100 +79,26 @@ export function ReceivedInto() {
       />
       {bankLoan && <Note className="text-chestnut/70">{t("bankOnly")}</Note>}
 
-      {/* the panel: with Cash + Bank a row per part to type, then the account cards (straight away for the bank alone) */}
-      <Reveal follow show={usesBank} gap="0.625rem">
-        <div className="overflow-hidden rounded-control text-sm shadow-[0_0_5px_0] shadow-chestnut/25">
-          {into === "both" && <PartRow part="cash" />}
-          {usesBank && (
-            <div className={cn(into === "both" && "border-t border-chestnut/15")}>
-              {into === "both" && <PartRow part="bank" />}
-              <Reveal follow show={into === "bank" || bothBankSet || multi} gap="0px">
-                {multi ? <AccountRows /> : <OneAccount />}
-              </Reveal>
-            </div>
+      {/* Bank, or Cash + Bank: a box each, what came into it typed; an account by UPI with none of ours asks for one */}
+      {usesBank && (
+        <SplitGrid
+          places={gridPlaces}
+          onText={setGridText}
+          onMode={setGridMode}
+          capAtHeld={false}
+          modeLabel={t("receivedBy")}
+          modeMissing={t("pickMode")}
+          tried={tried}
+          extra={(p) => (
+            <>
+              {p.id !== "cash" && <OurUpiNeeded bankId={p.id} mode={p.mode} />}
+              {qrItems.length > 1 && qrItems.some((q) => q.key === p.id) && (
+                <ShowQrButton shown={qrItem?.key === p.id} onShow={() => setQrPick(p.id)} />
+              )}
+            </>
           )}
-        </div>
-      </Reveal>
+        />
+      )}
     </>
-  );
-}
-
-// Cash + Bank: a part's row, its name as a heading, what it holds on the left (the admin only) and what came into it on
-// the right, typed: either fills in the other
-function PartRow({ part }: { part: "cash" | "bank" }) {
-  const {
-    tc,
-    tpf,
-    value,
-    cashPart,
-    setCashPart,
-    partTyping,
-    setPartTyping,
-    bankTyped,
-    setBankTyped,
-    bankValue,
-    cashHeld,
-    banksHeld,
-    bankId,
-    bankHeld,
-    partsOk,
-    tried,
-  } = useReceiptEntry();
-  const name = part === "cash" ? tc("cash") : tpf("bankPlace");
-  const has = part === "cash" ? cashHeld : bankId ? bankHeld(bankId) : banksHeld;
-  // what its field shows: the cash part as typed; the bank's as typed while it's being typed, else the rest
-  const typed =
-    part === "cash"
-      ? cashPart
-      : partTyping === "bank"
-        ? bankTyped
-        : cashPart === ""
-          ? ""
-          : String(Math.max(0, bankValue));
-  const bad = tried && !partsOk;
-  // filled in: chestnut, as every amount field
-  const fill = Number(typed) > 0 && !bad;
-  return (
-    <label className="flex flex-col gap-1.5 px-3 py-2.5">
-      <span className="text-xs font-semibold uppercase tracking-[0.08em] opacity-60">{name}</span>
-      <span className="flex min-h-11 items-center justify-between gap-3">
-        <span className={cn(money, "min-w-0 text-lg text-chestnut")}>
-          {has === null ? null : rupees(has)}
-        </span>
-        <span className="relative block w-40 shrink-0">
-          <IndianRupee
-            className={cn(
-              "pointer-events-none absolute left-3 top-1/2 z-10 size-4 -translate-y-1/2",
-              fill && "text-ivory",
-            )}
-            aria-hidden
-          />
-          <NumberInput
-            value={typed}
-            onFocus={() => setPartTyping(part)}
-            onBlur={() => setPartTyping(null)}
-            onChange={(v) => {
-              if (part === "cash") return setCashPart(v);
-              // the bank's part typed: cash is the rest
-              setBankTyped(v);
-              setCashPart(
-                v === "" ? "" : String(Math.max(0, Math.round((value - Number(v)) * 100) / 100)),
-              );
-            }}
-            decimals={2}
-            maxDigits={13}
-            max={value}
-            placeholder="0"
-            aria-label={name}
-            aria-invalid={bad || undefined}
-            className={cn(
-              input(bad),
-              "min-h-11 pl-8 text-right font-heading text-lg font-bold",
-              fill && "bg-chestnut text-ivory caret-ivory",
-            )}
-          />
-        </span>
-      </span>
-    </label>
   );
 }

@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, db, eq, gte, inArray, isNotNull, lt, lte, ne, or, sql } from "@repo/database";
-import { bankDetailsTable, dueSettlementsTable, duesTable, ledgerEntriesTable, ledgersTable, lendersTable, partiesTable, partyAddressesTable, partyPaidBeforeTable, partyUpiIdsTable, paymentBankDetailsTable, paymentsTable, transactionsTable } from "@repo/database/schema";
+import { bankDetailsTable, dueSettlementsTable, duesTable, ledgerEntriesTable, ledgersTable, lendersTable, partiesTable, partyAddressesTable, partyPaidBeforeTable, partyUpiIdsTable, paymentsTable, transactionBankDetailsTable, transactionsTable } from "@repo/database/schema";
 
 import AccountsService from "../accounts";
 import { type ActorModel, fitsPaymentKind, type LedgerSummaryModel, type PaymentKind, type PostingLine, type TdsType } from "../accounts/model";
@@ -116,9 +116,12 @@ export default class PaymentService {
       const unnamed = place.key === "labour" && !input.payeeLedgerId && !input.newPayee && input.amount <= CONTRACT_BILL_LIMIT;
       if (tdsType && !rent && !unnamed && !input.payeeLedgerId && !input.newPayee) throw new TRPCError({ code: "BAD_REQUEST", message: "Pick who was paid." });
       const landlord = rent ? await this.landlordOf(tx, input.payeeLandlordId!) : null;
+      // a broker paid brokerage is an agent (their ledger moves to Agents unless they're a customer or supplier)
+      const payeeRole = place.key === "brokerage" ? ("agent" as const) : null;
       const payee = tdsType && !rent && !unnamed
-        ? (await counterLedger(tx, this.accounts, input.payeeLedgerId ?? (await this.parties.createIn(tx, input.newPayee!, null, PHONE_OPTIONAL_HEADS.includes(place.key))).ledgerId)).party
+        ? (await counterLedger(tx, this.accounts, input.payeeLedgerId ?? (await this.parties.createIn(tx, input.newPayee!, payeeRole, PHONE_OPTIONAL_HEADS.includes(place.key))).ledgerId)).party
         : null;
+      if (payee && payeeRole) await this.parties.addRoleIn(tx, payee.id, payeeRole);
       if (tdsType && !rent && !unnamed && !payee) throw new TRPCError({ code: "BAD_REQUEST", message: "Who was paid must be a party." });
 
       // a PAN given with this payment goes on the record of whoever carries its TDS, if they have none
@@ -302,9 +305,9 @@ export default class PaymentService {
       // each row a millisecond apart, so they read back in the order saved (the first account, then the others)
       const savedAt = Date.now();
       if (bank && input.bankDetailsId) {
-        await tx.insert(paymentBankDetailsTable).values({
+        await tx.insert(transactionBankDetailsTable).values({
           createdAt: new Date(savedAt),
-          paymentId: row!.id,
+          transactionId: t.id,
           bankDetailsId: input.bankDetailsId,
           amount: fromPaise(src.bankPart),
           mode: BANK_MODE_DB[input.bankMode!],
@@ -318,9 +321,9 @@ export default class PaymentService {
       for (const [i, b] of input.moreBankParts.entries()) {
         const acc = moreBanks.find((m) => m.id === b.bankDetailsId);
         if (!acc) throw new TRPCError({ code: "BAD_REQUEST", message: "Pick the bank account." });
-        await tx.insert(paymentBankDetailsTable).values({
+        await tx.insert(transactionBankDetailsTable).values({
           createdAt: new Date(savedAt + i + 1),
-          paymentId: row!.id,
+          transactionId: t.id,
           bankDetailsId: b.bankDetailsId,
           amount: fromPaise(src.more[i]!.part),
           mode: BANK_MODE_DB[b.mode],
@@ -608,7 +611,7 @@ export default class PaymentService {
       // each payment's cash part: the whole amount less what the bank paid
       const [row] = await tx
         .select({
-          paid: sql<string>`coalesce(sum(${paymentsTable.amount} - coalesce((select sum(${paymentBankDetailsTable.amount}) from ${paymentBankDetailsTable} where ${paymentBankDetailsTable.paymentId} = ${paymentsTable.id}), 0)), 0)`,
+          paid: sql<string>`coalesce(sum(${paymentsTable.amount} - coalesce((select sum(${transactionBankDetailsTable.amount}) from ${transactionBankDetailsTable} where ${transactionBankDetailsTable.transactionId} = ${paymentsTable.transactionId}), 0)), 0)`,
         })
         .from(paymentsTable)
         .innerJoin(transactionsTable, eq(transactionsTable.id, paymentsTable.transactionId))
@@ -681,9 +684,9 @@ export default class PaymentService {
     // its bank rows in the order they were saved: the first account, then any more
     const [b, ...more] = await db
       .select()
-      .from(paymentBankDetailsTable)
-      .where(eq(paymentBankDetailsTable.paymentId, p.id))
-      .orderBy(asc(paymentBankDetailsTable.createdAt), asc(paymentBankDetailsTable.id));
+      .from(transactionBankDetailsTable)
+      .where(eq(transactionBankDetailsTable.transactionId, p.transactionId))
+      .orderBy(asc(transactionBankDetailsTable.createdAt), asc(transactionBankDetailsTable.id));
     // what came from the bank accounts, and the rest from cash
     const bankAmount = [b, ...more].reduce((sum, x) => (x ? sum + toPaise(Number(x.amount)) : sum), 0) / 100;
     const [loan] = await db.select({ interestRate: duesTable.interestRate, frequency: duesTable.frequency }).from(duesTable).where(eq(duesTable.transactionId, p.transactionId));

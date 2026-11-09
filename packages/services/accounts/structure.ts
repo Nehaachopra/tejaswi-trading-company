@@ -25,6 +25,10 @@ export const MASTERS = {
   lenders: { group: "liability", name: "Bank loans" },
   // landlords, one ledger each: the rent owed to them
   rentPayable: { group: "liability", name: "Rent payable" },
+  // people who lend to us (not banks or NBFCs, which are Bank loans), one ledger each
+  personalLenders: { group: "liability", name: "Lenders" },
+  // brokers we pay brokerage, one ledger each
+  agents: { group: "liability", name: "Agents" },
   // parties with no sale or purchase yet (added from a receipt or in Entities); their first sale or purchase moves
   // them to Debtors or Creditors
   parties: { group: "asset", name: "Parties" },

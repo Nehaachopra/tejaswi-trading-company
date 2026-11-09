@@ -296,7 +296,7 @@ export function LedgerSearch({
   receiptKind: ReceiptKind | null;
   paymentKind?: PaymentKind | null;
   // who an expense was paid to, never a customer or supplier: for rent the landlords
-  payee?: "other" | null;
+  payee?: "other" | "employee" | null;
   value: LedgerChoice;
   onChange: (choice: LedgerChoice) => void;
   canAdd: boolean;

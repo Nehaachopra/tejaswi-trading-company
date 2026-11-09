@@ -695,7 +695,9 @@
         "parties": "Others",
         "lenders": "Bank loans",
         "rentPayable": "Rent payable",
-        "gstPayable": "GST payable"
+        "gstPayable": "GST payable",
+        "personalLenders": "Lenders",
+        "agents": "Agents"
       },
       "ledgers": "{count, plural, =0 {No accounts yet} one {# account} other {# accounts}}",
       "postDated": "{amount} post-dated",
@@ -790,7 +792,11 @@
           "customer": "Customer",
           "supplier": "Supplier",
           "customer_supplier": "Customer | Supplier",
-          "none": "No sale or purchase yet"
+          "none": "Others",
+          "landlord": "Landlord",
+          "lender": "Lender",
+          "agent": "Agent",
+          "employee": "Employee"
         },
         "name": "Full name",
         "phone": "Phone (optional)",
@@ -877,7 +883,11 @@
         "upiIds": "UPI ID",
         "addUpi": "Add UPI ID",
         "removeUpi": "Remove this UPI ID",
-        "upiBad": "A UPI ID looks like name@bank."
+        "upiBad": "A UPI ID looks like name@bank.",
+        "typesTitle": "Type",
+        "monthlySalary": "Monthly salary (₹)",
+        "payDay": "Pay day (of the month)",
+        "joiningDate": "Joining date"
       },
       "showDetails": "Show or hide details",
       "place": "Place",
@@ -1402,7 +1412,10 @@
       "oldLoanLastEmi": "Last EMI date",
       "lenderNext": "Next",
       "oldLoanTo": "Given to",
-      "oldLoanGiven": "Given on"
+      "oldLoanGiven": "Given on",
+      "showQr": "Show QR code",
+      "qrShown": "Showing QR code",
+      "removeAccount": "Remove account"
     },
     "payment": {
       "kinds": {
@@ -1506,6 +1519,7 @@
         "available": "{held} available",
         "missing": {
           "amountEmpty": "Enter the amount.",
+          "short": "{amount} is still to be paid from an account.",
           "source": "Pick where it's paid from.",
           "kind": "Pick what it was paid for.",
           "to": "Pick who it was paid to, or fill in what's marked in red.",
@@ -1598,6 +1612,7 @@
         "accountN": "Bank account {n}",
         "removeAccount": "Remove this account",
         "accountAmount": "Amount from this account",
+        "breakdown": "Breakdown",
         "payeeUpi": "Their UPI ID",
         "payeeUpiBad": "A UPI ID looks like name@bank.",
         "payeeUpiHandle": "{handle} isn't a UPI handle. Check the part after @, like @okicici or @ybl.",
@@ -1762,6 +1777,74 @@
       "head": "Head",
       "addLedger": "New ledger",
       "ledgerName": "Ledger name"
+    },
+    "salary": {
+      "title": "Salary",
+      "loadFailed": "Couldn't load the employees. Check your connection and try again.",
+      "steps": {
+        "pay": "Pay",
+        "amount": "Amount",
+        "details": "Details"
+      },
+      "employee": "Employee",
+      "noEmployees": "No employees yet. Add them in Entities → Parties with the Employee type.",
+      "for": "For",
+      "kinds": {
+        "salary": "Salary",
+        "advance": "Advance"
+      },
+      "advanceLeft": "Advance still owed",
+      "nothingOwed": "No month is owed right now. Each month is posted on the pay day.",
+      "from": "Paid from",
+      "missing": {
+        "employee": "Pick the employee.",
+        "kind": "Pick Salary or Advance.",
+        "amount": "Enter the amount.",
+        "from": "Pick where it's paid from.",
+        "account": "Pick the bank account.",
+        "employees": "Tick at least one employee.",
+        "overHeld": "Total salary {amount} is more than cash + bank {held}. Untick someone or pay fewer months."
+      },
+      "capOnly": "Only {amount} can be paid.",
+      "reference": "Cash voucher no.",
+      "referenceHint": "Voucher no.",
+      "saving": "Saving…",
+      "save": {
+        "salary": "Save salary",
+        "advance": "Save advance"
+      },
+      "errors": {
+        "failed": "Couldn't save the payment. Try again."
+      },
+      "success": {
+        "title": "Salary paid successfully",
+        "loading": "Loading the payment…",
+        "loadError": "Couldn't load the payment. Check your connection and try again.",
+        "paidCount": "{count, plural, one {# payment saved} other {# payments saved}}"
+      },
+      "heads": {
+        "salary": "Salary",
+        "advance": "Advance to employee"
+      },
+      "owed": "Salary owed",
+      "employeesCount": "{count, plural, one {# employee} other {# employees}}",
+      "table": {
+        "payPerMonth": "Pay / month",
+        "monthsOwed": "Months owed",
+        "months": "Months",
+        "advance": "Advance",
+        "total": "Total",
+        "all": "All employees",
+        "edit": "Edit",
+        "takeBack": "Take back from this payment",
+        "auto": "Auto"
+      },
+      "holds": "Holds",
+      "pickFrom": "Pick",
+      "ofHeld": "{amount} of {held}",
+      "splitAdds": "Adds up to",
+      "splitShort": "Where it's paid from adds up to {amount} of {total}.",
+      "heldBar": "Cash + bank"
     }
   },
   "dues": {

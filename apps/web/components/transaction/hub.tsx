@@ -34,7 +34,7 @@ const KINDS: Kind[] = [
   { key: "transfer", icon: ArrowLeftRight, href: "/transaction/transfer" },
   { key: "saleReturn", icon: Undo2 },
   { key: "purchaseReturn", icon: Redo2 },
-  { key: "salary", icon: Users, adminOnly: true },
+  { key: "salary", icon: Users, adminOnly: true, href: "/transaction/salary" },
   { key: "drawing", icon: HandCoins, adminOnly: true },
   { key: "others", icon: BookOpen, adminOnly: true, href: "/transaction/other" },
 ];

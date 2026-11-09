@@ -68,7 +68,7 @@ export const BANK_MODE_REFERENCE: Record<BankMode, RegExp> = {
   cheque: /^\d{6}$/,
 };
 
-// a UTR, IMPS reference or cheque number, up to 30 (payment_bank_details)
+// a UTR, IMPS reference or cheque number, up to 30 (transaction_bank_details)
 const referenceModel = z
   .string()
   .trim()

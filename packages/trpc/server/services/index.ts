@@ -11,6 +11,7 @@ import OtherService from "@repo/services/other";
 import PartyService from "@repo/services/party";
 import PaymentService from "@repo/services/payment";
 import ReceiptService from "@repo/services/receipt";
+import SalaryService from "@repo/services/salary";
 import TransactionService from "@repo/services/transaction";
 import CategoryService from "@repo/services/category";
 import GodownService from "@repo/services/godown";
@@ -48,6 +49,8 @@ export const paymentService = new PaymentService(accountsService, transactionSer
 export const contraService = new ContraService(accountsService, transactionService);
 
 export const otherService = new OtherService(accountsService, transactionService);
+
+export const salaryService = new SalaryService(accountsService, transactionService);
 
 export const documentService = new DocumentService(paymentService);
 

@@ -5,13 +5,9 @@ import { boolean, index, pgEnum, pgTable, text, uniqueIndex, uuid, varchar } fro
 
 import { timestamps } from "../../utils/common/column-type";
 
-// what the party has done with us, set by its transactions (never picked): a sale makes it a customer, a purchase a
-// supplier, both make it customer_supplier. It decides the party's one ledger: customer → Debtors, supplier →
-// Creditors, customer_supplier → Debtor-creditors (one net balance); a party with no sale or purchase yet (type null)
-// sits in Parties. A loan to or from a party goes through that same ledger (its interest terms are in loans).
-// landlord is the one type set when they're added (in Entities → Landlords), never by a sale or purchase: their ledger
-// sits in Rent payable, and they never become a customer or supplier (someone who is also one has a separate party)
-export const partyTypeEnum = pgEnum("party_type", ["customer", "supplier", "customer_supplier", "landlord"]);
+// what a party is to us; a party can be several at once (types). customer_supplier is kept only for the old `type`
+// column and is never used in types (a customer and supplier has both)
+export const partyTypeEnum = pgEnum("party_type", ["customer", "supplier", "customer_supplier", "landlord", "lender", "agent", "employee"]);
 
 export const partiesTable = pgTable(
   "parties",
@@ -28,8 +24,17 @@ export const partiesTable = pgTable(
     // have one); without it the ledger goes by the full name
     shortName: varchar("short_name", { length: 20 }),
 
+    // replaced by types (copied into them when the API starts); only a landlord still fills it in, for the phone
+    // rule below, until it's dropped
     type: partyTypeEnum("type"),
-    
+
+    // what the party is to us, any of customer, supplier, employee (their pay details in employees), landlord, lender
+    // (a person who lends to us) and agent (a broker); none for anyone else. They decide where its one ledger sits (one
+    // net balance for everything between us): customer and supplier → Customers & suppliers, customer → Customers,
+    // supplier → Suppliers, else employee → Employees, landlord → Rent payable, lender → Lenders, agent → Agents, none
+    // → Others. Its dues keep each loan, sale and purchase apart
+    types: partyTypeEnum("types").array().notNull().default(sql`'{}'::party_type[]`),
+
     countryCode: varchar("country_code", {
       length: 5
     }).default("+91").notNull(),
@@ -58,6 +63,7 @@ export const partiesTable = pgTable(
 
     // one phone, one party (a party may have none); it's also how a party is found first. Landlords are counted apart,
     // as someone who is also a customer or supplier has a separate party with the same phone
+    // (on the old type column, which a landlord still fills in, until it's dropped)
     uniqueIndex("parties_phone_unique").on(table.phone).where(sql`${table.type} IS DISTINCT FROM 'landlord'`),
     uniqueIndex("parties_landlord_phone_unique").on(table.phone).where(sql`${table.type} = 'landlord'`),
 

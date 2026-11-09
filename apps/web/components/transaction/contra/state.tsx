@@ -132,9 +132,9 @@ export function useContraEntryState({ kind, isAdmin, onDiscard }: { kind: Contra
 
   // what's answered so far, a line each, for the summary
   const summary: SummaryItem<ContraStep>[] = [
-    { key: "amount", step: "amount", heading: t("into"), value: accountName(bankId) },
+    { key: "amount", step: "amount", heading: t("into"), value: ((n) => (n ? { name: n, amount: rupees(value) } : null))(accountName(bankId)) },
     // a transfer: the account it went into
-    ...(transfer ? [{ key: "to", step: "amount" as const, heading: t("toAccount" as "into"), value: accountName(toBankId) }] : []),
+    ...(transfer ? [{ key: "to", step: "amount" as const, heading: t("toAccount" as "into"), value: ((n: string | null) => (n ? { name: n, amount: rupees(value) } : null))(accountName(toBankId)) }] : []),
     {
       key: "details",
       step: "details",

@@ -16,7 +16,7 @@ import { GroupHeader, GroupSearch } from "./group-header";
 import { useLedgerName } from "./ledger-name";
 import { SignedAmount } from "./signed-amount";
 
-type Group = "lenders" | "rentPayable" | "employees" | "gstPayable";
+type Group = "lenders" | "personalLenders" | "agents" | "rentPayable" | "employees" | "gstPayable";
 
 // /account/group/[master], admin only: the ledgers of one sub-group (bank loans, rent payable to landlords,
 // employees), a card each like the ledgers on /account: the name (cut short with dots when long), its balance and the

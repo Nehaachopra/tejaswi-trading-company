@@ -5,6 +5,9 @@ import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { dayInWords } from "~/components/ui/date-input";
 import { bankNameIn } from "~/lib/bank-names";
+
+import { type QrItem } from "../shared/qr-spot";
+import { type GridPlace } from "../shared/split-grid";
 import { rupees, titleCase } from "~/lib/format";
 import { useLeaveGuard } from "~/lib/use-leave-guard";
 import {
@@ -536,10 +539,97 @@ export function usePaymentEntryState({
     if (into === "cash" && !cashCovers) setInto(null);
     if (into === "bank" && !bankCovers) setInto(null);
     if (into === "both" && !offerBoth) setInto(null);
-    const list = into === "both" ? bothBanks : coveringBanks;
-    if (bankId !== null && !list.some((b) => b.id === bankId)) setBankId(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the amount or source changes
   }, [askedAmount, value, total, into, bankId, sources, banks]);
+  // Bank, or Cash + Bank: a box each for cash (with the bank only when it's Cash + Bank) and every bank account, its
+  // amount typed or filled by Auto (on to start with) from what each holds, cash first. The first account with an
+  // amount is the bank's main part (bankId, firstAmount, bankMode), the others its more parts, the cash box the cash part
+  const usesGrid = into === "bank" || into === "both";
+  const [gridTyped, setGridTyped] = useState<Record<string, string> | null>(null);
+  const [gridModes, setGridModes] = useState<Record<string, BankMode | null>>({});
+  const gridIds = [...(into === "both" ? ["cash"] : []), ...(banks ?? []).map((b) => b.id)];
+  const gridHeld = (id: string) => (id === "cash" ? cashHeld : bankHeld(id));
+  const gridFilled = (() => {
+    let need = value;
+    return Object.fromEntries(
+      gridIds.map((id) => {
+        const take = Math.round(Math.max(0, Math.min(gridHeld(id) ?? Infinity, need)) * 100) / 100;
+        need = Math.round((need - take) * 100) / 100;
+        return [id, take > 0 ? String(take) : ""];
+      }),
+    );
+  })();
+  const gridTexts = gridTyped ?? gridFilled;
+  const gridPlaces: GridPlace[] = gridIds.map((id) => {
+    const b = banks?.find((x) => x.id === id);
+    return {
+      id,
+      name: id === "cash" ? tc("cash") : b ? bankNameIn(b.bankName, locale) : "",
+      sub: id === "cash" ? null : `••${b?.last4 ?? ""}`,
+      held: gridHeld(id),
+      text: gridTexts[id] ?? "",
+      amount: Number(gridTexts[id]) || 0,
+      mode: id === "cash" ? null : (gridModes[id] ?? null),
+    };
+  });
+  const gridTotal = Math.round(gridPlaces.reduce((sum, p) => sum + p.amount, 0) * 100) / 100;
+  const gridAccs = gridPlaces.filter((p) => p.id !== "cash" && p.amount > 0);
+  // what the grid still needs: it adds up to the amount, none past what it holds, every account taking something says
+  // how, and Cash + Bank has something in each
+  const gridOk =
+    !usesGrid ||
+    (gridTotal === value &&
+      gridPlaces.every((p) => p.held === null || p.amount <= p.held) &&
+      gridAccs.every((p) => p.mode !== null) &&
+      gridAccs.length > 0 &&
+      (into !== "both" || (gridPlaces[0]?.amount ?? 0) > 0));
+  function setGridText(id: string, text: string) {
+    setGridTyped((was) => ({ ...(was ?? gridFilled), [id]: text }));
+  }
+  function setGridAuto(on: boolean) {
+    // off: Bank starts empty, to be typed account by account; Cash + Bank keeps what Auto had filled
+    setGridTyped(on ? null : into === "bank" ? {} : gridFilled);
+  }
+  function setGridMode(id: string, mode: BankMode | null) {
+    setGridModes((all) => ({ ...all, [id]: mode }));
+  }
+  // the grid feeds what's saved: the cash part, the first account, and the more parts (kept in step: set again when
+  // anything else resets them)
+  const gridKey = JSON.stringify([gridAccs, gridTexts.cash ?? ""]);
+  useEffect(() => {
+    if (!usesGrid) return;
+    const first = gridAccs[0];
+    const cash = into === "both" ? (gridTexts.cash ?? "") : "";
+    const more: MorePart[] = gridAccs
+      .slice(1)
+      .map((p) => ({ key: `acc-${p.id}`, bankId: p.id, amount: p.text, mode: p.mode }));
+    if (into === "both" && cashPart !== cash) {
+      cashPartAuto.current = false;
+      setCashPart(cash);
+    }
+    if (bankId !== (first?.id ?? null)) setBankId(first?.id ?? null);
+    if (firstAmount !== (first?.text ?? "")) setFirstAmount(first?.text ?? "");
+    if (bankMode !== (first?.mode ?? null)) setBankMode(first?.mode ?? null);
+    if (JSON.stringify(moreParts) !== JSON.stringify(more)) setMoreParts(more);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gridKey stands for the grid's accounts and cash
+  }, [usesGrid, into, gridKey, cashPart, bankId, firstAmount, bankMode, moreParts]);
+
+  // the QR spot: each account by UPI to someone with a UPI ID; the last one, unless Show QR code picked another
+  const [qrPick, setQrPick] = useState<string | null>(null);
+  const qrItems: QrItem[] =
+    !usesGrid || payeeUpis.length === 0
+      ? []
+      : gridAccs
+          .filter((p) => p.mode === "upi")
+          .map((p) => ({
+            key: p.id,
+            title: `${p.name} ${p.sub ?? ""}`.trim(),
+            upiIds: payeeUpis,
+            payee: qrParty?.name ?? "",
+            amount: p.amount,
+          }));
+  const qrItem = qrItems.find((q) => q.key === qrPick) ?? qrItems.at(-1) ?? null;
+
   // the amount changed: where it's paid from starts again, nothing left over (cash or bank, the accounts, their
   // amounts and how each was paid, the cash part)
   const amountSeen = useRef(value);
@@ -554,6 +644,7 @@ export function usePaymentEntryState({
     setFoldedCards([]);
     setCashPart("");
     setBankTyped("");
+    setGridTyped(null);
   }, [value]);
   // the first account changed: what came after it starts again (how it was paid, its amount, the other cards)
   const accountSeen = useRef(bankId);
@@ -686,6 +777,7 @@ export function usePaymentEntryState({
     ? loan !== null && !loanOver
     : to !== null && (to.kind !== "party" || (!matched && partyOk(newParty, true)));
   const sourceDone =
+    gridOk &&
     into !== null &&
     (into === "cash" || (bankMode !== null && !!bank && morePartsOk)) &&
     partsOk &&
@@ -875,7 +967,7 @@ export function usePaymentEntryState({
       // from both: cash and the bank, a line each with what it paid
       value:
         into === "cash"
-          ? tc("cash")
+          ? { name: tc("cash"), amount: rupees(value) }
           : !bank
             ? null
             : moreParts.length > 0
@@ -907,7 +999,10 @@ export function usePaymentEntryState({
                     ...(bankMode ? [t(`modes.${bankMode}`)] : []),
                   ]
                 : [
-                    `${bankNameIn(bank.bankName, locale)} ••${bank.last4}`,
+                    {
+                      name: `${bankNameIn(bank.bankName, locale)} ••${bank.last4}`,
+                      amount: rupees(value),
+                    },
                     ...(bankMode ? [t(`modes.${bankMode}`)] : []),
                   ],
     },
@@ -1107,6 +1202,16 @@ export function usePaymentEntryState({
   }
 
   return {
+    usesGrid,
+    gridShort: usesGrid ? Math.max(0, Math.round((value - gridTotal) * 100) / 100) : 0,
+    gridPlaces,
+    setGridText,
+    setGridMode,
+    gridAuto: gridTyped === null,
+    setGridAuto,
+    qrItems,
+    qrItem,
+    setQrPick,
     t,
     tc,
     tpick,

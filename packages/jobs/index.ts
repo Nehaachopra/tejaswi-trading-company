@@ -2,6 +2,7 @@ import { logger } from "@repo/logger";
 
 import { boss } from "./boss";
 import { sendOtp, sendOtpQueue } from "./queues/send-otp";
+import { postSalaries, postSalariesQueue } from "./queues/post-salaries";
 import { storeDocuments, storeDocumentsQueue } from "./queues/store-documents";
 
 export { QueuedOtpSender } from "./otp-sender";
@@ -21,6 +22,13 @@ export async function startJobs() {
   }
   await boss.work(storeDocumentsQueue.name, storeDocuments);
   await boss.schedule(storeDocumentsQueue.name, storeDocumentsQueue.cron);
+
+  // salaries posted on each employee's pay day
+  if (!(await boss.getQueue(postSalariesQueue.name))) {
+    await boss.createQueue(postSalariesQueue.name, postSalariesQueue.options);
+  }
+  await boss.work(postSalariesQueue.name, postSalaries);
+  await boss.schedule(postSalariesQueue.name, postSalariesQueue.cron);
 
   logger.info("Job queue started");
 }
