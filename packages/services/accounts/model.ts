@@ -71,7 +71,8 @@ export const statementLineModel = z.object({
   amount: z.number(),
   isReversal: z.boolean(),
   // the other side of this line in its transaction: each ledger and how much, largest first
-  contras: z.array(z.object({ key: z.string().nullable(), name: z.string(), amount: z.number() })),
+  // the other side: each ledger, a party's full name (null for any other ledger) and how much
+  contras: z.array(z.object({ key: z.string().nullable(), name: z.string(), partyName: z.string().nullable(), amount: z.number() })),
   balance: balanceModel,
 });
 
@@ -150,6 +151,23 @@ export const overviewModel = z.object({
 });
 
 export type OverviewModel = z.infer<typeof overviewModel>;
+
+// the sub-groups with no list of their own elsewhere in /account (bank accounts and parties have theirs): bank loans,
+// rent payable to landlords, employees
+export const GROUP_PAGES = ["lenders", "rentPayable", "employees", "gstPayable"] as const;
+
+// the GST owed, gathered on /account as one group under Liability (they stay built-in ledgers under the head itself):
+// output GST, then reverse-charge GST
+export const GST_PAYABLE_KEYS = ["outputCgst", "outputSgst", "outputIgst", "rcmCgstPayable", "rcmSgstPayable", "rcmIgstPayable"];
+
+export const groupLedgersInputModel = z.object({ master: z.enum(GROUP_PAGES) });
+
+export type GroupLedgersInputModel = z.infer<typeof groupLedgersInputModel>;
+
+// a ledger in such a sub-group: its summary and, for a party (a landlord), its full name
+export const groupLedgerModel = ledgerSummaryModel.extend({ fullName: z.string().nullable() });
+
+export type GroupLedgerModel = z.infer<typeof groupLedgerModel>;
 
 export const customHeadModel = z.enum(["asset", "liability", "income", "expense"]);
 

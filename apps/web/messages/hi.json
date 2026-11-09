@@ -530,7 +530,8 @@
       "ranges": {
         "month": "इस महीने",
         "year": "इस साल",
-        "all": "सभी"
+        "all": "सभी",
+        "pick": "महीना"
       },
       "closing": "अंतिम शेष",
       "empty": "इस अवधि में कोई प्रविष्टि नहीं।",
@@ -554,7 +555,7 @@
       "shownTotal": "दिखाए गए का योग",
       "filters": {
         "open": "फ़िल्टर",
-        "search": "नंबर या टिप्पणी",
+        "search": "लेन-देन आईडी",
         "from": "से",
         "to": "तक",
         "min": "राशि से (₹)",
@@ -689,9 +690,10 @@
         "bank": "बैंक",
         "creditors": "सप्लायर",
         "employees": "कर्मचारी",
-        "parties": "पार्टियाँ",
+        "parties": "अन्य",
         "lenders": "बैंक ऋण",
-        "rentPayable": "देय किराया"
+        "rentPayable": "देय किराया",
+        "gstPayable": "GST देय"
       },
       "ledgers": "{count, plural, =0 {अभी कोई खाता नहीं} one {# खाता} other {# खाते}}",
       "postDated": "{amount} आगे की तारीख का",
@@ -743,7 +745,7 @@
         "customer": "ग्राहक",
         "supplier": "सप्लायर",
         "customer_supplier": "ग्राहक और सप्लायर",
-        "none": "पार्टियाँ"
+        "none": "अन्य"
       },
       "empty": {
         "customer": "अभी कोई ग्राहक नहीं।",

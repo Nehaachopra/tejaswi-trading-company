@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ChevronDown, ChevronRight, CircleAlert, Search } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, CircleAlert, MapPin, Phone, Search } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -9,6 +9,7 @@ import { FILTER_BAR, FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
 import { ClearButton } from "~/components/ui/clear-button";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
+import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 
@@ -125,28 +126,47 @@ export function PartiesBoard({ type }: { type: PartyType }) {
           )}
         </p>
       ) : (
-        <ul className="mt-2 grid gap-3 lg:grid-cols-2">
+        <ul className="mt-2 grid grid-cols-1 gap-3 lg:grid-cols-2">
           {shown.map((p) => (
-            <li key={p.id}>
+            <li key={p.id} className="min-w-0">
               <Link
                 href={`${kind.path}/${p.id}`}
                 className={cn(
-                  "flex items-center gap-3 rounded-control border p-4",
+                  "flex min-w-0 flex-col gap-0.5 rounded-control border p-4",
                   p.isActive ? "on-ivory border-ivory bg-ivory text-chestnut" : "border-dashed border-ivory/60 text-ivory",
                 )}
               >
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
+                {/* the short name (when there is one); the full name with the balance; the phone and town with the arrow */}
+                {p.shortName && (
+                  <span className="flex min-w-0 items-center gap-2">
                     <span className="truncate font-heading text-xl font-bold leading-7">{partyLabel(p)}</span>
                     {!p.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
                   </span>
-                  <span className="tabular block truncate text-sm opacity-70">{[p.phone && `+91 ${p.phone}`, p.city].filter(Boolean).join(" · ") || "—"}</span>
+                )}
+                <span className="flex min-w-0 items-start gap-3">
+                  <span className={cn("min-w-0 flex-1 truncate", p.shortName ? "pt-0.5 text-base" : "font-heading text-xl font-bold leading-7")}>{titleCase(p.name.toLowerCase())}</span>
+                  {!p.shortName && !p.isActive && <span className="shrink-0 self-center rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
+                  <span className="flex shrink-0 flex-col items-end">
+                    <SignedAmount balance={p.balance.today} head={kind.head} className="font-heading text-xl font-bold leading-7" />
+                    {p.balance.postDated && <span className="tabular text-xs opacity-70">{t("postDated", { amount: postDatedText(p.balance.postDated, kind.head) })}</span>}
+                  </span>
                 </span>
-                <span className="flex shrink-0 flex-col items-end">
-                  <SignedAmount balance={p.balance.today} head={kind.head} className="font-heading text-xl font-bold leading-7" />
-                  {p.balance.postDated && <span className="tabular text-xs opacity-70">{t("postDated", { amount: postDatedText(p.balance.postDated, kind.head) })}</span>}
+                <span className="flex min-w-0 items-center gap-3 text-sm">
+                  <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1 opacity-70">
+                    {p.phone && (
+                      <span className="tabular flex items-center gap-1">
+                        <Phone className="size-3.5" aria-hidden /> +91 {p.phone}
+                      </span>
+                    )}
+                    {p.city && (
+                      <span className="flex min-w-0 items-center gap-1">
+                        <MapPin className="size-3.5 shrink-0" aria-hidden /> <span className="truncate">{titleCase(p.city)}</span>
+                      </span>
+                    )}
+                    {!p.phone && !p.city && "—"}
+                  </span>
+                  <ChevronRight className="size-5 shrink-0 opacity-60" aria-hidden />
                 </span>
-                <ChevronRight className="size-5 shrink-0 opacity-60" aria-hidden />
               </Link>
             </li>
           ))}

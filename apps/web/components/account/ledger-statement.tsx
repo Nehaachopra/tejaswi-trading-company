@@ -1,11 +1,10 @@
 "use client";
 
-import { CircleAlert, SlidersHorizontal, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, CircleAlert } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-import { ClearButton } from "~/components/ui/clear-button";
-import { NumberInput } from "~/components/ui/number-input";
+import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { rupees, titleCase } from "~/lib/format";
@@ -13,24 +12,27 @@ import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 import type { RouterOutputs } from "@repo/trpc/client";
 
-import { type Balance, type Head, indiaDay, postDatedText, startOfIndiaDay } from "./balance";
+import { type Balance, type Head, indiaDay, postDatedText, startOfIndiaDay, usualSide } from "./balance";
 import { useLedgerName } from "./ledger-name";
 import { SignedAmount } from "./signed-amount";
 
 type Line = RouterOutputs["accounts"]["ledger"]["statement"]["lines"][number];
-type Range = "month" | "year" | "all" | "custom";
 
-// the transaction types a statement can be narrowed to
-const TYPES = ["sale", "purchase", "sale_return", "purchase_return", "receipt", "payment", "deposit", "withdrawal", "transfer", "drawing", "salary", "other", "opening_balance"] as const;
-type TransactionType = (typeof TYPES)[number];
 
-// where each quick range starts, in India: the 1st of this month, or 1 April of this financial year
-function rangeStart(range: Exclude<Range, "custom">) {
-  if (range === "all") return null;
+// the last 12 months in India, newest first, as "2026-11"
+function lastMonths() {
   const [y, m] = indiaDay(new Date()).split("-").map(Number) as [number, number];
-  if (range === "month") return startOfIndiaDay(`${y}-${String(m).padStart(2, "0")}-01`);
-  return startOfIndiaDay(`${m >= 4 ? y : y - 1}-04-01`);
+  return Array.from({ length: 12 }, (_, i) => {
+    const at = y * 12 + (m - 1) - i;
+    return `${Math.floor(at / 12)}-${String((at % 12) + 1).padStart(2, "0")}`;
+  });
 }
+
+// the month after one: "2026-12" → "2027-01"
+const monthAfter = (month: string) => {
+  const [y, m] = month.split("-").map(Number) as [number, number];
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+};
 
 // a month's heading: a solid tint (so rows scrolling under it don't show through), stuck to the top of the entries
 const monthBar = "sticky top-0 z-10 bg-[color-mix(in_srgb,var(--color-ivory)_90%,var(--color-chestnut))] px-4 py-1.5 text-xs font-semibold";
@@ -39,10 +41,11 @@ const monthBar = "sticky top-0 z-10 bg-[color-mix(in_srgb,var(--color-ivory)_90%
 const sideCols = "grid grid-cols-[2.5rem_minmax(0,1fr)_7rem] items-center gap-3 px-4";
 // a debit entry on a phone, where the two sides share one list; a credit entry stays plain
 const debitShade = "bg-chestnut/[0.045]";
-const phoneCols = "grid grid-cols-[1.75rem_4.75rem_minmax(0,1fr)_minmax(0,1fr)] items-center gap-x-2 px-4";
+// a phone line, like a paper ledger: day, particulars, then the amount under Debit or under Credit
+const phoneCols = "grid grid-cols-[1.5rem_minmax(0,1fr)_5.25rem_5.25rem] items-center gap-x-2 px-4";
 
-// a field in the filters
-const filterInput = "min-h-10 min-w-0 rounded-control border border-chestnut/70 bg-transparent px-3 text-sm outline-none focus:border-chestnut";
+// an amount in a phone column: the figure alone (the column says what it is), so a crore still fits
+const figure = (amount: number) => amount.toLocaleString("en-IN", { minimumFractionDigits: Number.isInteger(amount) ? 0 : 2, maximumFractionDigits: 2 });
 
 const chip = (on: boolean) =>
   cn("min-h-9 shrink-0 rounded-control border px-3 text-sm transition-colors", on ? "border-chestnut bg-chestnut font-medium text-ivory" : "border-chestnut/50 hover:border-chestnut");
@@ -74,7 +77,7 @@ function byMonth<T extends { at: Date | null }>(rows: T[]) {
 // two-sided ledger, Debit on the left and Credit on the right, both closing on the same total (the opening
 // balance and the balance brought into a range read Balance b/f, the closing balance is carried down as
 // Balance c/d); on phones a line per entry with its Debit or Credit amount in its own column. Long particulars
-// end in "…" with the full text on hover. Filters (a search over number and remarks, types, an amount range, a
+// end in "…" with the full text on hover. Filters (a search over number and remarks, an amount range, a
 // custom date range) show only the matching entries, each side with the total of what's shown instead of b/f and
 // c/d. Tapping an entry will open its transaction in History (coming with it)
 export function LedgerStatement({
@@ -92,52 +95,27 @@ export function LedgerStatement({
   // the ledger's own ⋯ menu, beside its balance
   menu?: React.ReactNode;
 }) {
-  const tc = useTranslations("common");
   const t = useTranslations("accounts.ledger");
   const nameOf = useLedgerName();
   const tt = useTranslations("accounts.types");
   const format = useFormatter();
-  const tf = useTranslations("accounts.ledger.filters");
-  const [range, setRange] = useState<Range>("year");
-  // the filters: a custom date range, a search, types and an amount range
-  const [filtersOpen, setFiltersOpen] = useState(false);
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [typed, setTyped] = useState("");
-  const [search, setSearch] = useState("");
-  const [types, setTypes] = useState<TransactionType[]>([]);
-  const [min, setMin] = useState("");
-  const [max, setMax] = useState("");
-
-  // search once typing pauses
-  useEffect(() => {
-    const timer = setTimeout(() => setSearch(typed.trim()), 250);
-    return () => clearTimeout(timer);
-  }, [typed]);
+  // a month picked from the dropdown, or every entry (null)
+  const [month, setMonth] = useState<string | null>(null);
 
   const statement = trpc.accounts.ledger.statement.useQuery(
     {
       ledgerId,
-      from: range === "custom" ? (from ? startOfIndiaDay(from) : null) : rangeStart(range),
-      // up to the end of the last day
-      to: range === "custom" && to ? new Date(startOfIndiaDay(to).getTime() + 24 * 60 * 60 * 1000 - 1) : null,
-      types,
-      minAmount: min === "" ? null : Number(min),
-      maxAmount: max === "" ? null : Number(max),
-      search,
+      from: month ? startOfIndiaDay(`${month}-01`) : null,
+      // up to the last moment of that month
+      to: month ? new Date(startOfIndiaDay(`${monthAfter(month)}-01`).getTime() - 1) : null,
+      types: [],
+      minAmount: null,
+      maxAmount: null,
+      search: "",
     },
     { placeholderData: (previous) => previous },
   );
   const narrowed = statement.data?.narrowed ?? null;
-
-  // the filters in force, each as a chip that clears it
-  const active = [
-    ...(range === "custom" && (from || to) ? [{ key: "dates", label: `${from || "…"} – ${to || "…"}`, clear: () => (setRange("year"), setFrom(""), setTo("")) }] : []),
-    ...(search ? [{ key: "search", label: `“${search}”`, clear: () => setTyped("") }] : []),
-    ...types.map((type) => ({ key: type, label: tt(type), clear: () => setTypes((all) => all.filter((x) => x !== type)) })),
-    ...(min ? [{ key: "min", label: `≥ ${rupees(Number(min))}`, clear: () => setMin("") }] : []),
-    ...(max ? [{ key: "max", label: `≤ ${rupees(Number(max))}`, clear: () => setMax("") }] : []),
-  ];
 
   // "October 2026" over each month's entries, which show only their day
   const monthName = (month: string) => format.dateTime(new Date(`${month}-15T12:00:00+05:30`), { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
@@ -174,11 +152,35 @@ export function LedgerStatement({
     return { debit, credit, foot: narrowed ? { debit: narrowed.debit, credit: narrowed.credit } : { debit: total, credit: total } };
   })();
 
-  // the other side of an entry: each ledger, and how much when there's more than one (one is the entry's own amount)
+  // Debit or Credit with an arrow: up on the side that raises this ledger (debit for an asset, expense or loss; credit
+  // for the rest), down on the side that lowers it
+  const sideLabel = (side: "debit" | "credit") => {
+    const up = side === usualSide(head);
+    const Arrow = up ? ArrowUp : ArrowDown;
+    return (
+      <span className="inline-flex items-center gap-1">
+        {t(side)}
+        {/* thick, green going up and red going down */}
+        <Arrow strokeWidth={3.25} className={cn("size-[1.1em] shrink-0", up ? "text-success" : "text-danger")} aria-hidden />
+      </span>
+    );
+  };
+
+  // the other side of an entry: each ledger (a party by its short name, then its full name), and how much when there's
+  // more than one (one is the entry's own amount)
   const contraLines = (contras: Line["contras"] = []) =>
     contras.map((c) => (
       <span key={c.name} className="tabular flex min-w-0 justify-between gap-2 text-sm">
-        <span className="truncate">{nameOf(c)}</span>
+        {c.partyName && titleCase(c.partyName) !== nameOf(c) ? (
+          <span className="flex min-w-0 gap-1.5">
+            <span className="shrink-0 font-semibold">{nameOf(c)}</span>
+            <span className="truncate" title={titleCase(c.partyName)}>
+              {titleCase(c.partyName)}
+            </span>
+          </span>
+        ) : (
+          <span className="truncate">{nameOf(c)}</span>
+        )}
         {contras.length > 1 && <span className="shrink-0">{rupees(c.amount)}</span>}
       </span>
     ));
@@ -202,7 +204,7 @@ export function LedgerStatement({
       {/* "Cash ledger" with today's balance beside it, then the quick ranges */}
       <header className="flex shrink-0 flex-col gap-3 border-b border-chestnut/15 p-4 md:flex-row md:items-center md:gap-4">
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 items-center gap-5 sm:p-3">
             {/* every ledger's name starts each word with a capital (a short name in capitals stays as it is) */}
             <h2 className="min-w-0 truncate font-heading text-xl font-bold md:text-2xl" title={t("titleOf", { name: titleCase(name) })}>
               {t("titleOf", { name: titleCase(name) })}
@@ -214,82 +216,44 @@ export function LedgerStatement({
             <p className="tabular mt-1 text-sm text-chestnut/70">{t("postDated", { amount: postDatedText(balance.postDated, head) })}</p>
           )}
         </div>
-        <div className="flex gap-1.5 overflow-x-auto">
-          {(["month", "year", "all"] as const).map((r) => (
-            <button key={r} type="button" aria-pressed={range === r} onClick={() => setRange(r)} className={chip(range === r)}>
-              {t(`ranges.${r}`)}
-            </button>
-          ))}
-          <button type="button" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((v) => !v)} className={cn(chip(filtersOpen || active.length > 0), "flex items-center gap-1.5")}>
-            <SlidersHorizontal className="size-4" aria-hidden /> {tf("open")}
-            {active.length > 0 && <span className="tabular">({active.length})</span>}
+        {/* every entry, or one month from the dropdown: on a phone two equal halves across the card under the name; from
+            768px on the right. The month list opens from the button's right edge, so it stays inside the card */}
+        <div className="grid grid-cols-2 gap-1.5 md:ml-auto md:flex">
+          <button type="button" aria-pressed={month === null} onClick={() => setMonth(null)} className={cn(chip(month === null))}>
+            {t("ranges.all")}
           </button>
+          <div className="min-w-0">
+          <Menu
+            label={t("ranges.pick")}
+            align="right"
+            boxed
+            // rounded with a full edge and the same height as All, filled once a month is picked
+            triggerClassName={cn(chip(month !== null), "flex w-full items-center gap-1.5 md:w-auto")}
+            trigger={
+              <>
+                <span className="truncate">{month ? monthName(month) : t("ranges.pick")}</span>
+                <ChevronDown className="size-4 shrink-0" aria-hidden />
+              </>
+            }
+          >
+            {(close) =>
+              lastMonths().map((m) => (
+                <MenuItem
+                  key={m}
+                  selected={month === m}
+                  onClick={() => {
+                    setMonth(m);
+                    close();
+                  }}
+                >
+                  {monthName(m)}
+                </MenuItem>
+              ))
+            }
+          </Menu>
+          </div>
         </div>
       </header>
-
-      {/* the filters: search, dates, types, amounts */}
-      {filtersOpen && (
-        <div className="flex max-h-[45%] shrink-0 flex-col gap-3 overflow-y-auto border-b border-chestnut/15 p-4">
-          {/* the search, with its ✕ inside the box */}
-          <div className="relative">
-            <input
-              type="search"
-              value={typed}
-              maxLength={50}
-              onChange={(e) => setTyped(e.target.value)}
-              placeholder={tf("search")}
-              className={cn(filterInput, "w-full pr-10")}
-            />
-            {typed && (
-              <span className="absolute inset-y-0 right-1.5 flex items-center">
-                <ClearButton onClear={() => setTyped("")} label={tc("clearSearch")} surface="ivory" />
-              </span>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex min-w-0 flex-col gap-1 text-xs text-chestnut/70">
-              {tf("from")}
-              <input type="date" value={from} onChange={(e) => (setFrom(e.target.value), setRange("custom"))} className={filterInput} />
-            </label>
-            <label className="flex min-w-0 flex-col gap-1 text-xs text-chestnut/70">
-              {tf("to")}
-              <input type="date" value={to} onChange={(e) => (setTo(e.target.value), setRange("custom"))} className={filterInput} />
-            </label>
-            <label className="flex min-w-0 flex-col gap-1 text-xs text-chestnut/70">
-              {tf("min")}
-              <NumberInput value={min} decimals={2} maxDigits={13} onChange={setMin} placeholder="0" className={cn(filterInput, "tabular")} />
-            </label>
-            <label className="flex min-w-0 flex-col gap-1 text-xs text-chestnut/70">
-              {tf("max")}
-              <NumberInput value={max} decimals={2} maxDigits={13} onChange={setMax} placeholder="0" className={cn(filterInput, "tabular")} />
-            </label>
-          </div>
-          <div className="flex flex-wrap gap-1.5" role="group" aria-label={tf("types")}>
-            {TYPES.map((type) => (
-              <button
-                key={type}
-                type="button"
-                aria-pressed={types.includes(type)}
-                onClick={() => setTypes((all) => (all.includes(type) ? all.filter((x) => x !== type) : [...all, type]))}
-                className={cn(chip(types.includes(type)), "min-h-8 px-3 text-xs")}
-              >
-                {tt(type)}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* the filters in force; a tap clears one */}
-      {active.length > 0 && (
-        <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-chestnut/15 px-4 py-2">
-          {active.map((a) => (
-            <button key={a.key} type="button" onClick={a.clear} className="flex min-h-8 items-center gap-1 rounded-control bg-chestnut/10 px-2.5 text-xs font-medium hover:bg-chestnut/20">
-              {a.label} <X className="size-3.5" aria-label={tf("clear")} />
-            </button>
-          ))}
-        </div>
-      )}
 
       {statement.isPending ? (
         <p className="flex justify-center py-12 text-chestnut/70">
@@ -306,17 +270,15 @@ export function LedgerStatement({
             <div className={cn(phoneCols, "shrink-0 border-b border-chestnut/15 py-2 text-xs text-chestnut/70")}>
               <span className="text-center">{t("day")}</span>
               <span>{t("particulars")}</span>
-              <span className="col-span-2 flex items-center justify-end gap-1.5">
-                <span className={cn("rounded-control px-1.5 py-px", debitShade)}>{t("debit")}</span>
-                <span className="px-1.5 py-px">{t("credit")}</span>
-              </span>
+              <span className="flex justify-end">{sideLabel("debit")}</span>
+              <span className="flex justify-end">{sideLabel("credit")}</span>
             </div>
             <ol className="min-h-0 flex-1 divide-y divide-chestnut/10 overflow-y-auto">
               {!narrowed && statement.data.broughtForward.amount !== 0 && (
                 <li className={cn(phoneCols, "py-2.5", statement.data.broughtForward.side === "debit" && debitShade)}>
                   <span />
-                  <span className="whitespace-nowrap pr-0.5 text-sm italic text-chestnut/70">{t("balanceBf")}</span>
-                  <span className="tabular col-span-2 text-right text-sm text-chestnut/70">{rupees(statement.data.broughtForward.amount)}</span>
+                  <span className="truncate pr-0.5 text-sm italic text-chestnut/70">{t("balanceBf")}</span>
+                  <span className={cn("tabular text-right text-sm text-chestnut/70", statement.data.broughtForward.side === "credit" && "col-start-4")}>{figure(statement.data.broughtForward.amount)}</span>
                 </li>
               )}
               {byMonth(rows).map((run) => (
@@ -328,15 +290,18 @@ export function LedgerStatement({
                         <button
                           type="button"
                           onClick={item.opens ? open : undefined}
-                          className={cn(phoneCols, "w-full gap-y-0.5 py-2.5 text-left", !item.opens && "cursor-default", item.side === "debit" && debitShade)}
+                          className={cn(phoneCols, "w-full items-end py-2.5 text-left", !item.opens && "cursor-default", item.side === "debit" && debitShade)}
                         >
-                          <span className="tabular row-span-2 self-start text-center font-heading text-lg font-bold">{indiaParts(item.at).day}</span>
-                          {/* first line: its number; then the other side of it; then the amount at the right. A debit entry is shaded */}
-                          <span className={cn("tabular col-span-3 min-w-0 truncate", item.opens ? "text-xs font-medium text-chestnut/70" : "pr-0.5 text-sm italic text-chestnut/70")} title={item.what}>
-                            {item.number ?? item.what}
+                          <span className="tabular self-start text-center font-heading text-lg font-bold">{indiaParts(item.at).day}</span>
+                          {/* its number, then the other side of it; the amount on the last line, under Debit or Credit. A debit
+                              entry is shaded */}
+                          <span className="flex min-w-0 flex-col gap-0.5">
+                            <span className={cn("tabular min-w-0 truncate", item.opens ? "text-xs font-medium text-chestnut/70" : "pr-0.5 text-sm italic text-chestnut/70")} title={item.what}>
+                              {item.number ?? item.what}
+                            </span>
+                            {item.contras?.length ? contraLines(item.contras) : null}
                           </span>
-                          {item.contras?.length ? <span className="col-span-3 col-start-2 flex min-w-0 flex-col gap-0.5">{contraLines(item.contras)}</span> : null}
-                          <span className={cn("tabular col-span-3 col-start-2 pt-0.5 text-right text-sm", item.opens && "font-semibold")}>{rupees(item.amount)}</span>
+                          <span className={cn("tabular text-right text-sm", item.opens && "font-semibold", item.side === "credit" && "col-start-4")}>{figure(item.amount)}</span>
                         </button>
                       </li>
                     ))}
@@ -352,7 +317,7 @@ export function LedgerStatement({
                 <span className="tabular text-right text-sm font-bold">{rupees(narrowed.credit)} Cr</span>
               </p>
             ) : (
-              <p className="flex shrink-0 items-center justify-between gap-3 border-t-2 border-chestnut/30 px-4 py-3 font-medium">
+              <p className="flex shrink-0 items-center justify-between gap-3 border-t-2 border-chestnut/30 bg-chestnut/10 px-4 py-3 font-semibold">
                 <span>{t("closing")}</span>
                 <SignedAmount balance={statement.data.closing} head={head} className="font-heading text-base font-bold" />
               </p>
@@ -365,7 +330,7 @@ export function LedgerStatement({
             <div className="grid shrink-0 grid-cols-2 divide-x divide-chestnut/15 border-b border-chestnut/15 overflow-y-hidden [scrollbar-gutter:stable]">
               {(["debit", "credit"] as const).map((side) => (
                 <div key={side}>
-                  <h3 className="border-b border-chestnut/10 px-4 py-2.5 text-center font-heading text-base font-bold">{t(side)}</h3>
+                  <h3 className="border-b border-chestnut/10 px-4 py-4 text-left font-heading text-base font-bold">{sideLabel(side)}</h3>
                   <div className={cn(sideCols, "py-2 text-xs text-chestnut/70")}>
                     <span className="text-center">{t("day")}</span>
                     <span>{t("particulars")}</span>
@@ -384,7 +349,8 @@ export function LedgerStatement({
                       <ol className="divide-y divide-chestnut/10">
                         {run.rows.map((r) => (
                           <li key={r.key}>
-                            <button type="button" onClick={r.opens ? open : undefined} className={cn(sideCols, "w-full py-2.5 text-left", r.opens ? "hover:bg-chestnut/5" : "cursor-default")}>
+                            {/* the balance carried down stands out: a tint, in bold */}
+                            <button type="button" onClick={r.opens ? open : undefined} className={cn(sideCols, "w-full py-2.5 text-left", r.opens ? "hover:bg-chestnut/5" : "cursor-default", r.key === "cd" && "bg-chestnut/10 font-semibold [&_*]:not-italic [&_*]:text-chestnut")}>
                               <span className="tabular self-start text-center font-heading text-base font-bold">{r.at ? indiaParts(r.at).day : ""}</span>
                               {particulars(r)}
                               {/* the amount sits level with the last account, set apart from their amounts by a line */}

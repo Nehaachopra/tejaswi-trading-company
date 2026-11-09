@@ -13,6 +13,8 @@ import {
   statementInputModel,
   statementModel,
   updateLedgerInputModel,
+  groupLedgerModel,
+  groupLedgersInputModel,
 } from "@repo/services/accounts/model";
 import {
   bankAccountIdInputModel,
@@ -294,6 +296,13 @@ const ledgerRouter = router({
     .input(ledgerIdInputModel)
     .output(ledgerModel)
     .query(({ input }) => accountsService.ledger(input)),
+
+  // the ledgers of a sub-group with no list of its own (bank loans, rent payable, employees)
+  group: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/accounts/ledgers/group/{master}", tags: ["accounts"] } })
+    .input(groupLedgersInputModel)
+    .output(z.array(groupLedgerModel))
+    .query(({ input }) => accountsService.groupLedgers(input)),
 
   statement: adminProcedure
     .meta({ openapi: { method: "GET", path: "/accounts/ledgers/{ledgerId}/statement", tags: ["accounts"] } })

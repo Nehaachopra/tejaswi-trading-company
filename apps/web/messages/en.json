@@ -530,7 +530,8 @@
       "ranges": {
         "month": "This month",
         "year": "This year",
-        "all": "All"
+        "all": "All",
+        "pick": "Month"
       },
       "closing": "Closing balance",
       "empty": "No entries in this period.",
@@ -554,7 +555,7 @@
       "shownTotal": "Total shown",
       "filters": {
         "open": "Filters",
-        "search": "Number or remarks",
+        "search": "Transaction ID",
         "from": "From",
         "to": "To",
         "min": "Amount from (₹)",
@@ -689,9 +690,10 @@
         "bank": "Bank",
         "creditors": "Suppliers",
         "employees": "Employees",
-        "parties": "Parties",
+        "parties": "Others",
         "lenders": "Bank loans",
-        "rentPayable": "Rent payable"
+        "rentPayable": "Rent payable",
+        "gstPayable": "GST payable"
       },
       "ledgers": "{count, plural, =0 {No accounts yet} one {# account} other {# accounts}}",
       "postDated": "{amount} post-dated",
@@ -743,7 +745,7 @@
         "customer": "Customers",
         "supplier": "Suppliers",
         "customer_supplier": "Customers & suppliers",
-        "none": "Parties"
+        "none": "Others"
       },
       "empty": {
         "customer": "No customers yet.",

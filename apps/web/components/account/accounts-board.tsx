@@ -2,6 +2,8 @@
 
 import { ChevronRight, CircleAlert, Plus } from "lucide-react";
 import Link from "next/link";
+
+import { cn } from "~/lib/utils";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -26,9 +28,13 @@ const MASTER_PAGE: Record<string, string | undefined> = {
   creditors: "/account/creditor",
   debtorCreditors: "/account/debtor-creditor",
   parties: "/account/parties",
-  lenders: "/entities/lenders",
-  // landlords, each with the rent owed to them
-  rentPayable: "/entities/landlords",
+  // bank loans, the rent owed to each landlord, and employees: their ledgers listed on one page (they are added and
+  // changed in Entities)
+  lenders: "/account/group/lenders",
+  rentPayable: "/account/group/rentPayable",
+  employees: "/account/group/employees",
+  // the GST owed: output and reverse-charge GST together
+  gstPayable: "/account/group/gstPayable",
 };
 
 // /account, admin only: every ledger account under its head (Asset, Liability, Income, Expense, Profit, Loss),
@@ -80,15 +86,15 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
             const ledgers = h.ledgers.filter((l) => fits(nameOf(l)));
             return (
             <section key={h.head} aria-labelledby={`head-${h.head}`}>
-              {/* the head and its total, staying under the page header while its accounts scroll by */}
-              {/* the head, a search over its ledgers and sub-groups (on its own page), and its total, staying under
-                  the page header while its accounts scroll by */}
+              {/* the head with its total beside it, then a search over its ledgers and sub-groups (on its own page),
+                  staying under the page header while its accounts scroll by */}
               <header className="sticky top-16 z-10 -mx-4 mb-3 flex items-center gap-2 border-b border-ivory/20 bg-chestnut px-4 py-3 sm:-mx-6 sm:px-6">
                 <h2 id={`head-${h.head}`} className="shrink-0 font-heading text-2xl font-bold">
                   {t(`heads.${h.head}`)}
                 </h2>
+                {/* its total right beside the name, an ivory pill (red when it's the wrong way round) */}
+                <SignedAmount balance={h.total} head={h.head} badge onChestnut className="ml-1 shrink-0 font-heading text-lg font-bold" />
                 {addable ? <HeadSearch value={search} onChange={setSearch} label={t("search")} /> : <span className="flex-1" />}
-                <SignedAmount balance={h.total} head={h.head} className="shrink-0 font-heading text-xl font-bold" />
               </header>
 
               {/* profit and loss: worked out, nothing posts to them */}
@@ -99,19 +105,22 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
                 <ul className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {masters.map((m) => {
                     const href = MASTER_PAGE[m.key];
+                    // two lines: the name with its balance, then how many ledgers with the arrow that opens them
                     const body = (
                       <>
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-heading text-xl font-bold leading-7">{t(`masters.${m.key}`)}</span>
-                          <span className="block text-sm text-chestnut/70">{t("ledgers", { count: m.ledgers })}</span>
+                        <span className="flex min-w-0 items-baseline gap-3">
+                          <span className="min-w-0 flex-1 truncate font-heading text-xl font-bold leading-7">{t(`masters.${m.key}`)}</span>
+                          <SignedAmount balance={m.total} head={h.head} className="shrink-0 font-heading text-lg font-bold" />
                         </span>
-                        <SignedAmount balance={m.total} head={h.head} className="shrink-0 font-heading text-lg font-bold" />
-                        <ChevronRight className="size-5 shrink-0 text-chestnut/60" aria-hidden />
+                        <span className="flex items-center gap-3">
+                          <span className="min-w-0 flex-1 text-sm text-chestnut/70">{t("ledgers", { count: m.ledgers })}</span>
+                          <ChevronRight className="size-5 shrink-0 text-chestnut/60" aria-hidden />
+                        </span>
                       </>
                     );
-                    const card = "on-ivory flex w-full items-center gap-3 rounded-control bg-ivory p-4 text-left text-chestnut";
+                    const card = "on-ivory flex w-full flex-col gap-0.5 rounded-control bg-ivory p-4 text-left text-chestnut";
                     return (
-                      <li key={m.key}>
+                      <li key={m.key} className="min-w-0">
                         {href ? (
                           <Link href={href} className={card}>
                             {body}
@@ -127,27 +136,32 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
                 </ul>
               )}
 
-              {/* the ledgers directly under it */}
+              {/* the ledgers directly under it: a card each, in the same grid as the sub-groups, so a name sits close to
+                  its balance on a wide screen */}
+              {/* set apart from the sub-groups above by a line, so groups and single ledgers read as two sets */}
               {ledgers.length > 0 && (
-                <ul className="on-ivory divide-y divide-chestnut/10 overflow-hidden rounded-control bg-ivory text-chestnut">
+                <ul className={cn("grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3", masters.length > 0 && "mt-6 border-t border-ivory/25 pt-6")}>
                   {/* sorted by the name as it reads in this language */}
                   {[...ledgers].sort((a, b) => nameOf(a).localeCompare(nameOf(b))).map((l) => (
-                    <li key={l.id}>
-                      <Link href={`/account/ledgers/${l.id}`} className="flex min-h-12 items-center gap-3 px-4 py-2.5 hover:bg-chestnut/5">
-                        <span className="flex min-w-0 flex-1 items-center gap-2">
-                          <span className="truncate font-medium" title={nameOf(l)}>
+                    <li key={l.id} className="min-w-0">
+                      {/* one line: the name (cut short with dots when long), its balance and the arrow that opens it; its tags
+                          and any post-dated balance on a second line only when it has them */}
+                      <Link href={`/account/ledgers/${l.id}`} className="on-ivory flex flex-col gap-1 rounded-control bg-ivory p-4 text-chestnut hover:bg-[color-mix(in_srgb,var(--color-ivory)_94%,var(--color-chestnut))]">
+                        <span className="flex min-w-0 items-center gap-3">
+                          <span className="min-w-0 flex-1 truncate font-heading text-xl font-bold leading-7" title={nameOf(l)}>
                             {nameOf(l)}
                           </span>
-                          {/* one the admin added, and whether it's still in use */}
-                          {l.custom && <span className="shrink-0 rounded-control border border-chestnut/40 px-1.5 py-0.5 text-[0.7rem]">{t("added")}</span>}
-                          {!l.isActive && <span className="shrink-0 rounded-control border border-current px-1.5 py-0.5 text-[0.7rem]">{t("inactive")}</span>}
+                          <SignedAmount balance={l.balance.today} head={h.head} className="shrink-0 font-heading text-lg font-bold" />
+                          <ChevronRight className="size-5 shrink-0 text-chestnut/60" aria-hidden />
                         </span>
-                        <span className="flex shrink-0 flex-col items-end">
-                          <SignedAmount balance={l.balance.today} head={h.head} className="font-medium" />
-                          {l.balance.postDated && <span className="tabular text-xs text-chestnut/70">{t("postDated", { amount: postDatedText(l.balance.postDated, h.head) })}</span>}
-                        </span>
-                        {/* the same arrow as the sub-group cards: this opens its ledger */}
-                        <ChevronRight className="size-5 shrink-0 text-chestnut/60" aria-hidden />
+                        {(l.custom || !l.isActive || l.balance.postDated) && (
+                          <span className="flex min-w-0 flex-wrap items-center gap-2">
+                            {/* one the admin added, and whether it's still in use */}
+                            {l.custom && <span className="shrink-0 rounded-control border border-chestnut/40 px-1.5 py-0.5 text-[0.7rem]">{t("added")}</span>}
+                            {!l.isActive && <span className="shrink-0 rounded-control border border-current px-1.5 py-0.5 text-[0.7rem]">{t("inactive")}</span>}
+                            {l.balance.postDated && <span className="tabular text-xs text-chestnut/70">{t("postDated", { amount: postDatedText(l.balance.postDated, h.head) })}</span>}
+                          </span>
+                        )}
                       </Link>
                     </li>
                   ))}

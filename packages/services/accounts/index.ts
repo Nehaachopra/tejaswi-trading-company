@@ -46,6 +46,10 @@ import {
   type ReceiptKind,
   TAX_LEDGERS,
   type TdsType,
+  type GroupLedgersInputModel,
+  groupLedgersInputModel,
+  type GroupLedgerModel,
+  GST_PAYABLE_KEYS,
 } from "./model";
 import { GROUPS, type GroupType, LEDGERS, type LedgerKey, MASTERS, type MasterKey } from "./structure";
 
@@ -285,20 +289,22 @@ export default class AccountsService {
       )
       .orderBy(asc(ledgerEntriesTable.dateTime), asc(ledgerEntriesTable.createdAt), asc(ledgerEntriesTable.id));
 
-    // the other ledgers in these transactions, for each line's other side
+    // the other ledgers in these transactions, for each line's other side, with a party's full name (its ledger is
+    // named by its short name)
     const transactionIds = [...new Set(rows.map((r) => r.entry.transactionId))];
     const others = transactionIds.length
       ? await db
-          .select({ entry: ledgerEntriesTable, name: ledgersTable.name, referenceId: ledgersTable.referenceId, masterId: ledgersTable.ledgerMasterId, head: ledgerGroupsTable.type })
+          .select({ entry: ledgerEntriesTable, name: ledgersTable.name, referenceId: ledgersTable.referenceId, masterId: ledgersTable.ledgerMasterId, head: ledgerGroupsTable.type, partyName: partiesTable.name })
           .from(ledgerEntriesTable)
           .innerJoin(ledgersTable, eq(ledgersTable.id, ledgerEntriesTable.ledgerId))
           .innerJoin(ledgerGroupsTable, eq(ledgerGroupsTable.id, ledgersTable.ledgerGroupId))
+          .leftJoin(partiesTable, and(eq(ledgersTable.referenceTable, "parties"), eq(partiesTable.id, ledgersTable.referenceId)))
           .where(and(inArray(ledgerEntriesTable.transactionId, transactionIds), ne(ledgerEntriesTable.ledgerId, ledger.id)))
       : [];
     const contrasOf = (e: typeof ledgerEntriesTable.$inferSelect) =>
       others
         .filter((o) => o.entry.transactionId === e.transactionId && o.entry.isReversal === e.isReversal && o.entry.transactionType !== e.transactionType)
-        .map((o) => ({ key: o.referenceId === null && !o.masterId ? (LEDGER_KEY.get(`${o.head}|${o.name}`) ?? null) : null, name: o.name, amount: Number(o.entry.amount) }))
+        .map((o) => ({ key: o.referenceId === null && !o.masterId ? (LEDGER_KEY.get(`${o.head}|${o.name}`) ?? null) : null, name: o.name, partyName: o.partyName, amount: Number(o.entry.amount) }))
         .sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name));
 
     // the balance after each line
@@ -381,6 +387,22 @@ export default class AccountsService {
     return { ...ledger, openingBalance, hasEntries: withEntries.has(ledger.id) };
   }
 
+  // one sub-group's ledgers (bank loans, rent payable, employees), with a party's full name (its ledger is named by
+  // its short name)
+  async groupLedgers(rawInput: GroupLedgersInputModel): Promise<GroupLedgerModel[]> {
+    const input = groupLedgersInputModel.parse(rawInput);
+    const all = await this.summaries();
+    // GST payable: the built-in GST ledgers in their own order; the rest, a sub-group's ledgers
+    const ledgers =
+      input.master === "gstPayable"
+        ? GST_PAYABLE_KEYS.flatMap((key) => all.filter((l) => l.key === key))
+        : all.filter((l) => l.masterKey === input.master);
+    const partyIds = ledgers.map((l) => l.referenceId).filter((id): id is string => id !== null);
+    const parties = partyIds.length ? await db.select({ id: partiesTable.id, name: partiesTable.name }).from(partiesTable).where(inArray(partiesTable.id, partyIds)) : [];
+    const nameOf = new Map(parties.map((p) => [p.id, p.name]));
+    return ledgers.map((l) => ({ ...l, fullName: l.referenceId ? (nameOf.get(l.referenceId) ?? null) : null }));
+  }
+
   // the six heads with their totals as of today
   async overview(): Promise<OverviewModel> {
     const ledgers = await this.summaries();
@@ -393,13 +415,16 @@ export default class AccountsService {
         .filter(([, m]) => m.group === head)
         .map(([key, m]) => {
           const inside = mine.filter((l) => l.masterKey === key);
-          return { key, name: m.name, total: asBalance(inside.reduce((sum, l) => sum + signed(l), 0)), ledgers: inside.length };
+          return { key: key as string, name: m.name as string, total: asBalance(inside.reduce((sum, l) => sum + signed(l), 0)), ledgers: inside.length };
         });
+      // the GST owed, shown as one group under Liability after the sub-groups
+      const gst = mine.filter((l) => l.key !== null && GST_PAYABLE_KEYS.includes(l.key));
+      if (gst.length > 0) masters.push({ key: "gstPayable", name: "GST payable", total: asBalance(gst.reduce((sum, l) => sum + signed(l), 0)), ledgers: gst.length });
       return {
         head,
         total: asBalance(mine.reduce((sum, l) => sum + signed(l), 0)),
         masters,
-        ledgers: mine.filter((l) => l.masterKey === null),
+        ledgers: mine.filter((l) => l.masterKey === null && !(l.key !== null && GST_PAYABLE_KEYS.includes(l.key))),
       };
     });
 

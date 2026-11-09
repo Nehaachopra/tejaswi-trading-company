@@ -1,70 +1,30 @@
 "use client";
 
-import { Search, X } from "lucide-react";
-import { useRef, useState } from "react";
+import { Search } from "lucide-react";
+import { useTranslations } from "next-intl";
 
-import { cn } from "~/lib/utils";
+import { ClearButton } from "~/components/ui/clear-button";
 
-// a search that waits as a button in a header and, when tapped, glides left into a box (half the free space from
-// 640px, all of it on phones) while the field and ✕ fade in; it folds back the same way when left empty or with ✕,
-// which also clears it
+// a head's search in its header: a small box always in view (like the customer list's search), its magnifier inside
+// on the left and ✕ to clear it once something is typed; it sits between the head's name and its total
 export function HeadSearch({ value, onChange, label }: { value: string; onChange: (value: string) => void; label: string }) {
-  const [open, setOpen] = useState(false);
-  const box = useRef<HTMLInputElement>(null);
-  const shown = open || value !== "";
-  const close = () => {
-    onChange("");
-    setOpen(false);
-  };
-
+  const tc = useTranslations("common");
   return (
     <div className="mx-3 flex min-w-0 flex-1 justify-end sm:mx-6">
-      <div
-        className={cn(
-          "flex min-h-10 items-center overflow-hidden rounded-control border transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-          shown ? "w-full border-ivory/50 bg-ivory/[0.06] focus-within:border-ivory sm:w-1/2" : "w-10 border-transparent",
-        )}
-      >
-        <button
-          type="button"
-          aria-label={label}
-          aria-expanded={shown}
-          onClick={() => {
-            setOpen(true);
-            box.current?.focus();
-          }}
-          className="grid size-10 shrink-0 place-items-center text-ivory/80 transition-colors hover:text-ivory"
-        >
-          <Search className="size-4" aria-hidden />
-        </button>
-        {/* always there, so it can fade in as the box widens */}
+      <label className="flex min-h-10 w-full min-w-0 max-w-56 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory">
+        <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
+        <span className="sr-only">{label}</span>
         <input
-          ref={box}
           type="search"
           value={value}
           maxLength={150}
-          tabIndex={shown ? 0 : -1}
-          aria-hidden={!shown}
           onChange={(e) => onChange(e.target.value)}
-          onBlur={() => value === "" && setOpen(false)}
-          onKeyDown={(e) => e.key === "Escape" && close()}
+          onKeyDown={(e) => e.key === "Escape" && onChange("")}
           placeholder={label}
-          className={cn(
-            "min-w-0 flex-1 bg-transparent text-base text-ivory outline-none transition-opacity duration-200 placeholder:text-ivory/60 [&::-webkit-search-cancel-button]:hidden",
-            shown ? "opacity-100 delay-100" : "opacity-0",
-          )}
+          className="min-w-0 flex-1 bg-transparent text-sm text-ivory outline-none placeholder:text-ivory/60 [&::-webkit-search-cancel-button]:hidden"
         />
-        <button
-          type="button"
-          aria-label="✕"
-          tabIndex={shown ? 0 : -1}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={close}
-          className={cn("grid size-10 shrink-0 place-items-center text-ivory/80 transition-opacity duration-200 hover:text-ivory", shown ? "opacity-100 delay-100" : "pointer-events-none opacity-0")}
-        >
-          <X className="size-4" aria-hidden />
-        </button>
-      </div>
+        {value && <ClearButton onClear={() => onChange("")} label={tc("clearSearch")} />}
+      </label>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CircleAlert, Search } from "lucide-react";
+import { ArrowLeft, ChevronRight, CircleAlert, Search } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -87,30 +87,36 @@ export function BanksBoard() {
           )}
         </p>
       ) : (
-        <ul className="mt-2 grid gap-3 lg:grid-cols-2">
+        <ul className="mt-2 grid grid-cols-1 gap-3 lg:grid-cols-2">
           {shown.map((b) => (
-            <li key={b.id}>
+            <li key={b.id} className="min-w-0">
+              {/* like the customer cards: the bank (cut short with dots when long) with the balance, then the account's
+                  last 4 digits and type with the arrow that opens it */}
               <Link
                 href={`/account/bank/${b.id}`}
                 className={cn(
-                  "flex items-center gap-3 rounded-control border p-4",
+                  "flex min-w-0 flex-col gap-0.5 rounded-control border p-4",
                   b.isActive ? "on-ivory border-ivory bg-ivory text-chestnut" : "border-dashed border-ivory/60 text-ivory",
                 )}
               >
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
+                <span className="flex min-w-0 items-start gap-3">
+                  <span className="flex min-w-0 flex-1 items-center gap-2">
                     <span className="truncate font-heading text-xl font-bold leading-7" title={bankName(b.bankName)}>
                       {bankName(b.bankName)}
                     </span>
                     {!b.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
                   </span>
-                  <span className="tabular block truncate text-sm opacity-70">
-                    ••{b.last4} · {t(`form.types.${b.accountType}`)}
+                  <span className="flex shrink-0 flex-col items-end">
+                    <SignedAmount balance={b.balance.today} head="asset" className="font-heading text-xl font-bold leading-7" />
+                    {b.balance.postDated && <span className="tabular text-xs opacity-70">{t("postDated", { amount: postDatedText(b.balance.postDated, "asset") })}</span>}
                   </span>
                 </span>
-                <span className="flex shrink-0 flex-col items-end">
-                  <SignedAmount balance={b.balance.today} head="asset" className="font-heading text-xl font-bold leading-7" />
-                  {b.balance.postDated && <span className="tabular text-xs opacity-70">{t("postDated", { amount: postDatedText(b.balance.postDated, "asset") })}</span>}
+                <span className="flex min-w-0 items-center gap-3 text-sm">
+                  <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1 opacity-70">
+                    <span className="tabular">••{b.last4}</span>
+                    <span className="truncate">{t(`form.types.${b.accountType}`)}</span>
+                  </span>
+                  <ChevronRight className="size-5 shrink-0 opacity-60" aria-hidden />
                 </span>
               </Link>
             </li>
