@@ -6,25 +6,31 @@ import type { RouterInputs } from "@repo/trpc/client";
 import { trpc } from "~/trpc/client";
 
 type ContraIn = RouterInputs["transactions"]["deposit"]["create"];
+type TransferIn = RouterInputs["transactions"]["transfer"]["create"];
 
-// a deposit (cash into a bank account) or a withdrawal (cash out of one)
-export type ContraKind = "deposit" | "withdrawal";
+// a deposit (cash into a bank account), a withdrawal (cash out of one) or a transfer (one account to another)
+export type ContraKind = "deposit" | "withdrawal" | "transfer";
 
-// what the deposit or withdrawal form needs from the server before anything is typed: the bank accounts, what cash and
-// each account hold (null for staff, who don't see balances), and the save. Made once for the page; the form reads it
-// with useContra(). Every read is tried again 3 times by itself before it counts as failed; the save never is
+// what the deposit, withdrawal or transfer form needs from the server before anything is typed: the bank accounts,
+// what cash and each account hold (null for staff, who don't see balances), and the save. Made once for the page; the
+// form reads it with useContra(). Every read is tried again 3 times by itself before it counts as failed; the save
+// never is
 function useContraData(kind: ContraKind) {
   const utils = trpc.useUtils();
   const banks = trpc.accounts.bank.pickable.useQuery();
   const sources = trpc.transactions.payment.sources.useQuery();
   const deposit = trpc.transactions.deposit.create.useMutation();
   const withdrawal = trpc.transactions.withdrawal.create.useMutation();
-  const create = kind === "deposit" ? deposit : withdrawal;
+  const transfer = trpc.transactions.transfer.create.useMutation();
+  const create = kind === "deposit" ? deposit : kind === "withdrawal" ? withdrawal : transfer;
 
   // saves it, then what changed with it is asked again (balances, ledgers), and the saved one is put in hand for its
   // own page
-  async function saveContra(input: ContraIn) {
-    const c = await create.mutateAsync(input);
+  async function saveContra(input: ContraIn | TransferIn) {
+    const c =
+      kind === "transfer"
+        ? await transfer.mutateAsync(input as TransferIn)
+        : await (kind === "deposit" ? deposit : withdrawal).mutateAsync(input as ContraIn);
     void utils.accounts.invalidate();
     void utils.transactions.payment.sources.invalidate();
     utils.transactions[kind].get.setData({ transactionId: c.transactionId }, c);

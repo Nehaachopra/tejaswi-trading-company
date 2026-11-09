@@ -9,9 +9,9 @@ import { AmountCard } from "./amount-card";
 import { DetailsCard, SaveBlock } from "./details-card";
 import { type ContraStep, ContraEntryProvider, useContraEntry, useContraEntryState } from "./state";
 
-// /transaction/deposit and /transaction/withdrawal: cash put into a bank account, or taken out of one, laid out like a
-// receipt: one card at a time with Back and Next, and a summary that goes back to any card. 1 the amount (never more
-// than the cash held for a deposit, or the account for a withdrawal) and the account; 2 the reference and the remarks,
+// /transaction/deposit, /withdrawal and /transfer: cash put into a bank account, taken out of one, or money moved from
+// one account to another, laid out like a receipt: one card at a time with Back and Next, and a summary that goes back to any card. 1 the amount (never more
+// than the cash held for a deposit, or the account it leaves) and the account (a transfer's two); 2 the reference and the remarks,
 // the day (today, or before for one forgotten) and Save. A save goes to its own page. Discarding to open a menu starts
 // the form again
 export function ContraForm({ kind, isAdmin }: { kind: ContraKind; isAdmin: boolean }) {

@@ -16,31 +16,45 @@ export const contraReferenceModel = z
   .nullable()
   .default(null);
 
-// the contras built so far: a deposit (cash into a bank account) and a withdrawal (cash out of one); a transfer follows
-export const contraKindModel = z.enum(["deposit", "withdrawal"]);
+// money between cash and our bank accounts: a deposit (cash into a bank account), a withdrawal (cash out of one), a
+// transfer (from one account to another)
+export const contraKindModel = z.enum(["deposit", "withdrawal", "transfer"]);
 
 export type ContraKind = z.infer<typeof contraKindModel>;
 
-// a deposit or a withdrawal: one of our active bank accounts, dated today or before (one forgotten can be put in the
-// next day), never more than what it comes out of holds (the cash for a deposit, the account for a withdrawal); its
-// reference and remarks if any
-export const createContraInputModel = z.object({
+// what every one carries: when (today or before; one forgotten can be put in the next day), how much, its reference
+// and remarks if any
+const contraFields = {
   // made when the form opened: a second save with it (a retry, a double tap) gets the first one's result
   saveKey: z.string().uuid().nullable().default(null),
   dateTime: z.coerce.date(),
-  bankDetailsId: idModel,
   amount: amountModel,
   referenceNumber: contraReferenceModel,
   remarks: remarksModel,
-});
+};
+
+// a deposit or a withdrawal: the one active bank account it goes into or comes out of; never more than what it comes out
+// of holds (the cash for a deposit, the account for a withdrawal)
+export const createContraInputModel = z.object({ ...contraFields, bankDetailsId: idModel });
 
 export type CreateContraInputModel = z.infer<typeof createContraInputModel>;
+
+// a transfer: from one active account to another, never more than the first holds
+export const createTransferInputModel = z
+  .object({ ...contraFields, fromBankDetailsId: idModel, toBankDetailsId: idModel })
+  .refine((t) => t.fromBankDetailsId !== t.toBankDetailsId, { message: "Pick two different accounts.", path: ["toBankDetailsId"] });
+
+export type CreateTransferInputModel = z.infer<typeof createTransferInputModel>;
 
 export const contraIdInputModel = z.object({ transactionId: idModel });
 
 export type ContraIdInputModel = z.infer<typeof contraIdInputModel>;
 
-// a deposit's or withdrawal's own details, for its page after a save and /history/[id] (no balances: staff open it too)
+// a bank account on one side: its bank, the last 4 digits and IFSC
+const sideModel = z.object({ id: idModel, name: z.string(), last4: z.string(), ifsc: z.string().nullable() });
+
+// one's own details, for its page after a save and /history/[id] (no balances: staff open it too): the account it came
+// out of and the one it went into, null for cash
 export const contraModel = z.object({
   transactionId: idModel,
   kind: contraKindModel,
@@ -48,8 +62,8 @@ export const contraModel = z.object({
   dateTime: z.date(),
   status: z.enum(["active", "cancelled"]),
   amount: z.number(),
-  // the account it went into (a deposit) or came out of (a withdrawal): its bank, the last 4 digits and IFSC
-  bank: z.object({ id: idModel, name: z.string(), last4: z.string(), ifsc: z.string().nullable() }),
+  from: sideModel.nullable(),
+  to: sideModel.nullable(),
   referenceNumber: z.string().nullable(),
   remarks: z.string().nullable(),
   createdByName: z.string(),
@@ -57,7 +71,7 @@ export const contraModel = z.object({
 
 export type ContraModel = z.infer<typeof contraModel>;
 
-// what a saved one gives back: it, and cash and the account with their balances now (the admin's only)
+// what a saved one gives back: it, and the cash and accounts it moved with their balances now (the admin's only)
 export const savedContraModel = contraModel.extend({ balances: z.array(ledgerSummaryModel).nullable() });
 
 export type SavedContraModel = z.infer<typeof savedContraModel>;

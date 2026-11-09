@@ -19,10 +19,10 @@ import { momentOf } from "../shared/form-basics";
 export type ContraStep = "amount" | "details";
 const STEPS: ContraStep[] = ["amount", "details"];
 
-// everything the deposit or withdrawal form holds and works out: what's typed, what the server says, and the moves
-// between cards. Made once in ContraEntry; every card reads it with useContraEntry()
+// everything the deposit, withdrawal or transfer form holds and works out: what's typed, what the server says, and the
+// moves between cards. Made once in ContraEntry; every card reads it with useContraEntry()
 export function useContraEntryState({ kind, isAdmin, onDiscard }: { kind: ContraKind; isAdmin: boolean; onDiscard: () => void }) {
-  // its own words: a deposit's, or a withdrawal's
+  // its own words: a deposit's, a withdrawal's or a transfer's
   const t = useTranslations(`transactions.${kind}` as "transactions.deposit");
   const tr = useTranslations("transactions.receipt");
   const tpf = useTranslations("transactions.payment.form");
@@ -33,7 +33,13 @@ export function useContraEntryState({ kind, isAdmin, onDiscard }: { kind: Contra
 
   // the answers
   const [amount, setAmount] = useState("");
+  // the account it goes into (a deposit) or comes out of (a withdrawal, a transfer)
   const [bankId, setBankId] = useState<string | null>(null);
+  // a transfer: the account it goes into (never the one it leaves)
+  const [toBankId, setToBankId] = useState<string | null>(null);
+  useEffect(() => {
+    if (toBankId !== null && toBankId === bankId) setToBankId(null);
+  }, [bankId, toBankId]);
   const [reference, setReference] = useState("");
   const [remarks, setRemarks] = useState("");
   // made when the form opens: a second save with it (a retry after the connection dropped) gets the first one's result
@@ -45,18 +51,21 @@ export function useContraEntryState({ kind, isAdmin, onDiscard }: { kind: Contra
   const [saveError, setSaveError] = useState<string | null>(null);
   // Next or Save was tapped with something missing: what's missing shows in red
   const [tried, setTried] = useState(false);
-  useEffect(() => setTried(false), [amount, bankId]);
+  useEffect(() => setTried(false), [amount, bankId, toBankId]);
 
   // what's typed, worked out: the cash held today and what each account holds (null for staff), and the account picked
   const value = Number(amount) || 0;
   const cashHeld = sources?.cash ?? null;
   const bank = banks?.find((b) => b.id === bankId);
+  const toBank = banks?.find((b) => b.id === toBankId);
+  const transfer = kind === "transfer";
   const bankHeld = (id: string) => sources?.banks.find((b) => b.id === id)?.available ?? null;
-  // the most it can be: the cash for a deposit; for a withdrawal what the account picked holds (none until it's picked)
+  // the most it can be: the cash for a deposit; for a withdrawal or transfer what the account it leaves holds (none
+  // until it's picked)
   const most = kind === "deposit" ? cashHeld : bankId ? bankHeld(bankId) : null;
-  // a withdrawal's account picked after the amount, holding less: the amount is cut to what it holds, with the warning
+  // the account it leaves picked after the amount, holding less: the amount is cut to what it holds, with the warning
   useEffect(() => {
-    if (kind !== "withdrawal" || most === null || value <= most) return;
+    if (kind === "deposit" || most === null || value <= most) return;
     setAmount(String(most));
     setCapped(most);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the account (and so the most) changes
@@ -70,7 +79,7 @@ export function useContraEntryState({ kind, isAdmin, onDiscard }: { kind: Contra
 
   // when each card is filled in
   const complete: Record<ContraStep, boolean> = {
-    amount: value > 0 && !!bank && (most === null || value <= most),
+    amount: value > 0 && !!bank && (!transfer || !!toBank) && (most === null || value <= most),
     details: day !== "",
   };
   const [at, setAt] = useState<ContraStep>("amount");
@@ -118,11 +127,14 @@ export function useContraEntryState({ kind, isAdmin, onDiscard }: { kind: Contra
   }
 
   const stepName = (s: ContraStep) => t(`steps.${s}`);
-  const missingOf = () => t(value === 0 ? "missing.amount" : !bank ? "missing.account" : "missing.amount");
+  const missingOf = () =>
+    t(value === 0 ? "missing.amount" : !bank ? "missing.account" : transfer && !toBank ? ("missing.to" as "missing.account") : "missing.amount");
 
   // what's answered so far, a line each, for the summary
   const summary: SummaryItem<ContraStep>[] = [
     { key: "amount", step: "amount", heading: t("into"), value: accountName(bankId) },
+    // a transfer: the account it went into
+    ...(transfer ? [{ key: "to", step: "amount" as const, heading: t("toAccount" as "into"), value: accountName(toBankId) }] : []),
     {
       key: "details",
       step: "details",
@@ -144,14 +156,10 @@ export function useContraEntryState({ kind, isAdmin, onDiscard }: { kind: Contra
     setSaving(true);
     setSaveError(null);
     try {
-      const d = await saveContra({
-        saveKey,
-        dateTime: momentOf(day),
-        bankDetailsId: bankId!,
-        amount: value,
-        referenceNumber: reference.trim() || null,
-        remarks,
-      });
+      const common = { saveKey, dateTime: momentOf(day), amount: value, referenceNumber: reference.trim() || null, remarks };
+      const d = await saveContra(
+        transfer ? { ...common, fromBankDetailsId: bankId!, toBankDetailsId: toBankId! } : { ...common, bankDetailsId: bankId! },
+      );
       // on to its own page; replace, so going back doesn't land on the filled form
       router.replace(`/transaction/${kind}/${d.transactionId}`);
     } catch (err) {
@@ -188,6 +196,10 @@ export function useContraEntryState({ kind, isAdmin, onDiscard }: { kind: Contra
     setAmount,
     bankId,
     setBankId,
+    toBankId,
+    setToBankId,
+    toBank,
+    transfer,
     reference,
     setReference,
     remarks,

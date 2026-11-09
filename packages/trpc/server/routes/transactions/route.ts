@@ -41,7 +41,7 @@ import {
   partyDuesModel,
   writeOffInputModel,
 } from "@repo/services/due/model";
-import { contraIdInputModel, contraModel, type ContraKind, createContraInputModel, savedContraModel } from "@repo/services/contra/model";
+import { contraIdInputModel, contraModel, type ContraKind, createContraInputModel, createTransferInputModel, savedContraModel } from "@repo/services/contra/model";
 import { opensVoucher, voucherKey } from "@repo/services/transaction/share-link";
 
 import { contraService, documentService, dueService, paymentService, receiptService, transactionService } from "../../services";
@@ -268,42 +268,60 @@ const dueRouter = router({
     .mutation(({ ctx, input }) => dueService.addOld(input, ctx.session.user)),
 });
 
-// a deposit (cash into a bank account) or a withdrawal (cash out of one), recorded by the admin or staff: the same three
-// routes for each, under its own path
-const contraRouter = (kind: ContraKind) => {
+// money between cash and our bank accounts, recorded by the admin or staff: what every kind has, under its own path:
+// cash and the accounts with their balances now (the admin's only), and its details (for staff too, no balances)
+const contraReads = (kind: ContraKind) => {
   const path = `/transactions/${kind}s` as const;
-  return router({
-    create: protectedProcedure
-      .meta({ openapi: { method: "POST", path, tags: ["transactions"] } })
-      .input(createContraInputModel)
-      .output(savedContraModel)
-      .mutation(({ ctx, input }) => {
-        // dated today or before (staff a few days back at most), within the user's saves a minute, and once per form
-        checkDate(input.dateTime, ctx.session.user.role);
-        const save = () => {
-          limitSaves(ctx.session.user.id);
-          return contraService.create(kind, input, ctx.session.user);
-        };
-        return (input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save()).then((c) =>
-          ctx.session.user.role === "admin" ? c : { ...c, balances: null },
-        );
-      }),
-
-    // cash and the account with their balances now, for the page after a save; the admin's only
+  return {
     balances: protectedProcedure
       .meta({ openapi: { method: "GET", path: `${path}/{transactionId}/balances`, tags: ["transactions"] } })
       .input(contraIdInputModel)
       .output(z.array(ledgerSummaryModel).nullable())
       .query(({ ctx, input }) => (ctx.session.user.role === "admin" ? contraService.balances(input) : null)),
 
-    // its details: for staff too (no balances in it)
     get: protectedProcedure
       .meta({ openapi: { method: "GET", path: `${path}/{transactionId}`, tags: ["transactions"] } })
       .input(contraIdInputModel)
       .output(contraModel)
       .query(({ input }) => contraService.get(kind, input)),
-  });
+  };
 };
+
+// a save's guards: dated today or before (staff a few days back at most), within the user's saves a minute, once per
+// form; balances only for the admin
+const saveContra = <T extends { saveKey: string | null; dateTime: Date }>(
+  user: { id: string; role: string; name: string },
+  input: T,
+  save: () => Promise<{ balances: unknown }>,
+) => {
+  checkDate(input.dateTime, user.role);
+  const run = () => {
+    limitSaves(user.id);
+    return save();
+  };
+  return (input.saveKey ? onceFor(user.id, input.saveKey, run) : run()).then((c) => (user.role === "admin" ? c : { ...c, balances: null }));
+};
+
+// a deposit (cash into a bank account) or a withdrawal (cash out of one)
+const contraRouter = (kind: "deposit" | "withdrawal") =>
+  router({
+    create: protectedProcedure
+      .meta({ openapi: { method: "POST", path: `/transactions/${kind}s`, tags: ["transactions"] } })
+      .input(createContraInputModel)
+      .output(savedContraModel)
+      .mutation(({ ctx, input }) => saveContra(ctx.session.user, input, () => contraService.create(kind, input, ctx.session.user)) as ReturnType<typeof contraService.create>),
+    ...contraReads(kind),
+  });
+
+// a transfer: from one of our bank accounts to another
+const transferRouter = router({
+  create: protectedProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/transfers", tags: ["transactions"] } })
+    .input(createTransferInputModel)
+    .output(savedContraModel)
+    .mutation(({ ctx, input }) => saveContra(ctx.session.user, input, () => contraService.transfer(input, ctx.session.user)) as ReturnType<typeof contraService.transfer>),
+  ...contraReads("transfer"),
+});
 
 export const transactionsRouter = router({
   history: historyRouter,
@@ -311,5 +329,6 @@ export const transactionsRouter = router({
   payment: paymentRouter,
   deposit: contraRouter("deposit"),
   withdrawal: contraRouter("withdrawal"),
+  transfer: transferRouter,
   due: dueRouter,
 });

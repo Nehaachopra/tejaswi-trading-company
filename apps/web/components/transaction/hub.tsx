@@ -31,7 +31,7 @@ const KINDS: Kind[] = [
   { key: "payment", icon: ArrowUpRight, href: "/transaction/payment" },
   { key: "deposit", icon: Landmark, href: "/transaction/deposit" },
   { key: "withdrawal", icon: Wallet, href: "/transaction/withdrawal" },
-  { key: "transfer", icon: ArrowLeftRight },
+  { key: "transfer", icon: ArrowLeftRight, href: "/transaction/transfer" },
   { key: "saleReturn", icon: Undo2 },
   { key: "purchaseReturn", icon: Redo2 },
   { key: "salary", icon: Users, adminOnly: true },

@@ -1693,6 +1693,36 @@
         "loading": "Loading the withdrawal…",
         "loadError": "Couldn't load the withdrawal. Check your connection and try again."
       }
+    },
+    "transfer": {
+      "title": "Transfer",
+      "loadFailed": "Couldn't load the bank accounts. Check your connection and try again.",
+      "steps": {
+        "amount": "Amount",
+        "details": "Details"
+      },
+      "missing": {
+        "amount": "Enter the amount.",
+        "account": "Pick the account it went out of.",
+        "to": "Pick the account it went into."
+      },
+      "into": "From account",
+      "toAccount": "To account",
+      "cashHeld": "Cash in hand",
+      "capOnly": "Only {amount} can be transferred.",
+      "reference": "UTR or reference no.",
+      "referenceHint": "e.g. 412345678901",
+      "saving": "Saving…",
+      "save": "Save transfer",
+      "errors": {
+        "cash": "That's more than there is in the account now. Check the amount.",
+        "failed": "Couldn't save the transfer. Try again."
+      },
+      "success": {
+        "title": "Transfer successfully created",
+        "loading": "Loading the transfer…",
+        "loadError": "Couldn't load the transfer. Check your connection and try again."
+      }
     }
   },
   "dues": {
