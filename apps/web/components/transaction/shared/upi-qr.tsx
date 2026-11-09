@@ -5,7 +5,8 @@ import { useState } from "react";
 import QRCode from "react-qr-code";
 
 import { rupees, titleCase } from "~/lib/format";
-import { cn } from "~/lib/utils";
+import { PickMenu } from "~/components/stock/pick-menu";
+import { appOfUpi } from "@repo/trpc/client";
 
 // a UPI payment link: who's paid (the UPI ID and the name it shows), how much, and a note. Any UPI app that scans it
 // opens with the amount filled in. https://www.npci.org.in/ (UPI linking specification)
@@ -31,9 +32,10 @@ export function upiLink({
   return `upi://pay?${params.toString().replace(/\+/g, "%20").replace(/%40/g, "@")}`;
 }
 
-// a bank account's UPI QR for the amount, shown in the card as soon as there is one: with more than one UPI ID a chip
-// each above the code (the first, the account's default, picked to start with; a tap switches), the code on white (so any
-// phone camera reads it), the amount large under it, and which UPI ID it pays
+// a bank account's UPI QR for the amount, shown in the card as soon as there is one: with more than one UPI ID a
+// dropdown above the code naming each by its app (PhonePe, GPay ...; the ID too when two share an app), the first, the
+// account's default, picked to start with; the code on white (so any phone camera reads it), the amount large under
+// it, and which UPI ID it pays
 export function UpiQr({
   upiIds,
   payee,
@@ -49,28 +51,32 @@ export function UpiQr({
   const [upiId, setUpiId] = useState(upiIds[0]!);
   const picked = upiIds.includes(upiId) ? upiId : upiIds[0]!;
   const name = titleCase(payee);
+  // a UPI ID by the app it's in (from its handle); the ID itself too when another one is in the same app, or the app
+  // isn't known
+  const tp = useTranslations("accounts.bank.form.providers");
+  const appOf = (u: string) => appOfUpi(u);
+  const appName = (u: string) => {
+    const app = appOf(u);
+    if (!app || app === "other") return u;
+    return upiIds.filter((x) => appOf(x) === app).length > 1 ? `${tp(app)} (${u})` : tp(app);
+  };
 
   return (
     <div className="flex flex-col items-center gap-3 rounded-2xl border border-chestnut/20 p-4">
       <span className="text-xs font-semibold">{t("scanToPay")}</span>
-      {/* more than one UPI ID: which one this code pays, the default first */}
+      {/* more than one UPI ID: which one this code pays, by its app, the default first */}
       {upiIds.length > 1 && (
-        <div role="radiogroup" aria-label={t("upiId")} className="flex w-full flex-wrap justify-center gap-1.5">
-          {upiIds.map((u) => (
-            <button
-              key={u}
-              type="button"
-              role="radio"
-              aria-checked={picked === u}
-              onClick={() => setUpiId(u)}
-              className={cn(
-                "min-h-9 max-w-full truncate rounded-control border px-3 text-xs transition-colors",
-                picked === u ? "border-chestnut bg-chestnut font-semibold text-ivory" : "border-chestnut/50 hover:border-chestnut",
-              )}
-            >
-              {u}
-            </button>
-          ))}
+        <div className="w-full">
+          <PickMenu
+            label={t("upiId")}
+            current={appName(picked)}
+            options={upiIds.map((u) => ({ id: u, name: appName(u) }))}
+            picked={picked}
+            onPick={setUpiId}
+            matchWidth
+            inFlow
+            className="bg-ivory text-chestnut"
+          />
         </div>
       )}
       {/* the code: dark on white with a quiet margin, the size a phone reads from arm's length */}
