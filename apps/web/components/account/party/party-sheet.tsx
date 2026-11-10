@@ -33,7 +33,17 @@ function errorKey(err: unknown) {
 
 // editing a party right where it was picked, not in a drawer: inside a form of its own that isn't one, so saving it never
 // saves the form around it. Paid so far stays as saved. `onSaved` gets the party as it now is
-export function PartyEdit({ partyId, onSaved, onCancel }: { partyId: string; onSaved: (party: PartyModel) => void; onCancel: () => void }) {
+export function PartyEdit({
+  partyId,
+  onSaved,
+  onCancel,
+  asksTypes = true,
+}: {
+  partyId: string;
+  onSaved: (party: PartyModel) => void;
+  onCancel: () => void;
+  asksTypes?: boolean;
+}) {
   const t = useTranslations("accounts.party.form");
   const tc = useTranslations("transactions.chat");
   const utils = trpc.useUtils();
@@ -77,7 +87,7 @@ export function PartyEdit({ partyId, onSaved, onCancel }: { partyId: string; onS
   return (
     <div className="flex flex-col gap-4">
       <PartyFields
-          asksTypes
+        asksTypes={asksTypes}
         draft={draft}
         onAddressesOpen={() => setTried(false)}
         onChange={(patch) => {

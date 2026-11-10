@@ -5,7 +5,10 @@ import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { DateInput } from "~/components/ui/date-input";
 import { rupees } from "~/lib/format";
 import { PaymentProvider } from "~/providers/payment";
-import { emptyDraft as emptyParty } from "../../account/party/party-fields";
+import {
+  draftUntouched as untouched,
+  emptyDraft as emptyParty,
+} from "../../account/party/party-fields";
 import { LoanTerms } from "../loans/loan-terms";
 import {
   EntryNote,
@@ -66,10 +69,14 @@ function PaymentEntryView() {
     setAmount,
     kind,
     setKind,
+    to,
     setTo,
+    newParty,
     setNewParty,
     setNewHeadTds,
+    payee,
     setPayee,
+    newPayee,
     setNewPayee,
     setPayeeSkipped,
     setLandlordId,
@@ -242,8 +249,17 @@ function PaymentEntryView() {
                   role="radio"
                   aria-checked={kind === k}
                   onClick={() => {
-                    // the same one again: on to the next card with everything kept
-                    if (k === kind) return show("to");
+                    // the same one again: on to the next card with everything kept, except a new party, new
+                    // ledger or old loan left empty, which goes back to the search (an old loan's form only
+                    // lives while its card is open, so it's empty by now)
+                    if (k === kind) {
+                      if (to?.kind === "party" && untouched(newParty)) setTo(null);
+                      if (to?.kind === "new" && to.name.trim() === "") setTo(null);
+                      if (payee?.kind === "party" && untouched(newPayee)) setPayee(null);
+                      if (payee?.kind === "new" && payee.name.trim() === "") setPayee(null);
+                      setAddingOldLoan(false);
+                      return show("to");
+                    }
                     setGstMode("none");
                     setPayeeSkipped(false);
                     setKind(k);

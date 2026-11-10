@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { Pencil } from "lucide-react";
 import { useState } from "react";
 import QRCode from "react-qr-code";
 
@@ -34,20 +35,27 @@ export function upiLink({
 
 // a bank account's UPI QR for the amount, shown in the card as soon as there is one: with more than one UPI ID a
 // dropdown above the code naming each by its app (PhonePe, GPay ...; the ID too when two share an app), the first, the
-// account's default, picked to start with; the code on white (so any phone camera reads it), the amount large under
-// it, then the UPI ID it pays (the dropdown, when there's more than one)
+// account's default, picked to start with (one ID: it, with a pen to change it); the code on white (so any phone camera
+// reads it), the amount large under it
 export function UpiQr({
   upiIds,
   payee,
   amount,
   note,
+  onEdit,
+  hideId = false,
 }: {
   upiIds: string[];
   payee: string;
   amount: number;
   note?: string;
+  // a pen beside the UPI ID that brings back the box to change it
+  onEdit?: () => void;
+  // the UPI ID not shown with the code (a payment's box above it shows it)
+  hideId?: boolean;
 }) {
   const t = useTranslations("transactions.receipt.form");
+  const tp2 = useTranslations("transactions.payment.form");
   const [upiId, setUpiId] = useState(upiIds[0]!);
   const picked = upiIds.includes(upiId) ? upiId : upiIds[0]!;
   const name = titleCase(payee);
@@ -63,19 +71,8 @@ export function UpiQr({
 
   return (
     <div className="flex flex-col items-center gap-3">
-      {/* the code: dark on white with a quiet margin, the size a phone reads from arm's length */}
-      <div className="rounded-xl bg-white p-3">
-        <QRCode
-          value={upiLink({ upiId: picked, payee: name, amount, note })}
-          size={208}
-          fgColor="#2b160e"
-          bgColor="#ffffff"
-          level="M"
-        />
-      </div>
-      <p className="tabular font-heading text-3xl font-bold leading-none">{rupees(amount)}</p>
-      {/* the UPI ID it pays; with more than one, a dropdown naming each by its app, the default first */}
-      {upiIds.length > 1 ? (
+      {/* the UPI ID it pays, above the code; with more than one, a dropdown naming each by its app, the default first */}
+      {hideId ? null : upiIds.length > 1 ? (
         <div className="w-full">
           <PickMenu
             label={t("upiId")}
@@ -89,8 +86,31 @@ export function UpiQr({
           />
         </div>
       ) : (
-        <p className="text-center text-xs opacity-70">{picked}</p>
+        <p className="flex items-center justify-center gap-1.5 text-center text-xs">
+          <span className="min-w-0 break-all opacity-70">{picked}</span>
+          {onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label={tp2("editUpi")}
+              className="grid size-8 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
+            >
+              <Pencil className="size-3.5" aria-hidden />
+            </button>
+          )}
+        </p>
       )}
+      {/* the code: dark on white with a quiet margin, the size a phone reads from arm's length */}
+      <div className="rounded-xl bg-white p-3">
+        <QRCode
+          value={upiLink({ upiId: picked, payee: name, amount, note })}
+          size={208}
+          fgColor="#2b160e"
+          bgColor="#ffffff"
+          level="M"
+        />
+      </div>
+      <p className="tabular font-heading text-3xl font-bold leading-none">{rupees(amount)}</p>
     </div>
   );
 }

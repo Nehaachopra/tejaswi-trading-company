@@ -7,8 +7,10 @@ import { cn } from "~/lib/utils";
 
 type Tone = "success" | "error" | "info";
 
-// success leaves on its own; an error stays until it's dismissed, so nobody misses it
+// success leaves on its own; an error stays until it's dismissed, so nobody misses it. A passing problem (one fixed by
+// trying again, like the mic) leaves on its own too, given time to read
 const SUCCESS_MS = 4000;
+const PASSING_MS = 6000;
 
 // solid green or red with ivory words and an icon, so the message never rests on colour alone; a plain note
 // (nothing went right or wrong, e.g. "Coming soon") is chestnut with an ivory edge
@@ -44,6 +46,9 @@ export const toast = {
     sonner.custom((id) => <Toast id={id} tone="info" message={message} />, { duration: SUCCESS_MS }),
   error: (message: string) =>
     sonner.custom((id) => <Toast id={id} tone="error" message={message} />, { duration: Infinity }),
+  // red like an error, but it goes by itself; the same `key` again replaces it instead of stacking another
+  passing: (message: string, key?: string) =>
+    sonner.custom((id) => <Toast id={id} tone="error" message={message} />, { duration: PASSING_MS, id: key }),
 };
 
 // just below the 64px header: full width on phones, in the middle from 600px

@@ -1549,7 +1549,6 @@
         "searchLedger": "Search ledgers",
         "declaredNoTds": "No TDS: small transporter's declaration",
         "rcmRow": "Reverse charge GST {rate}%",
-        "rcmNote": "On {on}. We pay it to the government and claim it back.",
         "billNote": "Includes GST {gst} at {rate}%, claimed back.",
         "billNumber": "Bill number",
         "billDate": "Bill date",
@@ -1613,7 +1612,13 @@
         "removeAccount": "Remove this account",
         "accountAmount": "Amount from this account",
         "breakdown": "Breakdown",
-        "payeeUpi": "Their UPI ID",
+        "payeeUpi": "Payee UPI ID",
+        "lenderUpi": "Lender UPI ID",
+        "borrowerUpi": "Borrower UPI ID",
+        "customerUpi": "Customer UPI ID",
+        "landlordUpi": "Landlord UPI ID",
+        "transporterUpi": "Transporter UPI ID",
+        "supplierUpi": "Supplier UPI ID",
         "payeeUpiBad": "A UPI ID looks like name@bank.",
         "payeeUpiHandle": "{handle} isn't a UPI handle. Check the part after @, like @okicici or @ybl.",
         "barPaid": "Paid {amount}",
@@ -1621,6 +1626,7 @@
         "barDone": "All paid",
         "anotherAccount": "Another account",
         "capOnly": "Only {amount} can be paid.",
+        "capLeft": "Only {amount} is left to pay.",
         "loadFailed": "Couldn't load cash and bank balances. Check your connection and try again.",
         "taxFailed": "Couldn't work out the TDS and GST. Check your connection and try again.",
         "fitsFailed": "Couldn't check what cash and the bank hold. Check your connection and try again.",
@@ -1630,7 +1636,8 @@
         "tryAgain": "Try again",
         "refCash": "Reference number",
         "refCashHint": "Bill or voucher no.",
-        "editUpi": "Edit"
+        "editUpi": "Edit",
+        "saveUpi": "Save"
       }
     },
     "tdsTypes": {

@@ -16,7 +16,15 @@ export type QrItem = {
 
 // the Amount card's QR spot (right of the amount on wider screens): the QR picked (with more than one by UPI, the
 // last account with an amount unless Show QR code picked another), under the account it's for
-export function QrSpot({ item, centered = false }: { item: QrItem | null; centered?: boolean }) {
+export function QrSpot({
+  item,
+  centered = false,
+  onEdit,
+}: {
+  item: QrItem | null;
+  centered?: boolean;
+  onEdit?: () => void;
+}) {
   // nothing to scan yet: an empty box holding the spot, as tall as the column beside it (wider screens only)
   if (!item)
     return (
@@ -36,6 +44,7 @@ export function QrSpot({ item, centered = false }: { item: QrItem | null; center
         payee={item.payee}
         amount={item.amount}
         note={item.note}
+        onEdit={onEdit}
       />
     </div>
   );

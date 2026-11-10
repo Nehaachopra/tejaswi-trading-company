@@ -462,6 +462,21 @@ export function usePaymentEntryState({
     (payee?.kind === "ledger" ? payee.ledger.party : null) ??
     (payee?.kind === "party" ? { name: newPayee.name.trim(), upiIds: newPayeeUpis } : null) ??
     (to?.kind === "ledger" ? to.ledger.party : null);
+  // what the UPI ID box is called: named for who's paid (a supplier, a lender, the landlord ...), never "their"
+  const upiLabel =
+    kind === "supplier"
+      ? "supplierUpi"
+      : kind === "loanRepaid" || kind === "interestPaid"
+        ? "lenderUpi"
+        : kind === "loanGiven"
+          ? "borrowerUpi"
+          : kind === "refund"
+            ? "customerUpi"
+            : rent
+              ? "landlordUpi"
+              : headKey === "transport"
+                ? "transporterUpi"
+                : "payeeUpi";
   // their UPI ID for the QR: filled in with the one saved on them, or typed (a new one is saved on them with the payment)
   const [typedUpi, setTypedUpi] = useState("");
   const savedUpis = qrParty?.upiIds ?? [];
@@ -473,6 +488,8 @@ export function usePaymentEntryState({
     (appOfUpi(typedUpi) !== null || savedUpis.includes(typedUpi.trim().toLowerCase()));
   // its mistakes show once the box is left (or Next is pressed), not while the handle is still being typed
   const [upiLeft, setUpiLeft] = useState(false);
+  // the pen beside the UPI ID under the QR brings the box back to change it
+  const [upiEditing, setUpiEditing] = useState(false);
   // any account paying by UPI: card 1's, or one added after it
   const anyUpi = bankMode === "upi" || moreParts.some((m) => m.mode === "upi");
   // the box shows whenever someone is being paid by UPI (a head paid to no one, like electricity, has none)
@@ -542,10 +559,11 @@ export function usePaymentEntryState({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the amount or source changes
   }, [askedAmount, value, total, into, bankId, sources, banks]);
   // Bank, or Cash + Bank: a box each for cash (with the bank only when it's Cash + Bank) and every bank account, its
-  // amount typed or filled by Auto (on to start with) from what each holds, cash first. The first account with an
+  // amount typed or filled by Auto (off to start with: switched on, it fills them) from what each holds, cash first. The first account with an
   // amount is the bank's main part (bankId, firstAmount, bankMode), the others its more parts, the cash box the cash part
   const usesGrid = into === "bank" || into === "both";
-  const [gridTyped, setGridTyped] = useState<Record<string, string> | null>(null);
+  // null is Auto; it starts off, everything empty
+  const [gridTyped, setGridTyped] = useState<Record<string, string> | null>({});
   const [gridModes, setGridModes] = useState<Record<string, BankMode | null>>({});
   const gridIds = [...(into === "both" ? ["cash"] : []), ...(banks ?? []).map((b) => b.id)];
   const gridHeld = (id: string) => (id === "cash" ? cashHeld : bankHeld(id));
@@ -614,8 +632,7 @@ export function usePaymentEntryState({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- gridKey stands for the grid's accounts and cash
   }, [usesGrid, into, gridKey, cashPart, bankId, firstAmount, bankMode, moreParts]);
 
-  // the QR spot: each account by UPI to someone with a UPI ID; the last one, unless Show QR code picked another
-  const [qrPick, setQrPick] = useState<string | null>(null);
+  // a QR for each account paying by UPI to someone with a UPI ID, shown inside that account's card
   const qrItems: QrItem[] =
     !usesGrid || payeeUpis.length === 0
       ? []
@@ -628,7 +645,6 @@ export function usePaymentEntryState({
             payee: qrParty?.name ?? "",
             amount: p.amount,
           }));
-  const qrItem = qrItems.find((q) => q.key === qrPick) ?? qrItems.at(-1) ?? null;
 
   // the amount changed: where it's paid from starts again, nothing left over (cash or bank, the accounts, their
   // amounts and how each was paid, the cash part)
@@ -644,7 +660,7 @@ export function usePaymentEntryState({
     setFoldedCards([]);
     setCashPart("");
     setBankTyped("");
-    setGridTyped(null);
+    setGridTyped({});
   }, [value]);
   // the first account changed: what came after it starts again (how it was paid, its amount, the other cards)
   const accountSeen = useRef(bankId);
@@ -963,50 +979,6 @@ export function usePaymentEntryState({
           : null,
     },
     {
-      step: "source",
-      // from both: cash and the bank, a line each with what it paid
-      value:
-        into === "cash"
-          ? { name: tc("cash"), amount: rupees(value) }
-          : !bank
-            ? null
-            : moreParts.length > 0
-              ? [
-                  ...(into === "both" ? [{ name: tc("cash"), amount: rupees(cashValue) }] : []),
-                  {
-                    name: `${bankNameIn(bank.bankName, locale)} ••${bank.last4}`,
-                    amount: rupees(firstPart),
-                  },
-                  ...moreParts.flatMap((m) => {
-                    const b = banks?.find((x) => x.id === m.bankId);
-                    return b
-                      ? [
-                          {
-                            name: `${bankNameIn(b.bankName, locale)} ••${b.last4}`,
-                            amount: rupees(Number(m.amount) || 0),
-                          },
-                        ]
-                      : [];
-                  }),
-                ]
-              : into === "both"
-                ? [
-                    { name: tc("cash"), amount: rupees(cashValue) },
-                    {
-                      name: `${bankNameIn(bank.bankName, locale)} ••${bank.last4}`,
-                      amount: rupees(bankValue),
-                    },
-                    ...(bankMode ? [t(`modes.${bankMode}`)] : []),
-                  ]
-                : [
-                    {
-                      name: `${bankNameIn(bank.bankName, locale)} ••${bank.last4}`,
-                      amount: rupees(value),
-                    },
-                    ...(bankMode ? [t(`modes.${bankMode}`)] : []),
-                  ],
-    },
-    {
       step: "details",
       value: ((lines) => (lines.length > 0 ? lines : null))(
         [
@@ -1210,8 +1182,6 @@ export function usePaymentEntryState({
     gridAuto: gridTyped === null,
     setGridAuto,
     qrItems,
-    qrItem,
-    setQrPick,
     t,
     tc,
     tpick,
@@ -1435,6 +1405,9 @@ export function usePaymentEntryState({
     typedUpiOk,
     upiLeft,
     setUpiLeft,
+    upiEditing,
+    setUpiEditing,
+    upiLabel,
     anyUpi,
     asksUpi,
     payeeUpis,

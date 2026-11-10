@@ -1,16 +1,18 @@
 "use client";
 
-import { ChevronDown, IndianRupee, Plus, QrCode, Trash2 } from "lucide-react";
+import { ChevronDown, IndianRupee, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
 
 import { NumberInput } from "~/components/ui/number-input";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { ModeChips } from "../shared/bank-mode";
+import { ModeAccordion } from "../shared/bank-mode";
 import { input } from "../shared/form-basics";
-import { AutoSwitch, type GridPlace, ShowQrButton } from "../shared/split-grid";
+import { AutoSwitch, type GridPlace } from "../shared/split-grid";
 import { type Place, PlacePicker } from "../shared/place-picker";
+import { UpiQr } from "../shared/upi-qr";
+import { Note } from "~/components/ui/note";
 import { usePaymentEntry } from "./state";
 import { UpiField } from "./bank-cards";
 
@@ -21,6 +23,7 @@ export function ManualAccountCard({
   pickedId,
   setPickedId,
   taken,
+  room,
   folded,
   onFold,
   onRemove,
@@ -28,15 +31,17 @@ export function ManualAccountCard({
   // takes this card away (the only card is emptied instead)
   onRemove: () => void;
   index: number;
-  // shown folded: amount, Paid by and the arrow on top; the account and Show QR code under them
+  // shown folded: amount and Paid by on top; the account and the arrow under them
   folded: boolean;
   onFold: (folded: boolean) => void;
   pickedId: string | null;
   setPickedId: (id: string) => void;
   // accounts picked on the other cards, left out of this one's list
   taken: string[];
+  // what's left to pay once the other cards' amounts are taken off: this card can't take more
+  room: number;
 }) {
-  const { t, tc, tried, gridPlaces, setGridText, setGridMode, qrItems, qrItem, setQrPick } =
+  const { t, tc, tried, gridPlaces, setGridText, setGridMode, qrItems, capNote, setCapNote } =
     usePaymentEntry();
   // the places to pick from: the bank accounts, and cash too for Cash + Bank; not ones on the other cards
   const accounts = gridPlaces.filter((p) => !taken.includes(p.id));
@@ -55,15 +60,16 @@ export function ManualAccountCard({
     if (pickedId) document.getElementById(`manual-account-amount-${index}`)?.focus();
   }, [pickedId, index]);
   const short = !!picked && picked.held !== null && picked.amount > picked.held;
+  // which card's amount was cut, for its warning
+  const capKey = `account-${index}`;
   // it folds once it has an account and an amount (Another account folds it even before Paid by is picked)
   const whole = !!picked && picked.amount > 0;
   // cash takes only an amount: no Paid by, no UPI
   const isCash = picked?.id === "cash";
   const card =
     "flex min-w-0 flex-col justify-between gap-3 rounded-control p-3 shadow-[0_0_5px_0] shadow-chestnut/25 bg-chestnut/8 sm:w-[calc(50%-0.375rem)]";
-  const qrButton = picked && picked.mode === "upi" && qrItems.some((q) => q.key === picked.id) && (
-    <ShowQrButton shown={qrItem?.key === picked.id} onShow={() => setQrPick(picked.id)} />
-  );
+  // this account's QR, when it pays by UPI
+  const ownQr = (picked && qrItems.find((q) => q.key === picked.id)) ?? null;
   // the arrow that folds the card or opens it again
   const arrow = (
     <button
@@ -80,7 +86,7 @@ export function ManualAccountCard({
     </button>
   );
 
-  // the bin beside Show QR code, once an account is picked: the card goes, and its amount and Paid by with it
+  // the bin, once an account is picked: the card goes, and its amount and Paid by with it
   const remove = picked && (
     <button
       type="button"
@@ -92,7 +98,7 @@ export function ManualAccountCard({
     </button>
   );
 
-  // folded: the amount and Paid by on top; the bank and its last digits under them, with the arrow; the QR icon (UPI) beside Paid by
+  // folded: the amount and Paid by on top; the bank and its last digits under them, with the arrow
   if (folded && whole && picked)
     return (
       // red-edged when Next was tapped with something still missing on it (Paid by, or past what it holds)
@@ -125,23 +131,6 @@ export function ManualAccountCard({
               <span className="inline-flex h-7 items-center rounded-control border border-chestnut bg-transparent px-2.5 text-xs font-semibold text-chestnut">
                 {t(`modes.${picked.mode}`)}
               </span>
-            )}
-            {/* by UPI: a QR icon that puts its QR in the spot, filled while it's the one there */}
-            {picked.mode === "upi" && qrItems.some((q) => q.key === picked.id) && (
-              <button
-                type="button"
-                aria-pressed={qrItem?.key === picked.id}
-                aria-label={tc(qrItem?.key === picked.id ? "qrShown" : "showQr")}
-                onClick={() => setQrPick(picked.id)}
-                className={cn(
-                  "grid size-7 place-items-center rounded-control border border-chestnut transition-colors",
-                  qrItem?.key === picked.id
-                    ? "bg-chestnut text-ivory"
-                    : "bg-transparent text-chestnut hover:bg-chestnut/[0.06]",
-                )}
-              >
-                <QrCode className="size-4" aria-hidden />
-              </button>
             )}
           </span>
         </div>
@@ -197,10 +186,22 @@ export function ManualAccountCard({
             <NumberInput
               id={`manual-account-amount-${index}`}
               value={picked.text}
-              onChange={(v) => setGridText(picked.id, v)}
+              onChange={(v) => {
+                setCapNote(null);
+                setGridText(picked.id, v);
+              }}
+              // never past what's left to pay, nor what it holds; typing past either cuts it there and says why
+              onCapped={(most) =>
+                setCapNote({
+                  key: capKey,
+                  text: t(most < (picked.held ?? Infinity) ? "capLeft" : "capOnly", {
+                    amount: rupees(most),
+                  }),
+                })
+              }
               decimals={2}
               maxDigits={13}
-              max={picked.held ?? undefined}
+              max={Math.min(picked.held ?? Infinity, room)}
               placeholder="0"
               aria-invalid={short || (tried && picked.amount === 0) || undefined}
               className={cn(
@@ -210,13 +211,14 @@ export function ManualAccountCard({
               )}
             />
           </span>
+          {capNote?.key === capKey && <Note className="text-amber-700">{capNote.text}</Note>}
         </label>
       )}
 
       {/* how it was paid, once there's an amount */}
       {picked && !isCash && picked.amount > 0 && (
         <div className="flex flex-col gap-2 text-xs font-semibold">
-          <ModeChips
+          <ModeAccordion
             label={t("paidBy")}
             missing={t("pickMode")}
             mode={picked.mode}
@@ -225,17 +227,28 @@ export function ManualAccountCard({
           />
         </div>
       )}
-      {/* by UPI: the supplier's UPI ID (text with Edit once known), then Show QR code, or QR shown when it's the
-          one in the QR spot */}
+      {/* by UPI: the box for who's paid's UPI ID (under Paid by, above the QR), while there's none yet or the pen was tapped */}
       {picked && picked.amount > 0 && picked.mode === "upi" && (
         <>
           <UpiField />
         </>
       )}
-      {/* Show QR code (UPI only) with the arrow that folds it beside it, once it's whole */}
-      {(qrButton || whole || remove) && (
+      {/* this account's own QR, under Paid by and the UPI ID box (which shows the ID, so the QR doesn't) */}
+      {ownQr && picked?.mode === "upi" && (
+        <div>
+          <UpiQr
+            key={`${ownQr.key}|${ownQr.upiIds.join()}`}
+            upiIds={ownQr.upiIds}
+            payee={ownQr.payee}
+            amount={ownQr.amount}
+            note={ownQr.note}
+            hideId
+          />
+        </div>
+      )}
+      {/* the bin, and the arrow that folds it once it's whole */}
+      {(whole || remove) && (
         <div className="mt-auto flex items-center justify-end gap-2">
-          {qrButton}
           {remove}
           {whole && arrow}
         </div>
@@ -252,7 +265,7 @@ export function ManualAccounts() {
   const [picks, setPicks] = useState<(string | null)[]>([null]);
   const [folds, setFolds] = useState<boolean[]>([false]);
   const accounts = gridPlaces;
-  // Auto: a card for each account it filled (folded), kept as they are once typing turns Auto off; Auto
+  // Auto: a card for each account it filled (open), kept as they are once typing turns Auto off; Auto
   // switched off by hand empties everything, so it's back to one empty card
   const autoKey = gridAuto
     ? accounts
@@ -265,8 +278,8 @@ export function ManualAccounts() {
     if (autoKey !== null) {
       const ids = autoKey === "" ? [null] : autoKey.split(",");
       setPicks(ids);
-      // Auto's cards start folded
-      setFolds(ids.map(() => true));
+      // Auto's cards start open, each with its details (and its QR on a phone)
+      setFolds(ids.map(() => false));
     } else if (!anyAmount) {
       setPicks([null]);
       setFolds([false]);
@@ -289,8 +302,10 @@ export function ManualAccounts() {
         </h3>
         <AutoSwitch on={gridAuto} set={setGridAuto} />
       </div>
-      {/* a bar that fills as the cards take up the amount: given on the left, what's left on the right */}
-      <div className="flex flex-col gap-1.5">
+      {/* a bar that fills as the cards take up the amount: given on the left, what's left on the right. It stays
+          just under the header while the cards scroll, for reference, on the card's ivory edge to edge, with room
+          below it */}
+      <div className="sticky top-16 z-10 -mx-4 mb-2 flex flex-col gap-1.5 bg-ivory px-4 pb-3 pt-2 sm:-mx-5 sm:px-5">
         <div
           role="progressbar"
           aria-valuemin={0}
@@ -323,7 +338,7 @@ export function ManualAccounts() {
             folded={folds[i] ?? false}
             onFold={(f) => setFolds((all) => all.map((x, j) => (j === i ? f : x)))}
             onRemove={() => {
-              // its amount and Paid by go too, so the QR spot moves to another account by UPI, or back to empty
+              // its amount and Paid by go too, and its QR with them
               if (id) {
                 setGridText(id, "");
                 setGridMode(id, null);
@@ -338,6 +353,7 @@ export function ManualAccounts() {
               setFolds((all) => all.filter((_, j) => j !== i));
             }}
             taken={picks.filter((x, j) => j !== i && x !== null) as string[]}
+            room={Math.max(0, Math.round((value - (given - amountOf(id))) * 100) / 100)}
           />
         ))}
         {canAdd && (

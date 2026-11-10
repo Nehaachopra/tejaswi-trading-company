@@ -115,6 +115,7 @@ export function LoanCards() {
             />
           ) : (
             <PartyEdit
+              asksTypes={false}
               partyId={loan.partyId}
               onCancel={() => setEditingFrom(false)}
               onSaved={(saved) => {

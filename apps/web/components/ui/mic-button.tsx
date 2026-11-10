@@ -2,6 +2,9 @@
 
 import { Mic, MicOff } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useEffect } from "react";
+
+import { toast } from "~/components/ui/toast";
 
 import { type SpeechOptions, useSpeech } from "~/lib/speech";
 import { cn } from "~/lib/utils";
@@ -9,14 +12,20 @@ import { cn } from "~/lib/utils";
 // a mic inside a field: tap and speak, and what was said goes to `onText` (an amount field turns it into a number);
 // tap again to stop early. While Chrome gets ready it's amber ("Getting ready…"); once it's really listening it pulses
 // red and shows what it's hearing under the field (`above` it, for a box at the foot of the screen); when it can't,
-// it says why. Hidden where the browser can't listen
+// a toast says why and leaves by itself, like every other message. Hidden where the browser can't listen
 export function MicButton({ onText, className, until, throughPauses, above = false }: { onText: (text: string) => void; className?: string; above?: boolean } & SpeechOptions) {
   const t = useTranslations("common.speech");
   const { supported, state, heard, listen, stop } = useSpeech(onText, { until, throughPauses });
-  if (!supported) return null;
   const listening = state === "listening";
   const starting = state === "starting";
   const busy = listening || starting;
+  // why it can't listen: a toast, one at a time (another tap replaces it)
+  const problem = !busy && state !== "idle";
+  useEffect(() => {
+    if (problem) toast.passing(t(`problems.${state}`), "mic");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per problem
+  }, [problem, state]);
+  if (!supported) return null;
 
   return (
     <>
@@ -43,17 +52,16 @@ export function MicButton({ onText, className, until, throughPauses, above = fal
       >
         {state === "denied" ? <MicOff className="size-4" aria-hidden /> : <Mic className="size-4" aria-hidden />}
       </button>
-      {/* what it's hearing, and why it can't: under the field, or above it (a box at the foot of the screen) */}
-      {state !== "idle" && (
+      {/* what it's hearing: under the field, or above it (a box at the foot of the screen) */}
+      {busy && (
         <span
           role="status"
           className={cn(
-            "absolute inset-x-0 z-20 rounded-control px-3 py-1.5 text-xs",
+            "absolute inset-x-0 z-20 rounded-control bg-chestnut px-3 py-1.5 text-xs text-ivory",
             above ? "bottom-full mb-2" : "top-full mt-1",
-            busy ? "bg-chestnut text-ivory" : "bg-danger text-ivory",
           )}
         >
-          {starting ? t("starting") : listening ? heard || t("listening") : t(`problems.${state}`)}
+          {starting ? t("starting") : heard || t("listening")}
         </span>
       )}
     </>

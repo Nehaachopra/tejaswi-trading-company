@@ -62,7 +62,7 @@ export function PaidFrom({ part }: { part: "top" | "rest" }) {
     },
   ];
   const usesBank = into === "bank" || into === "both";
-  // the top, beside the QR spot: cash, bank or both
+  // the top: cash, bank or both
   if (part === "top")
     return (
       <>
@@ -87,7 +87,7 @@ export function PaidFrom({ part }: { part: "top" | "rest" }) {
         />
       </>
     );
-  // the rest, the card's full width under the QR spot
+  // the rest, the card's full width
   return (
     <>
       {/* Bank, or Cash + Bank: a card per place, Auto or not */}

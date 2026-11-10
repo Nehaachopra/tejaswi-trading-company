@@ -7,7 +7,10 @@ import { DateInput } from "~/components/ui/date-input";
 import { rupees } from "~/lib/format";
 import { ReceiptProvider } from "~/providers/receipt";
 
-import { emptyDraft as emptyParty } from "../../account/party/party-fields";
+import {
+  draftUntouched as untouched,
+  emptyDraft as emptyParty,
+} from "../../account/party/party-fields";
 import { emptyLender } from "../loans/lender-fields";
 import { LoanTerms } from "../loans/loan-terms";
 import {
@@ -194,7 +197,9 @@ function KindChips() {
     tk,
     kind,
     setKind,
+    from,
     setFrom,
+    newParty,
     setNewParty,
     setLender,
     setBankLender,
@@ -219,8 +224,15 @@ function KindChips() {
           role="radio"
           aria-checked={kind === k}
           onClick={() => {
-            // the same one again: on to the next card with everything kept (capital has no ledger to pick)
-            if (k === kind) return show(k === "capital" ? "amount" : "from");
+            // the same one again: on to the next card with everything kept (capital has no ledger to pick),
+            // except a new party, new ledger or old loan left empty, which goes back to the search (an old loan's
+            // form only lives while its card is open, so it's empty by now)
+            if (k === kind) {
+              if (from?.kind === "party" && untouched(newParty)) setFrom(null);
+              if (from?.kind === "new" && from.name.trim() === "") setFrom(null);
+              setAddingOldLoan(false);
+              return show(k === "capital" ? "amount" : "from");
+            }
             setKind(k);
             setFrom(null);
             setNewParty(emptyParty());

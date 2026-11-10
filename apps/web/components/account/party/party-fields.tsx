@@ -122,6 +122,11 @@ export const emptyDraft = (): PartyDraft => ({
   upiIds: [],
 });
 
+// a new party's form with nothing typed in it yet (its address's own key aside)
+const blankOf = (d: PartyDraft) =>
+  JSON.stringify({ ...d, addresses: d.addresses.map((x) => ({ ...x, key: "" })) });
+export const draftUntouched = (d: PartyDraft) => blankOf(d) === blankOf(emptyDraft());
+
 export const draftFrom = (p: Party): PartyDraft => ({
   types: PICKED_ROLES.filter((r) => p.types.includes(r)),
   monthlySalary: p.employment ? String(p.employment.monthlySalary) : "",

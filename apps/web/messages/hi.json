@@ -1549,7 +1549,6 @@
         "searchLedger": "लेजर खोजें",
         "declaredNoTds": "TDS नहीं: छोटे ट्रांसपोर्टर का घोषणा पत्र",
         "rcmRow": "रिवर्स चार्ज GST {rate}%",
-        "rcmNote": "{on} पर। हम सरकार को भरेंगे और वापस क्लेम करेंगे।",
         "billNote": "इसमें {rate}% पर GST {gst} शामिल है, वापस क्लेम होगा।",
         "billNumber": "बिल नंबर",
         "billDate": "बिल की तारीख",
@@ -1613,7 +1612,13 @@
         "removeAccount": "यह खाता हटाएँ",
         "accountAmount": "इस खाते से राशि",
         "breakdown": "बँटवारा",
-        "payeeUpi": "उनकी UPI ID",
+        "payeeUpi": "पाने वाले की UPI ID",
+        "lenderUpi": "लेंडर की UPI ID",
+        "borrowerUpi": "उधार लेने वाले की UPI ID",
+        "customerUpi": "ग्राहक की UPI ID",
+        "landlordUpi": "मकान मालिक की UPI ID",
+        "transporterUpi": "ट्रांसपोर्टर की UPI ID",
+        "supplierUpi": "सप्लायर की UPI ID",
         "payeeUpiBad": "UPI ID name@bank जैसी दिखती है।",
         "payeeUpiHandle": "{handle} कोई UPI हैंडल नहीं है। @ के बाद का हिस्सा जाँचें, जैसे @okicici या @ybl।",
         "barPaid": "दिया {amount}",
@@ -1621,6 +1626,7 @@
         "barDone": "पूरा दिया",
         "anotherAccount": "दूसरा खाता",
         "capOnly": "केवल {amount} ही दिया जा सकता है।",
+        "capLeft": "सिर्फ़ {amount} देना बाकी है।",
         "loadFailed": "नकद और बैंक बैलेंस लोड नहीं हो सके। कनेक्शन जाँचें और फिर से कोशिश करें।",
         "taxFailed": "TDS और GST की गणना नहीं हो सकी। कनेक्शन जाँचें और फिर से कोशिश करें।",
         "fitsFailed": "नकद और बैंक में कितना है, यह जाँच नहीं हो सकी। कनेक्शन जाँचें और फिर से कोशिश करें।",
@@ -1630,7 +1636,8 @@
         "tryAgain": "फिर से कोशिश करें",
         "refCash": "संदर्भ संख्या",
         "refCashHint": "बिल या वाउचर नंबर",
-        "editUpi": "बदलें"
+        "editUpi": "बदलें",
+        "saveUpi": "सेव करें"
       }
     },
     "tdsTypes": {

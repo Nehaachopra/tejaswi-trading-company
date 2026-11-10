@@ -1549,7 +1549,6 @@
         "searchLedger": "ಲೆಡ್ಜರ್ ಹುಡುಕಿ",
         "declaredNoTds": "TDS ಇಲ್ಲ: ಸಣ್ಣ ಸಾಗಣೆದಾರರ ಘೋಷಣೆ",
         "rcmRow": "ರಿವರ್ಸ್ ಚಾರ್ಜ್ GST {rate}%",
-        "rcmNote": "{on} ಮೇಲೆ. ನಾವು ಸರ್ಕಾರಕ್ಕೆ ಪಾವತಿಸಿ ಹಿಂದೆ ಪಡೆಯುತ್ತೇವೆ.",
         "billNote": "{rate}% ದರದಲ್ಲಿ GST {gst} ಸೇರಿದೆ, ಹಿಂದೆ ಪಡೆಯಲಾಗುತ್ತದೆ.",
         "billNumber": "ಬಿಲ್ ಸಂಖ್ಯೆ",
         "billDate": "ಬಿಲ್ ದಿನಾಂಕ",
@@ -1613,7 +1612,13 @@
         "removeAccount": "ಈ ಖಾತೆ ತೆಗೆದುಹಾಕಿ",
         "accountAmount": "ಈ ಖಾತೆಯಿಂದ ಮೊತ್ತ",
         "breakdown": "ವಿಭಜನೆ",
-        "payeeUpi": "ಅವರ UPI ID",
+        "payeeUpi": "ಪಡೆಯುವವರ UPI ID",
+        "lenderUpi": "ಸಾಲದಾತರ UPI ID",
+        "borrowerUpi": "ಸಾಲಗಾರರ UPI ID",
+        "customerUpi": "ಗ್ರಾಹಕರ UPI ID",
+        "landlordUpi": "ಮನೆ ಮಾಲೀಕರ UPI ID",
+        "transporterUpi": "ಸಾಗಣೆದಾರರ UPI ID",
+        "supplierUpi": "ಸಪ್ಲೈಯರ್ UPI ID",
         "payeeUpiBad": "UPI ID name@bank ರೀತಿ ಇರುತ್ತದೆ.",
         "payeeUpiHandle": "{handle} UPI ಹ್ಯಾಂಡಲ್ ಅಲ್ಲ. @ ನಂತರದ ಭಾಗ ಪರಿಶೀಲಿಸಿ, ಉದಾ: @okicici ಅಥವಾ @ybl.",
         "barPaid": "ಪಾವತಿ {amount}",
@@ -1621,6 +1626,7 @@
         "barDone": "ಪೂರ್ತಿ ಪಾವತಿ",
         "anotherAccount": "ಇನ್ನೊಂದು ಖಾತೆ",
         "capOnly": "{amount} ಮಾತ್ರ ಪಾವತಿಸಬಹುದು.",
+        "capLeft": "ಇನ್ನು {amount} ಮಾತ್ರ ಕೊಡಲು ಬಾಕಿ ಇದೆ.",
         "loadFailed": "ನಗದು ಮತ್ತು ಬ್ಯಾಂಕ್ ಬಾಕಿ ಲೋಡ್ ಆಗಲಿಲ್ಲ. ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
         "taxFailed": "TDS ಮತ್ತು GST ಲೆಕ್ಕ ಹಾಕಲಾಗಲಿಲ್ಲ. ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
         "fitsFailed": "ನಗದು ಮತ್ತು ಬ್ಯಾಂಕ್‌ನಲ್ಲಿ ಎಷ್ಟಿದೆ ಎಂದು ಪರಿಶೀಲಿಸಲಾಗಲಿಲ್ಲ. ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
@@ -1630,7 +1636,8 @@
         "tryAgain": "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ",
         "refCash": "ಉಲ್ಲೇಖ ಸಂಖ್ಯೆ",
         "refCashHint": "ಬಿಲ್ ಅಥವಾ ವೋಚರ್ ಸಂಖ್ಯೆ",
-        "editUpi": "ಬದಲಿಸಿ"
+        "editUpi": "ಬದಲಿಸಿ",
+        "saveUpi": "ಉಳಿಸಿ"
       }
     },
     "tdsTypes": {

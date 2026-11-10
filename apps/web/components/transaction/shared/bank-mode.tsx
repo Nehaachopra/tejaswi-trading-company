@@ -8,6 +8,7 @@ import { cn } from "~/lib/utils";
 import { BANK_MODE_REFERENCE, type BankMode } from "@repo/trpc/client";
 
 import { chip, input } from "./form-basics";
+import { PlacePicker } from "./place-picker";
 
 // how money went out of or came into a bank, in the order they're offered
 export const BANK_MODES: BankMode[] = ["upi", "imps", "neftRtgs", "cheque"];
@@ -53,6 +54,40 @@ export function ModeChips({
           </button>
         ))}
       </div>
+      {tried && mode === null && <FieldMessage className="mt-0">{missing}</FieldMessage>}
+    </>
+  );
+}
+
+// how it was paid, as an accordion like Paid from's (a payment's, for now): all four open as rows until one is
+// picked, then collapsed to the pick; a tap opens them again. Red-edged once Next was tapped with none picked
+export function ModeAccordion({
+  label,
+  missing,
+  mode,
+  tried,
+  onPick,
+}: {
+  label: string;
+  missing: string;
+  mode: BankMode | null;
+  tried: boolean;
+  onPick: (m: BankMode) => void;
+}) {
+  const t = useTranslations("transactions.payment.form");
+  return (
+    <>
+      <span>
+        {label}
+        <RequiredMark />
+      </span>
+      <PlacePicker
+        label={label}
+        places={BANK_MODES.map((m) => ({ id: m, name: t(`modes.${m}`), disabled: false }))}
+        value={mode}
+        invalid={tried}
+        onPick={onPick}
+      />
       {tried && mode === null && <FieldMessage className="mt-0">{missing}</FieldMessage>}
     </>
   );
