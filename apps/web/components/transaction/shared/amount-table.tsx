@@ -56,6 +56,20 @@ export function AmountTable({
   always?: boolean;
 }) {
   if (!hasBreakdown(rows) && !(always && open)) return null;
+  // the rows up to the total in one box; those after it (a due and an advance) in a box of their own, a gap above it
+  const totalAt = rows.findIndex((r) => r.tone === "total");
+  const main = totalAt >= 0 ? rows.slice(0, totalAt + 1) : rows;
+  const rest = totalAt >= 0 ? rows.slice(totalAt + 1) : [];
+  return (
+    <div className="flex flex-col gap-2.5">
+      <RowsBox rows={main} />
+      {rest.length > 0 && <RowsBox rows={rest} />}
+    </div>
+  );
+}
+
+// one box of the breakdown's rows: a line between each, the total tinted with a larger figure
+function RowsBox({ rows }: { rows: AmountRow[] }) {
   return (
     <table className="tabular w-full overflow-hidden rounded-control text-sm font-normal shadow-[0_0_5px_0] shadow-chestnut/25">
       <tbody>

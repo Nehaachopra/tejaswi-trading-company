@@ -275,7 +275,8 @@ export function SummaryLines<S extends string>({
                 </span>
               ) : (
                 <span key={i} className="flex justify-between gap-3">
-                  <span className="truncate">{line.name}</span>
+                  {/* the place (cash, a bank account) smaller; its amount as it is */}
+                  <span className="truncate text-sm">{line.name}</span>
                   <span className="tabular shrink-0">{line.amount}</span>
                 </span>
               ),

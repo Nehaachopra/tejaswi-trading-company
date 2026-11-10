@@ -32,6 +32,7 @@ export function PaidFrom({ part }: { part: "top" | "rest" }) {
     bankCovers,
     offerBoth,
     pickBoth,
+    resetGrid,
     cashLimit,
     cashTodayFailed,
     retryCashToday,
@@ -74,6 +75,8 @@ export function PaidFrom({ part }: { part: "top" | "rest" }) {
           value={into}
           invalid={tried && into === null}
           onPick={(id) => {
+            // another place: the breakdown starts again
+            resetGrid();
             setBankId(null);
             if (id === "cash") {
               setInto("cash");
@@ -91,7 +94,8 @@ export function PaidFrom({ part }: { part: "top" | "rest" }) {
   return (
     <>
       {/* Bank, or Cash + Bank: a card per place, Auto or not */}
-      {usesBank && <ManualAccounts />}
+      {/* keyed by the place, so a new one starts with fresh cards */}
+      {usesBank && <ManualAccounts key={into} />}
 
       {/* the cash-limit warning, when there is one */}
       <Reveal follow show={overCashLimit || cashTodayFailed} gap="0.625rem">

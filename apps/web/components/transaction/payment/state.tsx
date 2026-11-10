@@ -615,6 +615,11 @@ export function usePaymentEntryState({
     // off: Bank starts empty, to be typed account by account; Cash + Bank keeps what Auto had filled
     setGridTyped(on ? null : into === "bank" ? {} : gridFilled);
   }
+  // Paid from changed by hand: the breakdown starts again, every card empty, no Paid by, Auto off
+  function resetGrid() {
+    setGridTyped({});
+    setGridModes({});
+  }
   function setGridMode(id: string, mode: BankMode | null) {
     setGridModes((all) => ({ ...all, [id]: mode }));
   }
@@ -986,6 +991,48 @@ export function usePaymentEntryState({
           : null,
     },
     {
+      step: "source",
+      // from both: cash and the bank, a line each with what it paid
+      value:
+        into === "cash"
+          ? { name: tc("cash"), amount: rupees(value) }
+          : !bank
+            ? null
+            : moreParts.length > 0
+              ? [
+                  ...(into === "both" ? [{ name: tc("cash"), amount: rupees(cashValue) }] : []),
+                  {
+                    name: `${bankNameIn(bank.bankName, locale)} ••${bank.last4}`,
+                    amount: rupees(firstPart),
+                  },
+                  ...moreParts.flatMap((m) => {
+                    const b = banks?.find((x) => x.id === m.bankId);
+                    return b
+                      ? [
+                          {
+                            name: `${bankNameIn(b.bankName, locale)} ••${b.last4}`,
+                            amount: rupees(Number(m.amount) || 0),
+                          },
+                        ]
+                      : [];
+                  }),
+                ]
+              : into === "both"
+                ? [
+                    { name: tc("cash"), amount: rupees(cashValue) },
+                    {
+                      name: `${bankNameIn(bank.bankName, locale)} ••${bank.last4}`,
+                      amount: rupees(bankValue),
+                    },
+                  ]
+                : [
+                    {
+                      name: `${bankNameIn(bank.bankName, locale)} ••${bank.last4}`,
+                      amount: rupees(value),
+                    },
+                  ],
+    },
+    {
       step: "details",
       value: ((lines) => (lines.length > 0 ? lines : null))(
         [
@@ -1036,9 +1083,11 @@ export function usePaymentEntryState({
 
   // Next: on to the card after this one, once it's filled in; otherwise what's missing shows in red, at its first field
   async function next() {
-    // Cash + Bank with the whole amount in one of them: it's paid from that one alone, then Next goes on as usual
-    if (current === "amount" && into === "both" && value > 0 && cashPart !== "") {
-      const alone = cashValue === value ? "cash" : cashValue === 0 ? "bank" : null;
+    // Cash + Bank whose cards add up to the amount but all of it from one side (every rupee from the banks, or all
+    // in cash): it's paid from that one alone, then Next goes on as usual. Adding up to the amount is all it asks
+    const gridCash = gridPlaces.find((p) => p.id === "cash")?.amount ?? 0;
+    if (current === "amount" && into === "both" && value > 0 && gridTotal === value) {
+      const alone = gridCash === value ? "cash" : gridCash === 0 ? "bank" : null;
       if (alone) {
         nextAfterAlone.current = true;
         setCashPart("");
@@ -1188,6 +1237,7 @@ export function usePaymentEntryState({
     setGridMode,
     gridAuto: gridTyped === null,
     setGridAuto,
+    resetGrid,
     qrItems,
     t,
     tc,

@@ -25,12 +25,15 @@ export function PlacePicker<Id extends string>({
   value,
   onPick,
   invalid,
+  hintPicked = false,
 }: {
   label: string;
   places: Place<Id>[];
   value: Id | null;
   onPick: (id: Id) => void;
   invalid: boolean;
+  // collapsed to the pick, what it holds still shows beside it, muted (a payment's bank cards)
+  hintPicked?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -108,6 +111,9 @@ export function PlacePicker<Id extends string>({
               <span className="tabular block text-xs font-normal opacity-70">{picked.sub}</span>
             )}
           </span>
+          {hintPicked && picked.hint && (
+            <span className="tabular shrink-0 text-sm font-normal opacity-70">{picked.hint}</span>
+          )}
           <ChevronDown className="size-4 shrink-0" aria-hidden />
         </button>
       )}

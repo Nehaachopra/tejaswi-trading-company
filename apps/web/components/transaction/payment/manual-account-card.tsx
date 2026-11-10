@@ -104,7 +104,7 @@ export function ManualAccountCard({
     </button>
   );
 
-  // folded: the amount and Paid by on top; the bank and its last digits under them, with the arrow
+  // folded: one line, the amount on the left, cash or the bank and its last digits with the arrow on the right
   if (folded && whole && picked)
     return (
       // red-edged when Next was tapped with something still missing on it (Paid by, or past what it holds)
@@ -123,29 +123,29 @@ export function ManualAccountCard({
         className={cn(
           "cursor-pointer",
           card,
-          // the two rows sit close; no fill, just an edge (red while something's missing on it)
-          "gap-1 border border-chestnut/40 bg-transparent shadow-none",
-          faulty && "border-danger",
+          // the open card's own fill and soft edge, no border (red-edged while something's missing on it)
+          "gap-1 py-1.5",
+          faulty && "shadow-danger/80",
         )}
       >
+        {/* one line: the amount on the left; cash or the bank account, and the arrow, on the right */}
         <div className="flex min-w-0 items-center justify-between gap-3">
-          <span className="tabular min-w-0 break-all font-heading text-xl font-bold">
+          <span className="tabular shrink-0 font-heading text-xl font-bold">
             {rupees(picked.amount)}
           </span>
-          <span className="flex shrink-0 items-center gap-2">
-            {picked.mode && (
-              <span className="inline-flex h-7 items-center rounded-control border border-chestnut bg-transparent px-2.5 text-xs font-semibold text-chestnut">
-                {t(`modes.${picked.mode}`)}
+          <span className="flex min-w-0 items-center gap-1">
+            <span className="min-w-0 truncate text-sm font-semibold">
+              {picked.name}
+              {picked.sub && <span className="ml-1.5 font-normal opacity-70">{picked.sub}</span>}
+            </span>
+            {/* what it holds, muted (not for staff, who see no balances) */}
+            {picked.held !== null && (
+              <span className="tabular ml-1.5 shrink-0 text-sm opacity-60">
+                {rupees(picked.held)}
               </span>
             )}
+            {arrow}
           </span>
-        </div>
-        <div className="flex min-w-0 items-center justify-between gap-3">
-          <span className="min-w-0 truncate text-sm font-semibold">
-            {picked.name}
-            {picked.sub && <span className="ml-1.5 font-normal opacity-70">{picked.sub}</span>}
-          </span>
-          {arrow}
         </div>
       </div>
     );
@@ -166,6 +166,7 @@ export function ManualAccountCard({
       {/* which account */}
       <PlacePicker
         label={t("account")}
+        hintPicked
         places={places}
         value={pickedId}
         invalid={tried && !picked}
@@ -268,8 +269,13 @@ export function ManualAccountCard({
 export function ManualAccounts() {
   const { t, value, gridPlaces, setGridText, setGridMode, gridAuto, setGridAuto } =
     usePaymentEntry();
-  const [picks, setPicks] = useState<(string | null)[]>([null]);
-  const [folds, setFolds] = useState<boolean[]>([false]);
+  // back on this card (Back from the next one): the cards come back from the amounts already in, folded; otherwise
+  // one empty card
+  const [picks, setPicks] = useState<(string | null)[]>(() => {
+    const ids = gridPlaces.filter((p) => p.amount > 0).map((p) => p.id);
+    return ids.length > 0 ? ids : [null];
+  });
+  const [folds, setFolds] = useState<boolean[]>(() => picks.map((id) => id !== null));
   const accounts = gridPlaces;
   // Auto: a card for each account it filled (open), kept as they are once typing turns Auto off; Auto
   // switched off by hand empties everything, so it's back to one empty card
@@ -317,12 +323,12 @@ export function ManualAccounts() {
           aria-valuemin={0}
           aria-valuemax={value}
           aria-valuenow={given}
-          className="h-3 overflow-hidden rounded-full bg-chestnut/10 shadow-[inset_0_0_0_1px] shadow-chestnut/15"
+          className="h-3 overflow-hidden rounded-full bg-success/15 shadow-[inset_0_0_0_1px] shadow-success/25"
         >
           <div
             className={cn(
-              "h-full rounded-full transition-[width] duration-300",
-              done ? "bg-success" : "bg-chestnut",
+              // green whether full or not
+              "h-full rounded-full bg-success transition-[width] duration-300",
             )}
             style={{ width: `${value > 0 ? Math.min(100, (given / value) * 100) : 0}%` }}
           />
