@@ -160,12 +160,13 @@ export function StepCard({
   );
 }
 
-// Next: on to the card after this one
+// Next: on to the card after this one (data-recheck: a tap brings back the problems' words that had gone)
 export function NextButton({ onClick }: { onClick: () => void }) {
   const tr = useTranslations("transactions.receipt");
   return (
     <button
       type="button"
+      data-recheck
       onClick={onClick}
       className="mt-2 flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-chestnut font-heading text-lg font-bold text-ivory transition-colors hover:bg-chestnut/90"
     >

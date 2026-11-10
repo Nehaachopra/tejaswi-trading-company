@@ -107,6 +107,8 @@ export function PartyEdit({
         </button>
         <button
           type="button"
+          data-recheck
+
           onClick={() => void save()}
           disabled={update.isPending}
           aria-busy={update.isPending}

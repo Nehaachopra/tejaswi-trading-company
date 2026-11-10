@@ -571,6 +571,8 @@ export function HeadEdit({
         </button>
         <button
           type="button"
+          data-recheck
+
           onClick={() => void save()}
           disabled={update.isPending}
           className="min-h-11 rounded-control bg-chestnut px-5 text-sm font-semibold text-ivory disabled:opacity-60"

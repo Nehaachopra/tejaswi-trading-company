@@ -1346,6 +1346,8 @@ function MoneyChat({
         )}
         <button
           type="button"
+          data-recheck
+
           onClick={() => void save()}
           disabled={create.isPending}
           aria-busy={create.isPending}

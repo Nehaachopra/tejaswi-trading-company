@@ -1,5 +1,6 @@
 "use client";
 
+import { ERROR_MS } from "~/components/ui/field-message";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
@@ -104,6 +105,12 @@ export function usePaymentEntryState({
   const [partTyping, setPartTyping] = useState<"cash" | "bank" | null>(null);
   // an amount typed past what can be paid is cut to the most; this says why, under that field, until it's typed again
   const [capNote, setCapNote] = useState<{ key: string; text: string } | null>(null);
+  // a cap's warning goes after a while, like every problem's words
+  useEffect(() => {
+    if (!capNote) return;
+    const timer = setTimeout(() => setCapNote(null), ERROR_MS);
+    return () => clearTimeout(timer);
+  }, [capNote]);
   const [bankTyped, setBankTyped] = useState("");
   const [amount, setAmount] = useState("");
   const [kind, setKind] = useState<PaymentKind | null>(null);

@@ -66,6 +66,12 @@ export function ManualAccountCard({
   const whole = !!picked && picked.amount > 0;
   // cash takes only an amount: no Paid by, no UPI
   const isCash = picked?.id === "cash";
+  // something missing on it (Paid by, or past what it holds) once Next was tapped: a folded card opens to show it
+  const faulty = tried && !!picked && ((!isCash && picked.mode === null) || short);
+  useEffect(() => {
+    if (folded && faulty) onFold(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when it turns faulty or is folded
+  }, [folded, faulty]);
   const card =
     "flex min-w-0 flex-col justify-between gap-3 rounded-control p-3 shadow-[0_0_5px_0] shadow-chestnut/25 bg-chestnut/8 sm:w-[calc(50%-0.375rem)]";
   // this account's QR, when it pays by UPI
@@ -117,9 +123,9 @@ export function ManualAccountCard({
         className={cn(
           "cursor-pointer",
           card,
-          // the two rows sit close
-          "gap-1",
-          tried && ((!isCash && picked.mode === null) || short) && "shadow-danger/80",
+          // the two rows sit close; no fill, just an edge (red while something's missing on it)
+          "gap-1 border border-chestnut/40 bg-transparent shadow-none",
+          faulty && "border-danger",
         )}
       >
         <div className="flex min-w-0 items-center justify-between gap-3">

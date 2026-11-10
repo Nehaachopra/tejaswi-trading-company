@@ -273,6 +273,8 @@ export function OldLoanForm({
         {lender !== null && whoDone && (
           <button
             type="button"
+            data-recheck
+
             onClick={() => void save()}
             disabled={add.isPending}
             aria-busy={add.isPending}

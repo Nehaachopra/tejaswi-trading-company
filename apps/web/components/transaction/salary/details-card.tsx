@@ -84,6 +84,8 @@ export function SaveBlock() {
       </label>
       <button
         type="button"
+        data-recheck
+
         onClick={() => void save()}
         disabled={busy}
         aria-busy={busy}
