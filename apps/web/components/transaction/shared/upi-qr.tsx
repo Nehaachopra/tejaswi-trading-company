@@ -86,8 +86,8 @@ export function UpiQr({
           />
         </div>
       ) : (
-        <p className="flex items-center justify-center gap-1.5 text-center text-xs">
-          <span className="min-w-0 break-all opacity-70">{picked}</span>
+        <p className="flex items-center justify-center gap-1.5 text-center text-base">
+          <span className="min-w-0 break-all font-semibold">{picked}</span>
           {onEdit && (
             <button
               type="button"
@@ -95,7 +95,7 @@ export function UpiQr({
               aria-label={tp2("editUpi")}
               className="grid size-8 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
             >
-              <Pencil className="size-3.5" aria-hidden />
+              <Pencil className="size-4" aria-hidden />
             </button>
           )}
         </p>

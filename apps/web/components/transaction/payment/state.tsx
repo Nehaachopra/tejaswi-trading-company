@@ -837,13 +837,14 @@ export function usePaymentEntryState({
     if (interestTdsFailed) retryInterestTds();
   };
 
-  // the bank accounts it goes out of, each with how it was paid: a reference box each on the last card
+  // the bank accounts it goes out of, each with how it was paid: a reference box each, in its own card on the Amount
+  // card (keyed by the account, so it stays with it whichever order the cards are in)
   const refAccounts =
     into === "cash" || into === null
       ? []
       : [
-          { key: "first", bankId, mode: bankMode },
-          ...moreParts.map((m) => ({ key: m.key, bankId: m.bankId, mode: m.mode })),
+          { key: bankId ?? "", bankId, mode: bankMode },
+          ...moreParts.map((m) => ({ key: m.bankId ?? "", bankId: m.bankId, mode: m.mode })),
         ].filter(
           (a): a is { key: string; bankId: string; mode: BankMode } =>
             a.bankId !== null && a.mode !== null,
@@ -861,7 +862,8 @@ export function usePaymentEntryState({
       !loanOver &&
       sourceDone &&
       (!rentCalc || rentOk) &&
-      (into === "cash" || into === null || bankMode !== null),
+      (into === "cash" || into === null || bankMode !== null) &&
+      refAccounts.every(refOk),
     source: sourceDone,
     kind: kind !== null,
     to: toDone,
@@ -876,8 +878,7 @@ export function usePaymentEntryState({
     details:
       day !== "" &&
       !panBad &&
-      (into === "cash" || into === null || bankMode !== null) &&
-      refAccounts.every(refOk),
+      (into === "cash" || into === null || bankMode !== null),
   };
   // the cards that apply now, shown up to the first one not yet filled in
   const steps: Step[] = [
@@ -1194,7 +1195,7 @@ export function usePaymentEntryState({
         bankDetailsId: into === "cash" ? null : bankId,
         bankMode: into === "cash" ? null : bankMode,
         referenceNumber:
-          into !== "cash" && bankMode ? refOf({ key: "first", mode: bankMode }) || null : null,
+          into !== "cash" && bankMode ? refOf({ key: bankId!, mode: bankMode }) || null : null,
         cashReferenceNumber: into === "cash" || into === "both" ? cashRef || null : null,
         moreBankParts:
           into === "cash"
@@ -1203,7 +1204,7 @@ export function usePaymentEntryState({
                 bankDetailsId: m.bankId!,
                 amount: Number(m.amount),
                 mode: m.mode!,
-                referenceNumber: refOf({ key: m.key, mode: m.mode! }) || null,
+                referenceNumber: refOf({ key: m.bankId!, mode: m.mode! }) || null,
               })),
         remarks,
       });

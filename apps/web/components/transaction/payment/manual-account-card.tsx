@@ -7,12 +7,13 @@ import { ADD_ON_IVORY } from "~/components/ui/page-styles";
 import { NumberInput } from "~/components/ui/number-input";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { ModeAccordion } from "../shared/bank-mode";
+import { BankRefField, ModeAccordion, refOkFor } from "../shared/bank-mode";
 import { input } from "../shared/form-basics";
 import { AutoSwitch, type GridPlace } from "../shared/split-grid";
 import { type Place, PlacePicker } from "../shared/place-picker";
 import { UpiQr } from "../shared/upi-qr";
 import { Note } from "~/components/ui/note";
+import { Reveal } from "~/components/ui/reveal";
 import { usePaymentEntry } from "./state";
 import { UpiField } from "./bank-cards";
 
@@ -41,8 +42,23 @@ export function ManualAccountCard({
   // what's left to pay once the other cards' amounts are taken off: this card can't take more
   room: number;
 }) {
-  const { t, tc, tried, gridPlaces, setGridText, setGridMode, qrItems, capNote, setCapNote } =
-    usePaymentEntry();
+  const {
+    t,
+    tc,
+    tried,
+    gridPlaces,
+    setGridText,
+    setGridMode,
+    qrItems,
+    capNote,
+    setCapNote,
+    upiEditing,
+    setUpiEditing,
+    refs,
+    setRefs,
+    refLeft,
+    setRefLeft,
+  } = usePaymentEntry();
   // the places to pick from: the bank accounts, and cash too for Cash + Bank; not ones on the other cards
   const accounts = gridPlaces.filter((p) => !taken.includes(p.id));
   const picked: GridPlace | null = accounts.find((p) => p.id === pickedId) ?? null;
@@ -66,14 +82,34 @@ export function ManualAccountCard({
   const whole = !!picked && picked.amount > 0;
   // cash takes only an amount: no Paid by, no UPI
   const isCash = picked?.id === "cash";
-  // something missing on it (Paid by, or past what it holds) once Next was tapped: a folded card opens to show it
-  const faulty = tried && !!picked && ((!isCash && picked.mode === null) || short);
+  // something missing on it (Paid by, past what it holds, or a reference that doesn't fit) once Next was tapped: a folded card opens to show it
+  const refBad =
+    !!picked &&
+    !isCash &&
+    !!picked.mode &&
+    !refOkFor(picked.mode, refs[picked.id]?.mode === picked.mode ? refs[picked.id]!.text : "");
+  const faulty = tried && !!picked && ((!isCash && picked.mode === null) || short || refBad);
   useEffect(() => {
     if (folded && faulty) onFold(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when it turns faulty or is folded
   }, [folded, faulty]);
   const card =
-    "flex min-w-0 flex-col justify-between gap-3 rounded-control p-3 shadow-[0_0_5px_0] shadow-chestnut/25 bg-chestnut/8 sm:w-[calc(50%-0.375rem)]";
+    "flex min-w-0 flex-col justify-between gap-3 rounded-control p-3 shadow-[0_0_5px_0] shadow-chestnut/25 bg-chestnut/8 w-full";
+  // a bank account's UTR or cheque number, once it says how it was paid: under Paid by, or under the QR for UPI
+  const refField = picked && !isCash && picked.amount > 0 && picked.mode && (
+    <BankRefField
+      plain
+      mode={picked.mode}
+      text={refs[picked.id]?.mode === picked.mode ? refs[picked.id]!.text : ""}
+      onText={(text) => {
+        setRefLeft((l) => l.filter((k) => k !== picked.id));
+        setRefs((r) => ({ ...r, [picked.id]: { mode: picked.mode!, text } }));
+      }}
+      left={refLeft.includes(picked.id)}
+      onLeave={() => setRefLeft((l) => (l.includes(picked.id) ? l : [...l, picked.id]))}
+      tried={tried}
+    />
+  );
   // this account's QR, when it pays by UPI
   const ownQr = (picked && qrItems.find((q) => q.key === picked.id)) ?? null;
   // the arrow that folds the card or opens it again
@@ -104,9 +140,9 @@ export function ManualAccountCard({
     </button>
   );
 
-  // folded: one line, the amount on the left, cash or the bank and its last digits with the arrow on the right
-  if (folded && whole && picked)
-    return (
+  // folded: one line, the amount on the left, cash or the bank and its last digits with the arrow on the right (no balance)
+  const foldedView =
+    whole && picked ? (
       // red-edged when Next was tapped with something still missing on it (Paid by, or past what it holds)
       // a tap anywhere on it (but its buttons) opens it; only as tall as what it shows
       <div
@@ -134,23 +170,18 @@ export function ManualAccountCard({
             {rupees(picked.amount)}
           </span>
           <span className="flex min-w-0 items-center gap-1">
-            <span className="min-w-0 truncate text-sm font-semibold">
-              {picked.name}
-              {picked.sub && <span className="ml-1.5 font-normal opacity-70">{picked.sub}</span>}
-            </span>
-            {/* what it holds, muted (not for staff, who see no balances) */}
-            {picked.held !== null && (
-              <span className="tabular ml-1.5 shrink-0 text-sm opacity-60">
-                {rupees(picked.held)}
-              </span>
+            {/* a long bank name is cut short; its last digits always show in full */}
+            <span className="min-w-0 truncate text-sm font-semibold">{picked.name}</span>
+            {picked.sub && (
+              <span className="tabular ml-0.5 shrink-0 text-sm opacity-70">{picked.sub}</span>
             )}
             {arrow}
           </span>
         </div>
       </div>
-    );
+    ) : null;
 
-  return (
+  const openView = (
     // a tap on the card's plain parts (not a field, chip or button) folds it, once it can fold
     <div
       // open cards in a row match the tallest open one
@@ -234,6 +265,8 @@ export function ManualAccountCard({
           />
         </div>
       )}
+      {/* its UTR or cheque number right under Paid by (UPI: under the QR instead) */}
+      {picked?.mode !== "upi" && refField}
       {/* by UPI: the box for who's paid's UPI ID (under Paid by, above the QR), while there's none yet or the pen was tapped */}
       {picked && picked.amount > 0 && picked.mode === "upi" && (
         <>
@@ -249,10 +282,14 @@ export function ManualAccountCard({
             payee={ownQr.payee}
             amount={ownQr.amount}
             note={ownQr.note}
-            hideId
+            // the ID above the code with a pen to change it; not while it's being changed in the box
+            hideId={upiEditing}
+            onEdit={() => setUpiEditing(true)}
           />
         </div>
       )}
+      {/* by UPI: its UTR under the QR and its amount */}
+      {picked?.mode === "upi" && refField}
       {/* the bin, and the arrow that folds it once it's whole */}
       {(whole || remove) && (
         <div className="mt-auto flex items-center justify-end gap-2">
@@ -260,6 +297,19 @@ export function ManualAccountCard({
           {whole && arrow}
         </div>
       )}
+    </div>
+  );
+
+  // folded and open swap with the same fold-and-rise as any part that comes and goes; the card as wide as a grid box
+  const showFolded = folded && whole && !!picked;
+  return (
+    <div className="flex min-w-0 flex-col sm:w-[calc(50%-0.375rem)]">
+      <Reveal show={showFolded} gap="0px">
+        {foldedView}
+      </Reveal>
+      <Reveal show={!showFolded} gap="0px">
+        {openView}
+      </Reveal>
     </div>
   );
 }
@@ -307,8 +357,8 @@ export function ManualAccounts() {
   const done = value > 0 && left === 0;
   return (
     <div className="flex flex-col gap-3">
-      {/* Breakdown, headed like the card's own heading, with Auto right beside it */}
-      <div className="flex items-center gap-3">
+      {/* Breakdown, headed like the card's own heading; Auto at the right edge on a phone, right beside it wider */}
+      <div className="flex items-center justify-between gap-3 sm:justify-start">
         <h3 className="text-xs font-semibold uppercase tracking-[0.08em] opacity-60">
           {t("breakdown")}
         </h3>
@@ -323,7 +373,7 @@ export function ManualAccounts() {
           aria-valuemin={0}
           aria-valuemax={value}
           aria-valuenow={given}
-          className="h-3 overflow-hidden rounded-full bg-success/15 shadow-[inset_0_0_0_1px] shadow-success/25"
+          className="h-3 overflow-hidden rounded-full bg-transparent shadow-[inset_0_0_0_1px] shadow-success/25"
         >
           <div
             className={cn(
@@ -376,7 +426,8 @@ export function ManualAccounts() {
               setPicks((all) => [...all, null]);
               setFolds((all) => [...all.map(() => true), false]);
             }}
-            className={ADD_ON_IVORY}
+            // as tall as a folded card (its 36px arrow and 6px above and below)
+            className={cn(ADD_ON_IVORY, "min-h-12")}
           >
             <Plus className="size-4" aria-hidden />
             {t("anotherAccount")}

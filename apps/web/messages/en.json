@@ -1576,6 +1576,7 @@
         },
         "paidBy": "Paid by",
         "pickMode": "Pick how it was paid.",
+        "refOptional": "(optional)",
         "refLabel": {
           "upi": "Reference number",
           "imps": "IMPS reference no.",

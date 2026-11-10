@@ -61,7 +61,7 @@ export function AmountTable({
   const main = totalAt >= 0 ? rows.slice(0, totalAt + 1) : rows;
   const rest = totalAt >= 0 ? rows.slice(totalAt + 1) : [];
   return (
-    <div className="flex flex-col gap-2.5">
+    <div className="flex flex-col gap-4">
       <RowsBox rows={main} />
       {rest.length > 0 && <RowsBox rows={rest} />}
     </div>

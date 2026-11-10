@@ -1,8 +1,7 @@
 "use client";
 
 import { PlacePicker } from "../shared/place-picker";
-import { ChevronDown, IndianRupee, Pencil, Plus, Trash2 } from "lucide-react";
-import { useRef } from "react";
+import { ChevronDown, IndianRupee, Plus, Trash2 } from "lucide-react";
 import { Reveal } from "~/components/ui/reveal";
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
 import { FieldMessage } from "~/components/ui/field-message";
@@ -432,21 +431,19 @@ export function UpiField() {
     upiLabel,
   } = usePaymentEntry();
   const bad = (upiLeft || tried) && typedUpi.trim() !== "" && !typedUpiOk;
-  // kept: saved on them already, or typed and Saved; the box then shows it read-only with Edit, and the QR takes it
+  // kept: saved on them already, or typed and Saved; the box then goes, and the ID shows above the QR with a pen
   const kept =
     !editing && typedUpiOk && (upiLeft || savedUpis.includes(typedUpi.trim().toLowerCase()));
-  const box = useRef<HTMLInputElement>(null);
   return (
-    <Reveal follow show={asksUpi} gap="0px">
-      {/* always there while someone is paid by UPI: the box with Save beside it while it's being typed, Edit once
-          it's kept */}
+    <Reveal follow show={asksUpi && !kept} gap="0px">
+      {/* while there's none yet, or the pen above the QR was tapped: the box with Save beside it. Once kept, it shows
+          above the QR instead, with the pen */}
       <label className="flex flex-col gap-2 text-xs font-semibold">
         {/* named for who's paid: Supplier UPI ID, Lender UPI ID, Landlord UPI ID ... */}
         <span>{t(upiLabel)}</span>
         <span className="flex min-w-0 items-center gap-2">
           <input
-            ref={box}
-            readOnly={kept}
+            autoFocus={editing}
             type="text"
             inputMode="email"
             autoCapitalize="none"
@@ -470,22 +467,13 @@ export function UpiField() {
             // a tap keeps the box from losing focus first
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
-              if (kept) {
-                setEditing(true);
-                box.current?.focus();
-                return;
-              }
               setUpiLeft(true);
               if (typedUpiOk) setEditing(false);
             }}
-            disabled={!kept && typedUpi.trim() === ""}
-            className={cn(
-              "flex min-h-11 shrink-0 items-center gap-1.5 rounded-control px-4 text-sm font-semibold disabled:opacity-40",
-              kept ? "border border-chestnut/50 hover:border-chestnut" : "bg-chestnut text-ivory",
-            )}
+            disabled={typedUpi.trim() === ""}
+            className="flex min-h-11 shrink-0 items-center justify-center rounded-control bg-chestnut px-4 text-sm font-semibold text-ivory disabled:opacity-40"
           >
-            {kept && <Pencil className="size-3.5" aria-hidden />}
-            {t(kept ? "editUpi" : "saveUpi")}
+            {t("saveUpi")}
           </button>
         </span>
         {bad && (

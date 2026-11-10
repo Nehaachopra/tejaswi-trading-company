@@ -104,6 +104,7 @@ export function BankRefField({
   onLeave,
   tried,
   account,
+  plain = false,
 }: {
   mode: BankMode;
   text: string;
@@ -112,6 +113,8 @@ export function BankRefField({
   onLeave: () => void;
   tried: boolean;
   account?: string;
+  // no hint inside the box, and "(optional)" in the label like every optional field (a payment's bank cards)
+  plain?: boolean;
 }) {
   const t = useTranslations("transactions.payment.form");
   const digits = mode !== "neftRtgs";
@@ -120,7 +123,10 @@ export function BankRefField({
   return (
     <label className="flex flex-col gap-2.5 text-xs font-semibold">
       <span className="flex justify-between gap-3">
-        <span>{t(`refLabel.${mode}`)}</span>
+        <span>
+          {t(`refLabel.${mode}`)}
+          {plain && ` ${t("refOptional")}`}
+        </span>
         {account && <span className="font-normal opacity-70">{account}</span>}
       </span>
       <input
@@ -128,7 +134,7 @@ export function BankRefField({
         maxLength={most}
         inputMode={digits ? "numeric" : "text"}
         autoCapitalize="characters"
-        placeholder={t(`refHint.${mode}`)}
+        placeholder={plain ? undefined : t(`refHint.${mode}`)}
         onChange={(e) => {
           const v = digits
             ? e.target.value.replace(/\D/g, "")
