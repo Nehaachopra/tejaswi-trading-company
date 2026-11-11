@@ -338,6 +338,11 @@ export function AddressFields({
   // again for the new town)
   const setCity = (city: string) => {
     if (city === address.city) return;
+    // the town cleared: its PIN, district and state go with it
+    if (city.trim() === "") {
+      pinFromTown.current = "";
+      return onChange({ city, postalCode: "", district: "", state: "", stateCode: null });
+    }
     const pinWasFilled = address.postalCode !== "" && address.postalCode === pinFromTown.current;
     onChange(pinWasFilled ? { city, postalCode: "" } : { city });
   };

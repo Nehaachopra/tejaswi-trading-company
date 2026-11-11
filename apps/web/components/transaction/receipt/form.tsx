@@ -24,7 +24,7 @@ import {
 } from "../shared/entry-frame";
 import { AmountCard } from "./amount-card";
 import { DetailsCard, SaveBlock } from "./details-card";
-import { FromPicker, LoanCards, LoanTakenFrom } from "./received-from";
+import { BuyerPicker, FromPicker, LoanCards, LoanTakenFrom } from "./received-from";
 import { chip, input, KINDS, type Step } from "./shared";
 import { ReceiptEntryProvider, useReceiptEntry, useReceiptEntryState } from "./state";
 
@@ -178,6 +178,9 @@ function CardBody({ step }: { step: Step }) {
     // who it came from: the open loan, a lender, or a party or ledger found (or added)
     case "from":
       return loanOf ? <LoanCards /> : kind === "loanTaken" ? <LoanTakenFrom /> : <FromPicker />;
+    // a scrap sale: who bought it
+    case "buyer":
+      return <BuyerPicker />;
     case "terms":
       return <TermsCard />;
     // how much, any TDS they deducted, and where it came into

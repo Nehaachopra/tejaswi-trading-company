@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus, Search } from "lucide-react";
+import { useEffect } from "react";
 
 import { fieldClass } from "~/components/ui/card-form";
 import { dayInWords } from "~/components/ui/date-input";
@@ -20,6 +21,7 @@ import { cn } from "~/lib/utils";
 
 import { indiaDay } from "../../account/balance";
 import {
+  draftUntouched,
   emptyDraft as emptyParty,
   PartyFields,
   type PartyDraft,
@@ -266,7 +268,6 @@ export function FromPicker() {
     setEditingFrom,
     matched,
     movesOn,
-    scrap,
   } = useReceiptEntry();
   const ownLedger = LEDGER_KINDS.includes(kind!);
   return (
@@ -312,9 +313,6 @@ export function FromPicker() {
         />
       )}
 
-      {/* a scrap sale: who bought it, once Scrap sale is picked */}
-      {scrap && <BuyerPicker />}
-
       {from?.kind === "party" && (
         <NewPartyDetails
           draft={newParty}
@@ -328,13 +326,17 @@ export function FromPicker() {
 }
 
 // a scrap sale's buyer, whose address goes on the invoice: a customer found, or (the admin) a new one added right
-// here, made a customer with the receipt. Picking one moves on by itself
-function BuyerPicker() {
-  const { isAdmin, t, tc, buyer, setBuyer, buyerDraft, setBuyerDraft, buyerMatched, movesOn } =
+// here, made a customer with the receipt; on its own card (Bought by) after the ledger. Picking one moves on by itself
+export function BuyerPicker() {
+  const { isAdmin, tc, buyer, setBuyer, buyerDraft, setBuyerDraft, buyerMatched, movesOn } =
     useReceiptEntry();
+  // back on this card with a new buyer left empty: the search again
+  useEffect(() => {
+    if (buyer?.kind === "party" && draftUntouched(buyerDraft)) setBuyer(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the card opens
+  }, []);
   return (
     <div className="flex flex-col gap-2.5">
-      <h3 className="text-xs font-semibold">{t("buyer")}</h3>
       <LedgerSearch
         purpose="receipt"
         receiptKind="customer"

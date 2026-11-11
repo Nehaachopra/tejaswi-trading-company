@@ -9,7 +9,6 @@ import DueService from "../due";
 import PartyService from "../party";
 import TransactionService from "../transaction";
 import SettingService from "../setting";
-import { appOfUpi } from "../bank/upi-handles";
 import { BANK_MODE_DB, type BankMode, SETTLED_IN_DB, type SettledInModel } from "../payment/model";
 import { counterLedger, moneyPartsIn } from "../transaction/settle";
 import type { Tx } from "../stock/engine";
@@ -200,7 +199,7 @@ export default class ReceiptService {
         // the account's default when it has no other
         if (!held) {
           const [other] = await tx.select({ id: bankUpiIdsTable.id }).from(bankUpiIdsTable).where(eq(bankUpiIdsTable.bankDetailsId, u.bankDetailsId)).limit(1);
-          await tx.insert(bankUpiIdsTable).values({ bankDetailsId: u.bankDetailsId, upiId: u.upiId, provider: appOfUpi(u.upiId)!, isDefault: !other });
+          await tx.insert(bankUpiIdsTable).values({ bankDetailsId: u.bankDetailsId, upiId: u.upiId, provider: u.provider, isDefault: !other });
         }
       }
 

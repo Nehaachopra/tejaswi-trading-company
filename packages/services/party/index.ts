@@ -18,6 +18,7 @@ import SalaryService from "../salary";
 import { toPaise } from "../accounts/money";
 import type { ActorModel } from "../accounts/model";
 import { financialYear } from "../setting/model";
+import { currentTownName, townNames } from "./town-names";
 import type { Tx } from "../stock/engine";
 import {
   type CreatePartyInputModel,
@@ -313,10 +314,13 @@ export default class PartyService {
     return place ?? null;
   }
 
-  // the other way round: the PIN a town was saved with most often, with its district and state
+  // the other way round: the PIN a town was saved with most often, with its district and state (none when the saved
+  // addresses disagree on its district)
   async townPin(rawInput: TownPinInputModel): Promise<TownPinModel> {
     const input = townPinInputModel.parse(rawInput);
-    const [place] = await db
+    // every place saved with that town, the most used first; when they don't agree on the district, none is trusted
+    // (one wrong address shouldn't fill in every new one) and the screen asks India Post instead
+    const places = await db
       .select({
         postalCode: partyAddressesTable.postalCode,
         district: partyAddressesTable.district,
@@ -324,11 +328,13 @@ export default class PartyService {
         stateCode: partyAddressesTable.stateCode,
       })
       .from(partyAddressesTable)
-      .where(and(sql`lower(${partyAddressesTable.city}) = ${input.city.toLowerCase()}`, eq(partyAddressesTable.isActive, true)))
+      // under any name the town goes by (Tumkur or Tumakuru)
+      .where(and(inArray(sql`lower(${partyAddressesTable.city})`, townNames(input.city).map((n) => n.toLowerCase())), eq(partyAddressesTable.isActive, true)))
       .groupBy(partyAddressesTable.postalCode, partyAddressesTable.district, partyAddressesTable.state, partyAddressesTable.stateCode)
-      .orderBy(desc(count()), desc(sql`max(${partyAddressesTable.updatedAt})`))
-      .limit(1);
-    return place ? { ...place, stateCode: place.stateCode as NonNullable<TownPinModel>["stateCode"] } : null;
+      .orderBy(desc(count()), desc(sql`max(${partyAddressesTable.updatedAt})`));
+    const districts = new Set(places.map((p) => currentTownName(p.district.trim()).toLowerCase()));
+    const place = districts.size === 1 ? places[0] : undefined;
+    return place ? { ...place, district: currentTownName(place.district), stateCode: place.stateCode as NonNullable<TownPinModel>["stateCode"] } : null;
   }
 
   async get(input: PartyIdInputModel): Promise<PartyModel> {

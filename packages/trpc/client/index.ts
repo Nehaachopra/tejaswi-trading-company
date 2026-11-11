@@ -22,4 +22,5 @@ export { GSTIN_PATTERN, PHONE_PATTERN } from "@repo/services/party/model";
 export { gstOutOf, SCRAP_GST } from "@repo/services/receipt/model";
 
 // the UPI handles each app gives out, shared with the bank form
-export { appOfUpi, UPI_HANDLES, upiFormatOk, upiProblem } from "@repo/services/bank/upi-handles";
+export { appOfUpi, UPI_HANDLES, type UpiApp, upiFormatOk, upiProblem } from "@repo/services/bank/upi-handles";
+export { currentTownName, townNames } from "@repo/services/party/town-names";

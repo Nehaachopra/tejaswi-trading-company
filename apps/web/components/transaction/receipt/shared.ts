@@ -19,7 +19,7 @@ export {
 export type Loan = RouterOutputs["transactions"]["due"]["openLoans"][number];
 
 // the cards, in order (only the ones that apply are shown); "into" is where it came into, on the Amount card
-export type Step = "kind" | "from" | "terms" | "amount" | "into" | "details";
+export type Step = "kind" | "from" | "buyer" | "terms" | "amount" | "into" | "details";
 
 // what it can be received for, in the order people reach for them; which come from a party found or added, which
 // can add a ledger of their own, and which name an open loan we gave

@@ -55,6 +55,7 @@ export function AmountTable({
   open: boolean;
   always?: boolean;
 }) {
+  const t = useTranslations("transactions.chat.sum");
   if (!hasBreakdown(rows) && !(always && open)) return null;
   // the rows up to the total in one box; those after it (a due and an advance) in a box of their own, a gap above it
   const totalAt = rows.findIndex((r) => r.tone === "total");
@@ -62,6 +63,10 @@ export function AmountTable({
   const rest = totalAt >= 0 ? rows.slice(totalAt + 1) : [];
   return (
     <div className="flex flex-col gap-4">
+      {/* headed like the cards' Breakdown */}
+      <h3 className="-mb-1 text-xs font-semibold uppercase tracking-[0.08em] opacity-60">
+        {t("breakup")}
+      </h3>
       <RowsBox rows={main} />
       {rest.length > 0 && <RowsBox rows={rest} />}
     </div>

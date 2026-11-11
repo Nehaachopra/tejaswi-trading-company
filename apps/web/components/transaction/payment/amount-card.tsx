@@ -291,8 +291,11 @@ export function AmountCard() {
             </div>
           </div>
         </div>
-        {/* wider screens: the amount's breakdown on the right, always there once there's an amount */}
-        <div className="hidden min-w-0 flex-col gap-2.5 sm:flex">{breakdown(true)}</div>
+        {/* wider screens: the amount's breakdown on the right, always there once there's an amount; raised so its
+            Breakup heading sits level with the card's (not for rent, whose godowns sit above) */}
+        <div className={cn("hidden min-w-0 flex-col gap-2.5 sm:flex", !rentCalc && "sm:-mt-7")}>
+          {breakdown(true)}
+        </div>
       </div>
       {/* the breakdown of where it's paid from (a box for each place, its UPI ID, the cash warning), the card's full width */}
       <PaidFrom part="rest" />

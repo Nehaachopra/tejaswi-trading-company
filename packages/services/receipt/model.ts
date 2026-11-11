@@ -2,7 +2,8 @@ import { z } from "zod";
 
 import { amountModel, ledgerNameModel, ledgerSummaryModel, LOAN_RECEIPT_KINDS, PARTY_RECEIPT_KINDS, type ReceiptKind, receiptKindModel } from "../accounts/model";
 import { lenderLoanInputModel, loanTermsInputModel } from "../due/model";
-import { appOfUpi } from "../bank/upi-handles";
+import { upiProblem } from "../bank/upi-handles";
+import { upiProviderModel } from "../bank/model";
 import { createPartyInputModel, partyUpiIdModel } from "../party/model";
 import { BANK_MODE_REFERENCE, bankModeModel, moreBankPartModel, settledInModel } from "../payment/model";
 import { remarksModel } from "../transaction/model";
@@ -73,9 +74,14 @@ export const createReceiptInputModel = z
     // more bank accounts it came into: each with what came in, how and its reference (the first account, above, took
     // the rest)
     moreBankParts: z.array(moreBankPartModel).max(4).default([]),
-    // a UPI ID typed for an account that had none (for its QR): added to that account with the receipt
+    // a UPI ID typed for an account that had none (for its QR), with the app it's in: added to that account with the
+    // receipt. Its handle must be one that app uses
     bankUpiIds: z
-      .array(z.object({ bankDetailsId: idModel, upiId: partyUpiIdModel.refine((u) => appOfUpi(u) !== null, "That isn't a UPI app's handle.") }))
+      .array(
+        z
+          .object({ bankDetailsId: idModel, upiId: partyUpiIdModel, provider: upiProviderModel })
+          .refine((u) => upiProblem(u.upiId, u.provider) === null, { message: "That handle isn't one this app uses.", path: ["upiId"] }),
+      )
       .max(5)
       .default([]),
     tdsRate: rateModel.nullable().default(null),

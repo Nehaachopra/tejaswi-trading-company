@@ -31,6 +31,7 @@ export function PickMenu<T extends string | null>({
   onTyped,
   typedLabel,
   openSignal,
+  onOpenChange,
   moneyHints = false,
   addLabel,
   onAdd,
@@ -64,6 +65,8 @@ export function PickMenu<T extends string | null>({
   typedLabel?: (text: string) => string;
   // each new number opens the list (see Menu)
   openSignal?: number;
+  // told each time the list opens or closes
+  onOpenChange?: (open: boolean) => void;
   // the hints are money (balances): shown large and bold, never muted
   moneyHints?: boolean;
   // something new, the list's last row as a payment's ledger list has it ("+ New ledger"), always in view as it scrolls
@@ -92,6 +95,7 @@ export function PickMenu<T extends string | null>({
       panelClassName={searchable && !matchWidth ? "w-72 max-w-[calc(100vw-2rem)]" : undefined}
       disabled={disabled}
       openSignal={openSignal}
+      onOpenChange={onOpenChange}
       triggerClassName={cn(
         "min-h-11 w-full min-w-0 justify-between border-0 px-3 text-sm shadow-[0_0_5px_0] shadow-chestnut/40",
         invalid && "shadow-danger/80",

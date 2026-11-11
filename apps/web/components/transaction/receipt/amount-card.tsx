@@ -13,15 +13,15 @@ import { rupees } from "~/lib/format";
 import { SCRAP_GST } from "@repo/trpc/client";
 import { cn } from "~/lib/utils";
 
-import { type AmountRow, AmountTable, BreakdownButton, hasBreakdown } from "../shared/amount-table";
+import { type AmountRow, AmountTable, hasBreakdown } from "../shared/amount-table";
 import { AmountBox } from "../shared/amount-box";
 import { ReceivedInto } from "./received-into";
 import { input, saidAmount } from "./shared";
-import { QrSpot } from "../shared/qr-spot";
 import { useReceiptEntry } from "./state";
 
-// the Amount card: on a phone one column; on a wider screen the amount (what's owed, the TDS they deducted, the
-// breakdown) on the left and where it came into on the right, starting level
+// the Amount card, laid out as a payment's: on a phone one column; on a wider screen the due, the amount and where it
+// came into on the left, the amount's breakdown on the right, starting level; then the Received into breakdown (a card
+// per place, each with its QR and reference) the card's full width
 export function AmountCard() {
   const {
     t,
@@ -47,15 +47,14 @@ export function AmountCard() {
     setInterestTyped,
     interestWorked,
     interestDue,
-    breakdownOpen,
-    qrItem,
   } = useReceiptEntry();
   const rows = useAmountRows();
-  // the amount's breakdown (by itself once there's TDS or an advance, else from the arrow): what came in, the TDS they deducted (its switch in the row), the
-  // total, and of it the due and the advance; then the TDS's section once it's on
+  // the amount's breakdown: what came in, the TDS they deducted (its switch in the row), the total, and of it the due
+  // and the advance; then the TDS's note once it's on. Wider screens: on the right once there's an amount. Phone: under
+  // the amount only once there's TDS to set or something to break down
   const breakdown = (
     <>
-      {value > 0 && <AmountTable rows={rows} open={breakdownOpen} always={tdsCan} />}
+      {value > 0 && <AmountTable rows={rows} open always />}
       <Reveal follow show={tdsCan && tdsOnIt && value > 0}>
         <Note className="text-chestnut/70">
           {t(kind === "interestReceived" ? "tdsNote194A" : "tdsNote194Q")}
@@ -63,36 +62,35 @@ export function AmountCard() {
       </Reveal>
     </>
   );
+  const onPhone = value > 0 && (tdsCan || hasBreakdown(rows));
   return (
-    <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-6">
-      {/* on the left, one under another: the due, the amount, then where it came into; on the right the QR, when
-          there's one. One column on a phone */}
-      <div className="flex min-w-0 flex-col gap-4">
-        {/* what's owed, in a box like a deposit's cash in hand, as soon as something is owed */}
-        {dueShown !== null && (
-          <div className="min-w-0">
-            <AmountBox icon={HandCoins} label={t("due")} amount={dueShown} />
-          </div>
-        )}
+    <div className="flex flex-col gap-4">
+      <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-6">
         <div className="flex min-w-0 flex-col gap-4">
-          {interestCalc ? (
-            // interest on a loan we gave: the months, and what they come to (or a figure typed from a statement)
-            <div className="grid grid-cols-[6rem_minmax(0,1fr)] items-end gap-x-6">
-              <label className="flex flex-col gap-2.5 text-xs font-semibold">
-                {tpf("months")}
-                <NumberInput
-                  value={interestTyped !== null ? "" : interestMonths}
-                  onChange={(v) => {
-                    setInterestTyped(null);
-                    setInterestMonths(v !== "" && Number(v) < 1 ? "1" : v);
-                  }}
-                  maxDigits={3}
-                  max={120}
-                  placeholder="--"
-                  className={cn(input(false), "min-h-14 tabular")}
-                />
-              </label>
-              <WithBreakdown>
+          {/* what's owed, in a box like a deposit's cash in hand, as soon as something is owed */}
+          {dueShown !== null && (
+            <div className="min-w-0">
+              <AmountBox icon={HandCoins} label={t("due")} amount={dueShown} />
+            </div>
+          )}
+          <div className="flex min-w-0 flex-col gap-4">
+            {interestCalc ? (
+              // interest on a loan we gave: the months, and what they come to (or a figure typed from a statement)
+              <div className="grid grid-cols-[6rem_minmax(0,1fr)] items-end gap-x-6">
+                <label className="flex flex-col gap-2.5 text-xs font-semibold">
+                  {tpf("months")}
+                  <NumberInput
+                    value={interestTyped !== null ? "" : interestMonths}
+                    onChange={(v) => {
+                      setInterestTyped(null);
+                      setInterestMonths(v !== "" && Number(v) < 1 ? "1" : v);
+                    }}
+                    maxDigits={3}
+                    max={120}
+                    placeholder="--"
+                    className={cn(input(false), "min-h-14 tabular")}
+                  />
+                </label>
                 <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
                   {tpf("interestDue")}
                   <span className={cn("relative block", interestDue > 0 && "text-ivory")}>
@@ -115,11 +113,10 @@ export function AmountCard() {
                     />
                   </span>
                 </label>
-              </WithBreakdown>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2.5">
-              <WithBreakdown>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {/* the amount */}
                 <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
                   <span>
                     {tc("q.amount")}
@@ -150,38 +147,40 @@ export function AmountCard() {
                     </MicField>
                   </div>
                 </label>
-              </WithBreakdown>
-              {/* the breakdown right under the amount */}
-              {breakdown}
-              {/* an advance they already have with us, before anything's typed */}
-              <Reveal follow show={heldAdvance > 0 && advance === 0} gap="0.625rem">
-                <Note className="tabular text-chestnut/70">
-                  {t("heldAdvance", { amount: rupees(heldAdvance) })}
-                </Note>
-              </Reveal>
-            </div>
-          )}
-          {loanOver && (
-            <FieldMessage className="mt-0">
-              {tc("problems.loanLeft", { left: rupees(loan!.left) })}
-            </FieldMessage>
-          )}
+                {/* on a phone the breakdown right under the amount (wider screens: on the right) */}
+                {onPhone && <div className="flex flex-col gap-2.5 sm:hidden">{breakdown}</div>}
+                {/* an advance they already have with us, before anything's typed */}
+                <Reveal follow show={heldAdvance > 0 && advance === 0} gap="0.625rem">
+                  <Note className="tabular text-chestnut/70">
+                    {t("heldAdvance", { amount: rupees(heldAdvance) })}
+                  </Note>
+                </Reveal>
+              </div>
+            )}
+            {loanOver && (
+              <FieldMessage className="mt-0">
+                {tc("problems.loanLeft", { left: rupees(loan!.left) })}
+              </FieldMessage>
+            )}
 
-          {/* interest has no due bar: its breakdown goes under its figures */}
-          {interestCalc && breakdown}
+            {/* interest: on a phone its breakdown under its figures (wider screens: on the right) */}
+            {interestCalc && onPhone && (
+              <div className="flex flex-col gap-2.5 sm:hidden">{breakdown}</div>
+            )}
+          </div>
+
+          {/* where it came into, in this same card, under the amount */}
+          <div className="flex min-w-0 flex-col gap-2.5">
+            <h3 className="text-xs font-semibold">{t("steps.into")}</h3>
+            <ReceivedInto part="top" />
+          </div>
         </div>
-
-        {/* where it came into, in this same card */}
-        <div className="flex min-w-0 flex-col gap-2.5">
-          <h3 className="text-xs font-semibold">{t("steps.into")}</h3>
-          <ReceivedInto />
-        </div>
+        {/* wider screens: the amount's breakdown on the right, always there once there's an amount; raised so its
+            Breakup heading sits level with the card's */}
+        <div className="hidden min-w-0 flex-col gap-2.5 sm:-mt-7 sm:flex">{breakdown}</div>
       </div>
-
-      {/* our QR for a UPI payment */}
-      <div className="min-w-0 sm:sticky sm:top-24">
-        <QrSpot item={qrItem} />
-      </div>
+      {/* the breakdown of where it came into (a card for each place, its QR and reference), the card's full width */}
+      <ReceivedInto part="rest" />
     </div>
   );
 }
@@ -243,18 +242,4 @@ function useAmountRows(): AmountRow[] {
         ]
       : []),
   ];
-}
-
-// an amount's field with the breakdown's arrow beside it, only to reach the TDS switch they could set while nothing
-// else needs breaking down (once something does, the breakdown shows by itself)
-function WithBreakdown({ children }: { children: React.ReactNode }) {
-  const { value, tdsCan, breakdownOpen, setBreakdownOpen } = useReceiptEntry();
-  const rows = useAmountRows();
-  if (value === 0 || !tdsCan || hasBreakdown(rows)) return <>{children}</>;
-  return (
-    <div className="flex min-w-0 items-end gap-2">
-      <div className="min-w-0 flex-1">{children}</div>
-      <BreakdownButton open={breakdownOpen} onToggle={() => setBreakdownOpen((o) => !o)} />
-    </div>
-  );
 }

@@ -20,6 +20,7 @@ export function Menu({
   asksFirst = false,
   disabled,
   openSignal = 0,
+  onOpenChange,
   children,
 }: {
   label: string;
@@ -41,12 +42,18 @@ export function Menu({
   disabled?: boolean;
   // each new number opens the panel from outside (a question answered No: pick again)
   openSignal?: number;
+  // told each time the panel opens or closes
+  onOpenChange?: (open: boolean) => void;
   children: (close: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (openSignal > 0) setOpen(true);
   }, [openSignal]);
+  useEffect(() => {
+    onOpenChange?.(open);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when it opens or closes
+  }, [open]);
   const root = useRef<HTMLDivElement>(null);
   const panelId = useId();
   const close = () => setOpen(false);

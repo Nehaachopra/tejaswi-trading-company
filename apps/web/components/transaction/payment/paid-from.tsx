@@ -7,7 +7,9 @@ import { cn } from "~/lib/utils";
 import { usePaymentEntry } from "./state";
 import { type Place, PlacePicker } from "../shared/place-picker";
 import { FailNote } from "./notes";
-import { ManualAccounts } from "./manual-account-card";
+import { AccountCards } from "../shared/account-cards/account-cards";
+import { type AccountCardsApi } from "../shared/account-cards/types";
+import { UpiField } from "./bank-cards";
 
 // where it's paid from: cash, a bank or both, picked from an accordion with the bank accounts' look, each with what
 // it holds (the admin only), collapsed to the pick; then one
@@ -63,6 +65,7 @@ export function PaidFrom({ part }: { part: "top" | "rest" }) {
     },
   ];
   const usesBank = into === "bank" || into === "both";
+  const cardsApi = usePaymentCards();
   // the top: cash, bank or both
   if (part === "top")
     return (
@@ -95,7 +98,7 @@ export function PaidFrom({ part }: { part: "top" | "rest" }) {
     <>
       {/* Bank, or Cash + Bank: a card per place, Auto or not */}
       {/* keyed by the place, so a new one starts with fresh cards */}
-      {usesBank && <ManualAccounts key={into} />}
+      {usesBank && <AccountCards key={into} api={cardsApi} />}
 
       {/* the cash-limit warning, when there is one */}
       <Reveal follow show={overCashLimit || cashTodayFailed} gap="0.625rem">
@@ -118,4 +121,41 @@ export function PaidFrom({ part }: { part: "top" | "rest" }) {
       </Reveal>
     </>
   );
+}
+
+// the bank cards with a payment's words and parts: capped at what each place holds, Auto, the payee's UPI ID box
+function usePaymentCards(): AccountCardsApi {
+  const e = usePaymentEntry();
+  const { t, tc } = e;
+  return {
+    value: e.value,
+    places: e.gridPlaces,
+    setText: e.setGridText,
+    setMode: e.setGridMode,
+    tried: e.tried,
+    capAtHeld: true,
+    auto: { on: e.gridAuto, set: e.setGridAuto },
+    qrItems: e.qrItems,
+    qrIdLabel: t(e.upiLabel),
+    // the payee's UPI ID above every QR, with a pen; hidden while it's being changed in its box
+    qrId: () => ({ hideId: e.upiEditing, onEdit: () => e.setUpiEditing(true) }),
+    upiPart: () => <UpiField />,
+    refs: e.refs,
+    setRefs: e.setRefs,
+    refLeft: e.refLeft,
+    setRefLeft: e.setRefLeft,
+    labels: {
+      breakdown: t("breakdown"),
+      account: t("account"),
+      accountAmount: t("accountAmount"),
+      anotherAccount: t("anotherAccount"),
+      removeAccount: tc("removeAccount"),
+      mode: t("paidBy"),
+      modeMissing: t("pickMode"),
+      barTotal: t("barTotal"),
+      barGivenLabel: t("barPaidLabel"),
+      capLeft: (amount) => t("capLeft", { amount }),
+      capOnly: (amount) => t("capOnly", { amount }),
+    },
+  };
 }

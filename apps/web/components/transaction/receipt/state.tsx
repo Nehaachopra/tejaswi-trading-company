@@ -12,7 +12,15 @@ import { type GridPlace } from "../shared/split-grid";
 import { rupees, titleCase } from "~/lib/format";
 import { useLeaveGuard } from "~/lib/use-leave-guard";
 import { useLoansGiven, useReceipt } from "~/providers/receipt";
-import { appOfUpi, type BankMode, gstOutOf, SCRAP_GST, upiFormatOk } from "@repo/trpc/client";
+import {
+  appOfUpi,
+  type BankMode,
+  gstOutOf,
+  SCRAP_GST,
+  type UpiApp,
+  upiFormatOk,
+  upiProblem,
+} from "@repo/trpc/client";
 
 import { indiaDay } from "../../account/balance";
 import { useLedgerName } from "../../account/ledger-name";
@@ -116,6 +124,10 @@ export function useReceiptEntryState({
   // (their mistakes show then, not while the handle is still being typed)
   const [ourUpis, setOurUpis] = useState<Record<string, string>>({});
   const [ourUpisLeft, setOurUpisLeft] = useState<string[]>([]);
+  // the app each typed UPI ID is in (by account): picked, or picked by itself from a known handle (@ybl → PhonePe)
+  const [ourUpiApps, setOurUpiApps] = useState<Record<string, UpiApp | null>>({});
+  // the account whose typed UPI ID is being changed (the pen above its QR brings its box back)
+  const [ourUpiEditing, setOurUpiEditing] = useState<string | null>(null);
   // made when the form opens: a second save with it (a retry after the connection dropped) gets the first one's result
   const [saveKey] = useState(() => crypto.randomUUID());
   // Bank picked: the accounts' list opens by itself (back to 0 once an account is picked, so it doesn't open again)
@@ -133,7 +145,6 @@ export function useReceiptEntryState({
   const [cashRef, setCashRef] = useState("");
   const [remarks, setRemarks] = useState("");
   // the amount's breakdown, opened from the arrow beside its field
-  const [breakdownOpen, setBreakdownOpen] = useState(false);
   // interest received: the months it's for, or what was typed in from a statement instead
   const [interestMonths, setInterestMonths] = useState("12");
   const [interestTyped, setInterestTyped] = useState<string | null>(null);
@@ -150,10 +161,20 @@ export function useReceiptEntryState({
   useEffect(() => setEditingFrom(false), [kind, fromLedgerId, loan?.id]);
   // a scrap sale: Scrap sale picked as the ledger; another ledger asks for no buyer
   const scrap = from?.kind === "ledger" && from.ledger.key === "scrapSale";
+  // the buyer starts again for another ledger or another kind; Change on the ledger and Scrap sale picked again keeps
+  // a buyer already filled in
+  const buyerLedger = useRef<string | null>(null);
   useEffect(() => {
+    if (fromLedgerId === null || fromLedgerId === buyerLedger.current) return;
+    buyerLedger.current = fromLedgerId;
     setBuyer(null);
     setBuyerDraft(emptyParty());
   }, [fromLedgerId]);
+  useEffect(() => {
+    buyerLedger.current = null;
+    setBuyer(null);
+    setBuyerDraft(emptyParty());
+  }, [kind]);
   // a new buyer's phone someone already has: they're used instead, or the phone is changed
   const buyerPhoneMatches = usePhoneMatches(buyerDraft.phone, "customer");
   const buyerMatched =
@@ -325,11 +346,16 @@ export function useReceiptEntryState({
   const partsOk = into !== "both" || (cashValue > 0 && bankValue > 0);
   // Cash + Bank: the bank's part is in, so its account can follow
   const bothBankSet = into === "both" && cashPart !== "" && bankValue > 0;
-  // the amount changed: the parts start again (the place, account and how it came in stay)
+  // the amount changed: where it came into starts again, nothing left over (cash or bank, the accounts, their amounts
+  // and how each came in, the cash part)
   const amountSeen = useRef(value);
   useEffect(() => {
     if (amountSeen.current === value) return;
     amountSeen.current = value;
+    setInto(null);
+    setBankId(null);
+    setBankMode(null);
+    setGridModes({});
     setCashPart("");
     setBankTyped("");
     setMoreParts([]);
@@ -348,13 +374,14 @@ export function useReceiptEntryState({
     setFoldedCards([]);
   }, [bankId]);
 
-  // the bank accounts it came into, each with how: a reference box each on the last card
+  // the bank accounts it came into, each with how: a reference box each, in its own card on the Amount card (keyed by
+  // the account, so it stays with it whichever order the cards are in)
   const refAccounts =
     into === "cash" || into === null
       ? []
       : [
-          { key: "first", bankId, mode: bankMode },
-          ...moreParts.map((m) => ({ key: m.key, bankId: m.bankId, mode: m.mode })),
+          { key: bankId ?? "", bankId, mode: bankMode },
+          ...moreParts.map((m) => ({ key: m.bankId ?? "", bankId: m.bankId, mode: m.mode })),
         ].filter(
           (a): a is { key: string; bankId: string; mode: BankMode } =>
             a.bankId !== null && a.mode !== null,
@@ -372,11 +399,11 @@ export function useReceiptEntryState({
       ? false
       : bankLoan
         ? lenderOk(bankLender)
-        : from !== null &&
-          (from.kind !== "party" || (!matched && partyOk(newParty, true))) &&
-          (!scrap ||
-            buyer?.kind === "ledger" ||
-            (buyer?.kind === "party" && !buyerMatched && partyOk(buyerDraft, true)));
+        : from !== null && (from.kind !== "party" || (!matched && partyOk(newParty, true)));
+  // a scrap sale's buyer, on its own card: a customer found, or a new one filled in
+  const buyerDone =
+    buyer?.kind === "ledger" ||
+    (buyer?.kind === "party" && !buyerMatched && partyOk(buyerDraft, true));
   // by UPI into an account with no UPI ID: its UPI ID is a must (typed on its card, for the QR)
   const upisOk =
     into === "cash" ||
@@ -416,8 +443,13 @@ export function useReceiptEntryState({
   function setGridText(id: string, text: string) {
     setGridTexts((all) => ({ ...all, [id]: text }));
   }
-  function setGridMode(id: string, mode: BankMode) {
+  function setGridMode(id: string, mode: BankMode | null) {
     setGridModes((all) => ({ ...all, [id]: mode }));
+  }
+  // Received into changed by hand: the breakdown starts again, every card empty, nothing picked on it
+  function resetGrid() {
+    setGridTexts({});
+    setGridModes({});
   }
   // the grid feeds what's saved: the cash part, the first account, and the more parts (kept in step: set again when
   // anything else resets them)
@@ -449,16 +481,19 @@ export function useReceiptEntryState({
   const complete: Record<Step, boolean> = {
     kind: kind !== null,
     from: fromDone,
+    buyer: buyerDone,
     terms: !Object.values(loanProblems(terms)).some(Boolean) && !(dueOn !== "" && dueOn < day),
-    amount: value > 0 && !loanOver && !tdsBad && intoDone && gridOk,
+    amount: value > 0 && !loanOver && !tdsBad && intoDone && gridOk && refAccounts.every(refOk),
     into: intoDone && gridOk,
-    details: day !== "" && refAccounts.every(refOk),
+    details: day !== "",
   };
   // the cards that apply now; one shows at a time, and Next moves on once it's filled in
   // capital has one ledger, Capital, so it asks for none
   const steps: Step[] = [
     "kind",
     ...(kind === "capital" ? [] : (["from"] as Step[])),
+    // a scrap sale: who bought it, on a card of its own after the ledger
+    ...(scrap ? (["buyer"] as Step[]) : []),
     ...(kind === "loanTaken" ? (["terms"] as Step[]) : []),
     "amount",
     "details",
@@ -493,7 +528,9 @@ export function useReceiptEntryState({
 
   // a card's name: the loan's card says so, and a ledger's
   const stepName = (s: Step) =>
-    s === "from" && loanOf
+    s === "buyer"
+      ? t("buyer")
+      : s === "from" && loanOf
       ? t("steps.loan")
       : s === "from" && kind !== null && !fromParty
         ? t("steps.ledger")
@@ -508,15 +545,13 @@ export function useReceiptEntryState({
               ? "missing.into"
               : "missing.amountDetails",
         )
-      : s === "from" && scrap && buyer === null
-        ? t("missing.buyer")
-        : t(`missing.${s}`);
+      : t(`missing.${s}`);
 
   // someone new being filled in: Change, beside the card's name, goes back to searching
   const changeOf = (s: Step) =>
     s === "from" && from?.kind === "party"
       ? () => setFrom(null)
-      : s === "from" && scrap && buyer?.kind === "party"
+      : s === "buyer" && buyer?.kind === "party"
         ? () => setBuyer(null)
         : null;
 
@@ -555,7 +590,7 @@ export function useReceiptEntryState({
     // a scrap sale's buyer, under its own heading
     {
       key: "buyer",
-      step: "from",
+      step: "buyer",
       heading: t("buyer"),
       value: !scrap
         ? null
@@ -607,7 +642,6 @@ export function useReceiptEntryState({
                 ]
               : [
                   { name: accountName(bankId)!, amount: rupees(value) },
-                  ...(bankMode ? [tpf(`modes.${bankMode}`)] : []),
                 ],
     },
     {
@@ -624,8 +658,7 @@ export function useReceiptEntryState({
     },
   ].filter((l) => l.step === "into" || steps.includes(l.step as Step)) as SummaryItem<Step>[];
 
-  // the QR spot: each account by UPI with a UPI ID of ours; the last one, unless Show QR code picked another
-  const [qrPick, setQrPick] = useState<string | null>(null);
+  // a QR for each account by UPI with a UPI ID of ours, shown inside that account's card
   const qrItems: QrItem[] = !usesGrid
     ? []
     : gridAccs
@@ -638,7 +671,6 @@ export function useReceiptEntryState({
           amount: p.amount,
           note: fromName ?? undefined,
         }));
-  const qrItem = qrItems.find((q) => q.key === qrPick) ?? qrItems.at(-1) ?? null;
 
   // leaving with something entered asks first (not after a save, which goes on to the receipt's page)
   const { dialog: leaveDialog } = useLeaveGuard(
@@ -677,9 +709,11 @@ export function useReceiptEntryState({
 
   // Next: on to the card after this one, once it's filled in; otherwise what's missing shows in red, at its first field
   async function next() {
-    // Cash + Bank with the whole amount in one of them: it came into that one alone, then Next goes on as usual
-    if (current === "amount" && into === "both" && value > 0 && cashPart !== "") {
-      const alone = cashValue === value ? "cash" : cashValue === 0 ? "bank" : null;
+    // Cash + Bank whose cards add up to the amount but all of it on one side (every rupee into the banks, or all in
+    // cash): it came into that one alone, then Next goes on as usual. Adding up to the amount is all it asks
+    const gridCash = gridPlaces.find((p) => p.id === "cash")?.amount ?? 0;
+    if (current === "amount" && into === "both" && value > 0 && gridTotal === value) {
+      const alone = gridCash === value ? "cash" : gridCash === 0 ? "bank" : null;
       if (alone) {
         nextAfterAlone.current = true;
         setCashPart("");
@@ -716,11 +750,15 @@ export function useReceiptEntryState({
 
   // what's wrong with an account's typed UPI ID: not name@bank, not a UPI app's handle, or another account's; null when
   // it's fine (or nothing's typed)
-  function ourUpiProblem(accountId: string): "bad" | "handle" | "taken" | null {
+  // (a known handle but not the picked app's: "wrongApp"; no app picked: "app")
+  function ourUpiProblem(accountId: string): "bad" | "handle" | "app" | "wrongApp" | "taken" | null {
     const u = (ourUpis[accountId] ?? "").trim();
     if (u === "") return null;
     if (!upiFormatOk(u)) return "bad";
     if (appOfUpi(u) === null) return "handle";
+    const app = ourUpiApps[accountId] ?? null;
+    if (app === null) return "app";
+    if (upiProblem(u, app) !== null) return "wrongApp";
     if (banks?.some((b) => b.id !== accountId && b.upiIds.includes(u))) return "taken";
     return null;
   }
@@ -784,7 +822,7 @@ export function useReceiptEntryState({
         bankDetailsId: into === "cash" ? null : bankId,
         bankMode: into === "cash" ? null : bankMode,
         referenceNumber:
-          into !== "cash" && bankMode ? refOf({ key: "first", mode: bankMode }) || null : null,
+          into !== "cash" && bankMode ? refOf({ key: bankId!, mode: bankMode }) || null : null,
         cashReferenceNumber: into === "cash" || into === "both" ? cashRef || null : null,
         moreBankParts:
           into === "cash" || !isAdmin
@@ -793,7 +831,7 @@ export function useReceiptEntryState({
                 bankDetailsId: m.bankId!,
                 amount: Number(m.amount),
                 mode: m.mode!,
-                referenceNumber: refOf({ key: m.key, mode: m.mode! }) || null,
+                referenceNumber: refOf({ key: m.bankId!, mode: m.mode! }) || null,
               })),
         // a UPI ID typed for an account that had none, on an account this came into by UPI: added to it
         bankUpiIds:
@@ -810,7 +848,7 @@ export function useReceiptEntryState({
                   acc.upiIds.length === 0 &&
                   u !== "" &&
                   ourUpiProblem(acc.id) === null
-                  ? [{ bankDetailsId: acc.id, upiId: u }]
+                  ? [{ bankDetailsId: acc.id, upiId: u, provider: ourUpiApps[acc.id]! }]
                   : [];
               }),
         tdsRate: tdsAmount > 0 ? tdsValue : null,
@@ -844,9 +882,9 @@ export function useReceiptEntryState({
     gridPlaces,
     setGridText,
     setGridMode,
+    resetGrid,
+    gridTotal,
     qrItems,
-    qrItem,
-    setQrPick,
     isAdmin,
     t,
     tr,
@@ -913,8 +951,12 @@ export function useReceiptEntryState({
     askingAdvance,
     ourUpis,
     setOurUpis,
+    ourUpiApps,
+    setOurUpiApps,
     ourUpisLeft,
     setOurUpisLeft,
+    ourUpiEditing,
+    setOurUpiEditing,
     ourUpiProblem,
     upiIdsOf,
     accountsOpen,
@@ -924,6 +966,7 @@ export function useReceiptEntryState({
     setMorePart,
     day,
     setDay,
+    refs,
     setRefs,
     refLeft,
     setRefLeft,
@@ -931,8 +974,6 @@ export function useReceiptEntryState({
     setCashRef,
     remarks,
     setRemarks,
-    breakdownOpen,
-    setBreakdownOpen,
     interestMonths,
     setInterestMonths,
     interestTyped,
