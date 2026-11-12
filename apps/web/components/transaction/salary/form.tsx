@@ -70,6 +70,7 @@ function SalaryEntryView() {
     setSummaryOpen,
     stepName,
     missingOf,
+    kind,
     summary,
     leaveDialog,
     show,
@@ -126,6 +127,7 @@ function SalaryEntryView() {
         key={current}
         id={current}
         name={stepName(current)}
+        hideName={current === "amount" && kind === "salary"}
         onBack={index > 0 ? () => show(steps[index - 1]!) : null}
         onChange={null}
         missing={tried && !complete[current] ? missingOf() : null}

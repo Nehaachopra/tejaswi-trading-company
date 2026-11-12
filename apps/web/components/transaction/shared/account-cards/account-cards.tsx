@@ -1,12 +1,12 @@
 "use client";
 
-import { Check, IndianRupee, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
-import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
+import { Meter } from "../meter";
 import { AutoSwitch } from "../split-grid";
 import { AccountCard } from "./account-card";
 import { type AccountCardsApi } from "./types";
@@ -63,48 +63,17 @@ export function AccountCards({ api }: { api: AccountCardsApi }) {
         </h3>
         {auto && <AutoSwitch on={auto.on} set={auto.set} />}
       </div>
-      {/* the meter above the cards: what's still left to place, over a thin bar that fills as the cards take their
-          parts, green with a tick once nothing is left. As wide as one card; it stays just under the header while the
-          cards scroll, on the card's ivory, so it's always in view */}
-      <div className="tabular sticky top-16 z-10 flex min-w-0 flex-col gap-2 bg-ivory py-2 sm:w-[calc(50%-0.375rem)]">
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="text-sm">{labels.barLeft}</span>
-          {done ? (
-            <span className="flex items-center gap-1.5 font-heading text-lg font-bold text-success">
-              <Check className="size-4" strokeWidth={2.5} aria-hidden />
-              {labels.barDone}
-            </span>
-          ) : (
-            <span className="font-heading text-2xl font-bold leading-none">{rupees(left)}</span>
-          )}
-        </div>
-        {/* the bar, with a coin riding on the end of what's filled (a gold ₹ coin with a dark rim so it stands out on the ivory; it slides along as the cards fill) */}
-        <div className="relative py-1.5">
-          <div
-            role="progressbar"
-            aria-label={labels.barLeft}
-            aria-valuemin={0}
-            aria-valuemax={value}
-            aria-valuenow={given}
-            className="h-1.5 overflow-hidden rounded-full bg-chestnut/10"
-          >
-            <div
-              className={cn(
-                "h-full rounded-full transition-[width] duration-300",
-                done ? "bg-success" : "bg-chestnut",
-              )}
-              style={{ width: `${share}%` }}
-            />
-          </div>
-          <span
-            aria-hidden
-            className="absolute top-1/2 grid size-5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-amber-600 bg-amber-300 text-amber-900 shadow-[0_1px_3px_0] shadow-chestnut/50 ring-1 ring-chestnut/40 transition-[left] duration-300"
-            style={{ left: `clamp(10px, ${share}%, calc(100% - 10px))` }}
-          >
-            <IndianRupee className="size-2.5" strokeWidth={3} />
-          </span>
-        </div>
-      </div>
+      {/* the meter above the cards: what's still left to place, filling as the cards take their parts, green with a
+          tick once nothing is left. As wide as one card; it stays just under the header while the cards scroll, on the
+          card's ivory, so it's always in view */}
+      <Meter
+        label={labels.barLeft}
+        figure={left}
+        share={share}
+        done={done}
+        doneLabel={labels.barDone}
+        className="sticky top-16 z-10 bg-ivory py-2 sm:w-[calc(50%-0.375rem)]"
+      />
       {/* wider screens: two to a row, a shorter card (cash) stretched to its neighbour's height */}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch">
         {picks.map((id, i) => (

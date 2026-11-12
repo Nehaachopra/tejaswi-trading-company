@@ -296,9 +296,9 @@ export function useSalaryEntryState({
     kind === "salary" && lines.length === 0
       ? t("missing.employees")
       : kind === "salary" && current === "pay" && value > available
-        ? t("missing.overHeld", { amount: rupees(value), held: rupees(available) })
+        ? t("missing.overHeld", { amount: rupees(Math.round((value - available) * 100) / 100) })
         : kind === "salary" && !splitOk
-          ? t("splitShort", { amount: rupees(splitTotal), total: rupees(value) })
+          ? t("splitShort", { amount: rupees(Math.round((value - splitTotal) * 100) / 100) })
           : !banksOk
             ? tpf("pickMode")
             : t(

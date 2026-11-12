@@ -10,8 +10,8 @@ export function SalaryCards() {
   return <AccountCards api={useSalaryCards()} />;
 }
 
-// the cards with a salary's words and parts: capped at what each place holds, Auto, no QR (the employees aren't paid
-// by scanning one)
+// the cards with a salary's words and parts, laid out as a payment's (every field a row): capped at what each place
+// holds, Auto, no QR (the employees aren't paid by scanning one)
 function useSalaryCards(): AccountCardsApi {
   const e = useSalaryEntry();
   const { tc, tpf } = e;
@@ -29,6 +29,10 @@ function useSalaryCards(): AccountCardsApi {
     setMode: (id, mode) => e.setBankModes((all) => ({ ...all, [id]: mode })),
     tried: e.tried,
     capAtHeld: true,
+    // laid out as a payment's: every field a row, how it paid as rows, the place first when folded
+    modeRows: true,
+    placeFirst: true,
+    fieldRows: true,
     auto: { on: e.splitAuto, set: e.setSplitAuto },
     qrItems: [],
     qrId: () => ({ hideId: false }),
@@ -43,7 +47,9 @@ function useSalaryCards(): AccountCardsApi {
     labels: {
       breakdown: tpf("breakdown"),
       account: tpf("account"),
-      accountAmount: tpf("accountAmount"),
+      balance: tpf("balance"),
+      // a short name, as it sits beside its box
+      accountAmount: tc("q.amount"),
       anotherAccount: tpf("anotherAccount"),
       removeAccount: tc("removeAccount"),
       mode: tpf("paidBy"),

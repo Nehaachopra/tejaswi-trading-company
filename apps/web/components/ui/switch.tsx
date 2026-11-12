@@ -8,12 +8,15 @@ export function Switch({
   on,
   onFlip,
   labelledBy,
+  label,
   disabled,
   small = false,
 }: {
   on: boolean;
   onFlip: (on: boolean) => void;
-  labelledBy: string;
+  // the id of the words beside it, or (where there are none) its own words
+  labelledBy?: string;
+  label?: string;
   disabled?: boolean;
   small?: boolean;
 }) {
@@ -23,6 +26,8 @@ export function Switch({
       role="switch"
       aria-checked={on}
       aria-labelledby={labelledBy}
+      aria-label={labelledBy ? undefined : label}
+      title={labelledBy ? undefined : label}
       disabled={disabled}
       onClick={() => onFlip(!on)}
       className={cn(

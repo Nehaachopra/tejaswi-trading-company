@@ -82,19 +82,12 @@ export function PayCard() {
   );
 }
 
-// the Amount card, as a payment's. A salary: its total, then where it's paid from (a bank card per place, as a payment's). An advance: what they
-// still owe, then the amount on the left and where it's paid from on the right
+// the Amount card, as a payment's. A salary: where it's paid from (a bank card per place, as a payment's), the meter
+// over them saying what's left to pay, so no total above them. An advance: what they still owe, then the amount on the
+// left and where it's paid from on the right
 export function AmountCard() {
-  const { t, kind, employee, value } = useSalaryEntry();
-  if (kind === "salary")
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="sm:max-w-[calc(50%-0.75rem)]">
-          <AmountBox icon={HandCoins} label={t("kinds.salary")} amount={value} />
-        </div>
-        <SalaryCards />
-      </div>
-    );
+  const { t, kind, employee } = useSalaryEntry();
+  if (kind === "salary") return <SalaryCards />;
   return (
     <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-6">
       <div className="min-w-0 sm:col-start-1">

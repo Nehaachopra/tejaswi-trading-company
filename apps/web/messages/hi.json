@@ -1840,7 +1840,7 @@
         "from": "कहाँ से दिया, चुनें।",
         "account": "बैंक खाता चुनें।",
         "employees": "कम से कम एक कर्मचारी चुनें।",
-        "overHeld": "कुल वेतन {amount} नकद + बैंक {held} से अधिक है। किसी को हटाएँ या कम महीने चुनें।"
+        "overHeld": "उपलब्ध नकद और बैंक शेष {amount} कम है।"
       },
       "capOnly": "केवल {amount} दिया जा सकता है।",
       "reference": "नकद वाउचर नं.",
@@ -1880,8 +1880,10 @@
       "pickFrom": "चुनें",
       "ofHeld": "{held} में से {amount}",
       "splitAdds": "कुल जोड़",
-      "splitShort": "भुगतान स्रोत {total} में से {amount} जोड़ते हैं।",
-      "heldBar": "नकद + बैंक"
+      "splitShort": "{amount} का भुगतान अभी बाकी है।",
+      "heldBar": "नकद + बैंक",
+      "heldLeft": "बचा",
+      "heldShort": "कम है"
     }
   },
   "dues": {

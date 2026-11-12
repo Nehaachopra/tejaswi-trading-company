@@ -1840,7 +1840,7 @@
         "from": "Pick where it's paid from.",
         "account": "Pick the bank account.",
         "employees": "Tick at least one employee.",
-        "overHeld": "Total salary {amount} is more than cash + bank {held}. Untick someone or pay fewer months."
+        "overHeld": "Available cash and bank balance is short by {amount}."
       },
       "capOnly": "Only {amount} can be paid.",
       "reference": "Cash voucher no.",
@@ -1880,8 +1880,10 @@
       "pickFrom": "Pick",
       "ofHeld": "{amount} of {held}",
       "splitAdds": "Adds up to",
-      "splitShort": "Where it's paid from adds up to {amount} of {total}.",
-      "heldBar": "Cash + bank"
+      "splitShort": "{amount} still needs to be paid.",
+      "heldBar": "Cash + bank",
+      "heldLeft": "Left",
+      "heldShort": "Short by"
     }
   },
   "dues": {

@@ -108,10 +108,13 @@ export function StepCard({
   onChange,
   missing,
   end,
+  hideName = false,
   children,
 }: {
   id: string;
   name: string;
+  // the name for screen readers only (a salary's Amount card, whose meter says what it's about)
+  hideName?: boolean;
   onBack: (() => void) | null;
   onChange: (() => void) | null;
   missing: string | null;
@@ -138,7 +141,10 @@ export function StepCard({
       <div className="-mb-1 flex items-center justify-between gap-2">
         <h2
           id={`card-${id}`}
-          className="text-xs font-semibold uppercase tracking-[0.08em] opacity-60"
+          className={cn(
+            "text-xs font-semibold uppercase tracking-[0.08em] opacity-60",
+            hideName && "sr-only",
+          )}
         >
           {name}
         </h2>

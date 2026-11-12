@@ -1,9 +1,10 @@
 "use client";
 
-import { Pencil } from "lucide-react";
+import { CircleAlert, Pencil } from "lucide-react";
 
 import { PartyEdit } from "~/components/account/party/party-sheet";
 import { NumberInput } from "~/components/ui/number-input";
+import { Switch } from "~/components/ui/switch";
 import { rupees, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
@@ -23,14 +24,28 @@ const nameOf = (r: Row) => r.employee.shortName ?? titleCase(r.employee.name.toL
 // month, the months owed, the months, the advance taken back in them, and the total; the grand total under it all.
 // A table on wider screens, a card a row on the phone (each column's name left, its value right)
 export function SalaryTable() {
-  const { t, table, lines, value, setAll, editingId, setEditingId, refreshEmployees, tried } =
-    useSalaryEntry();
+  const {
+    t,
+    table,
+    lines,
+    value,
+    available,
+    setAll,
+    editingId,
+    setEditingId,
+    refreshEmployees,
+    tried,
+  } = useSalaryEntry();
+  // what cash and the bank accounts hold together, and what's left after the ticked salaries (the admin only: staff
+  // see no balances)
+  const held = Number.isFinite(available) ? available : null;
+  const leftAfter = held === null ? 0 : Math.round((held - value) * 100) / 100;
+  const short = leftAfter < 0;
   if (table.length === 0) return <p className="text-sm">{t("nothingOwed")}</p>;
   const allOn = table.every((r) => r.on);
   const editingRow = table.find((r) => r.employee.employeeId === editingId);
   return (
     <div className="flex flex-col gap-3">
-      <HeldBar />
       {/* wider screens: the table */}
       <div className="hidden overflow-x-auto sm:block">
         <table className="w-full text-sm tabular">
@@ -75,7 +90,10 @@ export function SalaryTable() {
                   <Months row={r} />
                 </td>
                 <td className={cn(!r.on && "opacity-40")}>
-                  <Advance row={r} />
+                  <span className="flex items-center justify-between gap-3">
+                    <TakeBack row={r} />
+                    <Advance row={r} />
+                  </span>
                 </td>
                 <Dim on={r.on} strong>
                   {amount(r.total)}
@@ -83,13 +101,38 @@ export function SalaryTable() {
               </tr>
             ))}
           </tbody>
+          {/* the total, then what cash and the banks hold and what's left after the salaries: each name right beside
+              its figure, at the right end under the Total column */}
           <tfoot>
+            {/* the total in the chestnut box, as the phone's total and a payment's To pay */}
             <tr className="font-heading text-lg font-bold [&>td]:px-2 [&>td]:pt-3">
-              <td />
-              <td>{t("table.total")}</td>
-              <td colSpan={4} />
-              <td className="text-right">{amount(value)}</td>
+              <td colSpan={5} />
+              <td className="whitespace-nowrap text-right align-middle">{t("table.total")}</td>
+              <td className="text-right">
+                <span className="inline-flex min-h-11 min-w-28 items-center justify-end rounded-control bg-chestnut px-3.5 text-ivory">
+                  {amount(value)}
+                </span>
+              </td>
             </tr>
+            {held !== null && (
+              <>
+                <tr className="text-sm [&>td]:px-2 [&>td]:pt-2">
+                  <td colSpan={5} />
+                  <td className="whitespace-nowrap text-right">{t("heldBar")}</td>
+                  <td className="text-right">{amount(held)}</td>
+                </tr>
+                <tr className={cn("font-semibold [&>td]:px-2 [&>td]:pt-1", short && "text-danger")}>
+                  <td colSpan={5} />
+                  {/* a line above Left, as under a sum (Cash + bank less the total) */}
+                  <td className="whitespace-nowrap border-t border-chestnut/30 !pt-1.5 text-right">
+                    <LeftLabel short={short} />
+                  </td>
+                  <td className="border-t border-chestnut/30 !pt-1.5 text-right">
+                    {amount(Math.abs(leftAfter))}
+                  </td>
+                </tr>
+              </>
+            )}
           </tfoot>
         </table>
       </div>
@@ -128,7 +171,7 @@ export function SalaryTable() {
               <Line label={t("table.months")}>
                 <Months row={r} />
               </Line>
-              <Line label={inRupees(t("table.advance"))}>
+              <Line label={inRupees(t("table.advance"))} beside={<TakeBack row={r} />}>
                 <Advance row={r} />
               </Line>
               <Line label={inRupees(t("table.total"))} strong>
@@ -137,10 +180,32 @@ export function SalaryTable() {
             </div>
           </div>
         ))}
-        <p className="flex items-center justify-between rounded-control bg-chestnut px-4 py-3 font-heading text-lg font-bold text-ivory">
-          <span>{t("table.total")}</span>
-          <span className="tabular">{rupees(value)}</span>
-        </p>
+        {/* the total and what's left: stuck just above the bottom bar while the rows scroll under it, on the card's
+            ivory edge to edge, so it's always in view */}
+        <div className="sticky bottom-[calc(4rem+1px+env(safe-area-inset-bottom))] z-10 -mx-4 flex flex-col gap-2.5 bg-ivory px-4 pb-3 pt-2 shadow-[0_-6px_8px_-6px] shadow-chestnut/25">
+          <p className="flex items-center justify-between rounded-control bg-chestnut px-4 py-3 font-heading text-lg font-bold text-ivory">
+            <span>{t("table.total")}</span>
+            <span className="tabular">{rupees(value)}</span>
+          </p>
+          {/* what cash and the banks hold, then what's left after the salaries */}
+          {held !== null && (
+            <div className="tabular flex flex-col gap-1.5 px-4 text-sm">
+              <p className="flex items-center justify-between gap-3">
+                <span>{t("heldBar")}</span>
+                <span>{rupees(held)}</span>
+              </p>
+              <p
+                className={cn(
+                  "flex items-center justify-between gap-3 border-t border-chestnut/30 pt-1.5 font-semibold",
+                  short && "text-danger",
+                )}
+              >
+                <LeftLabel short={short} />
+                <span>{rupees(Math.abs(leftAfter))}</span>
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {tried && lines.length === 0 && (
@@ -162,23 +227,17 @@ export function SalaryTable() {
   );
 }
 
-// what the ticked employees come to against what cash and the bank accounts hold together: a bar filling as more are
-// ticked, red past what's held
-export function HeldBar() {
-  const { t, value, available } = useSalaryEntry();
-  if (!Number.isFinite(available)) return null;
-  const share = available > 0 ? Math.min(value / available, 1) : 1;
-  const over = value > available;
-  return (
-    <div className="flex flex-col gap-1.5">
-      <p className={cn("flex items-center justify-between gap-3 text-sm font-semibold", over && "text-danger")}>
-        <span>{t("heldBar")}</span>
-        <span className="tabular">{rupees(available)}</span>
-      </p>
-      <div className="h-2.5 overflow-hidden rounded-full bg-chestnut/15" role="progressbar" aria-valuemin={0} aria-valuemax={available} aria-valuenow={value} aria-label={t("heldBar")}>
-        <div className={cn("h-full rounded-full transition-all", over ? "bg-danger" : "bg-success")} style={{ width: `${share * 100}%` }} />
-      </div>
-    </div>
+// what's left after the salaries: "Left", or in red "Short by" with the warning icon after it when they come to more than
+// there is
+function LeftLabel({ short }: { short: boolean }) {
+  const { t } = useSalaryEntry();
+  return short ? (
+    <span className="inline-flex items-center gap-1.5">
+      {t("heldShort")}
+      <CircleAlert className="size-4 shrink-0" aria-hidden />
+    </span>
+  ) : (
+    <span>{t("heldLeft")}</span>
   );
 }
 
@@ -235,35 +294,29 @@ function Months({ row }: { row: Row }) {
   );
 }
 
-// the advance they owe back, in red, with a toggle beside it: on, it's taken back from this payment (all of it, up to
-// what the months come to); off (to start with), it isn't. None owed: —
+// the advance they owe back, in red; its switch (TakeBack) on, it's taken back from this payment (all of it, up to what
+// the months come to); off (to start with), it isn't. None owed: —
 function Advance({ row }: { row: Row }) {
+  return row.employee.advanceLeft <= 0 ? (
+    <>—</>
+  ) : (
+    <span className="text-danger">{amount(row.employee.advanceLeft)}</span>
+  );
+}
+
+// taking the advance back, as the TDS row's switch: by the Advance name (a phone's row), at the start of its cell (the
+// table's), never beside the figure
+function TakeBack({ row }: { row: Row }) {
   const { t, setRow } = useSalaryEntry();
-  if (row.employee.advanceLeft <= 0) return <>—</>;
+  if (row.employee.advanceLeft <= 0) return null;
   return (
-    <span className="inline-flex items-center gap-2">
-      <span className="text-danger">{amount(row.employee.advanceLeft)}</span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={row.take}
-        aria-label={t("table.takeBack")}
-        title={t("table.takeBack")}
-        disabled={!row.on}
-        onClick={() => setRow(row.employee.employeeId, { take: !row.take })}
-        className={cn(
-          "relative h-5 w-9 shrink-0 rounded-full transition-colors",
-          row.take ? "bg-chestnut" : "bg-chestnut/25",
-        )}
-      >
-        <span
-          className={cn(
-            "absolute top-0.5 size-4 rounded-full bg-ivory shadow transition-all",
-            row.take ? "left-4.5" : "left-0.5",
-          )}
-        />
-      </button>
-    </span>
+    <Switch
+      small
+      on={row.take}
+      onFlip={(take) => setRow(row.employee.employeeId, { take })}
+      label={t("table.takeBack")}
+      disabled={!row.on}
+    />
   );
 }
 
@@ -287,16 +340,22 @@ function Dim({
 // a phone row: the column's name left, its value right
 function Line({
   label,
+  beside,
   strong,
   children,
 }: {
   label: string;
+  // right by the name (the advance's take-back switch)
+  beside?: React.ReactNode;
   strong?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <p className="flex items-center justify-between gap-3 border-b border-chestnut/10 py-1.5 last:border-0">
-      <span className="text-xs font-semibold">{label}</span>
+      <span className="flex items-center gap-2.5 text-xs font-semibold">
+        {label}
+        {beside}
+      </span>
       <span className={cn(strong && "font-heading text-base font-bold")}>{children}</span>
     </p>
   );
