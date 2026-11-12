@@ -1,7 +1,7 @@
 "use client";
 
 import { PlacePicker } from "../shared/place-picker";
-import { ChevronDown, IndianRupee, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, IndianRupee, Pencil, Plus, Trash2 } from "lucide-react";
 import { Reveal } from "~/components/ui/reveal";
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
 import { FieldMessage } from "~/components/ui/field-message";
@@ -14,6 +14,7 @@ import { type BankMode } from "@repo/trpc/client";
 import { UpiQr } from "../shared/upi-qr";
 import { ModeAccordion } from "../shared/bank-mode";
 import { input, money } from "./shared";
+import { fieldRow, pickRow } from "../shared/form-basics";
 import { usePaymentEntry } from "./state";
 import { CapWarning } from "./notes";
 
@@ -149,10 +150,8 @@ export function AccountRows() {
           className="h-3 overflow-hidden rounded-full bg-chestnut/10 shadow-[inset_0_0_0_1px] shadow-chestnut/15"
         >
           <div
-            className={cn(
-              "h-full rounded-full transition-[width] duration-300",
-              done ? "bg-success" : "bg-chestnut",
-            )}
+            // green whether full or not, as every bar
+            className="h-full rounded-full bg-success transition-[width] duration-300"
             style={{ width: `${bankShare > 0 ? Math.min(100, (paid / bankShare) * 100) : 0}%` }}
           />
         </div>
@@ -414,7 +413,7 @@ function PaidByChips({ mode, onPick }: { mode: BankMode | null; onPick: (m: Bank
 
 // paid by UPI: their UPI ID for the QR. One already there (saved on them, or typed and fine) shows as text with Edit;
 // the box only while there's none, or once Edit is tapped (a new one is saved on them with the payment)
-export function UpiField() {
+export function UpiField({ row = false }: { row?: boolean }) {
   const {
     t,
     tried,
@@ -436,12 +435,27 @@ export function UpiField() {
     !editing && typedUpiOk && (upiLeft || savedUpis.includes(typedUpi.trim().toLowerCase()));
   return (
     <Reveal follow show={asksUpi && !kept} gap="0px">
-      {/* while there's none yet, or the pen above the QR was tapped: the box with Save beside it. Once kept, it shows
-          above the QR instead, with the pen */}
-      <label className="flex flex-col gap-2 text-xs font-semibold">
-        {/* named for who's paid: Supplier UPI ID, Lender UPI ID, Landlord UPI ID ... */}
-        <span>{t(upiLabel)}</span>
-        <span className="flex min-w-0 items-center gap-2">
+      {/* a payment's cards: none yet, the name and only the pen; the box comes once the pen is tapped */}
+      {row && !editing ? (
+        <div className={pickRow}>
+          <span>{t(upiLabel)}</span>
+          <span className="flex min-h-12 items-center justify-end px-3.5">
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              aria-label={t("editUpi")}
+              className="-mr-2.5 grid size-9 place-items-center rounded-control hover:bg-chestnut/[0.08]"
+            >
+              <Pencil className="size-4" aria-hidden />
+            </button>
+          </span>
+        </div>
+      ) : (
+        /* while there's none yet, or the pen above the QR was tapped: the box, then Save under it. Once kept, it shows
+          above the QR instead, as plain words with the pen */
+        <label className={row ? fieldRow : "flex flex-col gap-2 text-xs font-semibold"}>
+          {/* named for who's paid: Supplier UPI ID, Lender UPI ID, Landlord UPI ID ... */}
+          <span>{t(upiLabel)}</span>
           <input
             autoFocus={editing}
             type="text"
@@ -460,8 +474,16 @@ export function UpiField() {
             onBlur={() => setUpiLeft(true)}
             placeholder="name@bank"
             aria-invalid={bad || undefined}
-            className={cn(input(bad), "min-w-0 flex-1")}
+            className={input(bad)}
           />
+          {bad && (
+            <FieldMessage className="mt-0">
+              {typedUpiShapeOk
+                ? t("payeeUpiHandle", { handle: `@${typedUpi.trim().split("@")[1]}` })
+                : t("payeeUpiBad")}
+            </FieldMessage>
+          )}
+          {/* Save, under the box: the full width on a phone, at the right edge wider */}
           <button
             type="button"
             // a tap keeps the box from losing focus first
@@ -471,19 +493,12 @@ export function UpiField() {
               if (typedUpiOk) setEditing(false);
             }}
             disabled={typedUpi.trim() === ""}
-            className="flex min-h-11 shrink-0 items-center justify-center rounded-control bg-chestnut px-4 text-sm font-semibold text-ivory disabled:opacity-40"
+            className="flex min-h-11 w-full items-center justify-center rounded-control bg-chestnut px-4 text-sm font-semibold text-ivory disabled:opacity-40 sm:w-auto sm:justify-self-end"
           >
             {t("saveUpi")}
           </button>
-        </span>
-        {bad && (
-          <FieldMessage className="mt-0">
-            {typedUpiShapeOk
-              ? t("payeeUpiHandle", { handle: `@${typedUpi.trim().split("@")[1]}` })
-              : t("payeeUpiBad")}
-          </FieldMessage>
-        )}
-      </label>
+        </label>
+      )}
     </Reveal>
   );
 }

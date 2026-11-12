@@ -1558,6 +1558,8 @@
         "billDate": "ಬಿಲ್ ದಿನಾಂಕ",
         "gstRate": "GST ದರ",
         "panHint": "TDS ಅನ್ನು {rate}% ಗೆ ಇಳಿಸಲು PAN ಸೇರಿಸಿ.",
+        "panUnsaved": "ಈ PAN ಬಳಸಲು Save ಒತ್ತಿ.",
+        "panBad": "PAN ನಲ್ಲಿ 5 ಅಕ್ಷರ, 4 ಅಂಕೆ ಮತ್ತು 1 ಅಕ್ಷರ ಇರುತ್ತವೆ.",
         "gstModes": {
           "none": "GST ಇಲ್ಲ",
           "bill": "ಬಿಲ್ ಮೇಲೆ GST"
@@ -1571,6 +1573,8 @@
         "godown": "ಗೋದಾಮು",
         "due": "ಬಾಕಿ",
         "advancePart": "ಮುಂಗಡ",
+        "settledPart": "ತೀರಿಸಿದ್ದು",
+        "balance": "ಶಿಲ್ಕು",
         "heldAdvance": "ಅವರ ಬಳಿ ನಮ್ಮ {amount} ಮುಂಗಡ ಈಗಾಗಲೇ ಇದೆ.",
         "advanceAsk": {
           "title": "ಮುಂಗಡ?",
@@ -1609,8 +1613,8 @@
         "account": "ಬ್ಯಾಂಕ್ ಖಾತೆ",
         "pickAccount": "ಬ್ಯಾಂಕ್ ಖಾತೆ ಆರಿಸಿ",
         "totalRentPerMonth": "ತಿಂಗಳ ಒಟ್ಟು ಬಾಡಿಗೆ",
-        "labourOver": "{amount} ಮೀರಿದರೆ, ಪಾವತಿ ಪಡೆದವರ ಹೆಸರು ನೀಡಿ.",
-        "namePayee": "ಹೆಸರು ನೀಡಿ",
+        "labourOver": "{amount} ಮೀರಿದರೆ ಕಾರ್ಮಿಕರ ವಿವರ ಬೇಕು.",
+        "namePayee": "ವಿವರ ಸೇರಿಸಿ",
         "accountPays": "ಈ ಖಾತೆ {amount} ಪಾವತಿಸುತ್ತದೆ.",
         "accountShort": "ಈ ಖಾತೆಯಲ್ಲಿ {amount} ಕಡಿಮೆ ಇದೆ. ಉಳಿದದ್ದಕ್ಕೆ ಇನ್ನೊಂದು ಖಾತೆ ಸೇರಿಸಿ.",
         "accountN": "ಬ್ಯಾಂಕ್ ಖಾತೆ {n}",
@@ -1644,6 +1648,7 @@
         "refCash": "ಉಲ್ಲೇಖ ಸಂಖ್ಯೆ",
         "refCashHint": "ಬಿಲ್ ಅಥವಾ ವೋಚರ್ ಸಂಖ್ಯೆ",
         "editUpi": "ಬದಲಿಸಿ",
+        "qrCode": "QR ಕೋಡ್",
         "saveUpi": "ಉಳಿಸಿ"
       }
     },
@@ -1796,7 +1801,9 @@
       "title": "ಸಂಬಳ",
       "loadFailed": "ನೌಕರರನ್ನು ಲೋಡ್ ಮಾಡಲಾಗಲಿಲ್ಲ. ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
       "steps": {
+        "for": "ಯಾವುದಕ್ಕೆ ಪಾವತಿ",
         "pay": "ಪಾವತಿ",
+        "employees": "ನೌಕರರು",
         "amount": "ಮೊತ್ತ",
         "details": "ವಿವರಗಳು"
       },

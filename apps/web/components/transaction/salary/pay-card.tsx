@@ -16,32 +16,40 @@ import { chip, input, saidAmount } from "../shared/form-basics";
 import { PartyEditor } from "../shared/party-editor";
 import { PlacePicker } from "../shared/place-picker";
 import { BankPaidBy } from "./bank-paid-by";
-import { SalarySplit } from "./salary-split";
+import { SalaryCards } from "./salary-cards";
 import { SalaryTable } from "./salary-table";
 import { useSalaryEntry } from "./state";
 
-// the Pay card: what for on top (Salary or Advance). A salary: the table of every employee owed. An advance: the
+// the Paid for card: Salary or Advance, chips only; a tap moves on to who's paid (the same one again keeps what's there)
+export function ForCard() {
+  const { t, kind, setKind, tried, show } = useSalaryEntry();
+  return (
+    <div role="radiogroup" aria-label={t("for")} className="flex flex-wrap gap-2">
+      {(["salary", "advance"] as const).map((k) => (
+        <button
+          key={k}
+          type="button"
+          role="radio"
+          aria-checked={kind === k}
+          onClick={() => {
+            setKind(k);
+            show("pay");
+          }}
+          className={cn(chip(kind === k), tried && kind === null && "border-danger")}
+        >
+          {t(`kinds.${k}`)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// the Employees card, on its own after Paid for. A salary: the table of every employee owed. An advance: the
 // employee, found and picked as a payment's supplier is (Edit and Change on the pick)
 export function PayCard() {
-  const { t, tc, kind, setKind, tried, choice, setChoice, editing, setEditing } = useSalaryEntry();
+  const { tc, kind, choice, setChoice, editing, setEditing } = useSalaryEntry();
   return (
     <div className="flex flex-col gap-4">
-      {/* what it's for */}
-      <div role="radiogroup" aria-label={t("for")} className="flex flex-wrap gap-2">
-        {(["salary", "advance"] as const).map((k) => (
-          <button
-            key={k}
-            type="button"
-            role="radio"
-            aria-checked={kind === k}
-            onClick={() => setKind(k)}
-            className={cn(chip(kind === k), tried && kind === null && "border-danger")}
-          >
-            {t(`kinds.${k}`)}
-          </button>
-        ))}
-      </div>
-
       {kind === "salary" && <SalaryTable />}
 
       {kind === "advance" && (
@@ -74,7 +82,7 @@ export function PayCard() {
   );
 }
 
-// the Amount card, as a payment's. A salary: its total, then where it's paid from (SalarySplit). An advance: what they
+// the Amount card, as a payment's. A salary: its total, then where it's paid from (a bank card per place, as a payment's). An advance: what they
 // still owe, then the amount on the left and where it's paid from on the right
 export function AmountCard() {
   const { t, kind, employee, value } = useSalaryEntry();
@@ -84,7 +92,7 @@ export function AmountCard() {
         <div className="sm:max-w-[calc(50%-0.75rem)]">
           <AmountBox icon={HandCoins} label={t("kinds.salary")} amount={value} />
         </div>
-        <SalarySplit />
+        <SalaryCards />
       </div>
     );
   return (

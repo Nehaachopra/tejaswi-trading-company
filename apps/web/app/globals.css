@@ -195,10 +195,14 @@ input[type="search"]::-webkit-search-cancel-button {
 @keyframes attention {
   0%,
   100% {
-    box-shadow: 0 0 0 2px var(--color-chestnut), 0 0 0 4px color-mix(in srgb, var(--color-chestnut) 0%, transparent);
+    box-shadow:
+      0 0 0 2px var(--color-chestnut),
+      0 0 0 4px color-mix(in srgb, var(--color-chestnut) 0%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 2px var(--color-chestnut), 0 0 0 8px color-mix(in srgb, var(--color-chestnut) 25%, transparent);
+    box-shadow:
+      0 0 0 2px var(--color-chestnut),
+      0 0 0 8px color-mix(in srgb, var(--color-chestnut) 25%, transparent);
   }
 }
 .attention {
@@ -276,4 +280,25 @@ html[data-card-dir="back"] {
 }
 html[data-card-morphs] .txn-card {
   animation: none;
+}
+
+/* an input in the heading font (an amount): its tall line would make the box scroll a few pixels, so one line high.
+   Outside the layers on purpose, so a text size class (which sets its own line height) can't undo it */
+input.font-heading {
+  line-height: 1;
+}
+
+/* a payment's due pie: its lines and words fade in after the slice has swept round */
+@keyframes pie-words {
+  from {
+    opacity: 0;
+  }
+}
+.pie-words {
+  animation: pie-words 400ms ease-out 300ms both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pie-words {
+    animation: none;
+  }
 }

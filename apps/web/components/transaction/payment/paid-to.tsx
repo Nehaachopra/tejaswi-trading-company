@@ -367,7 +367,11 @@ export function PayeePicker() {
             <button
               type="button"
               aria-pressed={skipped}
-              onClick={() => setPayeeSkipped((on) => !on)}
+              // Skip goes straight on to the next card; tapped again (off) it stays to name someone
+              onClick={() => {
+                setPayeeSkipped(!skipped);
+                if (!skipped) movesOn();
+              }}
               className={cn(chip(skipped), "min-h-11 px-5 text-sm font-semibold")}
             >
               {tc("skip")}

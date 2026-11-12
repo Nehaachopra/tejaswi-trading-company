@@ -48,7 +48,7 @@ export function StepProgress({
       className={cn("h-1.5 w-full overflow-hidden rounded-full bg-chestnut/15", className)}
     >
       <div
-        className="h-full rounded-full bg-chestnut transition-[width] duration-300 motion-reduce:transition-none"
+        className="h-full rounded-full bg-success transition-[width] duration-300 motion-reduce:transition-none"
         style={{ width: `${all === 0 ? 0 : (done / all) * 100}%` }}
       />
     </div>

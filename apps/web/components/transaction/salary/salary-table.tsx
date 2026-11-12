@@ -176,7 +176,7 @@ export function HeldBar() {
         <span className="tabular">{rupees(available)}</span>
       </p>
       <div className="h-2.5 overflow-hidden rounded-full bg-chestnut/15" role="progressbar" aria-valuemin={0} aria-valuemax={available} aria-valuenow={value} aria-label={t("heldBar")}>
-        <div className={cn("h-full rounded-full transition-all", over ? "bg-danger" : "bg-chestnut")} style={{ width: `${share * 100}%` }} />
+        <div className={cn("h-full rounded-full transition-all", over ? "bg-danger" : "bg-success")} style={{ width: `${share * 100}%` }} />
       </div>
     </div>
   );

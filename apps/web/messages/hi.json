@@ -1558,6 +1558,8 @@
         "billDate": "बिल की तारीख",
         "gstRate": "GST दर",
         "panHint": "TDS घटाकर {rate}% करने के लिए PAN जोड़ें।",
+        "panUnsaved": "यह PAN लगाने के लिए Save दबाएँ।",
+        "panBad": "PAN में 5 अक्षर, 4 अंक और 1 अक्षर होते हैं।",
         "gstModes": {
           "none": "GST नहीं",
           "bill": "बिल पर GST"
@@ -1571,6 +1573,8 @@
         "godown": "गोदाम",
         "due": "बकाया",
         "advancePart": "अग्रिम",
+        "settledPart": "चुकता",
+        "balance": "शेष",
         "heldAdvance": "उनके पास हमारा {amount} अग्रिम पहले से है।",
         "advanceAsk": {
           "title": "अग्रिम?",
@@ -1609,8 +1613,8 @@
         "account": "बैंक खाता",
         "pickAccount": "बैंक खाता चुनें",
         "totalRentPerMonth": "प्रति माह कुल किराया",
-        "labourOver": "{amount} से अधिक पर, भुगतान पाने वाले का नाम दें।",
-        "namePayee": "नाम दें",
+        "labourOver": "{amount} से अधिक के लिए मज़दूर का विवरण चाहिए।",
+        "namePayee": "विवरण जोड़ें",
         "accountPays": "यह खाता {amount} देगा।",
         "accountShort": "इस खाते में {amount} कम है। बाकी के लिए दूसरा खाता जोड़ें।",
         "accountN": "बैंक खाता {n}",
@@ -1644,6 +1648,7 @@
         "refCash": "संदर्भ संख्या",
         "refCashHint": "बिल या वाउचर नंबर",
         "editUpi": "बदलें",
+        "qrCode": "QR कोड",
         "saveUpi": "सेव करें"
       }
     },
@@ -1796,7 +1801,9 @@
       "title": "वेतन",
       "loadFailed": "कर्मचारी लोड नहीं हो सके। कनेक्शन जाँचें और फिर कोशिश करें।",
       "steps": {
+        "for": "किसके लिए भुगतान",
         "pay": "भुगतान",
+        "employees": "कर्मचारी",
         "amount": "राशि",
         "details": "विवरण"
       },

@@ -50,10 +50,13 @@ export function AmountTable({
   rows,
   open,
   always = false,
+  plain = false,
 }: {
   rows: AmountRow[];
   open: boolean;
   always?: boolean;
+  // no box, lines or tint: just the rows, each label on the left and its figure on the right (a payment's)
+  plain?: boolean;
 }) {
   const t = useTranslations("transactions.chat.sum");
   if (!hasBreakdown(rows) && !(always && open)) return null;
@@ -67,8 +70,38 @@ export function AmountTable({
       <h3 className="-mb-1 text-xs font-semibold uppercase tracking-[0.08em] opacity-60">
         {t("breakup")}
       </h3>
-      <RowsBox rows={main} />
-      {rest.length > 0 && <RowsBox rows={rest} />}
+      {plain ? <PlainRows rows={main} /> : <RowsBox rows={main} />}
+      {rest.length > 0 && (plain ? <PlainRows rows={rest} /> : <RowsBox rows={rest} />)}
+    </div>
+  );
+}
+
+// the breakdown's rows with nothing around them: the label on the left, its figure in bold on the right, the
+// total bolder and larger
+export function PlainRows({ rows }: { rows: AmountRow[] }) {
+  return (
+    <div className="tabular flex flex-col gap-2.5 text-sm font-normal">
+      {rows.map((r) => (
+        <div
+          key={r.key}
+          className={cn(
+            "flex items-baseline justify-between gap-3",
+            // a line above the total, as under a sum
+            r.tone === "total" && "border-t border-chestnut/30 pt-2.5",
+          )}
+        >
+          <span className={cn("min-w-0", r.tone === "total" && "font-bold")}>{r.label}</span>
+          <span
+            className={cn(
+              "shrink-0 whitespace-nowrap",
+              // the total: its label bold too, its figure larger in the heading's letters
+              r.tone === "total" ? "font-heading text-xl font-bold" : "text-base font-semibold",
+            )}
+          >
+            {r.amount === null ? "—" : rupees(r.amount)}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

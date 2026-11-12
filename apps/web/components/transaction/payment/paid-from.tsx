@@ -1,104 +1,33 @@
 "use client";
 
-import { Note } from "~/components/ui/note";
+import { FieldMessage } from "~/components/ui/field-message";
 import { Reveal } from "~/components/ui/reveal";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { usePaymentEntry } from "./state";
-import { type Place, PlacePicker } from "../shared/place-picker";
 import { FailNote } from "./notes";
 import { AccountCards } from "../shared/account-cards/account-cards";
 import { type AccountCardsApi } from "../shared/account-cards/types";
 import { UpiField } from "./bank-cards";
 
-// where it's paid from: cash, a bank or both, picked from an accordion with the bank accounts' look, each with what
-// it holds (the admin only), collapsed to the pick; then one
-// panel with a row for each part in use, its amount on the right. The bank's row goes on with how it was paid (two
-// by two), the party's QR for UPI, then the account it left. Cash + Bank types either part and the other follows;
-// the bank's steps wait for its part. The cash-limit warning closes the panel
-export function PaidFrom({ part }: { part: "top" | "rest" }) {
-  const {
-    t,
-    tc,
-    into,
-    setInto,
-    setBankId,
-    setBankMode,
-    setAccountsOpen,
-    tried,
-    cashHeld,
-    banksHeld,
-    canCash,
-    canBank,
-    cashCovers,
-    bankCovers,
-    offerBoth,
-    pickBoth,
-    resetGrid,
-    cashLimit,
-    cashTodayFailed,
-    retryCashToday,
-    cashThatDay,
-    overCashLimit,
-  } = usePaymentEntry();
-  // all three, always, for every kind of payment: one that can't pay it (nothing held, or not enough for this
-  // amount) shows muted
-  const places: Place<"cash" | "bank" | "both">[] = [
-    {
-      id: "cash",
-      name: tc("cash"),
-      hint: cashHeld === null ? undefined : rupees(cashHeld),
-      disabled: !(canCash && cashCovers),
-    },
-    {
-      id: "bank",
-      name: t("bankPlace"),
-      hint: banksHeld === null ? undefined : rupees(banksHeld),
-      disabled: !(canBank && bankCovers),
-    },
-    {
-      id: "both",
-      name: t("cashAndBank"),
-      // all the money there is: cash and every bank account, as Cash and Bank show them
-      hint: cashHeld === null || banksHeld === null ? undefined : rupees(cashHeld + banksHeld),
-      disabled: !offerBoth,
-    },
-  ];
-  const usesBank = into === "bank" || into === "both";
+// where it's paid from, once there's an amount: a card for each place it leaves (cash, a bank account), picked in the
+// card itself with what each holds (the admin only), then its amount, how it was paid, the party's QR for UPI and its
+// reference. Nothing is picked above the cards: all in cash, all from the bank or both is whatever the cards say. The
+// cash-limit warning closes it
+export function PaidFrom() {
+  const { t, into, cashLimit, cashTodayFailed, retryCashToday, cashThatDay, overCashLimit } =
+    usePaymentEntry();
   const cardsApi = usePaymentCards();
-  // the top: cash, bank or both
-  if (part === "top")
-    return (
-      <>
-        {/* cash, bank or both as an accordion with the bank accounts' look: all three with what each holds (the admin
-          only) until one is picked, then only the pick; one that can't pay it is muted */}
-        <PlacePicker
-          label={t("steps.source")}
-          places={places}
-          value={into}
-          invalid={tried && into === null}
-          onPick={(id) => {
-            // another place: the breakdown starts again
-            resetGrid();
-            setBankId(null);
-            if (id === "cash") {
-              setInto("cash");
-              setBankMode(null);
-            } else if (id === "both") pickBoth();
-            else {
-              setInto("bank");
-              setAccountsOpen((n) => n + 1);
-            }
-          }}
-        />
-      </>
-    );
-  // the rest, the card's full width
   return (
     <>
-      {/* Bank, or Cash + Bank: a card per place, Auto or not */}
-      {/* keyed by the place, so a new one starts with fresh cards */}
-      {usesBank && <AccountCards key={into} api={cardsApi} />}
+      {/* a card per place, Auto or not */}
+      {/* keyed by the amount: another amount starts with a fresh card */}
+      {into !== null && (
+        // a faint line sets the cards apart from the amount and its breakup above
+        <div className="border-t border-chestnut/15 pt-4">
+          <AccountCards key={cardsApi.value} api={cardsApi} />
+        </div>
+      )}
 
       {/* the cash-limit warning, when there is one */}
       <Reveal follow show={overCashLimit || cashTodayFailed} gap="0.625rem">
@@ -112,9 +41,9 @@ export function PaidFrom({ part }: { part: "top" | "rest" }) {
           {/* section 40A(3): a warning only, the payment still saves */}
           <Reveal show={overCashLimit} gap="0px">
             <div className={cn("px-3 py-2.5", into !== "cash" && "border-t border-chestnut/15")}>
-              <Note className="text-amber-700">
+              <FieldMessage tone="warning" className="mt-0">
                 {t("cashLimit", { amount: rupees(cashThatDay), limit: rupees(cashLimit) })}
-              </Note>
+              </FieldMessage>
             </div>
           </Reveal>
         </div>
@@ -123,7 +52,8 @@ export function PaidFrom({ part }: { part: "top" | "rest" }) {
   );
 }
 
-// the bank cards with a payment's words and parts: capped at what each place holds, Auto, the payee's UPI ID box
+// the cards with a payment's words and parts: capped at what each place holds, Auto, no bar, how it was paid as rows,
+// the payee's UPI ID box
 function usePaymentCards(): AccountCardsApi {
   const e = usePaymentEntry();
   const { t, tc } = e;
@@ -134,12 +64,16 @@ function usePaymentCards(): AccountCardsApi {
     setMode: e.setGridMode,
     tried: e.tried,
     capAtHeld: true,
+    noBar: true,
+    modeRows: true,
+    placeFirst: true,
+    fieldRows: true,
     auto: { on: e.gridAuto, set: e.setGridAuto },
     qrItems: e.qrItems,
     qrIdLabel: t(e.upiLabel),
     // the payee's UPI ID above every QR, with a pen; hidden while it's being changed in its box
     qrId: () => ({ hideId: e.upiEditing, onEdit: () => e.setUpiEditing(true) }),
-    upiPart: () => <UpiField />,
+    upiPart: () => <UpiField row />,
     refs: e.refs,
     setRefs: e.setRefs,
     refLeft: e.refLeft,
@@ -147,7 +81,9 @@ function usePaymentCards(): AccountCardsApi {
     labels: {
       breakdown: t("breakdown"),
       account: t("account"),
-      accountAmount: t("accountAmount"),
+      balance: t("balance"),
+      // a short name, as it sits beside its box
+      accountAmount: tc("q.amount"),
       anotherAccount: t("anotherAccount"),
       removeAccount: tc("removeAccount"),
       mode: t("paidBy"),

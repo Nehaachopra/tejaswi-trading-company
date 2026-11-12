@@ -6,8 +6,11 @@ import { useState } from "react";
 import QRCode from "react-qr-code";
 
 import { rupees, titleCase } from "~/lib/format";
+import { cn } from "~/lib/utils";
 import { PickMenu } from "~/components/stock/pick-menu";
 import { appOfUpi } from "@repo/trpc/client";
+
+import { oneLineRow, pickRow } from "./form-basics";
 
 // a UPI payment link: who's paid (the UPI ID and the name it shows), how much, and a note. Any UPI app that scans it
 // opens with the amount filled in. https://www.npci.org.in/ (UPI linking specification)
@@ -45,6 +48,7 @@ export function UpiQr({
   onEdit,
   hideId = false,
   row = false,
+  idAsRow = false,
   idLabel,
 }: {
   upiIds: string[];
@@ -57,6 +61,8 @@ export function UpiQr({
   hideId?: boolean;
   // a receipt's cards: the app, the ID and the pen in one row, labels on top
   row?: boolean;
+  // a payment's cards: the ID's name on the left and the ID in its box on the right, as the card's other rows
+  idAsRow?: boolean;
   // a payment's cards: the UPI ID box's own label (Supplier UPI ID ...) above the ID (or its dropdown)
   idLabel?: string;
 }) {
@@ -104,12 +110,34 @@ export function UpiQr({
           />
         </div>
       )}
-      {/* a payment's cards: "UPI ID" on top, then one row, the ID on the left (a long one cut short, in full on
-          hover) and the pen at the right edge */}
-      {!hideId && !row && upiIds.length === 1 && idLabel && (
+      {/* a payment's cards: the ID's name on the left; on the right the ID in plain words on one line (no box, only
+          the amount is filled there) and the pen under it, in line with the ▾ of the picks above */}
+      {!hideId && !row && upiIds.length === 1 && idLabel && idAsRow && (
+        <div className={cn("w-full min-w-0", oneLineRow)}>
+          <span>{idLabel}</span>
+          <span className="flex min-w-0 flex-col items-end px-3.5">
+            <span className="flex min-h-12 max-w-full items-center overflow-x-auto whitespace-nowrap text-base font-medium">
+              {picked}
+            </span>
+            {onEdit && (
+              <button
+                type="button"
+                onClick={onEdit}
+                aria-label={tp2("editUpi")}
+                className="-mr-2.5 grid size-9 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
+              >
+                <Pencil className="size-4" aria-hidden />
+              </button>
+            )}
+          </span>
+        </div>
+      )}
+      {/* otherwise "UPI ID" on top, then the ID in its box (a long one cut short, in full on hover), the pen at its
+          right edge */}
+      {!hideId && !row && upiIds.length === 1 && idLabel && !idAsRow && (
         <div className="flex w-full min-w-0 flex-col gap-2 text-xs font-semibold">
           <span>{idLabel}</span>
-          <span className="flex min-h-9 min-w-0 items-center justify-between gap-2">
+          <span className="flex min-h-11 min-w-0 items-center justify-between gap-2 rounded-control bg-ivory px-3 font-semibold shadow-[0_0_5px_0] shadow-chestnut/40">
             <span className="min-w-0 truncate text-base" title={picked}>
               {picked}
             </span>
@@ -118,7 +146,7 @@ export function UpiQr({
                 type="button"
                 onClick={onEdit}
                 aria-label={tp2("editUpi")}
-                className="grid size-8 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
+                className="-mr-2 grid size-8 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
               >
                 <Pencil className="size-4" aria-hidden />
               </button>
@@ -165,7 +193,7 @@ export function UpiQr({
           )}
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <span>{t("upiId")}</span>
-            <span className="flex min-h-11 min-w-0 items-center gap-1">
+            <span className="flex min-h-11 min-w-0 items-center gap-1 rounded-control bg-ivory px-3 shadow-[0_0_5px_0] shadow-chestnut/40">
               <span className="min-w-0 flex-1 truncate text-sm font-normal" title={picked}>
                 {listOpen ? "" : picked}
               </span>
@@ -174,7 +202,7 @@ export function UpiQr({
                   type="button"
                   onClick={onEdit}
                   aria-label={tp2("editUpi")}
-                  className="grid size-8 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
+                  className="-mr-2 grid size-8 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
                 >
                   <Pencil className="size-4" aria-hidden />
                 </button>
@@ -183,17 +211,41 @@ export function UpiQr({
           </div>
         </div>
       )}
-      {/* the code: dark on white with a quiet margin, the size a phone reads from arm's length */}
-      <div className="rounded-xl bg-white p-3">
+      {/* the code: dark on white with a quiet margin, the size a phone reads from arm's length; the amount large
+          under it. A payment's cards: as a row, "QR code" on the left and the code (as wide as the right side) on
+          the right, like the card's other rows */}
+      {idAsRow ? (
+        <div className={cn("w-full", pickRow)}>
+          <span>{tp2("qrCode")}</span>
+          <span className="flex min-w-0 flex-col items-center gap-2">
+            {code("w-full")}
+            <span className="tabular font-heading text-2xl font-bold leading-none">
+              {rupees(amount)}
+            </span>
+          </span>
+        </div>
+      ) : (
+        <>
+          {code()}
+          <p className="tabular font-heading text-3xl font-bold leading-none">{rupees(amount)}</p>
+        </>
+      )}
+    </div>
+  );
+
+  // the QR on white; `className` sizes its white box (the code fills it, square)
+  function code(className?: string) {
+    return (
+      <div className={cn("rounded-xl bg-white p-3", className)}>
         <QRCode
           value={upiLink({ upiId: picked, payee: name, amount, note })}
           size={208}
+          style={className ? { width: "100%", height: "auto" } : undefined}
           fgColor="#2b160e"
           bgColor="#ffffff"
           level="M"
         />
       </div>
-      <p className="tabular font-heading text-3xl font-bold leading-none">{rupees(amount)}</p>
-    </div>
-  );
+    );
+  }
 }

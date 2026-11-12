@@ -35,6 +35,21 @@ export const chip = (on: boolean) =>
     on ? "border-chestnut bg-chestnut text-ivory" : "border-chestnut/50 hover:bg-chestnut/[0.06]",
   );
 
+// a field as a row: its name on the left, its value or box on the right, every row's right side the same width so
+// they line up; anything after those two (what's wrong with it, a note) goes under the right side. Both start at the
+// row's top, the name level with a one-line box (44px), so a right side that opens into a list grows downwards from
+// there and the name stays put beside its first line
+const rowBase =
+  "grid grid-cols-[minmax(0,1fr)_62%] items-start gap-x-3 gap-y-1.5 text-sm font-normal [&>*:first-child]:flex [&>*:first-child]:items-center [&>*:nth-child(n+3)]:col-start-2";
+export const fieldRow = `${rowBase} [&>*:first-child]:min-h-11`;
+// the same beside an accordion: the name level with its first row (48px, or 56px with a second line)
+export const pickRow = `${rowBase} [&>*:first-child]:min-h-12`;
+export const pickRowTwo = `${rowBase} [&>*:first-child]:min-h-14`;
+// a value kept on one line (a UPI ID): its side at least as wide as the other rows', wider when it needs to be, the
+// name never squeezed under 5rem
+export const oneLineRow =
+  "grid grid-cols-[minmax(5rem,1fr)_minmax(62%,auto)] items-start gap-x-3 text-sm font-normal [&>*:first-child]:flex [&>*:first-child]:min-h-12 [&>*:first-child]:items-center";
+
 // an amount, large and bold
 export const money = "tabular font-heading font-bold leading-tight";
 

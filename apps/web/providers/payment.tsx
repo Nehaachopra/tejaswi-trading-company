@@ -86,7 +86,10 @@ export function useLandlords(enabled: boolean) {
 
 // a supplier's TDS (section 194Q)
 export function useSupplierTds(input: PaymentIn["supplierTds"], enabled: boolean) {
-  const q = trpc.transactions.payment.supplierTds.useQuery(input, { enabled });
+  const q = trpc.transactions.payment.supplierTds.useQuery(input, {
+    enabled,
+    placeholderData: (last) => last,
+  });
   return {
     supplierTds: q.data,
     supplierTdsFailed: enabled && q.isError,
@@ -96,7 +99,10 @@ export function useSupplierTds(input: PaymentIn["supplierTds"], enabled: boolean
 
 // an expense's TDS and reverse-charge GST
 export function useExpenseTax(input: PaymentIn["expenseTax"], enabled: boolean) {
-  const q = trpc.transactions.payment.expenseTax.useQuery(input, { enabled });
+  const q = trpc.transactions.payment.expenseTax.useQuery(input, {
+    enabled,
+    placeholderData: (last) => last,
+  });
   return {
     expenseTax: q.data,
     expenseTaxFailed: enabled && q.isError,
@@ -106,7 +112,10 @@ export function useExpenseTax(input: PaymentIn["expenseTax"], enabled: boolean) 
 
 // the TDS on interest paid on a loan we took
 export function useInterestTds(input: PaymentIn["interestTds"], enabled: boolean) {
-  const q = trpc.transactions.payment.interestTds.useQuery(input, { enabled });
+  const q = trpc.transactions.payment.interestTds.useQuery(input, {
+    enabled,
+    placeholderData: (last) => last,
+  });
   return {
     interestTds: q.data,
     interestTdsFailed: enabled && q.isError,

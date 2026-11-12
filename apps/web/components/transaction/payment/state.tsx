@@ -122,7 +122,14 @@ export function usePaymentEntryState({
   const [payee, setPayee] = useState<LedgerChoice>(null);
   const [newPayee, setNewPayee] = useState<PartyDraft>(() => emptyParty());
   // a PAN for someone with none on record, where TDS is at the higher rate because of it
+  // the PAN as typed in its box, and the one Saved: only a Saved PAN counts (for the TDS and on their record), so
+  // typing never makes the TDS (and the box with it) blink while the server works it out again
   const [pan, setPan] = useState("");
+  const [savedPan, setSavedPan] = useState("");
+  // the box open for typing: always while none is Saved, else once the pen is tapped
+  const [panEditing, setPanEditing] = useState(false);
+  // its mistakes show once Save is tapped (or Next)
+  const [panLeft, setPanLeft] = useState(false);
   // casual labour paid with nobody named
   const [payeeSkipped, setPayeeSkipped] = useState(false);
   // rent: the landlord it was paid to
@@ -258,13 +265,28 @@ export function usePaymentEntryState({
   const payeeMatches = usePhoneMatches(newPayee.phone, "customer");
   const payeeMatched = payee?.kind === "party" && payeeMatches.length > 0 ? payeeMatches[0]! : null;
 
-  // a PAN typed in full counts straight away; it's for this person only
-  const panGiven = PAN_RE.test(pan) ? pan : null;
-  const panBad = pan !== "" && panGiven === null;
-  useEffect(() => setPan(""), [kind, to, payee, landlordId, loan?.id]);
+  // a Saved PAN counts; it's for this person only. Something typed and not Saved (or not a PAN) holds the form up
+  const panGiven = PAN_RE.test(savedPan) ? savedPan : null;
+  const panTypedOk = PAN_RE.test(pan);
+  const panBad = pan !== savedPan;
+  const savePan = () => {
+    setPanLeft(true);
+    if (pan === "" || panTypedOk) {
+      setSavedPan(pan);
+      setPanEditing(false);
+    }
+  };
+  useEffect(() => {
+    setPan("");
+    setSavedPan("");
+    setPanEditing(false);
+    setPanLeft(false);
+  }, [kind, to, payee, landlordId, loan?.id]);
 
   // staff don't see balances: once typing pauses, the server says whether the amount fits
   const [askedAmount, setAskedAmount] = useState(0);
+  // the amount as last typed by hand in its box (not filled in by the website or a button)
+  const keyedAmount = useRef<string | null>(null);
   useEffect(() => {
     const timer = setTimeout(() => setAskedAmount(value), 400);
     return () => clearTimeout(timer);
@@ -273,7 +295,7 @@ export function usePaymentEntryState({
   const { supplierTds, supplierTdsFailed, retrySupplierTds } = useSupplierTds(
     {
       paidToLedgerId: to?.kind === "ledger" ? to.ledger.id : null,
-      newPartyHasPan: PAN_RE.test(pan),
+      newPartyHasPan: panGiven !== null,
       pan: panGiven,
       amount: askedAmount,
       // the end of the day (a fixed moment, so the question doesn't change on every render)
@@ -290,7 +312,7 @@ export function usePaymentEntryState({
       payeeLedgerId: !rent && payee?.kind === "ledger" ? payee.ledger.id : null,
       payeeLandlordId: landlord?.id ?? null,
       newPayee: !rent && payee?.kind === "party",
-      newPayeePan: PAN_RE.test(pan) ? pan : "",
+      newPayeePan: panGiven ?? "",
       newPayeeHasGstin: newPayee.addresses.some((a) => a.gstin.trim() !== ""),
       newPayeeDeclared: newPayee.transportDeclaration,
       rentMonths: rent ? Number(rentMonths) || 1 : 1,
@@ -320,8 +342,19 @@ export function usePaymentEntryState({
   // a payment that can carry TDS (its year's switch is on): its breakup shows even while it's under the limit
   // anyone with no PAN where TDS applies, saved or new: asked below the amount, and it stays on their record
   const asksPan =
-    tdsInfo?.rate === 5 || !!tax?.panMissing || !!interestInfo?.panMissing || pan !== "";
+    tdsInfo?.rate === 5 ||
+    !!tax?.panMissing ||
+    !!interestInfo?.panMissing ||
+    pan !== "" ||
+    savedPan !== "";
   const tdsApplies = tdsInfo !== null || (!!tax?.applies && !skipped) || !!interestInfo?.applies;
+  // the PAN box: only while TDS is actually taken on this payment and they've no PAN on record. Decided once the
+  // amount has settled (and the server has answered), so it doesn't come and go on every key while the amount is typed
+  const panNeeded = asksPan && tdsApplies && tdsAmount > 0;
+  const [showPan, setShowPan] = useState(false);
+  useEffect(() => {
+    if (askedAmount === value) setShowPan(panNeeded);
+  }, [askedAmount, value, panNeeded]);
   // an expense's TDS depends on who was paid, so it's open until they're picked
   const tdsKnown = tdsInfo !== null || hasPayee || interestInfo !== null;
   // the amount typed is without TDS and reverse-charge GST; with them, it must still fit what the source holds
@@ -562,17 +595,31 @@ export function usePaymentEntryState({
     if (askedAmount !== value || value <= 0 || !sources || !banks) return;
     if (into === "cash" && !cashCovers) setInto(null);
     if (into === "bank" && !bankCovers) setInto(null);
-    if (into === "both" && !offerBoth) setInto(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the amount or source changes
   }, [askedAmount, value, total, into, bankId, sources, banks]);
-  // Bank, or Cash + Bank: a box each for cash (with the bank only when it's Cash + Bank) and every bank account, its
+  // nothing picks where it's paid from: the first card comes up by itself, offering cash and every bank account, and
+  // what's typed in the cards says which it is (all cash, all bank, or both, settled on Next). An amount typed by hand
+  // waits for the typing to pause; one filled in (what's unpaid, a Pay button, rent or interest worked out) doesn't
+  // wait: that's set where the amount changes, below
+  useEffect(() => {
+    if (into !== null || value <= 0) return;
+    if (keyedAmount.current === amount && askedAmount !== value) return;
+    cashPartAuto.current = false;
+    setInto("both");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- amount goes with value
+  }, [into, value, askedAmount]);
+  // a card changed after Next had settled it as cash or the bank alone (Back): it's open to both again
+  const reopenBoth = () => {
+    if (into === "cash" || into === "bank") setInto("both");
+  };
+  // a card each for cash and every bank account, its
   // amount typed or filled by Auto (off to start with: switched on, it fills them) from what each holds, cash first. The first account with an
   // amount is the bank's main part (bankId, firstAmount, bankMode), the others its more parts, the cash box the cash part
   const usesGrid = into === "bank" || into === "both";
   // null is Auto; it starts off, everything empty
   const [gridTyped, setGridTyped] = useState<Record<string, string> | null>({});
   const [gridModes, setGridModes] = useState<Record<string, BankMode | null>>({});
-  const gridIds = [...(into === "both" ? ["cash"] : []), ...(banks ?? []).map((b) => b.id)];
+  const gridIds = ["cash", ...(banks ?? []).map((b) => b.id)];
   const gridHeld = (id: string) => (id === "cash" ? cashHeld : bankHeld(id));
   const gridFilled = (() => {
     let need = value;
@@ -609,11 +656,13 @@ export function usePaymentEntryState({
       gridAccs.length > 0 &&
       (into !== "both" || (gridPlaces[0]?.amount ?? 0) > 0));
   function setGridText(id: string, text: string) {
+    reopenBoth();
     setGridTyped((was) => ({ ...(was ?? gridFilled), [id]: text }));
   }
   function setGridAuto(on: boolean) {
-    // off: Bank starts empty, to be typed account by account; Cash + Bank keeps what Auto had filled
-    setGridTyped(on ? null : into === "bank" ? {} : gridFilled);
+    // off: the cards keep what Auto had filled
+    reopenBoth();
+    setGridTyped(on ? null : gridFilled);
   }
   // Paid from changed by hand: the breakdown starts again, every card empty, no Paid by, Auto off
   function resetGrid() {
@@ -621,6 +670,7 @@ export function usePaymentEntryState({
     setGridModes({});
   }
   function setGridMode(id: string, mode: BankMode | null) {
+    reopenBoth();
     setGridModes((all) => ({ ...all, [id]: mode }));
   }
   // the grid feeds what's saved: the cash part, the first account, and the more parts (kept in step: set again when
@@ -664,7 +714,10 @@ export function usePaymentEntryState({
   useEffect(() => {
     if (amountSeen.current === value) return;
     amountSeen.current = value;
-    setInto(null);
+    // typed by hand: the cards wait for the typing to pause; filled in: the first card is there at once
+    const filled = value > 0 && keyedAmount.current !== amount;
+    if (filled) cashPartAuto.current = false;
+    setInto(filled ? "both" : null);
     setBankId(null);
     setBankMode(null);
     setMoreParts([]);
@@ -875,10 +928,9 @@ export function usePaymentEntryState({
             (!payeeMatched && partyOk(newPayee, true, payeePhoneOptional)))),
     gst: gstMode === "none" || gstInput !== null,
     terms: !Object.values(loanProblems(terms)).some(Boolean) && !(dueOn !== "" && dueOn < day),
+    // a PAN typed and not Saved holds it up, only while its box is there
     details:
-      day !== "" &&
-      !panBad &&
-      (into === "cash" || into === null || bankMode !== null),
+      day !== "" && !(panBad && showPan) && (into === "cash" || into === null || bankMode !== null),
   };
   // the cards that apply now, shown up to the first one not yet filled in
   const steps: Step[] = [
@@ -1111,7 +1163,8 @@ export function usePaymentEntryState({
   }, [into]);
 
   // someone or something picked from a list (who it's paid to, an expense head or tax, a loan, the landlord, who was
-  // paid): on to the next card once the pick has settled, if that card is done (Back comes here to change it)
+  // paid, or Skip on who was paid): on to the next card once the pick has settled, if that card is done (Back comes
+  // here to change it)
   // `pastPayee` goes on past who was paid too (labour, its payee skipped)
   const nextAfterPick = useRef<"next" | "pastPayee" | null>(null);
   const movesOn = (how: "next" | "pastPayee" = "next") => {
@@ -1129,7 +1182,7 @@ export function usePaymentEntryState({
         : later[0]!,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only once a pick has settled
-  }, [to, loan, landlordId, payee]);
+  }, [to, loan, landlordId, payee, payeeSkipped]);
 
   // something missing: show it in red and put the cursor on its first field
   function guide() {
@@ -1288,6 +1341,14 @@ export function usePaymentEntryState({
     setNewPayee,
     pan,
     setPan,
+    savedPan,
+    panEditing,
+    setPanEditing,
+    panLeft,
+    setPanLeft,
+    panTypedOk,
+    savePan,
+    showPan,
     payeeSkipped,
     setPayeeSkipped,
     landlordId,
@@ -1392,6 +1453,7 @@ export function usePaymentEntryState({
     panBad,
     askedAmount,
     setAskedAmount,
+    keyedAmount,
     supplierTds,
     supplierTdsFailed,
     retrySupplierTds,

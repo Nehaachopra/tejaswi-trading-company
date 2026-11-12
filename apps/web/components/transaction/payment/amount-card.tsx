@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, HandCoins, IndianRupee, Pencil } from "lucide-react";
+import { ChevronDown, IndianRupee, Pencil } from "lucide-react";
 import { Note } from "~/components/ui/note";
 import { Reveal } from "~/components/ui/reveal";
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
@@ -10,11 +10,11 @@ import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { type AmountRow, AmountTable } from "../shared/amount-table";
-import { AmountBox } from "../shared/amount-box";
+import { type AmountRow, PlainRows } from "../shared/amount-table";
 import { LABOUR_SKIP_MAX, input, saidAmount } from "./shared";
 import { usePaymentEntry } from "./state";
 import { FailNote, CapWarning } from "./notes";
+import { DuePie, type PiePart } from "./due-pie";
 import { PaidFrom } from "./paid-from";
 
 export function AmountCard() {
@@ -23,11 +23,20 @@ export function AmountCard() {
     tc,
     tp,
     into,
+    capNote,
     setCapNote,
     amount,
     kind,
     pan,
     setPan,
+    savedPan,
+    panEditing,
+    setPanEditing,
+    panLeft,
+    setPanLeft,
+    panTypedOk,
+    savePan,
+    showPan,
     setPayeeSkipped,
     loan,
     rentMonths,
@@ -49,7 +58,6 @@ export function AmountCard() {
     tdsAmount,
     tdsRate,
     noPan,
-    asksPan,
     tdsApplies,
     tdsKnown,
     total,
@@ -58,6 +66,7 @@ export function AmountCard() {
     interestTyped,
     setInterestTyped,
     typeAmount,
+    keyedAmount,
     interestCalc,
     rentRows,
     rentOf,
@@ -79,11 +88,11 @@ export function AmountCard() {
     amountOver,
     loanOver,
     dueShown,
+    settlesTotal,
     weOwe,
     heldAdvance,
     advance,
     cap,
-    filled,
     taxFailed,
     retryTax,
     show,
@@ -91,9 +100,8 @@ export function AmountCard() {
   // the amount's breakdown (paid, any TDS and reverse-charge GST, the total, a due and an advance), then how the TDS
   // and GST were worked out. `always`: there once there's an amount (on the right, wider screens); otherwise only
   // once there's something to break down (under the amount, on a phone)
-  const breakdown = (always: boolean) => (
+  const breakdownNotes = (
     <>
-      {value > 0 && <AmountTable rows={amountRows()} open={always} always={always} />}
       <Reveal follow show={value > 0 && !!tax?.declared}>
         <Note className="text-chestnut/70">{t("declaredNoTds")}</Note>
       </Reveal>
@@ -106,199 +114,284 @@ export function AmountCard() {
       </Reveal>
     </>
   );
+  const filling = value > 0 && !tooMuch;
+  // the box's look once there's an amount (chestnut, no shadow), and its ₹ and mic with it
+  const filledBox = filling && "bg-chestnut text-ivory caret-ivory shadow-none";
+  // a typed amount's breakup rows: the amount, any TDS and reverse-charge GST, the total (a due settled and an
+  // advance, which follow the total, are the pie's to show)
+  const typedRows = amountRows();
+  const totalAt = typedRows.findIndex((r) => r.tone === "total");
+  // the pie's two parts, the see-through one first and the chestnut one last. A payment that leaves an advance: what
+  // was due, and the advance. One that doesn't, where something is owed (a supplier, a loan, a tax): what's still due
+  // after it, and what it settles. A part of nothing is left out
+  const settled = dueShown === null ? 0 : Math.min(settlesTotal, dueShown);
+  const pieParts: PiePart[] = (
+    value <= 0
+      ? []
+      : advance > 0
+        ? [
+            { key: "due", name: t("due"), amount: weOwe, filled: false },
+            { key: "advance", name: t("advancePart"), amount: advance, filled: true },
+          ]
+        : dueShown !== null
+          ? [
+              {
+                key: "due",
+                name: t("due"),
+                amount: Math.round((dueShown - settled) * 100) / 100,
+                filled: false,
+              },
+              { key: "settled", name: t("settledPart"), amount: settled, filled: true },
+            ]
+          : []
+  ).filter((part) => part.amount > 0);
+  // a row of the amount's part: its name on the left, its box on the right with what's typed at its right end, as a
+  // bank card's amount
+  const row = (label: React.ReactNode, control: React.ReactNode, htmlFor?: string) => (
+    <div className="flex min-w-0 items-center justify-between gap-3">
+      <label htmlFor={htmlFor} className="min-w-0 text-sm">
+        {label}
+      </label>
+      <div
+        className={cn("w-[60%] shrink-0 [&_input]:text-right", filling && "[&_button]:text-ivory")}
+      >
+        {control}
+      </div>
+    </div>
+  );
+  // the ₹ inside an amount's box, ivory once it's filled
+  const rupeeMark = (
+    <IndianRupee
+      className={cn(
+        "pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2",
+        filling && "text-ivory",
+      )}
+      aria-hidden
+    />
+  );
+  // where every problem and note about a value goes: under the value side, starting at the boxes' left edge
+  const underValue = "ml-auto w-[60%]";
+  // the amount's box: large and bold, chestnut once filled
+  const amountBox = "min-h-12 pl-11 font-heading text-xl font-bold tabular";
   return (
-    // on a phone one column; on a wider screen the due, the amount (TDS, PAN) and where it's paid from on the left,
-    // the amount's breakdown on the right, starting level; then the Paid from breakdown the full width: the same for
-    // every kind of payment. Rent's godowns come
-    // above both, as wide as the left column. The QR is inside each bank account's card
+    // on a phone one column; on a wider screen the due, the amount (TDS, PAN) and its breakup on the left, the due's
+    // pie on the right; then where it's paid from the full width. Every kind of payment the same: rent and interest
+    // only add their months (and rent its godowns, above) and work their amount out
     <div className="flex flex-col gap-4">
       {rentCalc && <div className="min-w-0 sm:w-[calc(50%-0.75rem)]">{rentBreakdown()}</div>}
       <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-6">
-        <div className="min-w-0">
-          <div className="flex min-w-0 flex-col gap-4">
-            {/* what's owed on the supplier, loan or tax, in a box like a deposit's cash in hand, as soon as something is owed */}
+        <div className="flex min-w-0 flex-col gap-4">
+          <div className="flex flex-col gap-2.5">
+            {/* what's owed on the supplier, loan, landlord or tax, as soon as something is owed; room under it */}
             {dueShown !== null && (
-              <div className="min-w-0">
-                <AmountBox icon={HandCoins} label={t("due")} amount={dueShown} />
+              <div className="tabular mb-2 flex items-baseline justify-between gap-3 text-sm">
+                <span className="min-w-0">{t("due")}</span>
+                <span className="shrink-0 whitespace-nowrap text-base font-semibold">
+                  {rupees(dueShown)}
+                </span>
               </div>
             )}
-            <div className="flex min-w-0 flex-col gap-4">
-              {rentCalc ? (
-                rentAmount()
-              ) : interestCalc ? (
-                <div className="grid grid-cols-[6rem_minmax(0,1fr)] items-end gap-x-6">
-                  <label className="flex flex-col gap-2.5 text-xs font-semibold">
-                    {t("months")}
-                    <NumberInput
-                      value={interestTyped !== null ? "" : interestMonths}
-                      onChange={(v) => {
-                        setInterestTyped(null);
-                        setInterestMonths(atLeastOne(v));
-                      }}
-                      maxDigits={3}
-                      max={120}
-                      placeholder="--"
-                      className={cn(input(false), "min-h-14 tabular")}
-                    />
-                  </label>
-                  {/* what it comes to */}
-                  <div className="flex min-w-0 items-end gap-2">
-                    <label className="flex min-w-0 flex-1 flex-col gap-2.5 text-xs font-semibold">
-                      {t("interestDue")}
-                      <span
-                        className={cn("relative block", calcDue > 0 && !tooMuch && "text-ivory")}
-                      >
-                        <IndianRupee
-                          className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2"
-                          aria-hidden
-                        />
-                        <NumberInput
-                          value={
-                            interestTyped ?? (interestWorked > 0 ? String(interestWorked) : "")
-                          }
-                          onChange={setInterestTyped}
-                          decimals={2}
-                          maxDigits={13}
-                          placeholder="0"
-                          aria-invalid={(tried && calcDue === 0) || tooMuch || undefined}
-                          className={cn(
-                            input((tried && calcDue === 0) || tooMuch),
-                            "min-h-14 pl-10 font-heading text-2xl font-bold",
-                            calcDue > 0 && !tooMuch && "bg-chestnut text-ivory caret-ivory",
-                          )}
-                        />
-                      </span>
-                    </label>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2.5">
-                  {/* the amount */}
-                  <div className="flex min-w-0 items-end gap-2">
-                    <label className="flex min-w-0 flex-1 flex-col gap-2.5 text-xs font-semibold">
-                      <span>
-                        {tc("q.amount")}
-                        <RequiredMark />
-                      </span>
-                      {/* a chestnut fill once there's an amount */}
-                      <div className={filled ? "text-ivory [&_button]:text-ivory" : undefined}>
-                        <MicField onText={(said) => saidAmount(said, typeAmount)}>
-                          <IndianRupee
-                            className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2"
-                            aria-hidden
-                          />
-                          <NumberInput
-                            id="amount-field"
-                            value={amount}
-                            onChange={(v) => {
-                              setCapNote(null);
-                              typeAmount(v);
-                            }}
-                            onCapped={(most) =>
-                              setCapNote({
-                                key: "amount",
-                                text: t("capOnly", { amount: rupees(most) }),
-                              })
-                            }
-                            decimals={2}
-                            maxDigits={13}
-                            max={cap}
-                            placeholder="0"
-                            aria-invalid={
-                              amountOver || tooMuch || (tried && value === 0) || undefined
-                            }
-                            className={cn(
-                              input(amountOver || tooMuch || (tried && value === 0)),
-                              "min-h-14 pl-10 pr-11 font-heading text-2xl font-bold",
-                              filled && !tooMuch && "bg-chestnut text-ivory caret-ivory",
-                            )}
-                          />
-                        </MicField>
-                      </div>
-                    </label>
-                  </div>
-                  {<CapWarning at={"amount"} />}
-                  {/* their PAN, where TDS applies and there's none on record: above the breakdown it changes */}
-                  {panField()}
-                  {/* on a phone the breakdown right under the amount (wider screens: on the right) */}
-                  <div className="flex flex-col gap-2.5 sm:hidden">{breakdown(false)}</div>
-                  {/* labour with nobody named stops at the limit: naming who was paid lifts it */}
-                  {skipped && (
-                    <Note className="tabular text-chestnut/70">
-                      {t("labourOver", { amount: rupees(LABOUR_SKIP_MAX) })}{" "}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPayeeSkipped(false);
-                          show("payee");
-                        }}
-                        className="font-semibold text-chestnut underline underline-offset-2"
-                      >
-                        {t("namePayee")}
-                      </button>
-                    </Note>
-                  )}
-                  {/* an advance we already have with them, before anything's typed */}
-                  <Reveal follow show={heldAdvance > 0 && advance === 0} gap="0.625rem">
-                    <Note className="tabular text-chestnut/70">
-                      {t("heldAdvance", { amount: rupees(heldAdvance) })}
-                    </Note>
-                  </Reveal>
-                </div>
+            {/* their PAN, where TDS applies and there's none on record: first, set well apart from the amount below */}
+            {panField()}
+            {/* rent and interest: how many months */}
+            {rentCalc &&
+              row(
+                t("months"),
+                <NumberInput
+                  id="months-field"
+                  value={rentMonths}
+                  onChange={(v) => setRentMonths(atLeastOne(v))}
+                  maxDigits={3}
+                  max={120}
+                  aria-invalid={(tried && Number(rentMonths) < 1) || undefined}
+                  className={cn(input(tried && Number(rentMonths) < 1), "tabular")}
+                />,
+                "months-field",
               )}
-              {taxFailed && <FailNote text={t("taxFailed")} retry={retryTax} />}
-              {fitsFailed && <FailNote text={t("fitsFailed")} retry={retryFits} />}
-              {tooMuch && mostHeld !== null && (
-                <FieldMessage className="mt-0">
-                  {t("tooMuch", { amount: rupees(mostHeld) })}
-                </FieldMessage>
+            {interestCalc &&
+              row(
+                t("months"),
+                <NumberInput
+                  id="months-field"
+                  value={interestTyped !== null ? "" : interestMonths}
+                  onChange={(v) => {
+                    setInterestTyped(null);
+                    setInterestMonths(atLeastOne(v));
+                  }}
+                  maxDigits={3}
+                  max={120}
+                  placeholder="--"
+                  className={cn(input(false), "tabular")}
+                />,
+                "months-field",
               )}
-              {amountOver && !tooMuch && (
-                <FieldMessage className="mt-0">{overMessage()}</FieldMessage>
-              )}
-              {loanOver && (
-                <FieldMessage className="mt-0">
-                  {tc("problems.loanLeft", { left: rupees(loan!.left) })}
-                </FieldMessage>
-              )}
-
-              {/* rent and interest: their PAN (where TDS applies and there's none on record), then their breakdown */}
-              {(rentCalc || interestCalc) && panField()}
-              {/* rent and interest: on a phone their breakdown under their figures (wider screens: on the right) */}
-              {(rentCalc || interestCalc) && (
-                <div className="flex flex-col gap-2.5 sm:hidden">{breakdown(false)}</div>
-              )}
-
-              {/* the EMI in one tap */}
-              {kind === "loanRepaid" &&
-                loan?.emiAmount != null &&
-                loan.emiAmount <= loan.left &&
-                value !== loan.emiAmount && (
-                  <button
-                    type="button"
-                    onClick={() => typeAmount(String(loan.emiAmount))}
-                    className={ADD_ON_IVORY}
+            {/* the amount: rent's worked out from the months, interest's worked out but can be typed over, any other
+                typed (or spoken) */}
+            {rentCalc
+              ? row(
+                  <>
+                    {tc("q.amount")}
+                    <RequiredMark />
+                  </>,
+                  <output
+                    className={cn(
+                      input(tried && calcDue === 0),
+                      "relative flex items-center justify-end break-all",
+                      amountBox,
+                      calcDue > 0 && "bg-chestnut text-ivory shadow-none",
+                    )}
                   >
-                    {t("payEmi", { amount: rupees(loan.emiAmount) })}
-                  </button>
-                )}
-            </div>
-
-            {/* where it's paid from, in this same card, under the amount */}
-            <div className="flex min-w-0 flex-col gap-2.5">
-              <h3 className="text-xs font-semibold">{t("steps.source")}</h3>
-              <PaidFrom part="top" />
-            </div>
+                    {rupeeMark}
+                    {rupees(calcDue).replace("₹ ", "")}
+                  </output>,
+                )
+              : interestCalc
+                ? row(
+                    <>
+                      {t("interestDue")}
+                      <RequiredMark />
+                    </>,
+                    <span className="relative block">
+                      {rupeeMark}
+                      <NumberInput
+                        id="amount-field"
+                        value={interestTyped ?? (interestWorked > 0 ? String(interestWorked) : "")}
+                        onChange={setInterestTyped}
+                        decimals={2}
+                        maxDigits={13}
+                        placeholder="0"
+                        aria-invalid={(tried && calcDue === 0) || tooMuch || undefined}
+                        className={cn(
+                          input((tried && calcDue === 0) || tooMuch),
+                          amountBox,
+                          filledBox,
+                        )}
+                      />
+                    </span>,
+                    "amount-field",
+                  )
+                : row(
+                    <>
+                      {tc("q.amount")}
+                      <RequiredMark />
+                    </>,
+                    <MicField onText={(said) => saidAmount(said, typeAmount)}>
+                      {rupeeMark}
+                      <NumberInput
+                        id="amount-field"
+                        value={amount}
+                        onChange={(v) => {
+                          setCapNote(null);
+                          keyedAmount.current = v;
+                          typeAmount(v);
+                        }}
+                        onCapped={(most) =>
+                          setCapNote(
+                            // labour with nobody named, cut at its limit: the warning links to naming them instead
+                            skipped && most === LABOUR_SKIP_MAX
+                              ? { key: "labour", text: "" }
+                              : { key: "amount", text: t("capOnly", { amount: rupees(most) }) },
+                          )
+                        }
+                        decimals={2}
+                        maxDigits={13}
+                        max={cap}
+                        placeholder="0"
+                        aria-invalid={amountOver || tooMuch || (tried && value === 0) || undefined}
+                        className={cn(
+                          input(amountOver || tooMuch || (tried && value === 0)),
+                          amountBox,
+                          "pr-12",
+                          filledBox,
+                        )}
+                      />
+                    </MicField>,
+                    "amount-field",
+                  )}
+            <CapWarning at="amount" className={underValue} />
+            {/* labour cut at the limit for nobody named: past it needs the labourer's details, a tap away */}
+            {capNote?.key === "labour" && (
+              <FieldMessage tone="warning" className={cn("mt-0", underValue)}>
+                {t("labourOver", { amount: rupees(LABOUR_SKIP_MAX) })}{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCapNote(null);
+                    setPayeeSkipped(false);
+                    show("payee");
+                  }}
+                  className="font-semibold underline underline-offset-2"
+                >
+                  {t("namePayee")}
+                </button>
+              </FieldMessage>
+            )}
+            {/* the rest of the breakup once there's an amount: any TDS and reverse-charge GST, the total; then how the
+                TDS and GST were worked out */}
+            {value > 0 && <PlainRows rows={typedRows.slice(1, totalAt + 1)} />}
+            {/* a phone: the due's pie under the total, in the middle (wider screens: on the right) */}
+            {pieParts.length > 0 && (
+              <div className="flex justify-center pt-3 sm:hidden">
+                <DuePie parts={pieParts} />
+              </div>
+            )}
+            {breakdownNotes}
+            {/* an advance we already have with them, before anything's typed */}
+            <Reveal follow show={heldAdvance > 0 && advance === 0} gap="0.625rem">
+              <Note className="tabular text-chestnut/70">
+                {t("heldAdvance", { amount: rupees(heldAdvance) })}
+              </Note>
+            </Reveal>
           </div>
+          {taxFailed && (
+            <div className={underValue}>
+              <FailNote text={t("taxFailed")} retry={retryTax} />
+            </div>
+          )}
+          {fitsFailed && (
+            <div className={underValue}>
+              <FailNote text={t("fitsFailed")} retry={retryFits} />
+            </div>
+          )}
+          {tooMuch && mostHeld !== null && (
+            <FieldMessage className={cn("mt-0", underValue)}>
+              {t("tooMuch", { amount: rupees(mostHeld) })}
+            </FieldMessage>
+          )}
+          {amountOver && !tooMuch && (
+            <FieldMessage className={cn("mt-0", underValue)}>{overMessage()}</FieldMessage>
+          )}
+          {loanOver && (
+            <FieldMessage className={cn("mt-0", underValue)}>
+              {tc("problems.loanLeft", { left: rupees(loan!.left) })}
+            </FieldMessage>
+          )}
+          {/* the EMI in one tap */}
+          {kind === "loanRepaid" &&
+            loan?.emiAmount != null &&
+            loan.emiAmount <= loan.left &&
+            value !== loan.emiAmount && (
+              <button
+                type="button"
+                onClick={() => typeAmount(String(loan.emiAmount))}
+                className={ADD_ON_IVORY}
+              >
+                {t("payEmi", { amount: rupees(loan.emiAmount) })}
+              </button>
+            )}
         </div>
-        {/* wider screens: the amount's breakdown on the right, always there once there's an amount; raised so its
-            Breakup heading sits level with the card's (not for rent, whose godowns sit above) */}
-        <div className={cn("hidden min-w-0 flex-col gap-2.5 sm:flex", !rentCalc && "sm:-mt-7")}>
-          {breakdown(true)}
-        </div>
+        {/* wider screens: a pie of the due, its circle a little left of the right half's middle. With an advance:
+            the advance its chestnut slice, what was due the see-through rest. Without: what the payment settles the
+            chestnut slice, what's still due the see-through rest */}
+        {pieParts.length > 0 && (
+          <div className="hidden min-w-0 items-center justify-center self-stretch sm:flex">
+            <DuePie parts={pieParts} />
+          </div>
+        )}
       </div>
-      {/* the breakdown of where it's paid from (a box for each place, its UPI ID, the cash warning), the card's full width */}
-      <PaidFrom part="rest" />
+      {/* where it's paid from: a card for each place (cash, a bank account), its UPI ID, the cash warning, the card's
+          full width */}
+      <PaidFrom />
     </div>
   );
 
@@ -431,78 +524,83 @@ export function AmountCard() {
     );
   }
 
-  // rent's amount: the months on the left and what they come to on the right, in the amount's chestnut box
-  function rentAmount() {
-    return (
-      <div className="grid grid-cols-[6rem_minmax(0,1fr)] items-end gap-x-6">
-        <label className="flex flex-col gap-2.5 text-xs font-semibold">
-          {t("months")}
-          <NumberInput
-            value={rentMonths}
-            onChange={(v) => setRentMonths(atLeastOne(v))}
-            maxDigits={3}
-            max={120}
-            aria-invalid={(tried && Number(rentMonths) < 1) || undefined}
-            className={cn(input(tried && Number(rentMonths) < 1), "min-h-14 tabular")}
-          />
-        </label>
-        {/* what it comes to */}
-        <div className="flex min-w-0 items-end gap-2">
-          <div className="flex min-w-0 flex-1 flex-col gap-2.5 text-xs font-semibold">
-            <span>
-              {tc("q.amount")}
-              <RequiredMark />
-            </span>
-            <output
-              className={cn(
-                input(tried && calcDue === 0),
-                "relative flex min-h-14 items-center break-all pl-10 font-heading text-2xl font-bold tabular",
-                calcDue > 0 && "bg-chestnut text-ivory",
-              )}
-            >
-              <IndianRupee
-                className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2"
-                aria-hidden
-              />
-              {rupees(calcDue).replace("₹ ", "")}
-            </output>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // their PAN, where having none is costing them: it takes effect as soon as it's complete, and stays on their record
   function panField() {
-    // only while TDS is actually taken on this payment (under the limit, a PAN changes nothing)
-    if (!asksPan || !tdsApplies || (tdsAmount === 0 && pan === "")) return null;
+    if (!showPan) return null;
+    // Saved and not being changed: plain words, the pen under them; otherwise the box, then Save under it
+    const editing = savedPan === "" || panEditing;
+    // what's wrong shows once Save (or Next) is tapped: not a PAN, or typed and not Saved
+    const wrong = (panLeft || tried) && panBad;
     return (
-      <label className="flex flex-col gap-2.5 text-xs font-semibold">
-        PAN
-        <input
-          value={pan}
-          maxLength={10}
-          placeholder="ABCDE1234F"
-          onChange={(e) => setPan(e.target.value.replace(/[^0-9a-z]/gi, "").toUpperCase())}
-          aria-invalid={panBad || undefined}
-          className={input(panBad && (tried || pan.length === 10))}
-        />
-        {!panGiven && (
-          <span className="text-xs font-normal opacity-70">
-            {/* the rate once a PAN is given: a supplier's 0.1%, interest, rent and professional fees 10%, brokerage 2%,
-                contract work 1% (individual or HUF) or 2% */}
-            {t("panHint", {
-              rate: tdsInfo
-                ? "0.1"
-                : headTds === "brokerage"
-                  ? "2"
-                  : headTds === "contract"
-                    ? "1–2"
-                    : "10",
-            })}
-          </span>
+      // a row like the amount's: PAN on the left, level with its box; on the right the box with what's typed at its
+      // right end and Save beside it, then the rate a PAN brings
+      <div className="mb-4 flex min-w-0 items-start justify-between gap-3">
+        <label htmlFor="pan-field" className="flex min-h-11 min-w-0 items-center text-sm">
+          PAN
+        </label>
+        {editing ? (
+          <div className="flex w-[60%] shrink-0 flex-col gap-1.5">
+            {/* the box with Save right beside it */}
+            <div className="flex w-full min-w-0 items-center gap-2">
+              <input
+                id="pan-field"
+                autoFocus={panEditing}
+                value={pan}
+                maxLength={10}
+                placeholder="ABCDE1234F"
+                onChange={(e) => {
+                  setPanLeft(false);
+                  setPan(e.target.value.replace(/[^0-9a-z]/gi, "").toUpperCase());
+                }}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), savePan())}
+                aria-invalid={wrong || undefined}
+                className={cn(input(wrong), "tabular text-right")}
+              />
+              <button
+                type="button"
+                onClick={savePan}
+                disabled={pan === savedPan}
+                className="flex min-h-11 shrink-0 items-center justify-center rounded-control bg-chestnut px-4 text-sm font-semibold text-ivory disabled:opacity-40"
+              >
+                {t("saveUpi")}
+              </button>
+            </div>
+            {wrong && (
+              <FieldMessage className="mt-0">
+                {pan !== "" && !panTypedOk ? t("panBad") : t("panUnsaved")}
+              </FieldMessage>
+            )}
+            {!panGiven && (
+              <span className="text-xs opacity-70">
+                {/* the rate once a PAN is given: a supplier's 0.1%, interest, rent and professional fees 10%,
+                    brokerage 2%, contract work 1% (individual or HUF) or 2% */}
+                {t("panHint", {
+                  rate: tdsInfo
+                    ? "0.1"
+                    : headTds === "brokerage"
+                      ? "2"
+                      : headTds === "contract"
+                        ? "1–2"
+                        : "10",
+                })}
+              </span>
+            )}
+          </div>
+        ) : (
+          // Saved: no box, the PAN in plain words with the pen right beside it, at the box's right edge
+          <div className="flex min-h-11 w-[60%] shrink-0 items-center justify-end gap-1 pl-3">
+            <span className="tabular text-base font-medium">{savedPan}</span>
+            <button
+              type="button"
+              onClick={() => setPanEditing(true)}
+              aria-label={t("editUpi")}
+              className="grid size-9 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
+            >
+              <Pencil className="size-4" aria-hidden />
+            </button>
+          </div>
         )}
-      </label>
+      </div>
     );
   }
 

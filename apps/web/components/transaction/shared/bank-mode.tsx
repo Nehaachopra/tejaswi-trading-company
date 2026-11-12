@@ -1,13 +1,15 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { FieldMessage } from "~/components/ui/field-message";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { cn } from "~/lib/utils";
 import { BANK_MODE_REFERENCE, type BankMode } from "@repo/trpc/client";
 
-import { chip, input } from "./form-basics";
+import { chip, fieldRow, input } from "./form-basics";
 import { PlacePicker } from "./place-picker";
 
 // how money went out of or came into a bank, in the order they're offered
@@ -59,8 +61,9 @@ export function ModeChips({
   );
 }
 
-// how it was paid, as an accordion like Paid from's (a payment's, for now): all four open as rows until one is
-// picked, then collapsed to the pick; a tap opens them again. Red-edged once Next was tapped with none picked
+// how it was paid, as an accordion with the chips' look: the four chips open, two to a row, see-through with a
+// border, until one is picked; then closed to the pick, a plain ivory field with ▾ (only the typed amount in a bank
+// card is filled). A tap on it opens the chips again. Red once Next was tapped with none picked
 export function ModeAccordion({
   label,
   missing,
@@ -75,6 +78,70 @@ export function ModeAccordion({
   onPick: (m: BankMode) => void;
 }) {
   const t = useTranslations("transactions.payment.form");
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <span>
+        {label}
+        <RequiredMark />
+      </span>
+      {mode === null || open ? (
+        <div role="radiogroup" aria-label={label} className="grid grid-cols-2 gap-2">
+          {BANK_MODES.map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="radio"
+              aria-checked={mode === m}
+              onClick={() => {
+                setOpen(false);
+                onPick(m);
+              }}
+              className={cn(chip(mode === m), tried && mode === null && "border-danger")}
+            >
+              {t(`modes.${m}`)}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <button
+          type="button"
+          aria-label={label}
+          aria-expanded={false}
+          onClick={() => setOpen(true)}
+          className={cn(
+            input(false),
+            "flex items-center justify-between gap-3 bg-ivory text-left font-semibold",
+          )}
+        >
+          <span className="min-w-0 truncate">{t(`modes.${mode}`)}</span>
+          <ChevronDown className="size-4 shrink-0" aria-hidden />
+        </button>
+      )}
+      {tried && mode === null && <FieldMessage className="mt-0">{missing}</FieldMessage>}
+    </>
+  );
+}
+
+// how it was paid, as an accordion with the places' look: the four ways as rows in one box until one is picked, then
+// closed to the pick with ▾; a tap opens the rows again. Red once Next was tapped with none picked
+export function ModeRows({
+  label,
+  missing,
+  mode,
+  tried,
+  onPick,
+  alignEnd = false,
+}: {
+  label: string;
+  missing: string;
+  mode: BankMode | null;
+  tried: boolean;
+  onPick: (m: BankMode) => void;
+  // the pick's word at the right end (a payment's bank cards)
+  alignEnd?: boolean;
+}) {
+  const t = useTranslations("transactions.payment.form");
   return (
     <>
       <span>
@@ -82,10 +149,13 @@ export function ModeAccordion({
         <RequiredMark />
       </span>
       <PlacePicker
+        quiet
+        bare
+        alignEnd={alignEnd}
         label={label}
         places={BANK_MODES.map((m) => ({ id: m, name: t(`modes.${m}`), disabled: false }))}
         value={mode}
-        invalid={tried}
+        invalid={tried && mode === null}
         onPick={onPick}
       />
       {tried && mode === null && <FieldMessage className="mt-0">{missing}</FieldMessage>}
@@ -105,6 +175,7 @@ export function BankRefField({
   tried,
   account,
   plain = false,
+  row = false,
 }: {
   mode: BankMode;
   text: string;
@@ -115,13 +186,15 @@ export function BankRefField({
   account?: string;
   // no hint inside the box, and "(optional)" in the label like every optional field (a payment's bank cards)
   plain?: boolean;
+  // its name on the left and its box on the right, as the rows around it (a payment's bank cards)
+  row?: boolean;
 }) {
   const t = useTranslations("transactions.payment.form");
   const digits = mode !== "neftRtgs";
   const most = refMost(mode);
   const bad = !refOkFor(mode, text) && (tried || left || text.length === most);
   return (
-    <label className="flex flex-col gap-2.5 text-xs font-semibold">
+    <label className={row ? fieldRow : "flex flex-col gap-2.5 text-xs font-semibold"}>
       <span className="flex justify-between gap-3">
         <span>
           {t(`refLabel.${mode}`)}

@@ -88,7 +88,7 @@ export function AmountCard() {
                     maxDigits={3}
                     max={120}
                     placeholder="--"
-                    className={cn(input(false), "min-h-14 tabular")}
+                    className={cn(input(false), "min-h-11 tabular")}
                   />
                 </label>
                 <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
@@ -107,8 +107,8 @@ export function AmountCard() {
                       aria-invalid={(tried && interestDue === 0) || undefined}
                       className={cn(
                         input(tried && interestDue === 0),
-                        "min-h-14 pl-10 font-heading text-2xl font-bold",
-                        interestDue > 0 && "bg-chestnut text-ivory caret-ivory",
+                        "min-h-11 pl-10 font-heading text-2xl font-bold",
+                        interestDue > 0 && "bg-chestnut text-ivory caret-ivory shadow-none",
                       )}
                     />
                   </span>
@@ -140,8 +140,8 @@ export function AmountCard() {
                         aria-invalid={loanOver || (tried && value === 0) || undefined}
                         className={cn(
                           input(loanOver || (tried && value === 0)),
-                          "min-h-14 pl-10 pr-11 font-heading text-2xl font-bold",
-                          filled && "bg-chestnut text-ivory caret-ivory",
+                          "min-h-11 pl-10 pr-11 font-heading text-2xl font-bold",
+                          filled && "bg-chestnut text-ivory caret-ivory shadow-none",
                         )}
                       />
                     </MicField>

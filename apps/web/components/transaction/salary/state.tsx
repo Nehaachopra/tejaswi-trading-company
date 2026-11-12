@@ -19,8 +19,10 @@ import { momentOf } from "../shared/form-basics";
 
 // the cards, in order: what for and who (a salary: the table); how much and where it's paid from; then the
 // reference, the remarks, the day and Save
-export type SalaryStep = "pay" | "amount" | "details";
-const STEPS: SalaryStep[] = ["pay", "amount", "details"];
+// what it's for (Salary or Advance) on its own card, then who's paid: every employee owed (a salary) or the one taking
+// an advance, then the amount and where from, then the details
+export type SalaryStep = "for" | "pay" | "amount" | "details";
+const STEPS: SalaryStep[] = ["for", "pay", "amount", "details"];
 
 // what a payment's Salary or Advance to employee hands over: Salary or Advance, the amount, and where it's paid from
 export type SalaryStart = {
@@ -105,7 +107,10 @@ export function useSalaryEntryState({
   const bankHeld = (id: string) => sources?.banks.find((b) => b.id === id)?.available ?? null;
   // ticked to start with only while what cash and the bank accounts hold together covers them, down the table; one
   // that doesn't fit starts unticked (a row ticked or unticked by hand stays as set)
-  const available = [cashHeld, ...(banks ?? []).map((b) => bankHeld(b.id))].reduce<number>((sum, h) => sum + (h ?? Infinity), 0);
+  const available = [cashHeld, ...(banks ?? []).map((b) => bankHeld(b.id))].reduce<number>(
+    (sum, h) => sum + (h ?? Infinity),
+    0,
+  );
   let running = 0;
   const table = (employees ?? [])
     .filter((e) => e.owed.length > 0)
@@ -126,7 +131,11 @@ export function useSalaryEntryState({
   function setRow(employeeId: string, change: Partial<Row>) {
     setRows((all) => {
       const now = table.find((r) => r.employee.employeeId === employeeId);
-      const was = all[employeeId] ?? { on: now?.on ?? true, months: now?.months ?? "1", take: now?.take ?? false };
+      const was = all[employeeId] ?? {
+        on: now?.on ?? true,
+        months: now?.months ?? "1",
+        take: now?.take ?? false,
+      };
       return { ...all, [employeeId]: { ...was, ...change } };
     });
   }
@@ -141,10 +150,13 @@ export function useSalaryEntryState({
   const bank = banks?.find((b) => b.id === bankId);
   const most = from === "cash" ? cashHeld : from === "bank" && bankId ? bankHeld(bankId) : null;
 
-  // a salary: where it's paid from: cash, then each bank account, each with what it holds and how much goes from it.
-  // Auto (to start with) fills them from what each holds, cash first, until the total's covered; typing an amount
-  // turns Auto off, the others keeping what they had. The app then shares them over the employees, in order
-  const [typedSplit, setTypedSplit] = useState<Record<string, string> | null>(null);
+  // a salary: where it's paid from: cash, then each bank account, each with what it holds and how much goes from it,
+  // a card each as a payment's. Auto (off to start with) fills them from what each holds, cash first, until the
+  // total's covered; typing an amount turns Auto off, the others keeping what they had. The app then shares them over
+  // the employees, in order
+  const [typedSplit, setTypedSplit] = useState<Record<string, string> | null>({});
+  // the bank cards' reference boxes left (their mistakes show then)
+  const [refLeft, setRefLeft] = useState<string[]>([]);
   const placeName = (id: string) => {
     const b = banks?.find((x) => x.id === id);
     return id === "cash" ? tc("cash") : b ? bankNameIn(b.bankName, locale) : "";
@@ -179,8 +191,9 @@ export function useSalaryEntryState({
   function setSplit(id: string, text: string) {
     setTypedSplit((was) => ({ ...(was ?? autoSplit), [id]: text }));
   }
+  // Auto switched off by hand empties every card, as a payment's
   function setSplitAuto(on: boolean) {
-    setTypedSplit(on ? null : autoSplit);
+    setTypedSplit(on ? null : {});
   }
 
   // the accounts a bank payment goes through, each needing how it paid (a reference that fits, if typed)
@@ -222,6 +235,7 @@ export function useSalaryEntryState({
   // when each card is filled in
   const complete: Record<SalaryStep, boolean> = {
     // a salary: never more than cash and the bank accounts hold together
+    for: kind !== null,
     pay: kind !== null && (kind === "salary" ? lines.length > 0 && value <= available : !!employee),
     amount:
       value > 0 &&
@@ -231,7 +245,9 @@ export function useSalaryEntryState({
         : from !== null && (from === "cash" || !!bank) && (most === null || value <= most)),
     details: day !== "",
   };
-  const [at, setAt] = useState<SalaryStep>("pay");
+  // opened for Salary or Advance (from a payment's Paid for): straight to who's paid
+  const firstStep: SalaryStep = start?.kind ? "pay" : "for";
+  const [at, setAt] = useState<SalaryStep>(firstStep);
   const current = at;
   const index = STEPS.indexOf(current);
   const firstOpen = STEPS.findIndex((s) => !complete[s]);
@@ -241,7 +257,7 @@ export function useSalaryEntryState({
   const [summaryOpen, setSummaryOpen] = useState(false);
 
   // the phone's Back goes to the card before
-  const remember = useCardHistory<SalaryStep>("pay", (card) => {
+  const remember = useCardHistory<SalaryStep>(firstStep, (card) => {
     moveCard(() => {
       setTried(false);
       setAt(card);
@@ -273,32 +289,34 @@ export function useSalaryEntryState({
     show(STEPS[index + 1]!);
   }
 
-  const stepName = (s: SalaryStep) => t(`steps.${s}`);
+  // who's paid: Employees for a salary, Employee for an advance
+  const stepName = (s: SalaryStep) =>
+    s === "pay" ? (kind === "advance" ? t("employee") : t("steps.employees")) : t(`steps.${s}`);
   const missingOf = () =>
     kind === "salary" && lines.length === 0
       ? t("missing.employees")
       : kind === "salary" && current === "pay" && value > available
         ? t("missing.overHeld", { amount: rupees(value), held: rupees(available) })
-      : kind === "salary" && !splitOk
-        ? t("splitShort", { amount: rupees(splitTotal), total: rupees(value) })
-        : !banksOk
-          ? tpf("pickMode")
-          : t(
-              kind === null
-                ? "missing.kind"
-                : kind === "advance" && !employee
-                  ? "missing.employee"
-                  : value === 0
-                    ? "missing.amount"
-                    : from === null
-                      ? "missing.from"
-                      : "missing.account",
-            );
+        : kind === "salary" && !splitOk
+          ? t("splitShort", { amount: rupees(splitTotal), total: rupees(value) })
+          : !banksOk
+            ? tpf("pickMode")
+            : t(
+                kind === null
+                  ? "missing.kind"
+                  : kind === "advance" && !employee
+                    ? "missing.employee"
+                    : value === 0
+                      ? "missing.amount"
+                      : from === null
+                        ? "missing.from"
+                        : "missing.account",
+              );
 
   // what's answered so far, a line each, for the summary
   const accountName = bank ? `${bankNameIn(bank.bankName, locale)} ••${bank.last4}` : null;
   const summary: SummaryItem<SalaryStep>[] = [
-    { key: "for", step: "pay", heading: t("for"), value: kind ? t(`kinds.${kind}`) : null },
+    { key: "for", step: "for", heading: t("for"), value: kind ? t(`kinds.${kind}`) : null },
     {
       key: "employee",
       step: "pay",
@@ -321,7 +339,10 @@ export function useSalaryEntryState({
           ? ((l) => (l.length ? l : null))(
               places
                 .filter((p) => p.amount > 0)
-                .map((p) => ({ name: `${p.name}${p.sub ? ` ${p.sub}` : ""}`, amount: rupees(p.amount) })),
+                .map((p) => ({
+                  name: `${p.name}${p.sub ? ` ${p.sub}` : ""}`,
+                  amount: rupees(p.amount),
+                })),
             )
           : from === "cash"
             ? { name: tc("cash"), amount: rupees(value) }
@@ -445,6 +466,8 @@ export function useSalaryEntryState({
     setSplit,
     splitAuto,
     setSplitAuto,
+    refLeft,
+    setRefLeft,
     splitTotal,
     splitOk,
     bankModes,

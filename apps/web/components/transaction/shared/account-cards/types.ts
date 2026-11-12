@@ -10,6 +10,8 @@ export type Refs = Record<string, { mode: BankMode; text: string }>;
 export type AccountCardsLabels = {
   breakdown: string;
   account: string;
+  // what a place holds, as a row's name (only where the fields are rows)
+  balance?: string;
   accountAmount: string;
   anotherAccount: string;
   removeAccount: string;
@@ -35,6 +37,15 @@ export type AccountCardsApi = {
   capAtHeld: boolean;
   // Auto, where the form has it (a payment's): fills the cards from what each holds
   auto?: { on: boolean; set: (on: boolean) => void };
+  // no bar above the cards showing how much of the amount they take up (a payment's)
+  noBar?: boolean;
+  // folded, the place on the left and its amount beside the arrow (a payment's); otherwise the amount on the left
+  placeFirst?: boolean;
+  // the open card's fields as rows, each name on the left and its value or box on the right, all the same width (a
+  // payment's); otherwise each name above its box
+  fieldRows?: boolean;
+  // how it was paid as rows in one box, like the places, not chips (a payment's)
+  modeRows?: boolean;
   // a QR for each account by UPI that has a UPI ID to pay
   qrItems: QrItem[];
   // the app, the UPI ID and the pen in one row above the QR (a receipt's); otherwise the ID alone above it

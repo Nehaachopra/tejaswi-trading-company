@@ -26,6 +26,9 @@ export function PlacePicker<Id extends string>({
   onPick,
   invalid,
   hintPicked = false,
+  quiet = false,
+  bare = false,
+  alignEnd = false,
 }: {
   label: string;
   places: Place<Id>[];
@@ -34,6 +37,15 @@ export function PlacePicker<Id extends string>({
   invalid: boolean;
   // collapsed to the pick, what it holds still shows beside it, muted (a payment's bank cards)
   hintPicked?: boolean;
+  // inside a bank card, where only the typed amount is filled: the pick is a plain ivory field, and the picked row a
+  // light tint, never chestnut
+  quiet?: boolean;
+  // collapsed to the pick, no fill, edge or shadow: only its words and the ▾ (a payment's bank cards, where only the
+  // amount is filled once everything's in)
+  bare?: boolean;
+  // collapsed to the pick, its words sit at the right end, beside the ▾ (a payment's bank cards, whose values all
+  // line up on the right)
+  alignEnd?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -58,13 +70,17 @@ export function PlacePicker<Id extends string>({
     <div
       ref={root}
       className={cn(
-        "overflow-hidden rounded-control bg-ivory text-chestnut shadow-[0_0_5px_0] shadow-chestnut/40",
+        "overflow-hidden rounded-control text-chestnut",
+        // bare and closed to its pick: see-through; otherwise ivory
+        bare && !expanded ? "bg-transparent" : "bg-ivory",
+        // a soft shadow while open; closed to its filled pick, none (a filled field has no shadow); quiet, always
+        (expanded || (quiet && !bare)) && "shadow-[0_0_5px_0] shadow-chestnut/40",
         invalid && !picked && "shadow-danger/80",
       )}
     >
       {expanded ? (
         // every place as a row, the picked one filled
-        <div role="radiogroup" aria-label={label} className="flex flex-col gap-1 p-1.5">
+        <div role="radiogroup" aria-label={label} className="flex flex-col">
           {places.map((o) => {
             const on = value === o.id;
             return (
@@ -79,19 +95,26 @@ export function PlacePicker<Id extends string>({
                   if (!on) onPick(o.id);
                 }}
                 className={cn(
-                  "flex min-h-12 w-full items-center justify-between gap-3 rounded-control px-3 text-left text-base font-semibold transition-colors disabled:opacity-40",
-                  on ? "bg-chestnut text-ivory" : "hover:bg-chestnut/[0.06]",
+                  "flex w-full items-center justify-between gap-3 px-3.5 py-2 text-left text-base font-medium transition-colors disabled:opacity-40",
+                  o.sub ? "min-h-14" : "min-h-12",
+                  on
+                    ? quiet
+                      ? "bg-chestnut/10"
+                      : "bg-chestnut text-ivory"
+                    : "hover:bg-chestnut/[0.06]",
                 )}
               >
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate">{o.name}</span>
+                {/* a long name wraps rather than being cut short (the right column is narrow on a bank card) */}
+                {/* what's read first: the name (largest, boldest), then what it holds (smaller, medium), then the
+                    account's last digits (smallest, faint) */}
+                {/* its words at the right end too, where the pick's are and there's no figure beside them */}
+                <span className={cn("min-w-0 flex-1", alignEnd && !o.hint && "text-right")}>
+                  <span className="block break-words">{o.name}</span>
                   {o.sub && (
-                    <span className="tabular block text-xs font-normal opacity-70">{o.sub}</span>
+                    <span className="tabular block text-[13px] font-normal opacity-65">{o.sub}</span>
                   )}
                 </span>
-                {o.hint && (
-                  <span className="tabular shrink-0 font-heading text-lg font-bold">{o.hint}</span>
-                )}
+                {o.hint && <span className="tabular shrink-0 text-[15px] font-semibold">{o.hint}</span>}
               </button>
             );
           })}
@@ -103,16 +126,20 @@ export function PlacePicker<Id extends string>({
           aria-label={label}
           aria-expanded={false}
           onClick={() => setOpen(true)}
-          className="flex min-h-14 w-full items-center justify-between gap-3 bg-chestnut px-3 text-left text-base font-semibold text-ivory"
+          className={cn(
+            "flex w-full items-center justify-between gap-3 px-3.5 py-2 text-left text-base font-medium",
+            bare ? "bg-transparent text-chestnut" : quiet ? "bg-ivory text-chestnut" : "bg-chestnut text-ivory",
+            picked.sub ? "min-h-14" : "min-h-12",
+          )}
         >
-          <span className="min-w-0 flex-1">
-            <span className="block truncate">{picked.name}</span>
+          <span className={cn("min-w-0 flex-1", alignEnd && "text-right")}>
+            <span className="block break-words">{picked.name}</span>
             {picked.sub && (
-              <span className="tabular block text-xs font-normal opacity-70">{picked.sub}</span>
+              <span className="tabular block text-[13px] font-normal opacity-65">{picked.sub}</span>
             )}
           </span>
           {hintPicked && picked.hint && (
-            <span className="tabular shrink-0 text-sm font-normal opacity-70">{picked.hint}</span>
+            <span className="tabular shrink-0 text-[15px] font-normal opacity-70">{picked.hint}</span>
           )}
           <ChevronDown className="size-4 shrink-0" aria-hidden />
         </button>

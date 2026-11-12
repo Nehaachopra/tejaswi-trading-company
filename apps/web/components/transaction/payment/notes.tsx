@@ -1,6 +1,6 @@
 "use client";
 
-import { Note } from "~/components/ui/note";
+import { FieldMessage } from "~/components/ui/field-message";
 import { cn } from "~/lib/utils";
 import { usePaymentEntry } from "./state";
 
@@ -11,5 +11,9 @@ export { FailNote } from "../shared/bank-mode";
 export function CapWarning({ at: key, className }: { at: string; className?: string }) {
   const { capNote } = usePaymentEntry();
   if (capNote?.key !== key) return null;
-  return <Note className={cn("text-amber-700", className)}>{capNote.text}</Note>;
+  return (
+    <FieldMessage tone="warning" className={cn("mt-0", className)}>
+      {capNote.text}
+    </FieldMessage>
+  );
 }

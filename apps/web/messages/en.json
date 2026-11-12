@@ -1558,6 +1558,8 @@
         "billDate": "Bill date",
         "gstRate": "GST rate",
         "panHint": "Add PAN to reduce TDS to {rate}%.",
+        "panUnsaved": "Tap Save to use this PAN.",
+        "panBad": "A PAN is 5 letters, 4 digits and a letter.",
         "gstModes": {
           "none": "No GST",
           "bill": "GST on bill"
@@ -1571,6 +1573,8 @@
         "godown": "Godown",
         "due": "Due",
         "advancePart": "Advance",
+        "settledPart": "Settled",
+        "balance": "Balance",
         "heldAdvance": "They already have {amount} advance from us.",
         "advanceAsk": {
           "title": "Advance?",
@@ -1609,8 +1613,8 @@
         "account": "Bank account",
         "pickAccount": "Pick a bank account",
         "totalRentPerMonth": "Total rent per month",
-        "labourOver": "Over {amount}, name who was paid.",
-        "namePayee": "Name them",
+        "labourOver": "Over {amount} needs the labourer's details.",
+        "namePayee": "Add details",
         "accountPays": "This account pays {amount}.",
         "accountShort": "{amount} more than this account holds. Add another account for the rest.",
         "accountN": "Bank account {n}",
@@ -1644,6 +1648,7 @@
         "refCash": "Reference number",
         "refCashHint": "Bill or voucher no.",
         "editUpi": "Edit",
+        "qrCode": "QR code",
         "saveUpi": "Save"
       }
     },
@@ -1796,7 +1801,9 @@
       "title": "Salary",
       "loadFailed": "Couldn't load the employees. Check your connection and try again.",
       "steps": {
+        "for": "Paid for",
         "pay": "Pay",
+        "employees": "Employees",
         "amount": "Amount",
         "details": "Details"
       },

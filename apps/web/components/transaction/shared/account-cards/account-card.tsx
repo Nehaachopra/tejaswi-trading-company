@@ -1,17 +1,17 @@
 "use client";
 
 import { ChevronDown, IndianRupee, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { ERROR_MS } from "~/components/ui/field-message";
-import { Note } from "~/components/ui/note";
+import { ERROR_MS, FieldMessage } from "~/components/ui/field-message";
 import { NumberInput } from "~/components/ui/number-input";
 import { Reveal } from "~/components/ui/reveal";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
-import { BankRefField, ModeAccordion, refOkFor } from "../bank-mode";
-import { input } from "../form-basics";
+import { BankRefField, ModeAccordion, ModeRows, refOkFor } from "../bank-mode";
+import { fieldRow, input, pickRow, pickRowTwo } from "../form-basics";
 import { type Place, PlacePicker } from "../place-picker";
 import { type GridPlace } from "../split-grid";
 import { UpiQr } from "../upi-qr";
@@ -45,7 +45,12 @@ export function AccountCard({
   onRemove: () => void;
 }) {
   const { labels, tried, places: all, setText, setMode, capAtHeld, qrItems, qrId, upiPart } = api;
+  // "Source", the same word in a payment and a receipt
+  const tr = useTranslations("transactions.receipt");
   const { refs, setRefs, refLeft, setRefLeft } = api;
+  const ModePick = api.modeRows ? ModeRows : ModeAccordion;
+  // a payment's: every field a row, its name on the left and its value or box on the right
+  const rows = !!api.fieldRows;
   // the places to pick from: the bank accounts, and cash too for Cash + Bank; not ones on the other cards
   const choices = all.filter((p) => !taken.includes(p.id));
   const picked: GridPlace | null = choices.find((p) => p.id === pickedId) ?? null;
@@ -68,7 +73,8 @@ export function AccountCard({
   const whole = !!picked && picked.amount > 0;
   // cash takes only an amount: no way it was paid, no UPI
   const isCash = picked?.id === "cash";
-  const refText = picked && picked.mode && refs[picked.id]?.mode === picked.mode ? refs[picked.id]!.text : "";
+  const refText =
+    picked && picked.mode && refs[picked.id]?.mode === picked.mode ? refs[picked.id]!.text : "";
   const refBad = !!picked && !isCash && !!picked.mode && !refOkFor(picked.mode, refText);
   // something wrong on it (how it was paid, past what it holds, a reference that doesn't fit) once Next was tapped: a
   // folded card opens to show it
@@ -86,12 +92,14 @@ export function AccountCard({
     return () => clearTimeout(timer);
   }, [capNote]);
 
+  // the card's tint, the sidebar's hover colour; every input in it on ivory (a filled amount stays chestnut)
   const card =
-    "flex w-full min-w-0 flex-col justify-between gap-3 rounded-control bg-chestnut/8 p-3 shadow-[0_0_5px_0] shadow-chestnut/25";
+    "flex w-full min-w-0 flex-col justify-between gap-3 rounded-control bg-chestnut/6 p-3 shadow-[0_0_5px_0] shadow-chestnut/25 [&_input:not(.bg-chestnut)]:bg-ivory";
   // its UTR or cheque number, once it says how: under how it was paid, or under the QR for UPI. No hint, (optional)
   const refField = picked && !isCash && picked.amount > 0 && picked.mode && (
     <BankRefField
       plain
+      row={rows}
       mode={picked.mode}
       text={refText}
       onText={(text) => {
@@ -116,7 +124,10 @@ export function AccountCard({
       onClick={() => onFold(!folded)}
       className="grid size-9 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
     >
-      <ChevronDown className={cn("size-4 transition-transform", !folded && "rotate-180")} aria-hidden />
+      <ChevronDown
+        className={cn("size-4 transition-transform", !folded && "rotate-180")}
+        aria-hidden
+      />
     </button>
   );
   // the bin, once a place is picked: the card goes, and its amount and how it was paid with it
@@ -148,52 +159,96 @@ export function AccountCard({
         }}
         className={cn("cursor-pointer", card, "gap-1 py-1.5", faulty && "shadow-danger/80")}
       >
-        <div className="flex min-w-0 items-center justify-between gap-3">
-          <span className="tabular shrink-0 font-heading text-xl font-bold">{rupees(picked.amount)}</span>
-          <span className="flex min-w-0 items-center gap-1">
-            <span className="min-w-0 truncate text-sm font-semibold">{picked.name}</span>
-            {picked.sub && <span className="tabular ml-0.5 shrink-0 text-sm opacity-70">{picked.sub}</span>}
-            {arrow}
-          </span>
-        </div>
+        {api.placeFirst ? (
+          // a payment's: the place on the left, its amount beside the arrow
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <span className="flex min-w-0 items-center gap-1">
+              <span className="min-w-0 truncate text-sm font-semibold">{picked.name}</span>
+              {picked.sub && (
+                <span className="tabular ml-0.5 shrink-0 text-sm opacity-70">{picked.sub}</span>
+              )}
+            </span>
+            <span className="flex shrink-0 items-center gap-1">
+              <span className="tabular font-heading text-xl font-bold">
+                {rupees(picked.amount)}
+              </span>
+              {arrow}
+            </span>
+          </div>
+        ) : (
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <span className="tabular shrink-0 font-heading text-xl font-bold">
+              {rupees(picked.amount)}
+            </span>
+            <span className="flex min-w-0 items-center gap-1">
+              <span className="min-w-0 truncate text-sm font-semibold">{picked.name}</span>
+              {picked.sub && (
+                <span className="tabular ml-0.5 shrink-0 text-sm opacity-70">{picked.sub}</span>
+              )}
+              {arrow}
+            </span>
+          </div>
+        )}
       </div>
     ) : null;
 
   const openView = (
     // a tap on the card's plain parts (not a field, chip or button) folds it, once it can fold
     <div
-      className={card}
+      className={cn(card, rows && "[&_input]:text-right")}
       onClick={(e) =>
         whole &&
-        !(e.target as HTMLElement).closest("button, input, label, a, [role=radio], [role=radiogroup]") &&
+        !(e.target as HTMLElement).closest(
+          "button, input, label, a, [role=radio], [role=radiogroup]",
+        ) &&
         onFold(true)
       }
     >
-      {/* which place, what it holds muted beside it once picked */}
-      <PlacePicker
-        label={labels.account}
-        hintPicked
-        places={places}
-        value={pickedId}
-        invalid={tried && !picked}
-        onPick={(id) => {
-          // a pick starts afresh: no amount, no way it was paid, on the old place or the new one
-          for (const one of [pickedId, id]) {
-            if (!one) continue;
-            setText(one, "");
-            setMode(one, null);
-          }
-          setPickedId(id);
-        }}
-      />
+      {/* which place: a payment's, Source on the left and the places open on the right from the start, then only the
+          pick, see-through; otherwise under Source, what it holds muted beside the pick (only the typed amount is
+          filled in the card) */}
+      <div className={rows ? (picked?.sub ? pickRowTwo : pickRow) : "flex flex-col gap-2.5"}>
+        <span className={rows ? undefined : "text-xs font-semibold"}>{tr("source")}</span>
+        <PlacePicker
+          quiet
+          bare={rows}
+          label={tr("source")}
+          hintPicked={!rows}
+          alignEnd={rows}
+          places={places}
+          value={pickedId}
+          invalid={tried && !picked}
+          onPick={(id) => {
+            // a pick starts afresh: no amount, no way it was paid, on the old place or the new one
+            for (const one of [pickedId, id]) {
+              if (!one) continue;
+              setText(one, "");
+              setMode(one, null);
+            }
+            setPickedId(id);
+          }}
+        />
+      </div>
 
       {/* its amount, chestnut once there's one, red past what it holds; never past what's left (nor what it holds,
           money going out): typing past it cuts it there and says why */}
+      {/* what it holds (the admin only), a row of its own */}
+      {rows && picked && picked.held !== null && (
+        <div className={fieldRow}>
+          <span>{labels.balance}</span>
+          <span className="tabular flex min-h-11 items-center justify-end px-3 text-base font-semibold">
+            {rupees(picked.held)}
+          </span>
+        </div>
+      )}
       {picked && (
-        <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
-          {labels.accountAmount}
+        <label className={rows ? fieldRow : "flex min-w-0 flex-col gap-2.5 text-xs font-semibold"}>
+          <span>{labels.accountAmount}</span>
           <span className={cn("relative block", picked.amount > 0 && !short && "text-ivory")}>
-            <IndianRupee className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2" aria-hidden />
+            <IndianRupee
+              className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2"
+              aria-hidden
+            />
             <NumberInput
               id={`account-amount-${index}`}
               value={picked.text}
@@ -203,7 +258,9 @@ export function AccountCard({
               }}
               onCapped={(most) => {
                 const held = capAtHeld ? (picked.held ?? Infinity) : Infinity;
-                setCapNote(most < held ? labels.capLeft(rupees(most)) : labels.capOnly(rupees(most)));
+                setCapNote(
+                  most < held ? labels.capLeft(rupees(most)) : labels.capOnly(rupees(most)),
+                );
               }}
               decimals={2}
               maxDigits={13}
@@ -212,24 +269,31 @@ export function AccountCard({
               aria-invalid={short || (tried && picked.amount === 0) || undefined}
               className={cn(
                 input(short || (tried && picked.amount === 0)),
-                "min-h-14 pl-10 font-heading text-2xl font-bold tabular",
-                picked.amount > 0 && !short && "bg-chestnut text-ivory caret-ivory",
+                rows
+                  ? "min-h-11 pl-10 font-heading text-xl font-bold tabular"
+                  : "min-h-14 pl-10 font-heading text-2xl font-bold tabular",
+                picked.amount > 0 && !short && "bg-chestnut text-ivory caret-ivory shadow-none",
               )}
             />
           </span>
-          {capNote && <Note className="text-amber-700">{capNote}</Note>}
+          {capNote && (
+            <FieldMessage tone="warning" className="mt-0">
+              {capNote}
+            </FieldMessage>
+          )}
         </label>
       )}
 
-      {/* how it was paid, once there's an amount */}
+      {/* how it was paid, once there's an amount: an accordion, of rows (a payment's) or of chips */}
       {picked && !isCash && picked.amount > 0 && (
-        <div className="flex flex-col gap-2 text-xs font-semibold">
-          <ModeAccordion
+        <div className={rows ? pickRow : "flex flex-col gap-2 text-xs font-semibold"}>
+          <ModePick
             label={labels.mode}
             missing={labels.modeMissing}
             mode={picked.mode}
             tried={tried}
             onPick={(m) => setMode(picked.id, m)}
+            {...(rows ? { alignEnd: true } : {})}
           />
         </div>
       )}
@@ -247,6 +311,7 @@ export function AccountCard({
           hideId={qrIdOf.hideId}
           onEdit={qrIdOf.onEdit}
           row={api.qrRow}
+          idAsRow={rows}
           idLabel={api.qrIdLabel}
         />
       )}
@@ -268,7 +333,15 @@ export function AccountCard({
       <Reveal show={showFolded} gap="0px">
         {foldedView}
       </Reveal>
-      <Reveal show={!showFolded} gap="0px">
+      {/* open, it fills the card's height (stretched beside a taller one), the bin and arrow at the bottom */}
+      <Reveal
+        show={!showFolded}
+        gap="0px"
+        className={cn(
+          !showFolded &&
+            "sm:flex-1 sm:[&>div>div>div]:h-full sm:[&>div>div]:h-full sm:[&>div]:h-full",
+        )}
+      >
         {openView}
       </Reveal>
     </div>

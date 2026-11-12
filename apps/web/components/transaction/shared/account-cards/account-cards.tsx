@@ -47,7 +47,8 @@ export function AccountCards({ api }: { api: AccountCardsApi }) {
   const amountOf = (id: string | null) => places.find((p) => p.id === id)?.amount ?? 0;
   const given = Math.round(picks.reduce((sum, id) => sum + amountOf(id), 0) * 100) / 100;
   const last = picks.at(-1) ?? null;
-  const canAdd = given < value && last !== null && amountOf(last) > 0 && picks.length < places.length;
+  const canAdd =
+    given < value && last !== null && amountOf(last) > 0 && picks.length < places.length;
   const left = Math.max(0, Math.round((value - given) * 100) / 100);
   const done = value > 0 && left === 0;
   return (
@@ -55,38 +56,45 @@ export function AccountCards({ api }: { api: AccountCardsApi }) {
       {/* Breakdown, headed like the card's own heading; Auto (where there is one) at the right edge on a phone, right
           beside it wider */}
       <div className="flex items-center justify-between gap-3 sm:justify-start">
-        <h3 className="text-xs font-semibold uppercase tracking-[0.08em] opacity-60">{labels.breakdown}</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-[0.08em] opacity-60">
+          {labels.breakdown}
+        </h3>
         {auto && <AutoSwitch on={auto.on} set={auto.set} />}
       </div>
       {/* a bar that fills as the cards take up the amount: given on the left, what's left on the right. It stays just
           under the header while the cards scroll, for reference, on the card's ivory edge to edge, with room below it */}
-      <div className="sticky top-16 z-10 -mx-4 mb-2 flex flex-col gap-1.5 bg-ivory px-4 pb-3 pt-2 sm:-mx-5 sm:px-5">
-        <div
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={value}
-          aria-valuenow={given}
-          className="h-3 overflow-hidden rounded-full bg-transparent shadow-[inset_0_0_0_1px] shadow-success/25"
-        >
-          {/* green whether full or not */}
+      {!api.noBar && (
+        <div className="sticky top-16 z-10 -mx-4 mb-2 flex flex-col gap-1.5 bg-ivory px-4 pb-3 pt-2 sm:-mx-5 sm:px-5">
           <div
-            className="h-full rounded-full bg-success transition-[width] duration-300"
-            style={{ width: `${value > 0 ? Math.min(100, (given / value) * 100) : 0}%` }}
-          />
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={value}
+            aria-valuenow={given}
+            className="h-3 overflow-hidden rounded-full bg-transparent shadow-[inset_0_0_0_1px] shadow-success/25"
+          >
+            {/* green whether full or not */}
+            <div
+              className="h-full rounded-full bg-success transition-[width] duration-300"
+              style={{ width: `${value > 0 ? Math.min(100, (given / value) * 100) : 0}%` }}
+            />
+          </div>
+          {/* the amount typed on the left, what the cards take up so far on the right, each under its label */}
+          <div className="tabular flex justify-between gap-3 text-xs font-semibold">
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span>{labels.barTotal}</span>
+              <span className="text-sm font-bold">{rupees(value)}</span>
+            </span>
+            <span className="flex min-w-0 flex-col items-end gap-0.5 text-right">
+              <span>{labels.barGivenLabel}</span>
+              <span className={cn("text-sm font-bold", done && "text-success")}>
+                {rupees(given)}
+              </span>
+            </span>
+          </div>
         </div>
-        {/* the amount typed on the left, what the cards take up so far on the right, each under its label */}
-        <div className="tabular flex justify-between gap-3 text-xs font-semibold">
-          <span className="flex min-w-0 flex-col gap-0.5">
-            <span>{labels.barTotal}</span>
-            <span className="text-sm font-bold">{rupees(value)}</span>
-          </span>
-          <span className="flex min-w-0 flex-col items-end gap-0.5 text-right">
-            <span>{labels.barGivenLabel}</span>
-            <span className={cn("text-sm font-bold", done && "text-success")}>{rupees(given)}</span>
-          </span>
-        </div>
-      </div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start">
+      )}
+      {/* wider screens: two to a row, a shorter card (cash) stretched to its neighbour's height */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch">
         {picks.map((id, i) => (
           <AccountCard
             key={i}
@@ -124,7 +132,7 @@ export function AccountCards({ api }: { api: AccountCardsApi }) {
               setFolds((all) => [...all.map(() => true), false]);
             }}
             // as tall as a folded card (its 36px arrow and 6px above and below)
-            className={cn(ADD_ON_IVORY, "min-h-12")}
+            className={cn(ADD_ON_IVORY, "min-h-12 sm:self-start")}
           >
             <Plus className="size-4" aria-hidden />
             {labels.anotherAccount}

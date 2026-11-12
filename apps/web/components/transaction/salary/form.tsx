@@ -14,7 +14,7 @@ import {
   SummaryLines,
 } from "../shared/entry-frame";
 import { DetailsCard, SaveBlock } from "./details-card";
-import { AmountCard, PayCard } from "./pay-card";
+import { AmountCard, ForCard, PayCard } from "./pay-card";
 import {
   type SalaryStart,
   type SalaryStep,
@@ -129,9 +129,24 @@ function SalaryEntryView() {
         onBack={index > 0 ? () => show(steps[index - 1]!) : null}
         onChange={null}
         missing={tried && !complete[current] ? missingOf() : null}
-        end={current === "details" ? <SaveBlock /> : <NextButton onClick={next} />}
+        // Paid for is chips only: a tap moves on, so no Next
+        end={
+          current === "details" ? (
+            <SaveBlock />
+          ) : current === "for" ? null : (
+            <NextButton onClick={next} />
+          )
+        }
       >
-        {current === "pay" ? <PayCard /> : current === "amount" ? <AmountCard /> : <DetailsCard />}
+        {current === "for" ? (
+          <ForCard />
+        ) : current === "pay" ? (
+          <PayCard />
+        ) : current === "amount" ? (
+          <AmountCard />
+        ) : (
+          <DetailsCard />
+        )}
       </StepCard>
     </EntryPage>
   );
