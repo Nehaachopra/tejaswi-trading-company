@@ -1201,6 +1201,10 @@
         "bankOnly": "बैंक का ऋण बैंक खाते में ही आता है।",
         "stepsDone": "{all} में से {done}",
         "advancePart": "अग्रिम",
+        "upiApp": "UPI ऐप",
+        "receiptGroup": "प्राप्ति",
+        "towardsGroup": "किस मद में मिला",
+        "paidShare": "चुकाया",
         "heldAdvance": "उनका {amount} अग्रिम पहले से हमारे पास है।",
         "advanceAsk": {
           "title": "अग्रिम?",

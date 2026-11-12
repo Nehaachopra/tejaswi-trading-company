@@ -3,13 +3,13 @@
 import { appOfUpi, UPI_HANDLES, type UpiApp } from "@repo/trpc/client";
 import { useTranslations } from "next-intl";
 
-import { PickMenu } from "~/components/stock/pick-menu";
 import { FieldMessage } from "~/components/ui/field-message";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { Reveal } from "~/components/ui/reveal";
 import { cn } from "~/lib/utils";
 
-import { fieldRow } from "../shared/form-basics";
+import { fieldRow, pickRow } from "../shared/form-basics";
+import { PlacePicker } from "../shared/place-picker";
 import { input } from "./shared";
 import { useReceiptEntry } from "./state";
 
@@ -72,24 +72,23 @@ function OurUpiField({ accountId }: { accountId: string }) {
   return (
     <Reveal follow show={!kept} gap="0px">
       <div className="flex flex-col gap-3">
-        {/* the app it's in: its name on the left, the dropdown on the right */}
-        <div className={fieldRow}>
+        {/* the app it's in: its name on the left, the apps on the right as the card's other picks (an accordion, open
+            until one is picked, then only the pick with ▾) */}
+        <div className={pickRow}>
           <span>
-            {tb("provider")}
+            {t("upiApp")}
             <RequiredMark />
           </span>
-          <div className="min-w-0">
-            <PickMenu
-              label={tb("provider")}
-              current={app ? tb(`providers.${app}`) : tb("pickApp")}
-              options={APPS.map((a) => ({ id: a, name: tb(`providers.${a}`) }))}
-              picked={app ?? "phonepe"}
-              onPick={(a) => setOurUpiApps((all) => ({ ...all, [accountId]: a }))}
-              invalid={appBad}
-              matchWidth
-              inFlow
-            />
-          </div>
+          <PlacePicker
+            quiet
+            bare
+            alignEnd
+            label={t("upiApp")}
+            places={APPS.map((a) => ({ id: a, name: tb(`providers.${a}`), disabled: false }))}
+            value={app}
+            onPick={(a) => setOurUpiApps((all) => ({ ...all, [accountId]: a }))}
+            invalid={appBad}
+          />
           {appBad && <FieldMessage className="mt-0">{tb("upiPickApp")}</FieldMessage>}
         </div>
         {/* the ID: its name on the left; on the right the box (typed at its right end), what's wrong, then Save */}

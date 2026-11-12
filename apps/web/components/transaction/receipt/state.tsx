@@ -363,6 +363,14 @@ export function useReceiptEntryState({
     setFoldedCards([]);
     setGridTexts({});
   }, [value]);
+  // nothing picks where it came into: once there's an amount (and typing pauses) the cards come up by themselves, as a
+  // payment's, offering cash and every bank account (a bank's loan: the accounts only; with no account: cash). What's
+  // typed in them says which it is: all cash, all bank, or both, settled on Next
+  useEffect(() => {
+    if (into !== null || value <= 0) return;
+    const timer = setTimeout(() => setInto(bankLoan ? "bank" : canBank ? "both" : "cash"), 400);
+    return () => clearTimeout(timer);
+  }, [into, value, bankLoan, canBank]);
   // the first account changed: what came after it starts again (how it came in, its amount, the other cards)
   const accountSeen = useRef(bankId);
   useEffect(() => {
@@ -531,10 +539,10 @@ export function useReceiptEntryState({
     s === "buyer"
       ? t("buyer")
       : s === "from" && loanOf
-      ? t("steps.loan")
-      : s === "from" && kind !== null && !fromParty
-        ? t("steps.ledger")
-        : t(`steps.${s}`);
+        ? t("steps.loan")
+        : s === "from" && kind !== null && !fromParty
+          ? t("steps.ledger")
+          : t(`steps.${s}`);
   // what a card still needs once Next or Save was tapped; the amount card names only what's missing
   const missingOf = (s: Step) =>
     s === "amount"
@@ -640,9 +648,7 @@ export function useReceiptEntryState({
                     return name ? [{ name, amount: rupees(Number(m.amount) || 0) }] : [];
                   }),
                 ]
-              : [
-                  { name: accountName(bankId)!, amount: rupees(value) },
-                ],
+              : [{ name: accountName(bankId)!, amount: rupees(value) }],
     },
     {
       key: "details",
@@ -751,7 +757,9 @@ export function useReceiptEntryState({
   // what's wrong with an account's typed UPI ID: not name@bank, not a UPI app's handle, or another account's; null when
   // it's fine (or nothing's typed)
   // (a known handle but not the picked app's: "wrongApp"; no app picked: "app")
-  function ourUpiProblem(accountId: string): "bad" | "handle" | "app" | "wrongApp" | "taken" | null {
+  function ourUpiProblem(
+    accountId: string,
+  ): "bad" | "handle" | "app" | "wrongApp" | "taken" | null {
     const u = (ourUpis[accountId] ?? "").trim();
     if (u === "") return null;
     if (!upiFormatOk(u)) return "bad";

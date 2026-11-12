@@ -16,6 +16,7 @@ import { LABOUR_SKIP_MAX, input, saidAmount } from "./shared";
 import { usePaymentEntry } from "./state";
 import { FailNote, CapWarning } from "./notes";
 import { PaidFrom } from "./paid-from";
+import { DueFlow, FoldGroup } from "../shared/fold-group";
 
 export function AmountCard() {
   const {
@@ -132,26 +133,7 @@ export function AmountCard() {
   // what was owed before it, and how much of that it clears (all of it when it leaves an advance)
   const owedBefore = advance > 0 ? weOwe : (dueShown ?? 0);
   const settledOf = advance > 0 ? weOwe : settled;
-  const dueRows: AmountRow[] =
-    value > 0 && (dueShown !== null || advance > 0)
-      ? [
-          // how this payment splits: towards what was owed, and past it as an advance
-          { key: "due", label: t("due"), amount: settledOf },
-          { key: "advance", label: t("advancePart"), amount: advance },
-          // how much of what was owed this payment clears (only when something was owed)
-          ...(owedBefore > 0
-            ? [
-                {
-                  key: "paid",
-                  label: t("paidShare"),
-                  amount: null,
-                  text: `${Math.min(100, Math.round((settledOf / owedBefore) * 100))}%`,
-                },
-              ]
-            : []),
-        ]
-      : [];
-  const hasDue = dueRows.length > 0;
+  const hasDue = value > 0 && (dueShown !== null || advance > 0);
   // the due, folded to what's left (or the advance) until opened
   const [dueOpen, setDueOpen] = useState(false);
   // a row of the amount's part: its name on the left, its box on the right with what's typed at its right end, as a
@@ -189,101 +171,34 @@ export function AmountCard() {
   // the amount's box: large and bold, chestnut once filled
   const amountBox = "min-h-12 pl-11 font-heading text-xl font-bold tabular";
   // the Total cost: its heading and figure with ▾, opening to the bill and the reverse-charge GST on top
-  // a sum apart from the Payment, as a tinted group: folded, its heading and figure with ▾; open, how it's made up
-  const foldGroup = (
-    title: string,
-    figure: number,
-    body: React.ReactNode,
-    open: boolean,
-    setOpen: (open: boolean) => void,
-  ) => (
-    <div className="-mx-3 flex flex-col rounded-control bg-chestnut/6 px-3 py-1">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        className="tabular flex min-h-11 items-center justify-between gap-3 text-left"
-      >
-        <span className="text-xs font-semibold uppercase tracking-[0.08em] opacity-60">
-          {title}
-        </span>
-        <span className="flex items-center gap-2">
-          {!open && <span className="font-heading text-lg font-bold">{rupees(figure)}</span>}
-          <ChevronDown
-            className={cn("size-4 transition-transform", open && "rotate-180")}
-            aria-hidden
-          />
-        </span>
-      </button>
-      <Reveal show={open} gap="0px">
-        <div className="pb-2.5">{body}</div>
-      </Reveal>
-    </div>
-  );
   // the Total cost: the bill and the reverse-charge GST on top
-  const costGroup = foldGroup(
-    t("costGroup"),
-    total,
-    <PlainRows
-      rows={[
-        { key: "bill", label: billLabel, amount: bill },
-        ...typedRows.filter((r) => r.key === "rcm"),
-        { key: "total", label: t("total"), amount: total, tone: "total" },
-      ]}
-    />,
-    costOpen,
-    setCostOpen,
+  const costGroup = (
+    <FoldGroup title={t("costGroup")} figure={total} open={costOpen} onOpen={setCostOpen}>
+      <PlainRows
+        rows={[
+          { key: "bill", label: billLabel, amount: bill },
+          ...typedRows.filter((r) => r.key === "rcm"),
+          { key: "total", label: t("total"), amount: total, tone: "total" },
+        ]}
+      />
+    </FoldGroup>
   );
   // what the payment goes towards: folded to the payment, open to its due part, its advance and the share of the due
   // it clears
-  const dueFlow = (
-    <div className="tabular flex flex-col text-sm">
-      <div className="flex min-h-8 items-center justify-between gap-3">
-        <span>{t("payGroup")}</span>
-        <span className="font-heading text-lg font-bold">{rupees(settlesTotal)}</span>
-      </div>
-      {/* the lines leave from under the payment's name and end at Due and Advance (each row 32px, 2px apart) */}
-      <div className="grid grid-cols-[1.75rem_minmax(0,1fr)]">
-        <svg viewBox="0 0 28 68" className="h-[68px] w-7 overflow-visible" aria-hidden>
-          <path
-            d="M8 0 V 12 Q 8 20, 16 20 H 26"
-            className="fill-none stroke-chestnut/55"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-          />
-          <path
-            d="M8 0 V 46 Q 8 54, 16 54 H 26"
-            className="fill-none stroke-chestnut/55"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-          />
-        </svg>
-        <div className="flex flex-col gap-0.5 pt-1">
-          {dueRows
-            .filter((r) => r.key === "due" || r.key === "advance")
-            .map((r) => (
-              <div key={r.key} className="flex h-8 items-center justify-between gap-3">
-                <span>{r.label}</span>
-                <span className="text-base font-semibold">{rupees(r.amount ?? 0)}</span>
-              </div>
-            ))}
-        </div>
-      </div>
-      {/* how much of what was owed it clears */}
-      {dueRows
-        .filter((r) => r.key === "paid")
-        .map((r) => (
-          <div
-            key={r.key}
-            className="mt-1 flex min-h-8 items-center justify-between gap-3 border-t border-chestnut/15 pt-1"
-          >
-            <span>{r.label}</span>
-            <span className="text-base font-semibold">{r.text}</span>
-          </div>
-        ))}
-    </div>
+  const dueGroup = (
+    <FoldGroup title={t("towardsGroup")} figure={settlesTotal} open={dueOpen} onOpen={setDueOpen}>
+      <DueFlow
+        wholeLabel={t("payGroup")}
+        whole={settlesTotal}
+        dueLabel={t("due")}
+        due={settledOf}
+        advanceLabel={t("advancePart")}
+        advance={advance}
+        paidLabel={t("paidShare")}
+        owedBefore={owedBefore}
+      />
+    </FoldGroup>
   );
-  const dueGroup = foldGroup(t("towardsGroup"), settlesTotal, dueFlow, dueOpen, setDueOpen);
   return (
     // on a phone one column; on a wider screen the due, the amount (TDS, PAN) and its breakup on the left, the Total
     // cost and the due on the right; then where it's paid from the full width. Every kind of payment the same: rent and interest

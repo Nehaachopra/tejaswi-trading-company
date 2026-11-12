@@ -1201,6 +1201,10 @@
         "bankOnly": "A bank's loan comes into a bank account.",
         "stepsDone": "{done} of {all}",
         "advancePart": "Advance",
+        "upiApp": "UPI app",
+        "receiptGroup": "Receipt",
+        "towardsGroup": "Received towards",
+        "paidShare": "Paid",
         "heldAdvance": "They already have {amount} advance with us.",
         "advanceAsk": {
           "title": "Advance?",

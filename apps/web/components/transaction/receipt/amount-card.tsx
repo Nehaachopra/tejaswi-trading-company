@@ -1,6 +1,7 @@
 "use client";
 
 import { IndianRupee } from "lucide-react";
+import { useState } from "react";
 
 import { FieldMessage } from "~/components/ui/field-message";
 import { MicField } from "~/components/ui/mic-button";
@@ -14,7 +15,7 @@ import { SCRAP_GST } from "@repo/trpc/client";
 import { cn } from "~/lib/utils";
 
 import { type AmountRow, PlainRows } from "../shared/amount-table";
-import { DuePie, type PiePart } from "../payment/due-pie";
+import { DueFlow, FoldGroup } from "../shared/fold-group";
 import { ReceivedInto } from "./received-into";
 import { input, saidAmount } from "./shared";
 import { useReceiptEntry } from "./state";
@@ -54,30 +55,27 @@ export function AmountCard() {
   const rows = useAmountRows();
   const totalAt = rows.findIndex((r) => r.tone === "total");
 
-  // the pie's two parts, the see-through one first and the chestnut one last. One that leaves an advance: what was
-  // owed, and the advance. One that doesn't, where something is owed (a customer, a loan given back): what's still
-  // owed after it, and what it settles (TDS they deducted counts). A part of nothing is left out
+  // what this receipt goes towards: the due (as much as was owed, TDS they deducted counting), and the advance past
+  // it; only where something was owed or an advance is left
   const settled = dueShown === null ? 0 : Math.min(total, dueShown);
-  const pieParts: PiePart[] = (
-    value <= 0
-      ? []
-      : advance > 0
-        ? [
-            { key: "due", name: t("due"), amount: owes, filled: false },
-            { key: "advance", name: t("advancePart"), amount: advance, filled: true },
-          ]
-        : dueShown !== null
-          ? [
-              {
-                key: "due",
-                name: t("due"),
-                amount: Math.round((dueShown - settled) * 100) / 100,
-                filled: false,
-              },
-              { key: "settled", name: tpf("settledPart"), amount: settled, filled: true },
-            ]
-          : []
-  ).filter((part) => part.amount > 0);
+  const owedBefore = advance > 0 ? owes : (dueShown ?? 0);
+  const towardsDue = advance > 0 ? owes : settled;
+  const hasDue = value > 0 && (dueShown !== null || advance > 0);
+  const [dueOpen, setDueOpen] = useState(false);
+  const dueGroup = (
+    <FoldGroup title={t("towardsGroup")} figure={total} open={dueOpen} onOpen={setDueOpen}>
+      <DueFlow
+        wholeLabel={t("receiptGroup")}
+        whole={total}
+        dueLabel={t("due")}
+        due={towardsDue}
+        advanceLabel={t("advancePart")}
+        advance={advance}
+        paidLabel={t("paidShare")}
+        owedBefore={owedBefore}
+      />
+    </FoldGroup>
+  );
 
   // a row: its name on the left (level with the box's first line), its box on the right with what's typed at its right
   // end, as a payment's
@@ -111,9 +109,11 @@ export function AmountCard() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* wider screens, two rows: on top the due and the amount (left); under them the Receipt's breakup (left) level
+          with what it goes towards (right) */}
       <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-12">
-        <div className="flex min-w-0 flex-col gap-4">
-          <div className="flex flex-col gap-2.5">
+        <div className="flex min-w-0 flex-col gap-4 sm:contents">
+          <div className="flex min-w-0 flex-col gap-2.5 sm:col-start-1 sm:row-start-1">
             {/* what's owed by the customer or on the loan given back, as soon as something is owed; room under it */}
             {dueShown !== null && (
               <div className="tabular mb-2 flex items-baseline justify-between gap-3 text-sm">
@@ -202,40 +202,42 @@ export function AmountCard() {
                 {tc("problems.loanLeft", { left: rupees(loan!.left) })}
               </FieldMessage>
             )}
-            {/* the rest of the breakup once there's an amount: the TDS they deducted (its switch in the row), the
-                total; then the TDS's note once it's on */}
-            {value > 0 && <PlainRows rows={rows.slice(1, totalAt + 1)} />}
-            <Reveal follow show={tdsCan && tdsOnIt && value > 0} gap="0.625rem">
-              <Note className="text-chestnut/70">
-                {t(kind === "interestReceived" ? "tdsNote194A" : "tdsNote194Q")}
-              </Note>
-            </Reveal>
-            {/* a phone: the due's pie under the total, in the middle (wider screens: on the right) */}
-            {pieParts.length > 0 && (
-              <div className="flex justify-center pt-3 sm:hidden">
-                <DuePie parts={pieParts} />
-              </div>
-            )}
-            {/* an advance they already have with us, before anything's typed */}
-            <Reveal follow show={heldAdvance > 0 && advance === 0} gap="0.625rem">
-              <Note className="tabular text-chestnut/70">
-                {t("heldAdvance", { amount: rupees(heldAdvance) })}
-              </Note>
-            </Reveal>
           </div>
-
-          {/* where it came into, a row like the rest, under the amount */}
-          <ReceivedInto part="top" />
+          <div className="flex min-w-0 flex-col gap-4 sm:col-start-1 sm:row-start-2">
+            <div className="flex flex-col gap-2.5">
+              {/* the breakup once there's an amount and something to break down, in a tinted Receipt group: what came
+                in, the TDS they deducted (its switch in the row), the total; then the TDS's note once it's on */}
+              {value > 0 && totalAt > 1 && (
+                <div className="-mx-3 flex flex-col gap-1 rounded-control bg-chestnut/6 px-3 py-2.5">
+                  <h3 className="text-xs font-semibold uppercase tracking-[0.08em] opacity-60">
+                    {t("receiptGroup")}
+                  </h3>
+                  <PlainRows rows={rows.slice(0, totalAt + 1)} />
+                </div>
+              )}
+              <Reveal follow show={tdsCan && tdsOnIt && value > 0} gap="0.625rem">
+                <Note className="text-chestnut/70">
+                  {t(kind === "interestReceived" ? "tdsNote194A" : "tdsNote194Q")}
+                </Note>
+              </Reveal>
+              {/* a phone: what it goes towards under the breakup (wider screens: on the right) */}
+              {hasDue && <div className="sm:hidden">{dueGroup}</div>}
+              {/* an advance they already have with us, before anything's typed */}
+              <Reveal follow show={heldAdvance > 0 && advance === 0} gap="0.625rem">
+                <Note className="tabular text-chestnut/70">
+                  {t("heldAdvance", { amount: rupees(heldAdvance) })}
+                </Note>
+              </Reveal>
+            </div>
+          </div>
         </div>
-        {/* wider screens: a pie of the due, its circle a little left of the right half's middle */}
-        {pieParts.length > 0 && (
-          <div className="hidden min-w-0 items-center justify-center self-stretch sm:flex">
-            <DuePie parts={pieParts} />
-          </div>
+        {/* wider screens: what it goes towards, level with the breakup */}
+        {hasDue && (
+          <div className="hidden min-w-0 sm:col-start-2 sm:row-start-2 sm:block">{dueGroup}</div>
         )}
       </div>
-      {/* the breakdown of where it came into (a card for each place, its QR and reference), the card's full width */}
-      <ReceivedInto part="rest" />
+      {/* where it came into: a card for each place (its QR and reference), the card's full width */}
+      <ReceivedInto />
     </div>
   );
 }

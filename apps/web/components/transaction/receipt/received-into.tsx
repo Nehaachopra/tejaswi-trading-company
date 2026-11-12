@@ -1,92 +1,28 @@
 "use client";
 
 import { Note } from "~/components/ui/note";
-import { rupees } from "~/lib/format";
 
 import { AccountCards } from "../shared/account-cards/account-cards";
 import { type AccountCardsApi } from "../shared/account-cards/types";
-import { type Place, PlacePicker } from "../shared/place-picker";
 import { OurUpiPart, useOurUpiKept } from "./our-upi";
 import { useReceiptEntry } from "./state";
 
-// where it came into: Cash, Bank or Cash + Bank as an accordion with the bank accounts' look, each with what it holds
-// (the admin only), collapsed to the pick. A bank's loan comes into a bank only, so Cash and Cash + Bank are muted for
-// it. `part` "top" is the accordion (beside the amount); "rest" is the bank cards under it, the card's full width
-export function ReceivedInto({ part }: { part: "top" | "rest" }) {
-  const {
-    t,
-    tc,
-    tpf,
-    into,
-    setInto,
-    setBankId,
-    setBankMode,
-    setCashPart,
-    setAccountsOpen,
-    resetGrid,
-    tried,
-    cashHeld,
-    banksHeld,
-    canBank,
-    bankLoan,
-  } = useReceiptEntry();
+// where it came into, once there's an amount: a card for each place it came into (cash, a bank account), picked in
+// the card itself, then its amount, how it came in, our QR for UPI and its reference. Nothing is picked above the
+// cards: all in cash, all into the bank or both is whatever the cards say. A bank's loan comes into a bank only
+export function ReceivedInto() {
+  const { t, into, bankLoan } = useReceiptEntry();
   const cardsApi = useReceiptCards();
-  const places: Place<"cash" | "bank" | "both">[] = [
-    {
-      id: "cash",
-      name: tc("cash"),
-      hint: cashHeld === null ? undefined : rupees(cashHeld),
-      disabled: !!bankLoan,
-    },
-    {
-      id: "bank",
-      name: tpf("bankPlace"),
-      hint: banksHeld === null ? undefined : rupees(banksHeld),
-      disabled: !canBank,
-    },
-    {
-      id: "both",
-      name: tpf("cashAndBank"),
-      hint: cashHeld === null || banksHeld === null ? undefined : rupees(cashHeld + banksHeld),
-      disabled: !canBank || !!bankLoan,
-    },
-  ];
   const usesBank = into === "bank" || into === "both";
-  if (part === "top")
-    return (
-      // a row like the amount's: Received into on the left, level with the first place; on the right all three until
-      // one is picked, then only the pick, see-through with its ▾ (another pick starts the breakdown again); the
-      // bank-only note under it
-      <div className="flex min-w-0 items-start justify-between gap-3">
-        <span className="flex min-h-12 min-w-0 items-center text-sm">{t("steps.into")}</span>
-        <div className="flex w-[60%] shrink-0 flex-col gap-1.5">
-          <PlacePicker
-            quiet
-            bare
-            alignEnd
-            label={t("steps.into")}
-            places={places}
-            value={into}
-            invalid={tried && into === null}
-            onPick={(id) => {
-              resetGrid();
-              setBankId(null);
-              setCashPart("");
-              if (id === "cash") {
-                setInto("cash");
-                setBankMode(null);
-              } else {
-                setInto(id);
-                if (id === "bank") setAccountsOpen((n) => n + 1);
-              }
-            }}
-          />
-          {bankLoan && <Note className="text-chestnut/70">{t("bankOnly")}</Note>}
-        </div>
-      </div>
-    );
-  // Bank, or Cash + Bank: a card per place, keyed by the place so a new one starts with fresh cards
-  return usesBank ? <AccountCards key={into} api={cardsApi} /> : null;
+  if (!usesBank) return null;
+  return (
+    // a faint line sets the cards apart from the amount and its breakup above; keyed by the place, so a new one starts
+    // with fresh cards
+    <div className="flex flex-col gap-2.5 border-t border-chestnut/15 pt-4">
+      {bankLoan && <Note className="text-chestnut/70">{t("bankOnly")}</Note>}
+      <AccountCards key={into} api={cardsApi} />
+    </div>
+  );
 }
 
 // the bank cards with a receipt's words and parts, laid out as a payment's (every field a row): no cap at what a place
@@ -107,7 +43,7 @@ function useReceiptCards(): AccountCardsApi {
     placeFirst: true,
     fieldRows: true,
     qrItems: e.qrItems,
-    qrIdLabel: t("ourUpi"),
+    qrIdLabel: t("upiId"),
     // a UPI ID typed here shows above its QR once kept, with a pen; one saved on the account shows without one
     qrId: (id) => {
       const saved = (e.banks?.find((b) => b.id === id)?.upiIds.length ?? 0) > 0;

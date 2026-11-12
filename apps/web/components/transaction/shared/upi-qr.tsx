@@ -11,6 +11,7 @@ import { PickMenu } from "~/components/stock/pick-menu";
 import { appOfUpi } from "@repo/trpc/client";
 
 import { oneLineRow, pickRow } from "./form-basics";
+import { PlacePicker } from "./place-picker";
 
 // a UPI payment link: who's paid (the UPI ID and the name it shows), how much, and a note. Any UPI app that scans it
 // opens with the amount filled in. https://www.npci.org.in/ (UPI linking specification)
@@ -102,22 +103,38 @@ export function UpiQr({
             idAsRow ? pickRow : "flex flex-col gap-2 text-xs font-semibold",
           )}
         >
-          {idLabel && <span>{idLabel}</span>}
-          <PickMenu
-            label={t("upiId")}
-            current={appName(picked)}
-            options={upiIds.map((u) => ({ id: u, name: appName(u) }))}
-            picked={picked}
-            onPick={setUpiId}
-            matchWidth
-            inFlow
-            className="bg-ivory text-chestnut"
-          />
+          {/* as a row (a payment's or receipt's cards): "UPI app" on the left, and the apps as the same accordion as the
+              card's other picks (its rows open in place, then only the pick, see-through with ▾, at the right edge) */}
+          {idAsRow ? <span>{t("upiApp")}</span> : idLabel && <span>{idLabel}</span>}
+          {idAsRow ? (
+            <PlacePicker
+              quiet
+              bare
+              alignEnd
+              label={t("upiApp")}
+              places={upiIds.map((u) => ({ id: u, name: appName(u), disabled: false }))}
+              value={picked}
+              onPick={setUpiId}
+              invalid={false}
+            />
+          ) : (
+            <PickMenu
+              label={t("upiId")}
+              current={appName(picked)}
+              options={upiIds.map((u) => ({ id: u, name: appName(u) }))}
+              picked={picked}
+              onPick={setUpiId}
+              matchWidth
+              inFlow
+              className="bg-ivory text-chestnut"
+            />
+          )}
         </div>
       )}
-      {/* a payment's cards: the ID's name on the left; on the right the ID in plain words on one line (no box, only
-          the amount is filled there) and the pen under it, in line with the ▾ of the picks above */}
-      {!hideId && !row && upiIds.length === 1 && idLabel && idAsRow && (
+      {/* a payment's or receipt's cards: the ID's name on the left; on the right the ID in plain words on one line (no
+          box, only the amount is filled there) and the pen under it, in line with the ▾ of the picks above. With more
+          than one ID it comes under the UPI app picked, showing that app's ID */}
+      {!hideId && !row && idLabel && idAsRow && (
         <div className={cn("w-full min-w-0", oneLineRow)}>
           <span>{idLabel}</span>
           <span className="flex min-w-0 flex-col items-end px-3.5">

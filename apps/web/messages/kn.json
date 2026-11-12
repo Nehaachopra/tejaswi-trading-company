@@ -1201,6 +1201,10 @@
         "bankOnly": "ಬ್ಯಾಂಕ್ ಸಾಲ ಬ್ಯಾಂಕ್ ಖಾತೆಗೆ ಮಾತ್ರ ಬರುತ್ತದೆ.",
         "stepsDone": "{all} ರಲ್ಲಿ {done}",
         "advancePart": "ಮುಂಗಡ",
+        "upiApp": "UPI ಆ್ಯಪ್",
+        "receiptGroup": "ಸ್ವೀಕೃತಿ",
+        "towardsGroup": "ಯಾವುದಕ್ಕೆ ಬಂತು",
+        "paidShare": "ಪಾವತಿಸಿದ್ದು",
         "heldAdvance": "ಅವರ {amount} ಮುಂಗಡ ಈಗಾಗಲೇ ನಮ್ಮ ಬಳಿ ಇದೆ.",
         "advanceAsk": {
           "title": "ಮುಂಗಡ?",
