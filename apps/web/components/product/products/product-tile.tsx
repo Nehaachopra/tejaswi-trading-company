@@ -19,7 +19,8 @@ export const productTitle = (group: Pick<ProductGroup, "brand" | "name">) =>
 // the photo for one pack size: its own, else the product's first photo
 export const packImage = (group: ProductGroup, pack: ProductGroup["packs"][number]) => pack.imageUrl ?? group.imageUrl;
 
-// a product photo, or until one is uploaded its brand's initials on a tinted square
+// a product photo, whole: a wide or tall one keeps its shape inside the tinted square (never cropped); until one is
+// uploaded, its brand's initials
 export function ProductImage({ group, imageUrl, className }: { group: Pick<ProductGroup, "brand">; imageUrl: string | null; className?: string }) {
   return (
     <div
@@ -30,7 +31,7 @@ export function ProductImage({ group, imageUrl, className }: { group: Pick<Produ
     >
       {imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- photos come from R2, sized by the tile
-        <img src={imageUrl} alt="" className="size-full object-cover" />
+        <img src={imageUrl} alt="" className="size-full object-contain" />
       ) : (
         <span aria-hidden className="font-heading text-4xl font-bold opacity-70">
           {initials(group.brand)}
@@ -72,8 +73,8 @@ export function ProductTile({
         onChestnut={!active}
       />
 
-      {/* the name, and the sub-category so two brands' packs are told apart */}
-      <div className="min-w-0">
+      {/* the name, and the sub-category so two brands' packs are told apart; room under it before the photo */}
+      <div className="min-w-0 pb-2">
         <p className="truncate font-heading text-base font-bold leading-6" title={productTitle(group)}>
           {productTitle(group)}
         </p>

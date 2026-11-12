@@ -86,7 +86,7 @@ export function PhotoPicker({
         <Spinner />
       ) : value ? (
         // eslint-disable-next-line @next/next/no-img-element -- stored photos, already shrunk
-        <img src={value} alt="" className="size-full object-cover" />
+        <img src={value} alt="" className="size-full object-contain" />
       ) : (
         <Camera className="size-6 text-chestnut/70" aria-hidden />
       )}

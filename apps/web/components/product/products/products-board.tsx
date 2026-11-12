@@ -4,7 +4,14 @@ import { Check, ChevronDown, CircleAlert, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { ADD_BUTTON, FILTER_BAR_UNDER_TABS, FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
+import {
+  ADD_BUTTON,
+  FILTER_CONTROL,
+  FILTER_ROW,
+  FILTER_STACK,
+  FILTER_TRIGGER,
+  PAGE,
+} from "~/components/ui/page-styles";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
@@ -16,6 +23,7 @@ import { NewProductSheet } from "./new-product-sheet";
 import { ProductFormSheet } from "./product-form-sheet";
 import { ProductSheet } from "./product-sheet";
 import { type ProductGroup, ProductTile } from "./product-tile";
+import { cn } from "~/lib/utils";
 
 // every product as a tile, filtered by category and sub-category
 export function ProductsBoard() {
@@ -60,106 +68,115 @@ export function ProductsBoard() {
         {/* the page's name, for screen readers only: the tabs say it visually */}
         <h1 className="sr-only">{t("title")}</h1>
 
-        {/* Categories · Products, each with its count */}
+        {/* Categories · Products */}
         <ProductTabs />
 
-        {/* Add product */}
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className={`mt-6 ${ADD_BUTTON}`}
-        >
-          <Plus className="size-5" aria-hidden /> {t("add")}
-        </button>
+        {/* as the Entities pages: the name and how many there are on the left, the filters on the right (each its own
+            row on a phone); + Add product under them at the right end; a line before the tiles */}
+        <div className={`mt-3 ${FILTER_STACK}`}>
+          <div className={FILTER_ROW}>
+            <h2 className="shrink-0 font-heading text-2xl font-bold">{t("title")}</h2>
+            <span className="tabular ml-1 shrink-0 rounded-control bg-ivory px-2.5 py-0.5 font-heading text-lg font-bold text-chestnut">
+              {list.data?.length ?? 0}
+            </span>
+            <span className="basis-full sm:hidden" aria-hidden />
+            <span className="hidden flex-1 sm:block" aria-hidden />
+            {/* the category, then its sub-category (once one with some is picked), then Show inactive */}
+            <Menu
+              label={t("category")}
+              surface="chestnut"
+              align="left"
+              boxed
+              triggerClassName={cn(FILTER_TRIGGER, FILTER_CONTROL)}
+              trigger={
+                <>
+                  <span className="truncate">
+                    {category ? titleCase(category.name) : t("allCategories")}
+                  </span>
+                  <ChevronDown className="size-4 shrink-0" aria-hidden />
+                </>
+              }
+            >
+              {(close) => (
+                <>
+                  {[
+                    { id: null, name: t("allCategories") },
+                    ...(categories.data ?? []).map((c) => ({ id: c.id, name: titleCase(c.name) })),
+                  ].map((c) => (
+                    <MenuItem
+                      key={c.id ?? "all"}
+                      selected={categoryId === c.id}
+                      onClick={() => {
+                        setCategoryId(c.id);
+                        setSubCategoryId(null);
+                        close();
+                      }}
+                    >
+                      <span className="flex-1">{c.name}</span>
+                      {categoryId === c.id && <Check className="size-4" aria-hidden />}
+                    </MenuItem>
+                  ))}
+                </>
+              )}
+            </Menu>
 
-        {/* filters on one line: the category and sub-category dropdowns, then Show inactive;
-            they stick under the header while the tiles scroll */}
-        <div className={`mt-3 ${FILTER_BAR_UNDER_TABS}`}>
-          <Menu
-            label={t("category")}
-            surface="chestnut"
-            align="left"
-            boxed
-            triggerClassName={FILTER_TRIGGER}
-            trigger={
-              <>
-                <span className="truncate">
-                  {category ? titleCase(category.name) : t("allCategories")}
-                </span>
-                <ChevronDown className="size-4 shrink-0" aria-hidden />
-              </>
-            }
-          >
-            {(close) => (
-              <>
-                {[
-                  { id: null, name: t("allCategories") },
-                  ...(categories.data ?? []).map((c) => ({ id: c.id, name: titleCase(c.name) })),
-                ].map((c) => (
-                  <MenuItem
-                    key={c.id ?? "all"}
-                    selected={categoryId === c.id}
-                    onClick={() => {
-                      setCategoryId(c.id);
-                      setSubCategoryId(null);
-                      close();
-                    }}
-                  >
-                    <span className="flex-1">{c.name}</span>
-                    {categoryId === c.id && <Check className="size-4" aria-hidden />}
-                  </MenuItem>
-                ))}
-              </>
-            )}
-          </Menu>
+            {/* sub-categories: only once a category with some is picked */}
+            <Menu
+              label={t("subCategory")}
+              surface="chestnut"
+              align="left"
+              disabled={subs.length === 0}
+              boxed
+              triggerClassName={cn(FILTER_TRIGGER, FILTER_CONTROL)}
+              trigger={
+                <>
+                  <span className="truncate">
+                    {sub ? titleCase(sub.name) : t("allSubCategories")}
+                  </span>
+                  <ChevronDown className="size-4 shrink-0" aria-hidden />
+                </>
+              }
+            >
+              {(close) => (
+                <>
+                  {[
+                    { id: null, name: t("allSubCategories") },
+                    ...subs.map((s) => ({ id: s.id, name: titleCase(s.name) })),
+                  ].map((s) => (
+                    <MenuItem
+                      key={s.id ?? "all"}
+                      selected={subCategoryId === s.id}
+                      onClick={() => {
+                        setSubCategoryId(s.id);
+                        close();
+                      }}
+                    >
+                      <span className="flex-1">{s.name}</span>
+                      {subCategoryId === s.id && <Check className="size-4" aria-hidden />}
+                    </MenuItem>
+                  ))}
+                </>
+              )}
+            </Menu>
 
-          {/* sub-categories: only once a category with some is picked */}
-          <Menu
-            label={t("subCategory")}
-            surface="chestnut"
-            align="left"
-            disabled={subs.length === 0}
-            boxed
-            triggerClassName={FILTER_TRIGGER}
-            trigger={
-              <>
-                <span className="truncate">
-                  {sub ? titleCase(sub.name) : t("allSubCategories")}
-                </span>
-                <ChevronDown className="size-4 shrink-0" aria-hidden />
-              </>
-            }
-          >
-            {(close) => (
-              <>
-                {[
-                  { id: null, name: t("allSubCategories") },
-                  ...subs.map((s) => ({ id: s.id, name: titleCase(s.name) })),
-                ].map((s) => (
-                  <MenuItem
-                    key={s.id ?? "all"}
-                    selected={subCategoryId === s.id}
-                    onClick={() => {
-                      setSubCategoryId(s.id);
-                      close();
-                    }}
-                  >
-                    <span className="flex-1">{s.name}</span>
-                    {subCategoryId === s.id && <Check className="size-4" aria-hidden />}
-                  </MenuItem>
-                ))}
-              </>
-            )}
-          </Menu>
-
-          <button
-            type="button"
-            aria-pressed={showInactive}
-            onClick={() => setShowInactive((v) => !v)}
-            className={chip(showInactive)}
-          >
-            {t("showInactive")}
-          </button>
+            <button
+              type="button"
+              aria-pressed={showInactive}
+              onClick={() => setShowInactive((v) => !v)}
+              className={cn(chip(showInactive), FILTER_CONTROL)}
+            >
+              {t("showInactive")}
+            </button>
+          </div>
+          <div className={cn(FILTER_ROW, "sm:justify-end")}>
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className={cn(ADD_BUTTON, "shrink-0")}
+            >
+              <Plus className="size-5" aria-hidden /> {t("add")}
+            </button>
+          </div>
         </div>
 
         {/* the tiles: 2 across on phones, more on wider screens */}
@@ -176,7 +193,7 @@ export function ProductsBoard() {
             {categoryId ? t("noMatch") : t("empty")}
           </p>
         ) : (
-          <ul className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
+          <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
             {list.data.map((group) => (
               <ProductTile
                 key={group.key}
