@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Check, IndianRupee, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
@@ -51,48 +51,60 @@ export function AccountCards({ api }: { api: AccountCardsApi }) {
     given < value && last !== null && amountOf(last) > 0 && picks.length < places.length;
   const left = Math.max(0, Math.round((value - given) * 100) / 100);
   const done = value > 0 && left === 0;
+  // how much of the amount the cards take up, as a share (the meter's fill and its coin)
+  const share = value > 0 ? Math.min(100, (given / value) * 100) : 0;
   return (
     <div className="flex flex-col gap-3">
-      {/* Breakdown, headed like the card's own heading; Auto (where there is one) at the right edge on a phone, right
-          beside it wider */}
+      {/* Breakdown, headed like the card's own heading, with Auto (where there is one) at the right edge on a phone,
+          right beside it wider */}
       <div className="flex items-center justify-between gap-3 sm:justify-start">
         <h3 className="text-xs font-semibold uppercase tracking-[0.08em] opacity-60">
           {labels.breakdown}
         </h3>
         {auto && <AutoSwitch on={auto.on} set={auto.set} />}
       </div>
-      {/* a bar that fills as the cards take up the amount: given on the left, what's left on the right. It stays just
-          under the header while the cards scroll, for reference, on the card's ivory edge to edge, with room below it */}
-      {!api.noBar && (
-        <div className="sticky top-16 z-10 -mx-4 mb-2 flex flex-col gap-1.5 bg-ivory px-4 pb-3 pt-2 sm:-mx-5 sm:px-5">
+      {/* the meter above the cards: what's still left to place, over a thin bar that fills as the cards take their
+          parts, green with a tick once nothing is left. As wide as one card; it stays just under the header while the
+          cards scroll, on the card's ivory, so it's always in view */}
+      <div className="tabular sticky top-16 z-10 flex min-w-0 flex-col gap-2 bg-ivory py-2 sm:w-[calc(50%-0.375rem)]">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="text-sm">{labels.barLeft}</span>
+          {done ? (
+            <span className="flex items-center gap-1.5 font-heading text-lg font-bold text-success">
+              <Check className="size-4" strokeWidth={2.5} aria-hidden />
+              {labels.barDone}
+            </span>
+          ) : (
+            <span className="font-heading text-2xl font-bold leading-none">{rupees(left)}</span>
+          )}
+        </div>
+        {/* the bar, with a coin riding on the end of what's filled (a gold ₹ coin with a dark rim so it stands out on the ivory; it slides along as the cards fill) */}
+        <div className="relative py-1.5">
           <div
             role="progressbar"
+            aria-label={labels.barLeft}
             aria-valuemin={0}
             aria-valuemax={value}
             aria-valuenow={given}
-            className="h-3 overflow-hidden rounded-full bg-transparent shadow-[inset_0_0_0_1px] shadow-success/25"
+            className="h-1.5 overflow-hidden rounded-full bg-chestnut/10"
           >
-            {/* green whether full or not */}
             <div
-              className="h-full rounded-full bg-success transition-[width] duration-300"
-              style={{ width: `${value > 0 ? Math.min(100, (given / value) * 100) : 0}%` }}
+              className={cn(
+                "h-full rounded-full transition-[width] duration-300",
+                done ? "bg-success" : "bg-chestnut",
+              )}
+              style={{ width: `${share}%` }}
             />
           </div>
-          {/* the amount typed on the left, what the cards take up so far on the right, each under its label */}
-          <div className="tabular flex justify-between gap-3 text-xs font-semibold">
-            <span className="flex min-w-0 flex-col gap-0.5">
-              <span>{labels.barTotal}</span>
-              <span className="text-sm font-bold">{rupees(value)}</span>
-            </span>
-            <span className="flex min-w-0 flex-col items-end gap-0.5 text-right">
-              <span>{labels.barGivenLabel}</span>
-              <span className={cn("text-sm font-bold", done && "text-success")}>
-                {rupees(given)}
-              </span>
-            </span>
-          </div>
+          <span
+            aria-hidden
+            className="absolute top-1/2 grid size-5 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-amber-600 bg-amber-300 text-amber-900 shadow-[0_1px_3px_0] shadow-chestnut/50 ring-1 ring-chestnut/40 transition-[left] duration-300"
+            style={{ left: `clamp(10px, ${share}%, calc(100% - 10px))` }}
+          >
+            <IndianRupee className="size-2.5" strokeWidth={3} />
+          </span>
         </div>
-      )}
+      </div>
       {/* wider screens: two to a row, a shorter card (cash) stretched to its neighbour's height */}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch">
         {picks.map((id, i) => (

@@ -26,7 +26,7 @@ export function ReceivedInto() {
 }
 
 // the bank cards with a receipt's words and parts, laid out as a payment's (every field a row): no cap at what a place
-// holds (money comes in), no Auto, our UPI ID
+// holds and no balances shown (money comes in), no Auto, our UPI ID
 function useReceiptCards(): AccountCardsApi {
   const e = useReceiptEntry();
   const { t, tc, tpf } = e;
@@ -38,7 +38,7 @@ function useReceiptCards(): AccountCardsApi {
     setMode: e.setGridMode,
     tried: e.tried,
     capAtHeld: false,
-    noBar: true,
+    hideHeld: true,
     modeRows: true,
     placeFirst: true,
     fieldRows: true,
@@ -59,14 +59,13 @@ function useReceiptCards(): AccountCardsApi {
     labels: {
       breakdown: tpf("breakdown"),
       account: tpf("account"),
-      balance: tpf("balance"),
       accountAmount: t("accountAmount"),
       anotherAccount: tpf("anotherAccount"),
       removeAccount: tc("removeAccount"),
       mode: t("receivedBy"),
       modeMissing: t("pickMode"),
-      barTotal: t("barTotal"),
-      barGivenLabel: t("barInLabel"),
+      barLeft: t("leftToReceive"),
+      barDone: t("nothingLeft"),
       capLeft: (amount) => t("capLeft", { amount }),
       capOnly: (amount) => t("capLeft", { amount }),
     },

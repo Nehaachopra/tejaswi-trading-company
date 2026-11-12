@@ -17,10 +17,9 @@ export type AccountCardsLabels = {
   removeAccount: string;
   mode: string;
   modeMissing: string;
-  // under the bar: "Payment" / "Receipt" over the amount typed (left), "Paid" / "Received" over what the cards take
-  // up (right)
-  barTotal: string;
-  barGivenLabel: string;
+  // the meter above the cards: "Left to pay" / "Left to receive", and what it says once nothing is left
+  barLeft: string;
+  barDone: string;
   // typed past what's left / past what the place holds
   capLeft: (amount: string) => string;
   capOnly: (amount: string) => string;
@@ -35,10 +34,11 @@ export type AccountCardsApi = {
   tried: boolean;
   // money going out can't be more than a place holds (a payment); money coming in can (a receipt)
   capAtHeld: boolean;
+  // what each place holds isn't shown at all, neither beside the places nor as a Balance row (a receipt's: what's
+  // there before money comes in only misleads)
+  hideHeld?: boolean;
   // Auto, where the form has it (a payment's): fills the cards from what each holds
   auto?: { on: boolean; set: (on: boolean) => void };
-  // no bar above the cards showing how much of the amount they take up (a payment's)
-  noBar?: boolean;
   // folded, the place on the left and its amount beside the arrow (a payment's); otherwise the amount on the left
   placeFirst?: boolean;
   // the open card's fields as rows, each name on the left and its value or box on the right, all the same width (a

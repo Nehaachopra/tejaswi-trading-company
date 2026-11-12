@@ -60,7 +60,7 @@ export function AccountCard({
     id: p.id,
     name: p.name,
     sub: p.sub ?? undefined,
-    hint: p.held === null ? undefined : rupees(p.held),
+    hint: p.held === null || api.hideHeld ? undefined : rupees(p.held),
     disabled: capAtHeld && p.held !== null && p.held <= 0,
   }));
   // a pick puts the cursor straight in its amount
@@ -233,7 +233,7 @@ export function AccountCard({
       {/* its amount, chestnut once there's one, red past what it holds; never past what's left (nor what it holds,
           money going out): typing past it cuts it there and says why */}
       {/* what it holds (the admin only), a row of its own */}
-      {rows && picked && picked.held !== null && (
+      {rows && picked && picked.held !== null && !api.hideHeld && (
         <div className={fieldRow}>
           <span>{labels.balance}</span>
           <span className="tabular flex min-h-11 items-center justify-end px-3 text-base font-semibold">
