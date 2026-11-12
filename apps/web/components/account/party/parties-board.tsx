@@ -39,15 +39,23 @@ export function PartiesBoard({ type }: { type: PartyType }) {
     return () => clearTimeout(timer);
   }, [typed]);
 
-  const parties = trpc.accounts.party.list.useQuery({ master: kind.master, includeInactive: showInactive, search }, { placeholderData: (previous) => previous });
+  const parties = trpc.accounts.party.list.useQuery(
+    { master: kind.master, includeInactive: showInactive, search },
+    { placeholderData: (previous) => previous },
+  );
   // the places these parties are in, and the ones in the picked place
-  const cities = [...new Set((parties.data ?? []).map((p) => p.city).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b));
+  const cities = [
+    ...new Set((parties.data ?? []).map((p) => p.city).filter((c): c is string => !!c)),
+  ].sort((a, b) => a.localeCompare(b));
   const shown = (parties.data ?? []).filter((p) => city === null || p.city === city);
 
   return (
     <main className={`${PAGE} pb-16`}>
       {/* back to the head it sits under */}
-      <Link href={`/account/${kind.head}`} className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
+      <Link
+        href={`/account/${kind.head}`}
+        className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory"
+      >
         <ArrowLeft className="size-4" aria-hidden /> {th(kind.head)}
       </Link>
 
@@ -82,7 +90,12 @@ export function PartiesBoard({ type }: { type: PartyType }) {
             ))
           }
         </Menu>
-        <button type="button" aria-pressed={showInactive} onClick={() => setShowInactive((v) => !v)} className={chip(showInactive)}>
+        <button
+          type="button"
+          aria-pressed={showInactive}
+          onClick={() => setShowInactive((v) => !v)}
+          className={chip(showInactive)}
+        >
           {t("showInactive")}
         </button>
       </GroupHeader>
@@ -104,7 +117,10 @@ export function PartiesBoard({ type }: { type: PartyType }) {
           ) : (
             <>
               {t(`empty.${type}`)}{" "}
-              <Link href="/entities/parties" className="font-semibold text-ivory underline underline-offset-4">
+              <Link
+                href="/entities/parties"
+                className="font-semibold text-ivory underline underline-offset-4"
+              >
                 {t("addFirst")}
               </Link>
             </>
@@ -114,30 +130,34 @@ export function PartiesBoard({ type }: { type: PartyType }) {
         <ul className="mt-2 grid grid-cols-1 gap-3 lg:grid-cols-2">
           {shown.map((p) => (
             <li key={p.id} className="min-w-0">
+              {/* as the Entities card: the name (with inactive), the full name under a short one, the phone and town
+                  with their icons on the left; on the right the balance on top and the arrow under it that opens it */}
               <Link
                 href={`${kind.path}/${p.id}`}
                 className={cn(
-                  "flex min-w-0 flex-col gap-0.5 rounded-control border p-4",
-                  p.isActive ? "on-ivory border-ivory bg-ivory text-chestnut" : "border-dashed border-ivory/60 text-ivory",
+                  "flex min-w-0 items-center gap-2 rounded-control border p-2 pl-4",
+                  p.isActive
+                    ? "on-ivory border-ivory bg-ivory text-chestnut"
+                    : "border-dashed border-ivory/60 text-ivory",
                 )}
               >
-                {/* the short name (when there is one); the full name with the balance; the phone and town with the arrow */}
-                {p.shortName && (
+                <span className="min-w-0 flex-1 py-1.5">
                   <span className="flex min-w-0 items-center gap-2">
-                    <span className="truncate font-heading text-xl font-bold leading-7">{partyLabel(p)}</span>
-                    {!p.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
+                    <span className="truncate font-heading text-xl font-bold leading-7">
+                      {partyLabel(p)}
+                    </span>
+                    {!p.isActive && (
+                      <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">
+                        {t("inactive")}
+                      </span>
+                    )}
                   </span>
-                )}
-                <span className="flex min-w-0 items-start gap-3">
-                  <span className={cn("min-w-0 flex-1 truncate", p.shortName ? "pt-0.5 text-base" : "font-heading text-xl font-bold leading-7")}>{titleCase(p.name.toLowerCase())}</span>
-                  {!p.shortName && !p.isActive && <span className="shrink-0 self-center rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
-                  <span className="flex shrink-0 flex-col items-end">
-                    <SignedAmount balance={p.balance.today} head={kind.head} className="font-heading text-xl font-bold leading-7" />
-                    {p.balance.postDated && <span className="tabular text-xs opacity-70">{t("postDated", { amount: postDatedText(p.balance.postDated, kind.head) })}</span>}
-                  </span>
-                </span>
-                <span className="flex min-w-0 items-center gap-3 text-sm">
-                  <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1 opacity-70">
+                  {p.shortName && (
+                    <span className="block truncate text-sm" title={p.name}>
+                      {titleCase(p.name.toLowerCase())}
+                    </span>
+                  )}
+                  <span className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs opacity-70">
                     {p.phone && (
                       <span className="tabular flex items-center gap-1">
                         <Phone className="size-3.5" aria-hidden /> +91 {p.phone}
@@ -145,19 +165,31 @@ export function PartiesBoard({ type }: { type: PartyType }) {
                     )}
                     {p.city && (
                       <span className="flex min-w-0 items-center gap-1">
-                        <MapPin className="size-3.5 shrink-0" aria-hidden /> <span className="truncate">{titleCase(p.city)}</span>
+                        <MapPin className="size-3.5 shrink-0" aria-hidden />
+                        <span className="truncate">{titleCase(p.city)}</span>
                       </span>
                     )}
                     {!p.phone && !p.city && "—"}
                   </span>
-                  <ChevronRight className="size-5 shrink-0 opacity-60" aria-hidden />
+                </span>
+                <span className="flex shrink-0 flex-col items-end gap-1 py-1.5 pr-2">
+                  <SignedAmount
+                    balance={p.balance.today}
+                    head={kind.head}
+                    className="font-heading text-xl font-bold leading-7"
+                  />
+                  {p.balance.postDated && (
+                    <span className="tabular text-xs opacity-70">
+                      {t("postDated", { amount: postDatedText(p.balance.postDated, kind.head) })}
+                    </span>
+                  )}
+                  <ChevronRight className="size-5 opacity-60" aria-hidden />
                 </span>
               </Link>
             </li>
           ))}
         </ul>
       )}
-
     </main>
   );
 }

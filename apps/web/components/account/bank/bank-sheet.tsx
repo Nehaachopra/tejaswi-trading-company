@@ -5,19 +5,28 @@ import { useEffect, useState } from "react";
 
 import { SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
+import { ActiveRow } from "~/components/ui/active-row";
 import { Sheet } from "~/components/ui/sheet";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { trpc } from "~/trpc/client";
 
-import { BankFields, type BankDraft, draftFrom, draftInput, draftOk, emptyDraft } from "./bank-fields";
+import {
+  BankFields,
+  type BankDraft,
+  draftFrom,
+  draftInput,
+  draftOk,
+  emptyDraft,
+} from "./bank-fields";
 
 // what a failed save means, for the message under the form
 function errorKey(err: unknown) {
   const data = (err as { data?: { code?: string } })?.data;
   if (!data) return "network";
   // a clash is the account number or a UPI ID; the server's message says which
-  if (data.code === "CONFLICT") return (err as { message?: string }).message?.startsWith("UPI ID") ? "upiTaken" : "taken";
+  if (data.code === "CONFLICT")
+    return (err as { message?: string }).message?.startsWith("UPI ID") ? "upiTaken" : "taken";
   if (data.code === "BAD_REQUEST") return "check";
   if (data.code === "NOT_FOUND") return "gone";
   return "failed";
@@ -25,7 +34,16 @@ function errorKey(err: unknown) {
 
 // adding a bank account (bankId "new") or editing one; the admin only. Edit starts from the saved details
 // once, when it opens, so a live refresh doesn't overwrite what's being typed
-export function BankSheet({ bankId, onClose }: { bankId: string | "new" | null; onClose: () => void }) {
+// editing: whether it's active, as a switch at the top (it saves at once)
+export function BankSheet({
+  bankId,
+  onClose,
+  active,
+}: {
+  bankId: string | "new" | null;
+  onClose: () => void;
+  active?: { on: boolean; onFlip: (on: boolean) => void };
+}) {
   const t = useTranslations("accounts.bank.form");
   const utils = trpc.useUtils();
   const editing = bankId !== null && bankId !== "new";
@@ -52,8 +70,12 @@ export function BankSheet({ bankId, onClose }: { bankId: string | "new" | null; 
     setError(null);
     if (!draftOk(draft)) return;
     try {
-      const saved = editing ? await update.mutateAsync({ id: bankId, ...draftInput(draft) }) : await create.mutateAsync(draftInput(draft));
-      toast.success(t(editing ? "toast.saved" : "toast.added", { name: `${saved.bankName} ••${saved.last4}` }));
+      const saved = editing
+        ? await update.mutateAsync({ id: bankId, ...draftInput(draft) })
+        : await create.mutateAsync(draftInput(draft));
+      toast.success(
+        t(editing ? "toast.saved" : "toast.added", { name: `${saved.bankName} ••${saved.last4}` }),
+      );
       void utils.accounts.invalidate();
       onClose();
     } catch (err) {
@@ -62,7 +84,12 @@ export function BankSheet({ bankId, onClose }: { bankId: string | "new" | null; 
   }
 
   return (
-    <Sheet open={!!bankId} title={t(editing ? "editTitle" : "addTitle")} closeLabel={t("close")} onClose={onClose}>
+    <Sheet
+      open={!!bankId}
+      title={t(editing ? "editTitle" : "addTitle")}
+      closeLabel={t("close")}
+      onClose={onClose}
+    >
       {!loaded ? (
         <p className="flex justify-center py-16 text-chestnut/70">
           <Spinner />
@@ -70,15 +97,24 @@ export function BankSheet({ bankId, onClose }: { bankId: string | "new" | null; 
       ) : (
         <form onSubmit={save} noValidate className="flex min-h-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
-            <BankFields draft={draft} onChange={(patch) => {
+            {editing && active && <ActiveRow on={active.on} onFlip={active.onFlip} />}
+            <BankFields
+              draft={draft}
+              onChange={(patch) => {
                 setError(null);
                 setDraft((d) => ({ ...d, ...patch }));
-              }} tried={tried} />
+              }}
+              tried={tried}
+            />
           </div>
           <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
-            {tried && !draftOk(draft) && <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>}
+            {tried && !draftOk(draft) && (
+              <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>
+            )}
             {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
-            <SubmitButton busy={create.isPending || update.isPending}>{t(editing ? "saveDetails" : "save")}</SubmitButton>
+            <SubmitButton busy={create.isPending || update.isPending}>
+              {t(editing ? "saveDetails" : "save")}
+            </SubmitButton>
           </footer>
         </form>
       )}

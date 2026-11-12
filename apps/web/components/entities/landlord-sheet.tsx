@@ -7,6 +7,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { fieldClass, SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { Note } from "~/components/ui/note";
+import { ActiveRow } from "~/components/ui/active-row";
 import { Sheet } from "~/components/ui/sheet";
 import { Spinner } from "~/components/ui/spinner";
 import { Switch } from "~/components/ui/switch";
@@ -251,7 +252,12 @@ function LandlordFields({
 
       {/* the UPI ID they're paid on, for the rent payment's QR, below the address (one for now) */}
       <section className="mt-6">
-        <UpiIdsField upiIds={draft.upiIds} onChange={(upiIds) => set({ upiIds })} tried={tried} max={1} />
+        <UpiIdsField
+          upiIds={draft.upiIds}
+          onChange={(upiIds) => set({ upiIds })}
+          tried={tried}
+          max={1}
+        />
       </section>
 
       {asksPan && (
@@ -426,7 +432,10 @@ export function LandlordSheet({
   landlordId,
   onClose,
   onSaved,
+  active,
 }: {
+  // editing: whether they're active, as a switch at the top (it saves at once)
+  active?: { on: boolean; onFlip: (on: boolean) => void };
   landlordId: string | "new" | null;
   onClose: () => void;
   onSaved?: (id: string) => void;
@@ -494,6 +503,7 @@ export function LandlordSheet({
       ) : (
         <form onSubmit={save} noValidate className="flex min-h-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
+            {editing && active && <ActiveRow on={active.on} onFlip={active.onFlip} />}
             <LandlordFields draft={draft} set={set} tried={tried} />
           </div>
           <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">

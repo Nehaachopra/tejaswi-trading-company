@@ -1033,6 +1033,7 @@
     "title": "Bank accounts"
   },
   "common": {
+    "active": "Active",
     "copy": "Copy",
     "copied": "Copied",
     "clearSearch": "Clear search",

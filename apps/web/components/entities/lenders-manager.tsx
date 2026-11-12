@@ -1,15 +1,15 @@
 "use client";
 
-import { CircleAlert, Ellipsis, Pencil, Plus, Power, Search } from "lucide-react";
+import { CircleAlert, MapPin, Pencil, Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { ClearButton } from "~/components/ui/clear-button";
 import { fieldClass, SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
-import { Menu, MenuItem } from "~/components/ui/menu";
 import { ADD_BUTTON, FILTER_BAR, PAGE } from "~/components/ui/page-styles";
 import { RequiredMark } from "~/components/ui/required-mark";
+import { ActiveRow } from "~/components/ui/active-row";
 import { Sheet } from "~/components/ui/sheet";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
@@ -23,7 +23,8 @@ import { type BankLender, BankNamePick, lenderLabel } from "../transaction/loans
 type Lender = RouterOutputs["accounts"]["lender"]["list"][number];
 
 const PAN_RE = /^[A-Z]{5}\d{4}[A-Z]$/;
-const input = (bad: boolean) => `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
+const input = (bad: boolean) =>
+  `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
 
 // /entities/lenders, admin only: the banks and NBFCs we took loans from, apart from parties. + Add lender, a search with
 // Show inactive, then a row per lender: its name, branch and type
@@ -40,7 +41,9 @@ export function LendersManager() {
 
   const lenders = trpc.accounts.lender.list.useQuery({ includeInactive: showInactive });
   const needle = search.trim().toLowerCase();
-  const shown = (lenders.data ?? []).filter((l) => needle === "" || lenderLabel(l).toLowerCase().includes(needle));
+  const shown = (lenders.data ?? []).filter(
+    (l) => needle === "" || lenderLabel(l).toLowerCase().includes(needle),
+  );
 
   // inactive only once it has no loan left to repay
   async function toggleActive(l: Lender) {
@@ -76,7 +79,12 @@ export function LendersManager() {
           />
           {search && <ClearButton onClear={() => setSearch("")} label={tc("clearSearch")} />}
         </label>
-        <button type="button" aria-pressed={showInactive} onClick={() => setShowInactive((on) => !on)} className={chip(showInactive)}>
+        <button
+          type="button"
+          aria-pressed={showInactive}
+          onClick={() => setShowInactive((on) => !on)}
+          className={chip(showInactive)}
+        >
           {t("showInactive")}
         </button>
       </div>
@@ -91,49 +99,82 @@ export function LendersManager() {
           <CircleAlert className="size-5 shrink-0" aria-hidden /> {t("failed")}
         </p>
       )}
-      {lenders.data && shown.length === 0 && <p className="mt-8 text-center text-ivory/70">{t(needle ? "noMatch" : "empty")}</p>}
+      {lenders.data && shown.length === 0 && (
+        <p className="mt-8 text-center text-ivory/70">{t(needle ? "noMatch" : "empty")}</p>
+      )}
 
       {/* a row per lender */}
       <ul className="mt-4 grid gap-2 sm:grid-cols-2">
         {shown.map((l) => (
-          <li key={l.id} className={cn("flex items-center gap-2 rounded-control px-3 py-2", l.isActive ? "on-ivory bg-ivory text-chestnut" : "border border-ivory/30 text-ivory")}>
-            <button type="button" onClick={() => setOpen(l)} className="flex min-h-11 min-w-0 flex-1 flex-col justify-center text-left">
+          <li
+            key={l.id}
+            className={cn(
+              "flex items-center gap-2 rounded-control px-3 py-2",
+              l.isActive ? "on-ivory bg-ivory text-chestnut" : "border border-ivory/30 text-ivory",
+            )}
+          >
+            <button
+              type="button"
+              onClick={() => setOpen(l)}
+              className="flex min-h-11 min-w-0 flex-1 flex-col justify-center text-left"
+            >
               <span className="truncate font-semibold">{l.name}</span>
-              <span className="truncate text-xs opacity-75">{[l.branch, tl(`lenders.${l.type}`), !l.isActive && t("inactive")].filter(Boolean).join(" · ")}</span>
+              {/* its branch with the location icon, whether a bank or NBFC, and inactive when it is */}
+              <span className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs opacity-70">
+                {l.branch && (
+                  <span className="flex min-w-0 items-center gap-1">
+                    <MapPin className="size-3.5 shrink-0" aria-hidden />
+                    <span className="truncate">{l.branch}</span>
+                  </span>
+                )}
+                <span>{tl(`lenders.${l.type}`)}</span>
+                {!l.isActive && <span>{t("inactive")}</span>}
+              </span>
             </button>
-            <Menu plain label={t("menu")} surface={l.isActive ? "ivory" : "chestnut"} triggerClassName="size-11 shrink-0" trigger={<Ellipsis className="size-5" aria-hidden />}>
-              {(close) => (
-                <>
-                  <MenuItem
-                    onClick={() => {
-                      close();
-                      setOpen(l);
-                    }}
-                  >
-                    <Pencil className="size-4" aria-hidden /> {t("edit")}
-                  </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      close();
-                      void toggleActive(l);
-                    }}
-                  >
-                    <Power className="size-4" aria-hidden /> {t(l.isActive ? "deactivate" : "reactivate")}
-                  </MenuItem>
-                </>
-              )}
-            </Menu>
+            {/* the pen: their details, where they can be made inactive (or active again) too */}
+            <button
+              type="button"
+              onClick={() => setOpen(l)}
+              aria-label={t("edit")}
+              className="grid size-11 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
+            >
+              <Pencil className="size-4" aria-hidden />
+            </button>
           </li>
         ))}
       </ul>
 
-      {open && <LenderSheet key={open === "new" ? "new" : open.id} lender={open === "new" ? null : open} onClose={() => setOpen(null)} />}
+      {open && (
+        <LenderSheet
+          key={open === "new" ? "new" : open.id}
+          lender={open === "new" ? null : open}
+          onClose={() => setOpen(null)}
+          active={
+            open === "new"
+              ? undefined
+              : (() => {
+                  // gone from the list (inactive ones hidden): it was made inactive
+                  const l = (lenders.data ?? []).find((x) => x.id === open.id);
+                  return { on: l?.isActive ?? false, onFlip: () => void toggleActive(l ?? open) };
+                })()
+          }
+        />
+      )}
     </main>
   );
 }
 
 // a lender's details: only what a bank or NBFC has. Its type is set once, as its loans' TDS follows it
-function LenderSheet({ lender, onClose }: { lender: Lender | null; onClose: () => void }) {
+// editing: whether it's active, as a switch at the top (it saves at once)
+function LenderSheet({
+  lender,
+  onClose,
+  active,
+}: {
+  lender: Lender | null;
+  onClose: () => void;
+  active?: { on: boolean; onFlip: (on: boolean) => void };
+}) {
   const t = useTranslations("lenders");
   const tf = useTranslations("transactions.lender");
   const tl = useTranslations("transactions.loan");
@@ -155,7 +196,8 @@ function LenderSheet({ lender, onClose }: { lender: Lender | null; onClose: () =
     setFailed(null);
     if (name.trim() === "" || badPan) return;
     try {
-      if (lender) await update.mutateAsync({ id: lender.id, name: name.trim(), branch: branch.trim(), pan });
+      if (lender)
+        await update.mutateAsync({ id: lender.id, name: name.trim(), branch: branch.trim(), pan });
       else await create.mutateAsync({ name: name.trim(), branch: branch.trim(), type, pan });
       void utils.accounts.lender.invalidate();
       onClose();
@@ -166,14 +208,30 @@ function LenderSheet({ lender, onClose }: { lender: Lender | null; onClose: () =
   }
 
   return (
-    <Sheet open title={t(lender ? "editTitle" : "addTitle")} closeLabel={t("close")} onClose={onClose}>
+    <Sheet
+      open
+      title={t(lender ? "editTitle" : "addTitle")}
+      closeLabel={t("close")}
+      onClose={onClose}
+    >
       <form onSubmit={(e) => void save(e)} className="flex flex-col gap-4 p-4">
+        {lender && active && <ActiveRow on={active.on} onFlip={active.onFlip} />}
         {!lender && (
           <div role="radiogroup" aria-label={tl("lender")} className="flex flex-col gap-2.5">
             <span className="text-xs font-semibold">{tl("lender")}</span>
             <div className="flex gap-2">
               {(["bank", "nbfc"] as const).map((k) => (
-                <button key={k} type="button" role="radio" aria-checked={type === k} onClick={() => setType(k)} className={cn("min-h-10 rounded-control border px-3 text-sm font-medium", type === k ? "border-chestnut bg-chestnut text-ivory" : "border-chestnut/50")}>
+                <button
+                  key={k}
+                  type="button"
+                  role="radio"
+                  aria-checked={type === k}
+                  onClick={() => setType(k)}
+                  className={cn(
+                    "min-h-10 rounded-control border px-3 text-sm font-medium",
+                    type === k ? "border-chestnut bg-chestnut text-ivory" : "border-chestnut/50",
+                  )}
+                >
                   {tl(`lenders.${k}`)}
                 </button>
               ))}
@@ -188,17 +246,37 @@ function LenderSheet({ lender, onClose }: { lender: Lender | null; onClose: () =
           {type === "bank" ? (
             <BankNamePick value={name} onChange={setName} invalid={noName} />
           ) : (
-            <input autoFocus value={name} maxLength={150} placeholder={tf("namePlaceholder")} onChange={(e) => setName(e.target.value)} aria-invalid={noName || undefined} className={input(noName)} />
+            <input
+              autoFocus
+              value={name}
+              maxLength={150}
+              placeholder={tf("namePlaceholder")}
+              onChange={(e) => setName(e.target.value)}
+              aria-invalid={noName || undefined}
+              className={input(noName)}
+            />
           )}
         </label>
         <label className="flex flex-col gap-2.5 text-xs font-semibold">
           {tf("branch")}
-          <input value={branch} maxLength={100} onChange={(e) => setBranch(e.target.value)} className={input(false)} />
+          <input
+            value={branch}
+            maxLength={100}
+            onChange={(e) => setBranch(e.target.value)}
+            className={input(false)}
+          />
         </label>
         {type === "nbfc" && (
           <label className="flex flex-col gap-2.5 text-xs font-semibold sm:w-56">
             {tf("pan")}
-            <input value={pan} maxLength={10} placeholder="ABCDE1234F" onChange={(e) => setPan(e.target.value.replace(/[^0-9a-z]/gi, "").toUpperCase())} aria-invalid={badPan || undefined} className={cn(input(badPan && (tried || pan.length === 10)), "tabular uppercase")} />
+            <input
+              value={pan}
+              maxLength={10}
+              placeholder="ABCDE1234F"
+              onChange={(e) => setPan(e.target.value.replace(/[^0-9a-z]/gi, "").toUpperCase())}
+              aria-invalid={badPan || undefined}
+              className={cn(input(badPan && (tried || pan.length === 10)), "tabular uppercase")}
+            />
           </label>
         )}
         {failed && <FieldMessage className="mt-0">{failed}</FieldMessage>}

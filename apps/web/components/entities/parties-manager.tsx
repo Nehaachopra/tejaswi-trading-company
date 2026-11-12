@@ -1,11 +1,16 @@
 "use client";
 
-import { ChevronDown, CircleAlert, Ellipsis, Pencil, Plus, Power, Search } from "lucide-react";
+import { ChevronDown, CircleAlert, MapPin, Pencil, Phone, Plus, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { ADD_BUTTON, FILTER_BAR_UNDER_TABS, FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
+import {
+  ADD_BUTTON,
+  FILTER_BAR_UNDER_TABS,
+  FILTER_TRIGGER,
+  PAGE,
+} from "~/components/ui/page-styles";
 import { ClearButton } from "~/components/ui/clear-button";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { PageTabs } from "~/components/ui/page-tabs";
@@ -17,13 +22,33 @@ import { trpc } from "~/trpc/client";
 import { kindOf, partyLabel, type PartyRole, type PartyType } from "../account/party/party-kinds";
 
 // the types on top: a party with several shows under each, "none" those with none
-const LIST_TYPES = ["customer", "supplier", "employee", "landlord", "lender", "agent", "none"] as const;
+const LIST_TYPES = [
+  "customer",
+  "supplier",
+  "employee",
+  "landlord",
+  "lender",
+  "agent",
+  "none",
+] as const;
 type ListType = (typeof LIST_TYPES)[number];
 import { PartySheet } from "../account/party/party-sheet";
 import { chip } from "../product/row-styles";
 
 // a dropdown filter on the chestnut page: the trigger shows the current choice
-function Filter<T extends string | null>({ label, current, options, picked, onPick }: { label: string; current: string; options: { id: T; name: string }[]; picked: T; onPick: (id: T) => void }) {
+function Filter<T extends string | null>({
+  label,
+  current,
+  options,
+  picked,
+  onPick,
+}: {
+  label: string;
+  current: string;
+  options: { id: T; name: string }[];
+  picked: T;
+  onPick: (id: T) => void;
+}) {
   return (
     <Menu
       label={label}
@@ -83,13 +108,20 @@ export function PartiesManager() {
   }, [typed]);
 
   const router = useRouter();
-  const parties = trpc.accounts.party.list.useQuery({ type: type ?? undefined, includeInactive: showInactive, search }, { placeholderData: (previous) => previous });
-  const cities = [...new Set((parties.data ?? []).map((p) => p.city).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b));
+  const parties = trpc.accounts.party.list.useQuery(
+    { type: type ?? undefined, includeInactive: showInactive, search },
+    { placeholderData: (previous) => previous },
+  );
+  const cities = [
+    ...new Set((parties.data ?? []).map((p) => p.city).filter((c): c is string => !!c)),
+  ].sort((a, b) => a.localeCompare(b));
   const shown = (parties.data ?? []).filter((p) => city === null || p.city === city);
 
   // a party tapped: its form; a landlord is changed in Entities → Landlords
   const edit = (p: { id: string; types: PartyRole[] }) =>
-    p.types.includes("landlord") ? router.push("/entities/landlords") : setOpen({ id: p.id, type: kindOf(p.types) });
+    p.types.includes("landlord")
+      ? router.push("/entities/landlords")
+      : setOpen({ id: p.id, type: kindOf(p.types) });
 
   // mark a party inactive (only with nothing owed either way and no pending orders) or active again
   async function toggleActive(id: string, shortName: string, makeActive: boolean) {
@@ -99,7 +131,17 @@ export function PartiesManager() {
       void utils.accounts.invalidate();
     } catch (err) {
       const code = (err as { data?: { code?: string } })?.data?.code;
-      toast.error(t(code === "PRECONDITION_FAILED" ? "errors.hasBalance" : code === "CONFLICT" ? "errors.hasOrders" : code === undefined ? "errors.network" : "errors.failed"));
+      toast.error(
+        t(
+          code === "PRECONDITION_FAILED"
+            ? "errors.hasBalance"
+            : code === "CONFLICT"
+              ? "errors.hasOrders"
+              : code === undefined
+                ? "errors.network"
+                : "errors.failed",
+        ),
+      );
     }
   }
 
@@ -110,7 +152,12 @@ export function PartiesManager() {
       {/* the types as tabs, as Dues has them (a party with several shows under each), under the header */}
       <PageTabs
         label={t("type")}
-        tabs={([null, ...LIST_TYPES] as const).map((r) => ({ key: r ?? "all", label: r ? tf(`types.${r}`) : t("allTypes"), current: type === r, onPick: () => setType(r) }))}
+        tabs={([null, ...LIST_TYPES] as const).map((r) => ({
+          key: r ?? "all",
+          label: r ? tf(`types.${r}`) : t("allTypes"),
+          current: type === r,
+          onPick: () => setType(r),
+        }))}
       />
 
       <button
@@ -136,8 +183,19 @@ export function PartiesManager() {
           />
           {typed && <ClearButton onClear={() => setTyped("")} label={tc("clearSearch")} />}
         </label>
-        <Filter label={t("place")} current={city ?? t("allPlaces")} options={[{ id: null, name: t("allPlaces") }, ...cities.map((c) => ({ id: c, name: c }))]} picked={city} onPick={setCity} />
-        <button type="button" aria-pressed={showInactive} onClick={() => setShowInactive((v) => !v)} className={chip(showInactive)}>
+        <Filter
+          label={t("place")}
+          current={city ?? t("allPlaces")}
+          options={[{ id: null, name: t("allPlaces") }, ...cities.map((c) => ({ id: c, name: c }))]}
+          picked={city}
+          onPick={setCity}
+        />
+        <button
+          type="button"
+          aria-pressed={showInactive}
+          onClick={() => setShowInactive((v) => !v)}
+          className={chip(showInactive)}
+        >
           {t("showInactive")}
         </button>
       </div>
@@ -152,57 +210,77 @@ export function PartiesManager() {
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
       ) : shown.length === 0 ? (
-        <p className="mt-16 text-center text-ivory/70">{search || city || type ? t("noMatch") : t("empty")}</p>
+        <p className="mt-16 text-center text-ivory/70">
+          {search || city || type ? t("noMatch") : t("empty")}
+        </p>
       ) : (
         <ul className="mt-2 grid gap-3 lg:grid-cols-2">
           {shown.map((p) => (
             <li
               key={p.id}
-              className={cn("flex items-center gap-2 rounded-control border p-2 pl-4", p.isActive ? "on-ivory border-ivory bg-ivory text-chestnut" : "border-dashed border-ivory/60 text-ivory")}
+              className={cn(
+                "flex items-center gap-2 rounded-control border p-2 pl-4",
+                p.isActive
+                  ? "on-ivory border-ivory bg-ivory text-chestnut"
+                  : "border-dashed border-ivory/60 text-ivory",
+              )}
             >
               {/* the party: tap to edit */}
-              <button type="button" onClick={() => edit(p)} className="min-w-0 flex-1 py-1.5 text-left">
+              <button
+                type="button"
+                onClick={() => edit(p)}
+                className="min-w-0 flex-1 py-1.5 text-left"
+              >
                 <span className="flex items-center gap-2">
-                  <span className="truncate font-heading text-xl font-bold leading-7">{partyLabel(p)}</span>
+                  <span className="truncate font-heading text-xl font-bold leading-7">
+                    {partyLabel(p)}
+                  </span>
                   {/* every type it has (or none) */}
                   {(p.types.length ? p.types : (["none"] as const)).map((r) => (
-                    <span key={r} className="shrink-0 rounded-control border border-current/40 px-2 py-0.5 text-xs">
+                    <span
+                      key={r}
+                      className="shrink-0 rounded-control border border-current/40 px-2 py-0.5 text-xs"
+                    >
                       {tf(`types.${r}`)}
                     </span>
                   ))}
-                  {!p.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
+                  {!p.isActive && (
+                    <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">
+                      {t("inactive")}
+                    </span>
+                  )}
                 </span>
                 {p.shortName && (
                   <span className="block truncate text-sm" title={p.name}>
                     {p.name}
                   </span>
                 )}
-                <span className="tabular block truncate text-xs opacity-70">{[p.phone && `+91 ${p.phone}`, p.city].filter(Boolean).join(" · ") || "—"}</span>
+                {/* their phone and town, each with its icon */}
+                <span className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs opacity-70">
+                  {p.phone && (
+                    <span className="tabular flex items-center gap-1">
+                      <Phone className="size-3.5" aria-hidden /> +91 {p.phone}
+                    </span>
+                  )}
+                  {p.city && (
+                    <span className="flex min-w-0 items-center gap-1">
+                      <MapPin className="size-3.5 shrink-0" aria-hidden />
+                      <span className="truncate">{p.city}</span>
+                    </span>
+                  )}
+                  {!p.phone && !p.city && "—"}
+                </span>
               </button>
 
-              {/* edit, or mark inactive / active */}
-              <Menu plain label={t("menu")} surface={p.isActive ? "ivory" : "chestnut"} triggerClassName="size-11 shrink-0" trigger={<Ellipsis className="size-5" aria-hidden />}>
-                {(close) => (
-                  <>
-                    <MenuItem
-                      onClick={() => {
-                        close();
-                        edit(p);
-                      }}
-                    >
-                      <Pencil className="size-4" aria-hidden /> {t("edit")}
-                    </MenuItem>
-                    <MenuItem
-                      onClick={() => {
-                        close();
-                        void toggleActive(p.id, partyLabel(p), !p.isActive);
-                      }}
-                    >
-                      <Power className="size-4" aria-hidden /> {p.isActive ? t("deactivate") : t("reactivate")}
-                    </MenuItem>
-                  </>
-                )}
-              </Menu>
+              {/* the pen: their details, where they can be made inactive (or active again) too */}
+              <button
+                type="button"
+                onClick={() => edit(p)}
+                aria-label={t("edit")}
+                className="grid size-11 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
+              >
+                <Pencil className="size-4" aria-hidden />
+              </button>
             </li>
           ))}
         </ul>
@@ -214,6 +292,18 @@ export function PartiesManager() {
         // a new one starts with the type picked on top (a landlord is added in Landlords)
         startTypes={type && type !== "none" && type !== "landlord" ? [type] : []}
         onClose={() => setOpen(null)}
+        active={
+          open && open.id !== "new"
+            ? (() => {
+                // gone from the list (inactive ones hidden): it was made inactive
+                const p = (parties.data ?? []).find((x) => x.id === open.id);
+                return {
+                  on: p?.isActive ?? false,
+                  onFlip: (on: boolean) => void toggleActive(open.id, p ? partyLabel(p) : "", on),
+                };
+              })()
+            : undefined
+        }
       />
     </main>
   );

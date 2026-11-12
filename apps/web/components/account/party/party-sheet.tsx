@@ -5,13 +5,23 @@ import { useEffect, useState } from "react";
 
 import { SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
+import { ActiveRow } from "~/components/ui/active-row";
 import { Sheet } from "~/components/ui/sheet";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { trpc } from "~/trpc/client";
 import type { RouterOutputs } from "@repo/trpc/client";
 
-import { draftFrom, draftInput, draftOk, emptyDraft, PartyFields, tdsOver, type PartyDraft, type PickedRole } from "./party-fields";
+import {
+  draftFrom,
+  draftInput,
+  draftOk,
+  emptyDraft,
+  PartyFields,
+  tdsOver,
+  type PartyDraft,
+  type PickedRole,
+} from "./party-fields";
 import { kindOf, partyLabel, type PartyType } from "./party-kinds";
 import { useSameNameConfirm } from "./same-name";
 
@@ -24,7 +34,11 @@ function errorKey(err: unknown) {
   // a clash is about the short name or a GSTIN; the server's message says which
   if (data.code === "CONFLICT") {
     const message = (err as { message?: string }).message ?? "";
-    return message.startsWith("Phone") ? "phoneTaken" : message.startsWith("Short name") ? "shortNameTaken" : "gstinTaken";
+    return message.startsWith("Phone")
+      ? "phoneTaken"
+      : message.startsWith("Short name")
+        ? "shortNameTaken"
+        : "gstinTaken";
   }
   if (data.code === "BAD_REQUEST") return "check";
   if (data.code === "NOT_FOUND") return "gone";
@@ -102,7 +116,11 @@ export function PartyEdit({
       {tried && !draftOk(draft) && <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>}
       {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-        <button type="button" onClick={onCancel} className="min-h-11 rounded-control border border-chestnut/50 px-5 text-sm font-semibold hover:border-chestnut">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="min-h-11 rounded-control border border-chestnut/50 px-5 text-sm font-semibold hover:border-chestnut"
+        >
           {tc("oldLoanCancel")}
         </button>
         <button
@@ -131,7 +149,10 @@ export function PartySheet({
   startTypes,
   onClose,
   onSaved,
+  active,
 }: {
+  // editing: whether they're active, as a switch at the top (it saves at once)
+  active?: { on: boolean; onFlip: (on: boolean) => void };
   partyId: string | "new" | null;
   type: PartyType;
   // the types a new one starts with (Entities → Parties, from the type picked there)
@@ -143,7 +164,10 @@ export function PartySheet({
   const utils = trpc.useUtils();
   const sameName = useSameNameConfirm();
   const editing = partyId !== null && partyId !== "new";
-  const party = trpc.accounts.party.get.useQuery({ id: editing ? partyId : "" }, { enabled: editing });
+  const party = trpc.accounts.party.get.useQuery(
+    { id: editing ? partyId : "" },
+    { enabled: editing },
+  );
   const create = trpc.accounts.party.create.useMutation();
   const update = trpc.accounts.party.update.useMutation();
 
@@ -162,7 +186,14 @@ export function PartySheet({
   // sent only when asked, so it stays as saved otherwise; a TDS that isn't asked stays within the amount
   const paidBefore = () => {
     const paid = Number(draft.paidBefore);
-    return asksPaid ? { paidBefore: { paid, tds: asksTds ? Number(draft.tdsBefore) : Math.min(Number(draft.tdsBefore), paid) } } : {};
+    return asksPaid
+      ? {
+          paidBefore: {
+            paid,
+            tds: asksTds ? Number(draft.tdsBefore) : Math.min(Number(draft.tdsBefore), paid),
+          },
+        }
+      : {};
   };
 
   const loaded = !editing || !!party.data;
@@ -172,7 +203,16 @@ export function PartySheet({
     setDraft(
       editing
         ? draftFrom(party.data!)
-        : { ...emptyDraft(), types: startTypes ?? (type === "customer_supplier" ? ["customer", "supplier"] : type === "none" ? [] : [type]) },
+        : {
+            ...emptyDraft(),
+            types:
+              startTypes ??
+              (type === "customer_supplier"
+                ? ["customer", "supplier"]
+                : type === "none"
+                  ? []
+                  : [type]),
+          },
     );
     setTried(false);
     setError(null);
@@ -188,7 +228,9 @@ export function PartySheet({
     if (!(await sameName.confirm(draft, editing ? partyId : null))) return;
     try {
       const details = { ...draftInput(draft), ...paidBefore() };
-      const saved = editing ? await update.mutateAsync({ id: partyId, ...details }) : await create.mutateAsync(details);
+      const saved = editing
+        ? await update.mutateAsync({ id: partyId, ...details })
+        : await create.mutateAsync(details);
       toast.success(t(editing ? "toast.saved" : "toast.added", { name: partyLabel(saved) }));
       void utils.accounts.invalidate();
       onSaved?.({ id: saved.id, type: kindOf(saved.types) });
@@ -200,30 +242,47 @@ export function PartySheet({
 
   return (
     <>
-    <Sheet open={!!partyId} title={t(editing ? "editTitle" : `addTitle.${type}`)} closeLabel={t("close")} onClose={onClose}>
-      {!loaded ? (
-        <p className="flex justify-center py-16 text-chestnut/70">
-          <Spinner />
-        </p>
-      ) : (
-        <form onSubmit={save} noValidate className="flex min-h-0 flex-1 flex-col">
-          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
-            <PartyFields
-          asksTypes draft={draft} onAddressesOpen={() => setTried(false)} onChange={(patch) => {
-                setError(null);
-                setDraft((d) => ({ ...d, ...patch }));
-              }} tried={tried} partyId={editing ? partyId : null} transporter={draft.types.length === 0} asksPaid={asksPaid} asksTds={asksTds} />
-          </div>
-          <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
-            {tried && !ok && <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>}
-            {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
-            <SubmitButton busy={create.isPending || update.isPending}>{t(editing ? "saveDetails" : "save")}</SubmitButton>
-          </footer>
-        </form>
-      )}
-    </Sheet>
-    {/* above the sheet: the same name in the same town, asked before saving */}
-    {sameName.dialog}
+      <Sheet
+        open={!!partyId}
+        title={t(editing ? "editTitle" : `addTitle.${type}`)}
+        closeLabel={t("close")}
+        onClose={onClose}
+      >
+        {!loaded ? (
+          <p className="flex justify-center py-16 text-chestnut/70">
+            <Spinner />
+          </p>
+        ) : (
+          <form onSubmit={save} noValidate className="flex min-h-0 flex-1 flex-col">
+            <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
+              {editing && active && <ActiveRow on={active.on} onFlip={active.onFlip} />}
+              <PartyFields
+                asksTypes
+                draft={draft}
+                onAddressesOpen={() => setTried(false)}
+                onChange={(patch) => {
+                  setError(null);
+                  setDraft((d) => ({ ...d, ...patch }));
+                }}
+                tried={tried}
+                partyId={editing ? partyId : null}
+                transporter={draft.types.length === 0}
+                asksPaid={asksPaid}
+                asksTds={asksTds}
+              />
+            </div>
+            <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
+              {tried && !ok && <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>}
+              {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
+              <SubmitButton busy={create.isPending || update.isPending}>
+                {t(editing ? "saveDetails" : "save")}
+              </SubmitButton>
+            </footer>
+          </form>
+        )}
+      </Sheet>
+      {/* above the sheet: the same name in the same town, asked before saving */}
+      {sameName.dialog}
     </>
   );
 }

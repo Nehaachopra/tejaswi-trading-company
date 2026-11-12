@@ -1,6 +1,6 @@
 "use client";
 
-import { Banknote, IndianRupee } from "lucide-react";
+import { IndianRupee } from "lucide-react";
 
 import { FieldMessage } from "~/components/ui/field-message";
 import { MicField } from "~/components/ui/mic-button";
@@ -10,75 +10,98 @@ import { bankNameIn } from "~/lib/bank-names";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
-import { AmountBox } from "../shared/amount-box";
 import { input, saidAmount } from "../shared/form-basics";
 import { PlacePicker } from "../shared/place-picker";
 import { useContraEntry } from "./state";
 
-// the Amount card, laid out like a receipt's: on a phone one column; on a wider screen the amount on the left (never more
-// than what it comes out of holds, cut there with a warning; a deposit's cash in hand above it) and the account it goes
-// into or comes out of on the right (a transfer: the one it leaves, then the one it goes into)
+// the Amount card, laid out as a payment's, top to bottom, every value a row (its name on the left, its value or box on
+// the right): a deposit's cash in hand, the amount (never more than what it comes out of holds, cut there with a
+// warning), then the account it goes into or comes out of (a transfer: the one it leaves, then the
+// one it goes into). As wide as a payment's left side
 export function AmountCard() {
-  const { kind, t, tc, amount, setAmount, setCapped, capText, value, cashHeld: held, most, tried, transfer, bank } = useContraEntry();
-  // the cash in hand: a deposit's alone (a withdrawal's account shows what each holds)
+  const {
+    kind,
+    t,
+    tc,
+    amount,
+    setAmount,
+    setCapped,
+    capText,
+    value,
+    cashHeld: held,
+    most,
+    tried,
+    transfer,
+    bank,
+    toBank,
+  } = useContraEntry();
+  // the cash in hand: a deposit's alone (no account's balance is shown: it would only mislead)
   const cashHeld = kind === "deposit" ? held : null;
-  const filled = value > 0;
   return (
-    <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-6">
-      {/* the due (or cash in hand) in a row of its own on top; under it the amount on the left and where the money goes
-          on the right, both starting level. One column on a phone */}
-      {/* the cash there is today (the admin only), in a box: label left, amount right */}
-      {cashHeld !== null && (
-        <div className="min-w-0 sm:col-start-1">
-          <AmountBox icon={Banknote} label={t("cashHeld")} amount={cashHeld} />
-        </div>
-      )}
-      <div className={cn("flex min-w-0 flex-col gap-2.5", cashHeld !== null && "sm:col-start-1 sm:row-start-2")}>
-        <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
-          <span>
-            {tc("q.amount")}
-            <RequiredMark />
-          </span>
-          {/* a chestnut fill once there's an amount */}
-          <div className={filled ? "text-ivory [&_button]:text-ivory" : undefined}>
-            <MicField onText={(said) => saidAmount(said, setAmount)}>
-              <IndianRupee className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2" aria-hidden />
-              <NumberInput
-                id="amount-field"
-                value={amount}
-                onChange={(v) => {
-                  setCapped(null);
-                  setAmount(v);
-                }}
-                onCapped={setCapped}
-                decimals={2}
-                maxDigits={13}
-                max={most ?? undefined}
-                placeholder="0"
-                aria-invalid={(tried && value === 0) || undefined}
-                className={cn(input(tried && value === 0), "min-h-14 pl-10 pr-11 font-heading text-2xl font-bold", filled && "bg-chestnut text-ivory caret-ivory")}
-              />
-            </MicField>
-          </div>
-        </label>
-        {capText && <FieldMessage className="mt-0">{capText}</FieldMessage>}
-      </div>
+    <div className="flex min-w-0 flex-col gap-2.5 sm:w-[calc(50%-1.5rem)]">
+      {/* the cash there is today (the admin only); room under it */}
+      {cashHeld !== null && <Plain label={t("cashHeld")} figure={cashHeld} room />}
 
-      {/* the account it goes into or comes out of, in this same card; a transfer's two, one under the other */}
-      <div className={cn("flex min-w-0 flex-col gap-2.5", cashHeld !== null && "sm:col-start-2 sm:row-start-2")}>
-        <h3 className="text-xs font-semibold">
-          {t("into")}
+      {/* the amount: the box on the right, what's typed at its right end */}
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <label htmlFor="amount-field" className="min-w-0 text-sm">
+          {tc("q.amount")}
           <RequiredMark />
-        </h3>
-        <IntoAccount />
-        {/* a transfer's To account, once the From account is picked */}
+        </label>
+        {/* chestnut once filled: the money that moves, as a payment's To pay */}
+        <div
+          className={cn(
+            "w-[60%] shrink-0 [&_input]:text-right",
+            value > 0 && "[&_button]:text-ivory",
+          )}
+        >
+          <MicField onText={(said) => saidAmount(said, setAmount)}>
+            <IndianRupee
+              className={cn(
+                "pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2",
+                value > 0 && "text-ivory",
+              )}
+              aria-hidden
+            />
+            <NumberInput
+              id="amount-field"
+              value={amount}
+              onChange={(v) => {
+                setCapped(null);
+                setAmount(v);
+              }}
+              onCapped={setCapped}
+              decimals={2}
+              maxDigits={13}
+              max={most ?? undefined}
+              placeholder="0"
+              aria-invalid={(tried && value === 0) || undefined}
+              className={cn(
+                input(tried && value === 0),
+                "min-h-12 pl-11 pr-12 font-heading text-xl font-bold tabular",
+                value > 0 && "bg-chestnut text-ivory caret-ivory shadow-none",
+              )}
+            />
+          </MicField>
+        </div>
+      </div>
+      {capText && (
+        <FieldMessage tone="warning" className="ml-auto mt-0 w-[60%]">
+          {capText}
+        </FieldMessage>
+      )}
+
+      {/* the account it goes into or comes out of, then (once picked, a transfer's) what it holds; a transfer's To
+          account after */}
+      <div className="mt-2 flex flex-col gap-2.5 border-t border-chestnut/15 pt-4">
+        <PickRow label={t("into")} twoLines={!!bank}>
+          <IntoAccount />
+        </PickRow>
         {transfer && bank && (
           <>
-            <h3 className="mt-2 text-xs font-semibold">
-              {t("toAccount" as "into")}
-              <RequiredMark />
-            </h3>
-            <ToAccount />
+            <PickRow label={t("toAccount" as "into")} twoLines={!!toBank}>
+              <ToAccount />
+            </PickRow>
           </>
         )}
       </div>
@@ -86,15 +109,60 @@ export function AmountCard() {
   );
 }
 
-// the bank account it goes into or comes out of: each active one with what it holds (the admin only), as on a receipt
+// a value that's shown, not typed: its name on the left, the figure on the right; `room` leaves space under it
+function Plain({ label, figure, room = false }: { label: string; figure: number; room?: boolean }) {
+  return (
+    <div
+      className={cn(
+        "tabular flex min-h-11 items-center justify-between gap-3 text-sm",
+        room && "mb-2",
+      )}
+    >
+      <span className="min-w-0">{label}</span>
+      <span className="shrink-0 whitespace-nowrap text-base font-semibold">{rupees(figure)}</span>
+    </div>
+  );
+}
+
+// an accordion as a row: its name on the left (level with the first row, or the pick's two lines), the accordion on the
+// right, as wide as the amount's box
+function PickRow({
+  label,
+  twoLines,
+  children,
+}: {
+  label: string;
+  twoLines: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 items-start justify-between gap-3">
+      <span className={cn("flex min-w-0 items-center text-sm", twoLines ? "min-h-14" : "min-h-12")}>
+        {label}
+        <RequiredMark />
+      </span>
+      <div className="w-[60%] shrink-0">{children}</div>
+    </div>
+  );
+}
+
+// the bank account it goes into or comes out of: the payment's accordion, each by name only (no balance: it would only
+// mislead), then only the pick, see-through with ▾ at the right edge
 function IntoAccount() {
-  const { tpf, locale, banks, bankId, setBankId, setAccountsOpen, tried, bank, bankHeld } = useContraEntry();
+  const { tpf, locale, banks, bankId, setBankId, setAccountsOpen, tried, bank } = useContraEntry();
   return (
     <PlacePicker
+      quiet
+      bare
+      alignEnd
       label={tpf("account")}
       places={(banks ?? []).map((b) => {
-        const h = bankHeld(b.id);
-        return { id: b.id, name: bankNameIn(b.bankName, locale), sub: `••${b.last4}`, hint: h === null ? undefined : rupees(h), disabled: false };
+        return {
+          id: b.id,
+          name: bankNameIn(b.bankName, locale),
+          sub: `••${b.last4}`,
+          disabled: false,
+        };
       })}
       value={bankId ?? null}
       onPick={(id) => {
@@ -106,17 +174,24 @@ function IntoAccount() {
   );
 }
 
-// a transfer: the account it goes into, any but the one it leaves, each with what it holds (the admin only)
+// a transfer: the account it goes into, any but the one it leaves, as the one above
 function ToAccount() {
-  const { tpf, locale, banks, bankId, toBankId, setToBankId, tried, toBank, bankHeld } = useContraEntry();
+  const { tpf, locale, banks, bankId, toBankId, setToBankId, tried, toBank } = useContraEntry();
   return (
     <PlacePicker
+      quiet
+      bare
+      alignEnd
       label={tpf("account")}
       places={(banks ?? [])
         .filter((b) => b.id !== bankId)
         .map((b) => {
-          const h = bankHeld(b.id);
-          return { id: b.id, name: bankNameIn(b.bankName, locale), sub: `••${b.last4}`, hint: h === null ? undefined : rupees(h), disabled: false };
+          return {
+            id: b.id,
+            name: bankNameIn(b.bankName, locale),
+            sub: `••${b.last4}`,
+            disabled: false,
+          };
         })}
       value={toBankId}
       onPick={setToBankId}

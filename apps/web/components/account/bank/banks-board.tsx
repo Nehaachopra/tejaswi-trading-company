@@ -29,20 +29,32 @@ export function BanksBoard() {
   const [search, setSearch] = useState("");
   const needle = search.trim().toLowerCase();
   const shown = (banks.data ?? []).filter(
-    (b) => needle === "" || [b.bankName, b.branchName, b.ifscCode ?? "", b.accountNumber].some((v) => v.toLowerCase().includes(needle)),
+    (b) =>
+      needle === "" ||
+      [b.bankName, b.branchName, b.ifscCode ?? "", b.accountNumber].some((v) =>
+        v.toLowerCase().includes(needle),
+      ),
   );
 
   return (
     <main className={`${PAGE} pb-16`}>
       {/* back to Asset, where Bank sits */}
-      <Link href="/account/asset" className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
+      <Link
+        href="/account/asset"
+        className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory"
+      >
         <ArrowLeft className="size-4" aria-hidden /> {t("toAccounts")}
       </Link>
 
       {/* the group's name and total on the left; the search and Show inactive on the right */}
       <GroupHeader title={t("title")} head="asset" master="bank">
         <GroupSearch value={search} onChange={setSearch} label={t("search")} maxLength={50} />
-        <button type="button" aria-pressed={showInactive} onClick={() => setShowInactive((v) => !v)} className={chip(showInactive)}>
+        <button
+          type="button"
+          aria-pressed={showInactive}
+          onClick={() => setShowInactive((v) => !v)}
+          className={chip(showInactive)}
+        >
           {t("showInactive")}
         </button>
       </GroupHeader>
@@ -64,7 +76,10 @@ export function BanksBoard() {
           ) : (
             <>
               {t("emptyView")}{" "}
-              <Link href="/entities/banks" className="font-semibold text-ivory underline underline-offset-4">
+              <Link
+                href="/entities/banks"
+                className="font-semibold text-ivory underline underline-offset-4"
+              >
                 {t("addFirst")}
               </Link>
             </>
@@ -74,40 +89,54 @@ export function BanksBoard() {
         <ul className="mt-2 grid grid-cols-1 gap-3 lg:grid-cols-2">
           {shown.map((b) => (
             <li key={b.id} className="min-w-0">
-              {/* like the customer cards: the bank (cut short with dots when long) with the balance, then the account's
-                  last 4 digits and type with the arrow that opens it */}
+              {/* as the Entities card: the bank (with inactive), then its last digits and type on the left; on the right
+                  the balance on top and the arrow under it that opens it */}
               <Link
                 href={`/account/bank/${b.id}`}
                 className={cn(
-                  "flex min-w-0 flex-col gap-0.5 rounded-control border p-4",
-                  b.isActive ? "on-ivory border-ivory bg-ivory text-chestnut" : "border-dashed border-ivory/60 text-ivory",
+                  "flex min-w-0 items-center gap-2 rounded-control border p-2 pl-4",
+                  b.isActive
+                    ? "on-ivory border-ivory bg-ivory text-chestnut"
+                    : "border-dashed border-ivory/60 text-ivory",
                 )}
               >
-                <span className="flex min-w-0 items-start gap-3">
-                  <span className="flex min-w-0 flex-1 items-center gap-2">
-                    <span className="truncate font-heading text-xl font-bold leading-7" title={bankName(b.bankName)}>
+                <span className="min-w-0 flex-1 py-1.5">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span
+                      className="truncate font-heading text-xl font-bold leading-7"
+                      title={bankName(b.bankName)}
+                    >
                       {bankName(b.bankName)}
                     </span>
-                    {!b.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
+                    {!b.isActive && (
+                      <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">
+                        {t("inactive")}
+                      </span>
+                    )}
                   </span>
-                  <span className="flex shrink-0 flex-col items-end">
-                    <SignedAmount balance={b.balance.today} head="asset" className="font-heading text-xl font-bold leading-7" />
-                    {b.balance.postDated && <span className="tabular text-xs opacity-70">{t("postDated", { amount: postDatedText(b.balance.postDated, "asset") })}</span>}
-                  </span>
-                </span>
-                <span className="flex min-w-0 items-center gap-3 text-sm">
-                  <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1 opacity-70">
+                  <span className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs opacity-70">
                     <span className="tabular">••{b.last4}</span>
                     <span className="truncate">{t(`form.types.${b.accountType}`)}</span>
                   </span>
-                  <ChevronRight className="size-5 shrink-0 opacity-60" aria-hidden />
+                </span>
+                <span className="flex shrink-0 flex-col items-end gap-1 py-1.5 pr-2">
+                  <SignedAmount
+                    balance={b.balance.today}
+                    head="asset"
+                    className="font-heading text-xl font-bold leading-7"
+                  />
+                  {b.balance.postDated && (
+                    <span className="tabular text-xs opacity-70">
+                      {t("postDated", { amount: postDatedText(b.balance.postDated, "asset") })}
+                    </span>
+                  )}
+                  <ChevronRight className="size-5 opacity-60" aria-hidden />
                 </span>
               </Link>
             </li>
           ))}
         </ul>
       )}
-
     </main>
   );
 }

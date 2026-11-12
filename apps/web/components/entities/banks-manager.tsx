@@ -1,12 +1,11 @@
 "use client";
 
-import { CircleAlert, Ellipsis, Pencil, Plus, Power, Search } from "lucide-react";
+import { CircleAlert, MapPin, Pencil, Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { ADD_BUTTON, FILTER_BAR, PAGE } from "~/components/ui/page-styles";
 import { ClearButton } from "~/components/ui/clear-button";
-import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
@@ -37,7 +36,15 @@ export function BanksManager() {
 
   const needle = search.trim().toLowerCase();
   const shown = (banks.data ?? []).filter(
-    (b) => needle === "" || [b.bankName, b.branchName, b.ifscCode ?? "", b.accountNumber, ...b.upiIds.map((u) => u.upiId)].some((v) => v.toLowerCase().includes(needle)),
+    (b) =>
+      needle === "" ||
+      [
+        b.bankName,
+        b.branchName,
+        b.ifscCode ?? "",
+        b.accountNumber,
+        ...b.upiIds.map((u) => u.upiId),
+      ].some((v) => v.toLowerCase().includes(needle)),
   );
 
   // mark an account inactive (only at a zero balance) or active again
@@ -48,7 +55,15 @@ export function BanksManager() {
       void utils.accounts.invalidate();
     } catch (err) {
       const code = (err as { data?: { code?: string } })?.data?.code;
-      toast.error(tb(code === "PRECONDITION_FAILED" ? "errors.hasBalance" : code === undefined ? "errors.network" : "errors.failed"));
+      toast.error(
+        tb(
+          code === "PRECONDITION_FAILED"
+            ? "errors.hasBalance"
+            : code === undefined
+              ? "errors.network"
+              : "errors.failed",
+        ),
+      );
     }
   }
 
@@ -56,11 +71,7 @@ export function BanksManager() {
     <main className={`${PAGE} pb-16`}>
       <h1 className="sr-only">{t("title")}</h1>
 
-      <button
-        type="button"
-        onClick={() => setOpen("new")}
-        className={ADD_BUTTON}
-      >
+      <button type="button" onClick={() => setOpen("new")} className={ADD_BUTTON}>
         <Plus className="size-5" aria-hidden /> {tb("add")}
       </button>
 
@@ -79,7 +90,12 @@ export function BanksManager() {
           />
           {search && <ClearButton onClear={() => setSearch("")} label={tc("clearSearch")} />}
         </label>
-        <button type="button" aria-pressed={showInactive} onClick={() => setShowInactive((v) => !v)} className={chip(showInactive)}>
+        <button
+          type="button"
+          aria-pressed={showInactive}
+          onClick={() => setShowInactive((v) => !v)}
+          className={chip(showInactive)}
+        >
           {tb("showInactive")}
         </button>
       </div>
@@ -102,53 +118,79 @@ export function BanksManager() {
             return (
               <li
                 key={b.id}
-                className={cn("flex items-center gap-2 rounded-control border p-2 pl-4", b.isActive ? "on-ivory border-ivory bg-ivory text-chestnut" : "border-dashed border-ivory/60 text-ivory")}
+                className={cn(
+                  "flex items-center gap-2 rounded-control border p-2 pl-4",
+                  b.isActive
+                    ? "on-ivory border-ivory bg-ivory text-chestnut"
+                    : "border-dashed border-ivory/60 text-ivory",
+                )}
               >
                 {/* the account: tap to edit */}
-                <button type="button" onClick={() => setOpen(b.id)} className="min-w-0 flex-1 py-1.5 text-left">
+                <button
+                  type="button"
+                  onClick={() => setOpen(b.id)}
+                  className="min-w-0 flex-1 py-1.5 text-left"
+                >
                   <span className="flex items-center gap-2">
-                    <span className="truncate font-heading text-xl font-bold leading-7" title={name}>
+                    <span
+                      className="truncate font-heading text-xl font-bold leading-7"
+                      title={name}
+                    >
                       {bankName(b.bankName)}
                     </span>
                     <span className="tabular shrink-0 text-sm opacity-70">••{b.last4}</span>
-                    {!b.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{tb("inactive")}</span>}
+                    {!b.isActive && (
+                      <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">
+                        {tb("inactive")}
+                      </span>
+                    )}
                   </span>
-                  <span className="block truncate text-sm">{tb(`form.types.${b.accountType}`)}</span>
-                  <span className="tabular block truncate text-xs opacity-70">
-                    {[titleCase(b.branchName), b.ifscCode].filter(Boolean).join(" · ")}
+                  <span className="block truncate text-sm">
+                    {tb(`form.types.${b.accountType}`)}
+                  </span>
+                  {/* its branch with the location icon, then its IFSC */}
+                  <span className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs opacity-70">
+                    {b.branchName && (
+                      <span className="flex min-w-0 items-center gap-1">
+                        <MapPin className="size-3.5 shrink-0" aria-hidden />
+                        <span className="truncate">{titleCase(b.branchName)}</span>
+                      </span>
+                    )}
+                    {b.ifscCode && <span className="tabular">{b.ifscCode}</span>}
                   </span>
                 </button>
 
-                {/* edit, or mark inactive / active */}
-                <Menu plain label={tb("menu")} surface={b.isActive ? "ivory" : "chestnut"} triggerClassName="size-11 shrink-0" trigger={<Ellipsis className="size-5" aria-hidden />}>
-                  {(close) => (
-                    <>
-                      <MenuItem
-                        onClick={() => {
-                          close();
-                          setOpen(b.id);
-                        }}
-                      >
-                        <Pencil className="size-4" aria-hidden /> {tb("edit")}
-                      </MenuItem>
-                      <MenuItem
-                        onClick={() => {
-                          close();
-                          void toggleActive(b.id, name, !b.isActive);
-                        }}
-                      >
-                        <Power className="size-4" aria-hidden /> {b.isActive ? tb("deactivate") : tb("reactivate")}
-                      </MenuItem>
-                    </>
-                  )}
-                </Menu>
+                {/* the pen: their details, where they can be made inactive (or active again) too */}
+                <button
+                  type="button"
+                  onClick={() => setOpen(b.id)}
+                  aria-label={tb("edit")}
+                  className="grid size-11 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
+                >
+                  <Pencil className="size-4" aria-hidden />
+                </button>
               </li>
             );
           })}
         </ul>
       )}
 
-      <BankSheet bankId={open} onClose={() => setOpen(null)} />
+      <BankSheet
+        bankId={open}
+        onClose={() => setOpen(null)}
+        active={
+          open && open !== "new"
+            ? (() => {
+                // gone from the list (inactive ones hidden): it was made inactive
+                const b = (banks.data ?? []).find((x) => x.id === open);
+                return {
+                  on: b?.isActive ?? false,
+                  onFlip: (on: boolean) => void toggleActive(open, b ? b.bankName : "", on),
+                };
+              })()
+            : undefined
+        }
+      />
     </main>
   );
 }
