@@ -33,6 +33,8 @@ function useSalaryCards(): AccountCardsApi {
     modeRows: true,
     placeFirst: true,
     fieldRows: true,
+    // an advance is paid from one place
+    single: e.kind === "advance",
     auto: { on: e.splitAuto, set: e.setSplitAuto },
     qrItems: [],
     qrId: () => ({ hideId: false }),

@@ -48,7 +48,11 @@ export function AccountCards({ api }: { api: AccountCardsApi }) {
   const given = Math.round(picks.reduce((sum, id) => sum + amountOf(id), 0) * 100) / 100;
   const last = picks.at(-1) ?? null;
   const canAdd =
-    given < value && last !== null && amountOf(last) > 0 && picks.length < places.length;
+    !api.single &&
+    given < value &&
+    last !== null &&
+    amountOf(last) > 0 &&
+    picks.length < places.length;
   const left = Math.max(0, Math.round((value - given) * 100) / 100);
   const done = value > 0 && left === 0;
   // how much of the amount the cards take up, as a share (the meter's fill and its coin)

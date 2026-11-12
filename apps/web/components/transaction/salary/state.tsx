@@ -148,10 +148,13 @@ export function useSalaryEntryState({
 
   // an advance: where it's paid from, and what it holds
   const bank = banks?.find((b) => b.id === bankId);
-  const most = from === "cash" ? cashHeld : from === "bank" && bankId ? bankHeld(bankId) : null;
+  // an advance is paid from one place (cash or one bank account): it can be at most what the place holding the most
+  // holds (unknown to staff)
+  const most =
+    cashHeld === null ? null : Math.max(cashHeld, ...(banks ?? []).map((b) => bankHeld(b.id) ?? 0));
 
-  // a salary: where it's paid from: cash, then each bank account, each with what it holds and how much goes from it,
-  // a card each as a payment's. Auto (off to start with) fills them from what each holds, cash first, until the
+  // where it's paid from: cash, then each bank account, each with what it holds and how much goes from it, a card each
+  // as a payment's (an advance: one card, one place). Auto (off to start with) fills them from what each holds, cash first, until the
   // total's covered; typing an amount turns Auto off, the others keeping what they had. The app then shares them over
   // the employees, in order
   const [typedSplit, setTypedSplit] = useState<Record<string, string> | null>({});
@@ -185,8 +188,12 @@ export function useSalaryEntryState({
     amount: Number(split[p.id]) || 0,
   }));
   const splitTotal = round2(places.reduce((sum, p) => sum + p.amount, 0));
+  // the places used; an advance takes one
+  const placesUsed = places.filter((p) => p.amount > 0);
   const splitOk =
-    splitTotal === value && places.every((p) => p.held === null || p.amount <= p.held);
+    splitTotal === value &&
+    places.every((p) => p.held === null || p.amount <= p.held) &&
+    (kind !== "advance" || placesUsed.length <= 1);
   const splitAuto = typedSplit === null;
   function setSplit(id: string, text: string) {
     setTypedSplit((was) => ({ ...(was ?? autoSplit), [id]: text }));
@@ -197,18 +204,12 @@ export function useSalaryEntryState({
   }
 
   // the accounts a bank payment goes through, each needing how it paid (a reference that fits, if typed)
-  const bankIdsUsed =
-    kind === "salary"
-      ? places.filter((p) => p.id !== "cash" && p.amount > 0).map((p) => p.id)
-      : from === "bank" && bankId
-        ? [bankId]
-        : [];
+  const bankIdsUsed = placesUsed.filter((p) => p.id !== "cash").map((p) => p.id);
   const banksOk = bankIdsUsed.every(
     (id) => !!bankModes[id] && refOkFor(bankModes[id]!, bankRefs[id] ?? ""),
   );
   // a cash voucher no. is asked only when cash is used
-  const cashUsed =
-    kind === "salary" ? (places.find((p) => p.id === "cash")?.amount ?? 0) > 0 : from === "cash";
+  const cashUsed = (places.find((p) => p.id === "cash")?.amount ?? 0) > 0;
 
   // another employee or kind starts the advance's amount again (not what a payment handed over, the first time)
   const handed = useRef(!!start?.amount);
@@ -238,11 +239,7 @@ export function useSalaryEntryState({
     for: kind !== null,
     pay: kind !== null && (kind === "salary" ? lines.length > 0 && value <= available : !!employee),
     amount:
-      value > 0 &&
-      banksOk &&
-      (kind === "salary"
-        ? splitOk
-        : from !== null && (from === "cash" || !!bank) && (most === null || value <= most)),
+      value > 0 && banksOk && splitOk && (kind !== "advance" || most === null || value <= most),
     details: day !== "",
   };
   // opened for Salary or Advance (from a payment's Paid for): straight to who's paid
@@ -297,8 +294,10 @@ export function useSalaryEntryState({
       ? t("missing.employees")
       : kind === "salary" && current === "pay" && value > available
         ? t("missing.overHeld", { amount: rupees(Math.round((value - available) * 100) / 100) })
-        : kind === "salary" && !splitOk
-          ? t("splitShort", { amount: rupees(Math.round((value - splitTotal) * 100) / 100) })
+        : value > 0 && !splitOk
+          ? kind === "advance" && placesUsed.length > 1
+            ? t("oneSource")
+            : t("splitShort", { amount: rupees(Math.round((value - splitTotal) * 100) / 100) })
           : !banksOk
             ? tpf("pickMode")
             : t(
@@ -308,13 +307,10 @@ export function useSalaryEntryState({
                     ? "missing.employee"
                     : value === 0
                       ? "missing.amount"
-                      : from === null
-                        ? "missing.from"
-                        : "missing.account",
+                      : "missing.from",
               );
 
   // what's answered so far, a line each, for the summary
-  const accountName = bank ? `${bankNameIn(bank.bankName, locale)} ••${bank.last4}` : null;
   const summary: SummaryItem<SalaryStep>[] = [
     { key: "for", step: "for", heading: t("for"), value: kind ? t(`kinds.${kind}`) : null },
     {
@@ -334,21 +330,12 @@ export function useSalaryEntryState({
       key: "from",
       step: "amount",
       heading: t("from"),
-      value:
-        kind === "salary"
-          ? ((l) => (l.length ? l : null))(
-              places
-                .filter((p) => p.amount > 0)
-                .map((p) => ({
-                  name: `${p.name}${p.sub ? ` ${p.sub}` : ""}`,
-                  amount: rupees(p.amount),
-                })),
-            )
-          : from === "cash"
-            ? { name: tc("cash"), amount: rupees(value) }
-            : accountName
-              ? { name: accountName, amount: rupees(value) }
-              : null,
+      value: ((l) => (l.length ? l : null))(
+        placesUsed.map((p) => ({
+          name: `${p.name}${p.sub ? ` ${p.sub}` : ""}`,
+          amount: rupees(p.amount),
+        })),
+      ),
     },
     {
       key: "details",
@@ -411,17 +398,19 @@ export function useSalaryEntryState({
         );
         return;
       }
+      // an advance: the one place its card says
+      const place = placesUsed[0]!;
+      const byBank = place.id !== "cash";
       const s = await savePay({
         saveKey,
         dateTime: momentOf(day),
         employeeId: employee!.employeeId,
         kind: "advance",
         amount: value,
-        settledIn: from!,
-        bankDetailsId: from === "bank" ? bankId : null,
-        bankMode: from === "bank" && bankId ? bankModes[bankId]! : null,
-        referenceNumber:
-          from === "bank" && bankId ? bankRefs[bankId] || null : reference.trim() || null,
+        settledIn: byBank ? "bank" : "cash",
+        bankDetailsId: byBank ? place.id : null,
+        bankMode: byBank ? bankModes[place.id]! : null,
+        referenceNumber: byBank ? bankRefs[place.id] || null : reference.trim() || null,
         remarks,
       });
       // on to its own page; replace, so going back doesn't land on the filled form

@@ -1,21 +1,17 @@
 "use client";
 
-import { HandCoins, IndianRupee } from "lucide-react";
+import { IndianRupee } from "lucide-react";
 
 import { FieldMessage } from "~/components/ui/field-message";
 import { MicField } from "~/components/ui/mic-button";
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
-import { bankNameIn } from "~/lib/bank-names";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 import { LedgerSearch } from "../pickers/ledger-picker";
-import { AmountBox } from "../shared/amount-box";
 import { chip, input, saidAmount } from "../shared/form-basics";
 import { PartyEditor } from "../shared/party-editor";
-import { PlacePicker } from "../shared/place-picker";
-import { BankPaidBy } from "./bank-paid-by";
 import { SalaryCards } from "./salary-cards";
 import { SalaryTable } from "./salary-table";
 import { useSalaryEntry } from "./state";
@@ -89,15 +85,22 @@ export function AmountCard() {
   const { t, kind, employee } = useSalaryEntry();
   if (kind === "salary") return <SalaryCards />;
   return (
-    <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-6">
-      <div className="min-w-0 sm:col-start-1">
-        <AmountBox icon={HandCoins} label={t("advanceLeft")} amount={employee?.advanceLeft ?? 0} />
-      </div>
-      <div className="flex min-w-0 flex-col gap-2.5 sm:col-start-1 sm:row-start-2">
+    <div className="flex flex-col gap-4">
+      {/* what they still owe, then the amount: rows as a payment's, as wide as its left side */}
+      <div className="flex min-w-0 flex-col gap-2.5 sm:w-[calc(50%-1.5rem)]">
+        {(employee?.advanceLeft ?? 0) > 0 && (
+          <div className="tabular mb-2 flex items-baseline justify-between gap-3 text-sm">
+            <span className="min-w-0">{t("advanceLeft")}</span>
+            <span className="shrink-0 whitespace-nowrap text-base font-semibold">
+              {rupees(employee!.advanceLeft)}
+            </span>
+          </div>
+        )}
         <AdvanceAmount />
       </div>
-      <div className="flex min-w-0 flex-col gap-2.5 sm:col-start-2 sm:row-start-2">
-        <PaidFrom />
+      {/* where it's paid from: one card, as a payment's, the meter over it; a faint line above */}
+      <div className="border-t border-chestnut/15 pt-4">
+        <SalaryCards />
       </div>
     </div>
   );
@@ -106,19 +109,18 @@ export function AmountCard() {
 // an advance's amount, never more than the place it's paid from holds
 function AdvanceAmount() {
   const { tc, amount, setAmount, value, most, setCapped, capText, tried } = useSalaryEntry();
-  const filled = value > 0;
   return (
     <>
-      <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
-        <span>
+      {/* the amount as a payment's: its name on the left, its box on the right with what's typed at its right end */}
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <label htmlFor="amount-field" className="min-w-0 text-sm">
           {tc("q.amount")}
           <RequiredMark />
-        </span>
-        {/* a chestnut fill once there's an amount */}
-        <div className={filled ? "text-ivory [&_button]:text-ivory" : undefined}>
+        </label>
+        <div className="w-[60%] shrink-0 [&_input]:text-right">
           <MicField onText={(said) => saidAmount(said, setAmount)}>
             <IndianRupee
-              className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2"
+              className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2"
               aria-hidden
             />
             <NumberInput
@@ -136,85 +138,17 @@ function AdvanceAmount() {
               aria-invalid={(tried && value === 0) || undefined}
               className={cn(
                 input(tried && value === 0),
-                "min-h-14 pl-10 pr-11 font-heading text-2xl font-bold",
-                filled && "bg-chestnut text-ivory caret-ivory",
+                "min-h-12 pl-11 pr-12 font-heading text-xl font-bold tabular",
               )}
             />
           </MicField>
         </div>
-      </label>
-      {capText && <FieldMessage className="mt-0">{capText}</FieldMessage>}
-    </>
-  );
-}
-
-// where it's paid from: Cash or Bank, each with what it holds (the admin only), then the bank account, both accordions
-function PaidFrom() {
-  const {
-    t,
-    tc,
-    tpf,
-    locale,
-    banks,
-    from,
-    setFrom,
-    bankId,
-    setBankId,
-    bank,
-    cashHeld,
-    bankHeld,
-    tried,
-  } = useSalaryEntry();
-  const held = (banks ?? []).map((b) => bankHeld(b.id));
-  const banksHeld =
-    held.length > 0 && held.every((h) => h !== null)
-      ? held.reduce<number>((s, h) => s + (h ?? 0), 0)
-      : null;
-  return (
-    <div className="flex min-w-0 flex-col gap-2.5">
-      <h3 className="text-xs font-semibold">
-        {t("from")}
-        <RequiredMark />
-      </h3>
-      <PlacePicker
-        label={t("from")}
-        places={[
-          {
-            id: "cash" as const,
-            name: tc("cash"),
-            hint: cashHeld === null ? undefined : rupees(cashHeld),
-            disabled: false,
-          },
-          {
-            id: "bank" as const,
-            name: tpf("bankPlace"),
-            hint: banksHeld === null ? undefined : rupees(banksHeld),
-            disabled: (banks ?? []).length === 0,
-          },
-        ]}
-        value={from}
-        onPick={setFrom}
-        invalid={tried && from === null}
-      />
-      {from === "bank" && (
-        <PlacePicker
-          label={tpf("account")}
-          places={(banks ?? []).map((b) => {
-            const h = bankHeld(b.id);
-            return {
-              id: b.id,
-              name: bankNameIn(b.bankName, locale),
-              sub: `••${b.last4}`,
-              hint: h === null ? undefined : rupees(h),
-              disabled: false,
-            };
-          })}
-          value={bankId}
-          onPick={setBankId}
-          invalid={tried && !bank}
-        />
+      </div>
+      {capText && (
+        <FieldMessage tone="warning" className="ml-auto mt-0 w-[60%]">
+          {capText}
+        </FieldMessage>
       )}
-      {from === "bank" && bankId && <BankPaidBy bankId={bankId} />}
-    </div>
+    </>
   );
 }

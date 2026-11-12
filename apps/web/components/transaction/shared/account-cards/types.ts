@@ -37,6 +37,8 @@ export type AccountCardsApi = {
   // what each place holds isn't shown at all, neither beside the places nor as a Balance row (a receipt's: what's
   // there before money comes in only misleads)
   hideHeld?: boolean;
+  // one card only, no Another account (an advance to an employee, paid from one place)
+  single?: boolean;
   // Auto, where the form has it (a payment's): fills the cards from what each holds
   auto?: { on: boolean; set: (on: boolean) => void };
   // folded, the place on the left and its amount beside the arrow (a payment's); otherwise the amount on the left

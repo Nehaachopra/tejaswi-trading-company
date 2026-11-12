@@ -1881,6 +1881,7 @@
       "ofHeld": "{held} में से {amount}",
       "splitAdds": "कुल जोड़",
       "splitShort": "{amount} का भुगतान अभी बाकी है।",
+      "oneSource": "अग्रिम एक ही जगह से दिया जाता है: नकद या एक बैंक खाता।",
       "heldBar": "नकद + बैंक",
       "heldLeft": "बचा",
       "heldShort": "कम है"
