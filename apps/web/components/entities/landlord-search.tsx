@@ -26,7 +26,10 @@ export function LandlordSearch({
   twoColumns = false,
   asksPan = true,
   canEdit = false,
+  loading = false,
 }: {
+  // the landlords are still being fetched: "Searching…" instead of "No landlords yet"
+  loading?: boolean;
   // a pen on who's picked, to change their details
   canEdit?: boolean;
   // off where the PAN is asked below the amount
@@ -137,7 +140,12 @@ export function LandlordSearch({
                 {l.shortName && <span className="truncate text-sm opacity-70">{l.name}</span>}
               </button>
             ))}
-            {shown.length === 0 && <p className="col-span-full px-1 py-2 text-sm">{t("noLandlord")}</p>}
+            {/* none shown: still fetching them, none matching what's typed, or none at all */}
+            {shown.length === 0 && (
+              <p className="col-span-full px-1 py-2 text-sm">
+                {t(loading ? "searchingLandlords" : needle !== "" && landlords.length > 0 ? "noLandlordMatch" : "noLandlord")}
+              </p>
+            )}
             {canAdd && (
               <div className={PICK_NEW}>
                 <button

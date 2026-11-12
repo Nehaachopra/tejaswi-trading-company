@@ -163,7 +163,7 @@ export function GodownFields({
       {draft.ownership === "rented" && (
         <div className="flex flex-col gap-2.5">
           <span className="text-sm">{t("landlord")}</span>
-          <LandlordSearch landlords={landlords.data ?? []} picked={draft.landlordId} onPick={(landlordId) => onChange({ landlordId })} invalid={show("landlordId")} />
+          <LandlordSearch landlords={landlords.data ?? []} loading={landlords.isLoading} picked={draft.landlordId} onPick={(landlordId) => onChange({ landlordId })} invalid={show("landlordId")} />
         </div>
       )}
 

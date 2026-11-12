@@ -88,7 +88,6 @@ export function useLandlords(enabled: boolean) {
 export function useSupplierTds(input: PaymentIn["supplierTds"], enabled: boolean) {
   const q = trpc.transactions.payment.supplierTds.useQuery(input, {
     enabled,
-    placeholderData: (last) => last,
   });
   return {
     supplierTds: q.data,
@@ -101,7 +100,6 @@ export function useSupplierTds(input: PaymentIn["supplierTds"], enabled: boolean
 export function useExpenseTax(input: PaymentIn["expenseTax"], enabled: boolean) {
   const q = trpc.transactions.payment.expenseTax.useQuery(input, {
     enabled,
-    placeholderData: (last) => last,
   });
   return {
     expenseTax: q.data,
@@ -114,7 +112,6 @@ export function useExpenseTax(input: PaymentIn["expenseTax"], enabled: boolean) 
 export function useInterestTds(input: PaymentIn["interestTds"], enabled: boolean) {
   const q = trpc.transactions.payment.interestTds.useQuery(input, {
     enabled,
-    placeholderData: (last) => last,
   });
   return {
     interestTds: q.data,

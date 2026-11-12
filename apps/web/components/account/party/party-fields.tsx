@@ -354,6 +354,8 @@ export function AddressFields({
   const openedPin = useRef(address.postalCode);
   // the PIN filled in from the town
   const pinFromTown = useRef("");
+  // the town a PIN lookup filled in: only that one is replaced by another PIN's town; one typed by hand stays
+  const townFromPin = useRef("");
 
   // look the PIN up once it has 6 digits: an address already saved with it first, India Post's PIN directory only
   // when none has it
@@ -365,12 +367,14 @@ export function AddressFields({
     const controller = new AbortController();
     setLookup({ state: "looking" });
 
-    // a new PIN is a new place: its town, district and state replace what was there (a saved address opened with
-    // this PIN keeps its own)
+    // a new PIN is a new place: its district and state replace what was there, and its town too unless one was typed
+    // by hand (a town typed before the PIN stays as typed). A saved address opened with this PIN keeps its own
     const fill = (place: { city: string; district: string; state: string; stateCode: StateCode | null }) => {
       setLookup({ state: "found", place: `${place.district}, ${place.state}` });
       if (pin === openedPin.current && address.city !== "") return;
-      onChange({ city: place.city, district: place.district, state: place.state, stateCode: place.stateCode });
+      const typedTown = address.city.trim() !== "" && address.city !== townFromPin.current;
+      if (!typedTown) townFromPin.current = place.city;
+      onChange({ ...(typedTown ? {} : { city: place.city }), district: place.district, state: place.state, stateCode: place.stateCode });
     };
 
     // India Post's free PIN directory: the town (its block) and the district

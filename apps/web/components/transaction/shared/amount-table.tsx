@@ -11,6 +11,11 @@ export type AmountRow = {
   label: React.ReactNode;
   amount: number | null;
   tone?: "total";
+  // taken out of what's above it (a bill's TDS): shown with a minus; added on top (reverse-charge GST): a plus
+  minus?: boolean;
+  plus?: boolean;
+  // shown in place of the sum (a share paid: 60%)
+  text?: string;
 };
 
 // whether there's anything to break down: TDS or reverse-charge GST (the rows between the amount and the total, still
@@ -98,7 +103,11 @@ export function PlainRows({ rows }: { rows: AmountRow[] }) {
               r.tone === "total" ? "font-heading text-xl font-bold" : "text-base font-semibold",
             )}
           >
-            {r.amount === null ? "—" : rupees(r.amount)}
+            {r.text !== undefined
+              ? r.text
+              : r.amount === null
+                ? "—"
+                : `${r.amount > 0 ? (r.minus ? "− " : r.plus ? "+ " : "") : ""}${rupees(r.amount)}`}
           </span>
         </div>
       ))}

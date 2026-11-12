@@ -96,7 +96,12 @@ export function UpiQr({
           opens under the app, so the ID stays where it is (blank while the list is open) */}
       {/* otherwise the UPI ID it pays above the code; with more than one, a dropdown naming each by its app */}
       {!hideId && !row && upiIds.length > 1 && (
-        <div className="flex w-full flex-col gap-2 text-xs font-semibold">
+        <div
+          className={cn(
+            "w-full min-w-0",
+            idAsRow ? pickRow : "flex flex-col gap-2 text-xs font-semibold",
+          )}
+        >
           {idLabel && <span>{idLabel}</span>}
           <PickMenu
             label={t("upiId")}

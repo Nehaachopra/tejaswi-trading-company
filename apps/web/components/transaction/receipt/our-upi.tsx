@@ -9,6 +9,7 @@ import { RequiredMark } from "~/components/ui/required-mark";
 import { Reveal } from "~/components/ui/reveal";
 import { cn } from "~/lib/utils";
 
+import { fieldRow } from "../shared/form-basics";
 import { input } from "./shared";
 import { useReceiptEntry } from "./state";
 
@@ -25,7 +26,7 @@ export function OurUpiPart({ accountId }: { accountId: string }) {
   return isAdmin ? (
     <OurUpiField accountId={accountId} />
   ) : (
-    <FieldMessage className="mt-0">{t("noUpiStaff")}</FieldMessage>
+    <FieldMessage className="mt-0 ml-auto w-[62%]">{t("noUpiStaff")}</FieldMessage>
   );
 }
 
@@ -70,14 +71,14 @@ function OurUpiField({ accountId }: { accountId: string }) {
   const leave = () => setOurUpisLeft((l) => (l.includes(accountId) ? l : [...l, accountId]));
   return (
     <Reveal follow show={!kept} gap="0px">
-      <div className="flex flex-col gap-3 text-xs font-semibold">
-        {/* the app it's in */}
-        <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
+        {/* the app it's in: its name on the left, the dropdown on the right */}
+        <div className={fieldRow}>
           <span>
             {tb("provider")}
             <RequiredMark />
           </span>
-          <div className="w-40">
+          <div className="min-w-0">
             <PickMenu
               label={tb("provider")}
               current={app ? tb(`providers.${app}`) : tb("pickApp")}
@@ -91,50 +92,36 @@ function OurUpiField({ accountId }: { accountId: string }) {
           </div>
           {appBad && <FieldMessage className="mt-0">{tb("upiPickApp")}</FieldMessage>}
         </div>
-        <label className="flex flex-col gap-2">
+        {/* the ID: its name on the left; on the right the box (typed at its right end), what's wrong, then Save */}
+        <label className={fieldRow}>
           <span>
             {t("ourUpi")}
             <RequiredMark />
           </span>
-          <span className="flex min-w-0 items-center gap-2">
-            <input
-              autoFocus={ourUpiEditing === accountId}
-              type="text"
-              inputMode="email"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              value={value}
-              maxLength={255}
-              onChange={(e) => {
-                setOurUpisLeft((l) => l.filter((id) => id !== accountId));
-                setOurUpiEditing(accountId);
-                const next = e.target.value.toLowerCase().replace(/[^a-z0-9.@_-]/g, "");
-                setOurUpis((u) => ({ ...u, [accountId]: next }));
-                // a known handle picks its app by itself
-                const known = appOfUpi(next);
-                if (known) setOurUpiApps((all) => ({ ...all, [accountId]: known }));
-              }}
-              // its mistakes show once it's left
-              onBlur={leave}
-              placeholder="name@bank"
-              aria-invalid={bad || undefined}
-              className={cn(input(bad), "min-w-0 flex-1")}
-            />
-            {/* Save keeps it (a tap keeps the box from losing focus first) */}
-            <button
-              type="button"
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                leave();
-                if (problem === null && value.trim() !== "") setOurUpiEditing(null);
-              }}
-              disabled={value.trim() === ""}
-              className="flex min-h-11 shrink-0 items-center justify-center rounded-control bg-chestnut px-4 text-sm font-semibold text-ivory disabled:opacity-40"
-            >
-              {tpf("saveUpi")}
-            </button>
-          </span>
+          <input
+            autoFocus={ourUpiEditing === accountId}
+            type="text"
+            inputMode="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            value={value}
+            maxLength={255}
+            onChange={(e) => {
+              setOurUpisLeft((l) => l.filter((id) => id !== accountId));
+              setOurUpiEditing(accountId);
+              const next = e.target.value.toLowerCase().replace(/[^a-z0-9.@_-]/g, "");
+              setOurUpis((u) => ({ ...u, [accountId]: next }));
+              // a known handle picks its app by itself
+              const known = appOfUpi(next);
+              if (known) setOurUpiApps((all) => ({ ...all, [accountId]: known }));
+            }}
+            // its mistakes show once it's left
+            onBlur={leave}
+            placeholder="name@bank"
+            aria-invalid={bad || undefined}
+            className={cn(input(bad), "text-right")}
+          />
           {bad && (
             <FieldMessage className="mt-0">
               {problem === "handle"
@@ -146,6 +133,20 @@ function OurUpiField({ accountId }: { accountId: string }) {
                     : t("ourUpiBad")}
             </FieldMessage>
           )}
+          {/* Save keeps it (a tap keeps the box from losing focus first): under the box, the full width on a phone,
+                at the right edge wider */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              leave();
+              if (problem === null && value.trim() !== "") setOurUpiEditing(null);
+            }}
+            disabled={value.trim() === ""}
+            className="flex min-h-11 w-full items-center justify-center rounded-control bg-chestnut px-4 text-sm font-semibold text-ivory disabled:opacity-40 sm:w-auto sm:justify-self-end"
+          >
+            {tpf("saveUpi")}
+          </button>
         </label>
       </div>
     </Reveal>

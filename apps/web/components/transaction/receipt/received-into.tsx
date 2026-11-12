@@ -54,34 +54,43 @@ export function ReceivedInto({ part }: { part: "top" | "rest" }) {
   const usesBank = into === "bank" || into === "both";
   if (part === "top")
     return (
-      <>
-        {/* all three until one is picked, then only the pick; another pick starts the breakdown again */}
-        <PlacePicker
-          label={t("steps.into")}
-          places={places}
-          value={into}
-          invalid={tried && into === null}
-          onPick={(id) => {
-            resetGrid();
-            setBankId(null);
-            setCashPart("");
-            if (id === "cash") {
-              setInto("cash");
-              setBankMode(null);
-            } else {
-              setInto(id);
-              if (id === "bank") setAccountsOpen((n) => n + 1);
-            }
-          }}
-        />
-        {bankLoan && <Note className="text-chestnut/70">{t("bankOnly")}</Note>}
-      </>
+      // a row like the amount's: Received into on the left, level with the first place; on the right all three until
+      // one is picked, then only the pick, see-through with its ▾ (another pick starts the breakdown again); the
+      // bank-only note under it
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <span className="flex min-h-12 min-w-0 items-center text-sm">{t("steps.into")}</span>
+        <div className="flex w-[60%] shrink-0 flex-col gap-1.5">
+          <PlacePicker
+            quiet
+            bare
+            alignEnd
+            label={t("steps.into")}
+            places={places}
+            value={into}
+            invalid={tried && into === null}
+            onPick={(id) => {
+              resetGrid();
+              setBankId(null);
+              setCashPart("");
+              if (id === "cash") {
+                setInto("cash");
+                setBankMode(null);
+              } else {
+                setInto(id);
+                if (id === "bank") setAccountsOpen((n) => n + 1);
+              }
+            }}
+          />
+          {bankLoan && <Note className="text-chestnut/70">{t("bankOnly")}</Note>}
+        </div>
+      </div>
     );
   // Bank, or Cash + Bank: a card per place, keyed by the place so a new one starts with fresh cards
   return usesBank ? <AccountCards key={into} api={cardsApi} /> : null;
 }
 
-// the bank cards with a receipt's words and parts: no cap at what a place holds (money comes in), no Auto, our UPI ID
+// the bank cards with a receipt's words and parts, laid out as a payment's (every field a row): no cap at what a place
+// holds (money comes in), no Auto, our UPI ID
 function useReceiptCards(): AccountCardsApi {
   const e = useReceiptEntry();
   const { t, tc, tpf } = e;
@@ -93,8 +102,12 @@ function useReceiptCards(): AccountCardsApi {
     setMode: e.setGridMode,
     tried: e.tried,
     capAtHeld: false,
+    noBar: true,
+    modeRows: true,
+    placeFirst: true,
+    fieldRows: true,
     qrItems: e.qrItems,
-    qrRow: true,
+    qrIdLabel: t("ourUpi"),
     // a UPI ID typed here shows above its QR once kept, with a pen; one saved on the account shows without one
     qrId: (id) => {
       const saved = (e.banks?.find((b) => b.id === id)?.upiIds.length ?? 0) > 0;
@@ -110,6 +123,7 @@ function useReceiptCards(): AccountCardsApi {
     labels: {
       breakdown: tpf("breakdown"),
       account: tpf("account"),
+      balance: tpf("balance"),
       accountAmount: t("accountAmount"),
       anotherAccount: tpf("anotherAccount"),
       removeAccount: tc("removeAccount"),

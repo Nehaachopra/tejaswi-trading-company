@@ -330,6 +330,7 @@ export function PayeePicker() {
           asksPan={false}
           canEdit={isAdmin}
           landlords={landlords ?? []}
+          loading={landlords === undefined && !landlordsFailed}
           picked={landlordId}
           onPick={(id) => {
             setLandlordId(id);

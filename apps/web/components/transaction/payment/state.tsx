@@ -238,6 +238,9 @@ export function usePaymentEntryState({
       : null;
   // rent is paid only to landlords
   const rent = headTds === "rent";
+  // this payment can carry TDS (a supplier, an expense head with TDS, interest on a loan we took): the Amount box is
+  // then named the bill, TDS coming out of it
+  const tdsPossible = tdsParty || headTds !== null || kind === "interestPaid";
   const { landlords, landlordsFailed, retryLandlords } = useLandlords(rent);
   const landlord = rent ? landlords?.find((l) => l.id === landlordId) : undefined;
   const hasPayee = rent ? !!landlord : payee !== null;
@@ -352,17 +355,24 @@ export function usePaymentEntryState({
   // amount has settled (and the server has answered), so it doesn't come and go on every key while the amount is typed
   const panNeeded = asksPan && tdsApplies && tdsAmount > 0;
   const [showPan, setShowPan] = useState(false);
+  // (while the server is still working the TDS out for a new amount nothing has answered: the box stays as it was)
+  const taxAnswered = tdsInfo !== null || tax !== null || interestInfo !== null;
   useEffect(() => {
-    if (askedAmount === value) setShowPan(panNeeded);
-  }, [askedAmount, value, panNeeded]);
+    if (askedAmount === value && taxAnswered) setShowPan(panNeeded);
+  }, [askedAmount, value, panNeeded, taxAnswered]);
+  // another payee starts without it
+  useEffect(() => setShowPan(false), [kind, to, payee, landlordId, loan?.id]);
   // an expense's TDS depends on who was paid, so it's open until they're picked
   const tdsKnown = tdsInfo !== null || hasPayee || interestInfo !== null;
   // the amount typed is without TDS and reverse-charge GST; with them, it must still fit what the source holds
   const rcmAmount = tax?.rcm?.gst ?? 0;
   const total = Math.round((value + tdsAmount + rcmAmount) * 100) / 100;
   // reverse charge is open on rent until the landlord is picked, as it depends on their GSTIN
-  // a Pay button or calculator: the total to reach, TDS included (reverse-charge GST goes on top). The amount typed is what's handed over, so once the TDS is known the
-  // amount moves until the total is that figure; a few tries, so it can't chase a limit for ever
+  // the bill: what's typed in the Amount box (or filled in: a due, a Pay button, rent or interest worked out). TDS comes
+  // out of it and the rest is handed over, so once the TDS is known the amount handed over (`amount`) moves until it
+  // and the TDS make the bill (reverse-charge GST goes on top, to the government); a few tries, so it can't chase a
+  // limit for ever. With no TDS the two are the same
+  const [billText, setBillText] = useState("");
   const [totalGoal, setTotalGoal] = useState<{ total: number; tries: number } | null>(null);
   const [interestMonths, setInterestMonths] = useState("12");
   // interest typed in, from a statement: it replaces what the months come to, until the months are changed
@@ -377,16 +387,19 @@ export function usePaymentEntryState({
     setAmount(String(Math.round((value - (gap * (100 - tdsRate)) / 100) * 100) / 100));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the TDS answer comes
   }, [interestInfo, tdsInfo, tax]);
-  // what's typed or spoken replaces a button's amount
-  const typeAmount = (raw: string) => {
-    autoFilled.current = false;
-    setTotalGoal(null);
+  // a bill typed, spoken or filled in: the amount handed over starts at it, then the TDS is taken out
+  const setBill = (raw: string) => {
+    setBillText(raw);
+    const bill = Number(raw) || 0;
+    setTotalGoal(bill > 0 ? { total: bill, tries: 0 } : null);
     setAmount(raw);
   };
-  const payTotal = (goal: number) => {
-    setTotalGoal({ total: goal, tries: 0 });
-    setAmount(String(goal));
+  // what's typed or spoken replaces a figure that was filled in
+  const typeAmount = (raw: string) => {
+    autoFilled.current = false;
+    setBill(raw);
   };
+  const payTotal = (goal: number) => setBill(String(goal));
 
   // a loan's interest and a landlord's rent are worked out, not typed: the months being paid, on what's left at the loan's
   // rate or at a month's rent, which starts from what their godowns come to and can be changed for this payment; TDS included
@@ -426,8 +439,8 @@ export function usePaymentEntryState({
       : 0;
   useEffect(() => {
     if (!calc) return;
-    setTotalGoal(calcDue > 0 ? { total: calcDue, tries: 0 } : null);
-    setAmount(calcDue > 0 ? String(calcDue) : "");
+    setBill(calcDue > 0 ? String(calcDue) : "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the worked-out figure changes
   }, [calc, calcDue]);
 
   // what can pay the amount: only the amount leaves cash or the bank, on every head and kind (TDS and reverse-charge GST
@@ -814,8 +827,7 @@ export function usePaymentEntryState({
   useEffect(() => {
     if (!autoFilled.current) return;
     autoFilled.current = false;
-    setTotalGoal(null);
-    setAmount("");
+    setBill("");
   }, [pickKey]);
   useEffect(() => {
     if (
@@ -828,9 +840,8 @@ export function usePaymentEntryState({
     filledFor.current = unpaidOf;
     const goal = pairMost === null ? unpaid : Math.min(unpaid, pairMost);
     if (goal <= 0) return;
-    // a supplier's TDS comes out of the total, so it's the total that's filled
-    if (kind === "supplier") payTotal(goal);
-    else typeAmount(String(goal));
+    // the due is the bill: any TDS comes out of it
+    payTotal(goal);
     autoFilled.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when another loan or supplier is picked
   }, [unpaidOf, sources !== undefined]);
@@ -845,7 +856,7 @@ export function usePaymentEntryState({
           : undefined;
   // never more than the money there is: cash and the banks together (a new amount starts Paid from again, so the
   // place picked before doesn't limit it). Unknown to staff (the save checks)
-  const moneyCap = pairMost;
+  const moneyCap = tdsApplies ? null : pairMost;
   const cap = [ruleCap, moneyCap ?? undefined]
     .filter((c): c is number => c !== undefined)
     .reduce<number | undefined>((m, c) => (m === undefined ? c : Math.min(m, c)), undefined);
@@ -1482,6 +1493,8 @@ export function usePaymentEntryState({
     setInterestTyped,
     typeAmount,
     payTotal,
+    billText,
+    tdsPossible,
     interestCalc,
     rentRows,
     rentOf,
