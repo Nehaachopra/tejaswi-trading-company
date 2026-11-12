@@ -1,16 +1,21 @@
 "use client";
 
-import { CircleAlert, MapPin, Pencil, Plus, Search } from "lucide-react";
+import { CircleAlert, Pencil, Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
-import { ADD_BUTTON, FILTER_BAR, PAGE } from "~/components/ui/page-styles";
+import {
+  ADD_BUTTON,
+  FILTER_CONTROL,
+  FILTER_ROW,
+  FILTER_STACK,
+  PAGE,
+} from "~/components/ui/page-styles";
 import { ClearButton } from "~/components/ui/clear-button";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
 import { useBankName } from "~/lib/bank-names";
-import { titleCase } from "~/lib/format";
 import { trpc } from "~/trpc/client";
 
 import { BankSheet } from "../account/bank/bank-sheet";
@@ -71,33 +76,50 @@ export function BanksManager() {
     <main className={`${PAGE} pb-16`}>
       <h1 className="sr-only">{t("title")}</h1>
 
-      <button type="button" onClick={() => setOpen("new")} className={ADD_BUTTON}>
-        <Plus className="size-5" aria-hidden /> {tb("add")}
-      </button>
-
       {/* search and Show inactive, under the header while the list scrolls */}
-      <div className={`mt-3 ${FILTER_BAR}`}>
-        <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory">
-          <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
-          <span className="sr-only">{tb("search")}</span>
-          <input
-            type="search"
-            value={search}
-            maxLength={50}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={tb("search")}
-            className="min-w-0 flex-1 bg-transparent text-base text-ivory outline-none placeholder:text-ivory/60"
-          />
-          {search && <ClearButton onClear={() => setSearch("")} label={tc("clearSearch")} />}
-        </label>
-        <button
-          type="button"
-          aria-pressed={showInactive}
-          onClick={() => setShowInactive((v) => !v)}
-          className={chip(showInactive)}
-        >
-          {tb("showInactive")}
-        </button>
+      <div className={`mt-3 ${FILTER_STACK}`}>
+        {/* as a head's header on the account pages: the name and how many there are on the left, the filters and the
+            search on the right (each its own row on a phone) */}
+        <div className={FILTER_ROW}>
+          <h2 className="shrink-0 font-heading text-2xl font-bold">{t("title")}</h2>
+          <span className="tabular ml-1 shrink-0 rounded-control bg-ivory px-2.5 py-0.5 font-heading text-lg font-bold text-chestnut">
+            {shown.length}
+          </span>
+          <span className="basis-full sm:hidden" aria-hidden />
+          <span className="hidden flex-1 sm:block" aria-hidden />
+          {/* the filters, then the search at the right end */}
+          <button
+            type="button"
+            aria-pressed={showInactive}
+            onClick={() => setShowInactive((v) => !v)}
+            className={cn(chip(showInactive), FILTER_CONTROL)}
+          >
+            {tb("showInactive")}
+          </button>
+          <label className="flex min-h-12 w-full min-w-0 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory sm:w-56">
+            <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
+            <span className="sr-only">{tb("search")}</span>
+            <input
+              type="search"
+              value={search}
+              maxLength={50}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={tb("search")}
+              className="min-w-0 flex-1 bg-transparent text-base text-ivory outline-none placeholder:text-ivory/60"
+            />
+            {search && <ClearButton onClear={() => setSearch("")} label={tc("clearSearch")} />}
+          </label>
+        </div>
+        {/* + Add under the search and filters, at the right end (full width on a phone) */}
+        <div className={cn(FILTER_ROW, "sm:justify-end")}>
+          <button
+            type="button"
+            onClick={() => setOpen("new")}
+            className={cn(ADD_BUTTON, "shrink-0")}
+          >
+            <Plus className="size-5" aria-hidden /> {tb("add")}
+          </button>
+        </div>
       </div>
 
       {/* the accounts */}
@@ -112,7 +134,7 @@ export function BanksManager() {
       ) : shown.length === 0 ? (
         <p className="mt-16 text-center text-ivory/70">{needle ? tb("noMatch") : tb("empty")}</p>
       ) : (
-        <ul className="mt-2 grid gap-3 lg:grid-cols-2">
+        <ul className="mt-4 grid gap-3 lg:grid-cols-2">
           {shown.map((b) => {
             const name = `${bankName(b.bankName)} ••${b.last4}`;
             return (
@@ -131,32 +153,23 @@ export function BanksManager() {
                   onClick={() => setOpen(b.id)}
                   className="min-w-0 flex-1 py-1.5 text-left"
                 >
-                  <span className="flex items-center gap-2">
+                  {/* as the Assets → Bank accounts card: the bank (with inactive), then its last digits and type */}
+                  <span className="flex min-w-0 items-center gap-2">
                     <span
                       className="truncate font-heading text-xl font-bold leading-7"
                       title={name}
                     >
                       {bankName(b.bankName)}
                     </span>
-                    <span className="tabular shrink-0 text-sm opacity-70">••{b.last4}</span>
                     {!b.isActive && (
                       <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">
                         {tb("inactive")}
                       </span>
                     )}
                   </span>
-                  <span className="block truncate text-sm">
-                    {tb(`form.types.${b.accountType}`)}
-                  </span>
-                  {/* its branch with the location icon, then its IFSC */}
                   <span className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs opacity-70">
-                    {b.branchName && (
-                      <span className="flex min-w-0 items-center gap-1">
-                        <MapPin className="size-3.5 shrink-0" aria-hidden />
-                        <span className="truncate">{titleCase(b.branchName)}</span>
-                      </span>
-                    )}
-                    {b.ifscCode && <span className="tabular">{b.ifscCode}</span>}
+                    <span className="tabular">••{b.last4}</span>
+                    <span className="truncate">{tb(`form.types.${b.accountType}`)}</span>
                   </span>
                 </button>
 

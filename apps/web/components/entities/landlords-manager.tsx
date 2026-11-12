@@ -5,7 +5,13 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { ClearButton } from "~/components/ui/clear-button";
-import { ADD_BUTTON, FILTER_BAR, PAGE } from "~/components/ui/page-styles";
+import {
+  ADD_BUTTON,
+  FILTER_CONTROL,
+  FILTER_ROW,
+  FILTER_STACK,
+  PAGE,
+} from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
@@ -60,33 +66,50 @@ export function LandlordsManager() {
     <main className={`${PAGE} pb-16`}>
       <h1 className="sr-only">{t("title")}</h1>
 
-      <button type="button" onClick={() => setOpen("new")} className={ADD_BUTTON}>
-        <Plus className="size-5" aria-hidden /> {t("add")}
-      </button>
-
       {/* search and Show inactive, under the header while the list scrolls */}
-      <div className={`mt-3 ${FILTER_BAR}`}>
-        <label className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory sm:w-auto sm:flex-1">
-          <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
-          <span className="sr-only">{t("search")}</span>
-          <input
-            type="search"
-            value={search}
-            maxLength={150}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t("search")}
-            className="min-w-0 flex-1 bg-transparent text-base text-ivory outline-none placeholder:text-ivory/60"
-          />
-          {search && <ClearButton onClear={() => setSearch("")} label={tc("clearSearch")} />}
-        </label>
-        <button
-          type="button"
-          aria-pressed={showInactive}
-          onClick={() => setShowInactive((v) => !v)}
-          className={chip(showInactive)}
-        >
-          {t("showInactive")}
-        </button>
+      <div className={`mt-3 ${FILTER_STACK}`}>
+        {/* as a head's header on the account pages: the name and how many there are on the left, the filters and the
+            search on the right (each its own row on a phone) */}
+        <div className={FILTER_ROW}>
+          <h2 className="shrink-0 font-heading text-2xl font-bold">{t("title")}</h2>
+          <span className="tabular ml-1 shrink-0 rounded-control bg-ivory px-2.5 py-0.5 font-heading text-lg font-bold text-chestnut">
+            {shown.length}
+          </span>
+          <span className="basis-full sm:hidden" aria-hidden />
+          <span className="hidden flex-1 sm:block" aria-hidden />
+          {/* the filters, then the search at the right end */}
+          <button
+            type="button"
+            aria-pressed={showInactive}
+            onClick={() => setShowInactive((v) => !v)}
+            className={cn(chip(showInactive), FILTER_CONTROL)}
+          >
+            {t("showInactive")}
+          </button>
+          <label className="flex min-h-12 w-full min-w-0 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory sm:w-56">
+            <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
+            <span className="sr-only">{t("search")}</span>
+            <input
+              type="search"
+              value={search}
+              maxLength={150}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("search")}
+              className="min-w-0 flex-1 bg-transparent text-base text-ivory outline-none placeholder:text-ivory/60"
+            />
+            {search && <ClearButton onClear={() => setSearch("")} label={tc("clearSearch")} />}
+          </label>
+        </div>
+        {/* + Add under the search and filters, at the right end (full width on a phone) */}
+        <div className={cn(FILTER_ROW, "sm:justify-end")}>
+          <button
+            type="button"
+            onClick={() => setOpen("new")}
+            className={cn(ADD_BUTTON, "shrink-0")}
+          >
+            <Plus className="size-5" aria-hidden /> {t("add")}
+          </button>
+        </div>
       </div>
 
       {/* the landlords */}
@@ -101,7 +124,7 @@ export function LandlordsManager() {
       ) : shown.length === 0 ? (
         <p className="mt-16 text-center text-ivory/70">{needle ? t("noMatch") : t("empty")}</p>
       ) : (
-        <ul className="mt-2 grid gap-3 lg:grid-cols-2">
+        <ul className="mt-4 grid gap-3 lg:grid-cols-2">
           {shown.map((l) => (
             <li
               key={l.id}

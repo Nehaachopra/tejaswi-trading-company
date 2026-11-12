@@ -7,7 +7,13 @@ import { useState } from "react";
 import { ClearButton } from "~/components/ui/clear-button";
 import { fieldClass, SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
-import { ADD_BUTTON, FILTER_BAR, PAGE } from "~/components/ui/page-styles";
+import {
+  ADD_BUTTON,
+  FILTER_CONTROL,
+  FILTER_ROW,
+  FILTER_STACK,
+  PAGE,
+} from "~/components/ui/page-styles";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { ActiveRow } from "~/components/ui/active-row";
 import { Sheet } from "~/components/ui/sheet";
@@ -60,33 +66,50 @@ export function LendersManager() {
     <main className={`${PAGE} pb-16`}>
       <h1 className="sr-only">{t("title")}</h1>
 
-      <button type="button" onClick={() => setOpen("new")} className={ADD_BUTTON}>
-        <Plus className="size-5" aria-hidden /> {t("add")}
-      </button>
-
       {/* search and Show inactive, under the header while the list scrolls */}
-      <div className={`mt-3 ${FILTER_BAR}`}>
-        <label className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control border border-ivory/40 px-3">
-          <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
-          <input
-            type="search"
-            value={search}
-            maxLength={150}
-            aria-label={t("search")}
-            placeholder={t("search")}
-            onChange={(e) => setSearch(e.target.value)}
-            className="min-w-0 flex-1 bg-transparent text-base text-ivory outline-none placeholder:text-ivory/60"
-          />
-          {search && <ClearButton onClear={() => setSearch("")} label={tc("clearSearch")} />}
-        </label>
-        <button
-          type="button"
-          aria-pressed={showInactive}
-          onClick={() => setShowInactive((on) => !on)}
-          className={chip(showInactive)}
-        >
-          {t("showInactive")}
-        </button>
+      <div className={`mt-3 ${FILTER_STACK}`}>
+        {/* as a head's header on the account pages: the name and how many there are on the left, the filters and the
+            search on the right (each its own row on a phone) */}
+        <div className={FILTER_ROW}>
+          <h2 className="shrink-0 font-heading text-2xl font-bold">{t("title")}</h2>
+          <span className="tabular ml-1 shrink-0 rounded-control bg-ivory px-2.5 py-0.5 font-heading text-lg font-bold text-chestnut">
+            {shown.length}
+          </span>
+          <span className="basis-full sm:hidden" aria-hidden />
+          <span className="hidden flex-1 sm:block" aria-hidden />
+          {/* the filters, then the search at the right end */}
+          <button
+            type="button"
+            aria-pressed={showInactive}
+            onClick={() => setShowInactive((on) => !on)}
+            className={cn(chip(showInactive), FILTER_CONTROL)}
+          >
+            {t("showInactive")}
+          </button>
+          <label className="flex min-h-12 w-full min-w-0 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory sm:w-56">
+            <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
+            <input
+              type="search"
+              value={search}
+              maxLength={150}
+              aria-label={t("search")}
+              placeholder={t("search")}
+              onChange={(e) => setSearch(e.target.value)}
+              className="min-w-0 flex-1 bg-transparent text-base text-ivory outline-none placeholder:text-ivory/60"
+            />
+            {search && <ClearButton onClear={() => setSearch("")} label={tc("clearSearch")} />}
+          </label>
+        </div>
+        {/* + Add under the search and filters, at the right end (full width on a phone) */}
+        <div className={cn(FILTER_ROW, "sm:justify-end")}>
+          <button
+            type="button"
+            onClick={() => setOpen("new")}
+            className={cn(ADD_BUTTON, "shrink-0")}
+          >
+            <Plus className="size-5" aria-hidden /> {t("add")}
+          </button>
+        </div>
       </div>
 
       {lenders.isPending && (

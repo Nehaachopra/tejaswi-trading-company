@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ChevronDown, ChevronRight, CircleAlert, MapPin, Phone } from "lucide-react";
+import { ArrowLeft, ChevronDown, CircleAlert, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -17,6 +17,7 @@ import { postDatedText } from "../balance";
 import { GroupHeader, GroupSearch } from "../group-header";
 import { SignedAmount } from "../signed-amount";
 import { PARTY_KINDS, partyLabel, type PartyType } from "./party-kinds";
+import { AccountCard, CARD_GRID, CARD_LINE, CardTag } from "../account-card";
 
 // /account/debtor, /account/creditor and /account/debtor-creditor, admin only: the ledgers of one kind of party.
 // A search over short name, name and phone, then a place filter and Show inactive (all staying under the header),
@@ -127,65 +128,52 @@ export function PartiesBoard({ type }: { type: PartyType }) {
           )}
         </p>
       ) : (
-        <ul className="mt-2 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <ul className={cn("mt-2", CARD_GRID)}>
           {shown.map((p) => (
             <li key={p.id} className="min-w-0">
-              {/* as the Entities card: the name (with inactive), the full name under a short one, the phone and town
-                  with their icons on the left; on the right the balance on top and the arrow under it that opens it */}
-              <Link
+              {/* the shared card: the name (with inactive), the full name under a short one, the phone and town with
+                  their icons; the balance and the arrow that opens it on the right */}
+              <AccountCard
                 href={`${kind.path}/${p.id}`}
-                className={cn(
-                  "flex min-w-0 items-center gap-2 rounded-control border p-2 pl-4",
-                  p.isActive
-                    ? "on-ivory border-ivory bg-ivory text-chestnut"
-                    : "border-dashed border-ivory/60 text-ivory",
-                )}
-              >
-                <span className="min-w-0 flex-1 py-1.5">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span className="truncate font-heading text-xl font-bold leading-7">
-                      {partyLabel(p)}
+                name={partyLabel(p)}
+                inactive={!p.isActive}
+                tags={!p.isActive && <CardTag strong>{t("inactive")}</CardTag>}
+                lines={
+                  <>
+                    {p.shortName && (
+                      <span className="block truncate text-sm" title={p.name}>
+                        {titleCase(p.name.toLowerCase())}
+                      </span>
+                    )}
+                    <span className={CARD_LINE}>
+                      {p.phone && (
+                        <span className="tabular flex items-center gap-1">
+                          <Phone className="size-3.5" aria-hidden /> +91 {p.phone}
+                        </span>
+                      )}
+                      {p.city && (
+                        <span className="flex min-w-0 items-center gap-1">
+                          <MapPin className="size-3.5 shrink-0" aria-hidden />
+                          <span className="truncate">{titleCase(p.city)}</span>
+                        </span>
+                      )}
+                      {!p.phone && !p.city && "—"}
                     </span>
-                    {!p.isActive && (
-                      <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">
-                        {t("inactive")}
-                      </span>
-                    )}
-                  </span>
-                  {p.shortName && (
-                    <span className="block truncate text-sm" title={p.name}>
-                      {titleCase(p.name.toLowerCase())}
-                    </span>
-                  )}
-                  <span className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs opacity-70">
-                    {p.phone && (
-                      <span className="tabular flex items-center gap-1">
-                        <Phone className="size-3.5" aria-hidden /> +91 {p.phone}
-                      </span>
-                    )}
-                    {p.city && (
-                      <span className="flex min-w-0 items-center gap-1">
-                        <MapPin className="size-3.5 shrink-0" aria-hidden />
-                        <span className="truncate">{titleCase(p.city)}</span>
-                      </span>
-                    )}
-                    {!p.phone && !p.city && "—"}
-                  </span>
-                </span>
-                <span className="flex shrink-0 flex-col items-end gap-1 py-1.5 pr-2">
+                  </>
+                }
+                amount={
                   <SignedAmount
                     balance={p.balance.today}
                     head={kind.head}
                     className="font-heading text-xl font-bold leading-7"
                   />
-                  {p.balance.postDated && (
-                    <span className="tabular text-xs opacity-70">
-                      {t("postDated", { amount: postDatedText(p.balance.postDated, kind.head) })}
-                    </span>
-                  )}
-                  <ChevronRight className="size-5 opacity-60" aria-hidden />
-                </span>
-              </Link>
+                }
+                postDated={
+                  p.balance.postDated
+                    ? t("postDated", { amount: postDatedText(p.balance.postDated, kind.head) })
+                    : null
+                }
+              />
             </li>
           ))}
         </ul>

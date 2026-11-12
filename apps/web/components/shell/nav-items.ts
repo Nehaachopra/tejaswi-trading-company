@@ -1,11 +1,35 @@
-import { Activity, ClipboardList, HandCoins, History, House, Landmark, type LucideIcon, Package, Receipt, Settings, Users, Warehouse } from "lucide-react";
+import {
+  Activity,
+  ClipboardList,
+  HandCoins,
+  History,
+  House,
+  Landmark,
+  type LucideIcon,
+  Package,
+  Receipt,
+  Settings,
+  Users,
+  Warehouse,
+} from "lucide-react";
 
 export type Role = "admin" | "staff";
 
 export type NavItem = {
   href: string;
   // key under shell.nav in the translation files
-  label: "home" | "history" | "orders" | "stock" | "products" | "entities" | "accounts" | "dues" | "gst" | "jobs" | "settings";
+  label:
+    | "home"
+    | "history"
+    | "orders"
+    | "stock"
+    | "products"
+    | "entities"
+    | "accounts"
+    | "dues"
+    | "gst"
+    | "jobs"
+    | "settings";
   icon: LucideIcon;
   adminOnly?: boolean;
   // on phones: in the bottom bar, in the More sheet, or not at all (Home: the logo goes there)
@@ -18,21 +42,29 @@ export type NavItem = {
 // keys under shell.nav.heads
 export type SubLabel = HeadLabel | "opening" | "parties" | "landlords" | "lenders" | "banks";
 
-// the six heads (each tagged Debit or Credit)
+// the six heads (listed under Debit or Credit)
 export type HeadLabel = "asset" | "liability" | "income" | "expense" | "profit" | "loss";
 
-// the six heads carry a Debit or Credit tag; the other pages under a group don't
+// the six heads sit under Debit or Credit; the other pages under a group don't
 const HEADS: readonly string[] = ["asset", "liability", "income", "expense", "profit", "loss"];
 export const isHead = (label: SubLabel): label is HeadLabel => HEADS.includes(label);
 
-// the side a head's accounts sit on, shown beside it: Asset, Expense and Loss are debit accounts, the rest credit
-export const sideOf = (head: HeadLabel) => (head === "asset" || head === "expense" || head === "loss" ? "debit" : "credit");
+// the side a head's accounts sit on: Asset, Expense and Loss are debit accounts, the rest credit
+export const sideOf = (head: HeadLabel) =>
+  head === "asset" || head === "expense" || head === "loss" ? "debit" : "credit";
 
-// the side's tag: Debit filled, Credit outlined, so the two read apart at a glance
-export const sideTag = (head: HeadLabel) =>
-  `shrink-0 rounded-control border px-1.5 py-px text-[0.65rem] font-semibold uppercase tracking-wide ${
-    sideOf(head) === "debit" ? "border-chestnut bg-chestnut text-ivory" : "border-chestnut text-chestnut"
-  }`;
+// a group's pages in sections: the heads under Debit (asset, expense, loss), then under Credit (liability, income,
+// profit), then the rest without a heading (Opening balances). A group without heads is one section
+type Child = NonNullable<NavItem["children"]>[number];
+export function bySide(children: Child[]): { side: "debit" | "credit" | null; items: Child[] }[] {
+  const heads = (side: "debit" | "credit") =>
+    children.filter((c) => isHead(c.label) && sideOf(c.label) === side);
+  return [
+    { side: "debit" as const, items: heads("debit") },
+    { side: "credit" as const, items: heads("credit") },
+    { side: null, items: children.filter((c) => !isHead(c.label)) },
+  ].filter((g) => g.items.length > 0);
+}
 
 // every page the shell links to, in sidebar order; New transaction (/transaction) has its own button
 export const NAV_ITEMS: NavItem[] = [
@@ -61,7 +93,11 @@ export const NAV_ITEMS: NavItem[] = [
     adminOnly: true,
     place: "more",
     children: [
-      { href: "/account/asset", label: "asset", also: ["/account/bank", "/account/debtor", "/account/debtor-creditor", "/account/parties"] },
+      {
+        href: "/account/asset",
+        label: "asset",
+        also: ["/account/bank", "/account/debtor", "/account/debtor-creditor", "/account/parties"],
+      },
       { href: "/account/liability", label: "liability", also: ["/account/creditor"] },
       { href: "/account/income", label: "income" },
       { href: "/account/expense", label: "expense" },
@@ -84,11 +120,14 @@ export const NEW_TRANSACTION_HREF = "/transaction";
 export const SHELL_WIDTH = "mx-auto w-full max-w-[90rem]";
 
 // staff never see admin-only pages
-export const navFor = (role: Role) => NAV_ITEMS.filter((item) => !item.adminOnly || role === "admin");
+export const navFor = (role: Role) =>
+  NAV_ITEMS.filter((item) => !item.adminOnly || role === "admin");
 
 // a page under an item lights up on its own path and on the paths that belong to it
 export const isSubCurrent = (child: NonNullable<NavItem["children"]>[number], pathname: string) =>
-  [child.href, ...(child.also ?? [])].some((href) => pathname === href || pathname.startsWith(`${href}/`));
+  [child.href, ...(child.also ?? [])].some(
+    (href) => pathname === href || pathname.startsWith(`${href}/`),
+  );
 
 // Home lights up only on "/"; every other item also for the pages under it (/product/categories → Products)
 export const isCurrent = (href: string, pathname: string) =>

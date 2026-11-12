@@ -760,7 +760,7 @@
         "customer_supplier": "No parties here yet.",
         "none": "No parties here yet."
       },
-      "search": "Short name, name or phone",
+      "search": "Name or phone number",
       "noMatch": "No one matches that search.",
       "showInactive": "Show inactive",
       "loading": "Loading parties",
@@ -970,7 +970,7 @@
   "parties": {
     "title": "Parties",
     "add": "Add party",
-    "search": "Short name, name or phone",
+    "search": "Name or phone number",
     "type": "Type",
     "allTypes": "All types",
     "place": "Place",
@@ -999,7 +999,7 @@
   "landlords": {
     "title": "Landlords",
     "add": "Add landlord",
-    "search": "Short name, name or phone",
+    "search": "Name or phone number",
     "type": "Type",
     "allTypes": "All types",
     "place": "Place",

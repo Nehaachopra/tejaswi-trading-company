@@ -7,7 +7,9 @@ import { useEffect, useState } from "react";
 
 import {
   ADD_BUTTON,
-  FILTER_BAR_UNDER_TABS,
+  FILTER_ROW,
+  FILTER_CONTROL,
+  FILTER_STACK,
   FILTER_TRIGGER,
   PAGE,
 } from "~/components/ui/page-styles";
@@ -55,7 +57,7 @@ function Filter<T extends string | null>({
       surface="chestnut"
       align="left"
       boxed
-      triggerClassName={FILTER_TRIGGER}
+      triggerClassName={cn(FILTER_TRIGGER, FILTER_CONTROL)}
       trigger={
         <>
           <span className="truncate">{current}</span>
@@ -160,44 +162,62 @@ export function PartiesManager() {
         }))}
       />
 
-      <button
-        type="button"
-        onClick={() => setOpen({ id: "new", type: "none" })}
-        className={`mt-4 ${ADD_BUTTON}`}
-      >
-        <Plus className="size-5" aria-hidden /> {t("add")}
-      </button>
-
       {/* the search and the filters, under the tabs while the list scrolls */}
-      <div className={`mt-3 ${FILTER_BAR_UNDER_TABS}`}>
-        <label className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory sm:w-auto sm:flex-1">
-          <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
-          <span className="sr-only">{t("search")}</span>
-          <input
-            type="search"
-            value={typed}
-            maxLength={150}
-            onChange={(e) => setTyped(e.target.value)}
-            placeholder={t("search")}
-            className="min-w-0 flex-1 bg-transparent text-base text-ivory outline-none placeholder:text-ivory/60"
+      <div className={`mt-3 ${FILTER_STACK}`}>
+        {/* as a head's header on the account pages: the name and how many there are on the left, the filters and the
+            search on the right (each its own row on a phone) */}
+        <div className={FILTER_ROW}>
+          <h2 className="shrink-0 font-heading text-2xl font-bold">
+            {type ? tf(`types.${type}`) : t("allTypes")}
+          </h2>
+          <span className="tabular ml-1 shrink-0 rounded-control bg-ivory px-2.5 py-0.5 font-heading text-lg font-bold text-chestnut">
+            {shown.length}
+          </span>
+          <span className="basis-full sm:hidden" aria-hidden />
+          <span className="hidden flex-1 sm:block" aria-hidden />
+          {/* the filters, then the search at the right end */}
+          <Filter
+            label={t("place")}
+            current={city ?? t("allPlaces")}
+            options={[
+              { id: null, name: t("allPlaces") },
+              ...cities.map((c) => ({ id: c, name: c })),
+            ]}
+            picked={city}
+            onPick={setCity}
           />
-          {typed && <ClearButton onClear={() => setTyped("")} label={tc("clearSearch")} />}
-        </label>
-        <Filter
-          label={t("place")}
-          current={city ?? t("allPlaces")}
-          options={[{ id: null, name: t("allPlaces") }, ...cities.map((c) => ({ id: c, name: c }))]}
-          picked={city}
-          onPick={setCity}
-        />
-        <button
-          type="button"
-          aria-pressed={showInactive}
-          onClick={() => setShowInactive((v) => !v)}
-          className={chip(showInactive)}
-        >
-          {t("showInactive")}
-        </button>
+          <button
+            type="button"
+            aria-pressed={showInactive}
+            onClick={() => setShowInactive((v) => !v)}
+            className={cn(chip(showInactive), FILTER_CONTROL)}
+          >
+            {t("showInactive")}
+          </button>
+          <label className="flex min-h-12 w-full min-w-0 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory sm:w-56">
+            <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
+            <span className="sr-only">{t("search")}</span>
+            <input
+              type="search"
+              value={typed}
+              maxLength={150}
+              onChange={(e) => setTyped(e.target.value)}
+              placeholder={t("search")}
+              className="min-w-0 flex-1 bg-transparent text-base text-ivory outline-none placeholder:text-ivory/60"
+            />
+            {typed && <ClearButton onClear={() => setTyped("")} label={tc("clearSearch")} />}
+          </label>
+        </div>
+        {/* + Add under the search and filters, at the right end (full width on a phone) */}
+        <div className={cn(FILTER_ROW, "sm:justify-end")}>
+          <button
+            type="button"
+            onClick={() => setOpen({ id: "new", type: "none" })}
+            className={cn(ADD_BUTTON, "shrink-0")}
+          >
+            <Plus className="size-5" aria-hidden /> {t("add")}
+          </button>
+        </div>
       </div>
 
       {/* the parties */}
@@ -214,7 +234,7 @@ export function PartiesManager() {
           {search || city || type ? t("noMatch") : t("empty")}
         </p>
       ) : (
-        <ul className="mt-2 grid gap-3 lg:grid-cols-2">
+        <ul className="mt-4 grid gap-3 lg:grid-cols-2">
           {shown.map((p) => (
             <li
               key={p.id}

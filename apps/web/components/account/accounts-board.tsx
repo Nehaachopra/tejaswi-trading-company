@@ -1,7 +1,6 @@
 "use client";
 
-import { ChevronRight, CircleAlert, Plus } from "lucide-react";
-import Link from "next/link";
+import { CircleAlert, Plus } from "lucide-react";
 
 import { cn } from "~/lib/utils";
 import { useTranslations } from "next-intl";
@@ -18,6 +17,7 @@ import { HeadSearch } from "./head-search";
 import { SignedAmount } from "./signed-amount";
 import { useLedgerName } from "./ledger-name";
 import { LedgerSheet, type LedgerSheetFor } from "./ledger-sheet";
+import { AccountCard, CARD_GRID, CARD_LINE, CardTag } from "./account-card";
 
 type Head = RouterOutputs["accounts"]["overview"]["heads"][number];
 
@@ -63,17 +63,6 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
     <main className={`${PAGE} pb-16`}>
       <h1 className="sr-only">{only ? t(`heads.${only}`) : t("title")}</h1>
 
-      {/* + New ledger, under this head */}
-      {addable && (
-        <button
-          type="button"
-          onClick={() => setSheet({ kind: "new", head: addable })}
-          className={`mb-6 ${ADD_BUTTON}`}
-        >
-          <Plus className="size-5" aria-hidden /> {t("newLedger")}
-        </button>
-      )}
-
       {overview.isPending ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
@@ -89,92 +78,127 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
             const masters = h.masters.filter((m) => fits(t(`masters.${m.key}`)));
             const ledgers = h.ledgers.filter((l) => fits(nameOf(l)));
             return (
-            <section key={h.head} aria-labelledby={`head-${h.head}`}>
-              {/* the head with its total beside it, then a search over its ledgers and sub-groups (on its own page),
+              <section key={h.head} aria-labelledby={`head-${h.head}`}>
+                {/* the head with its total beside it, then a search over its ledgers and sub-groups (on its own page),
                   staying under the page header while its accounts scroll by */}
-              <header className="sticky top-16 z-10 -mx-4 mb-3 flex flex-wrap items-center gap-x-2 gap-y-2.5 border-b border-ivory/20 bg-chestnut px-4 py-3 sm:-mx-6 sm:flex-nowrap sm:px-6">
-                <h2 id={`head-${h.head}`} className="shrink-0 font-heading text-2xl font-bold">
-                  {t(`heads.${h.head}`)}
-                </h2>
-                {/* its total right beside the name, an ivory pill (red when it's the wrong way round) */}
-                <SignedAmount balance={h.total} head={h.head} badge onChestnut className="ml-1 shrink-0 font-heading text-lg font-bold" />
-                {addable ? <HeadSearch value={search} onChange={setSearch} label={t("search")} /> : <span className="flex-1" />}
-              </header>
+                <header className="sticky top-16 z-10 -mx-4 mb-3 flex flex-wrap items-center gap-x-2 gap-y-2.5 border-b border-ivory/20 bg-chestnut px-4 py-3 sm:-mx-6 sm:flex-nowrap sm:px-6">
+                  <h2 id={`head-${h.head}`} className="shrink-0 font-heading text-2xl font-bold">
+                    {t(`heads.${h.head}`)}
+                  </h2>
+                  {/* its total right beside the name, an ivory pill (red when it's the wrong way round) */}
+                  <SignedAmount
+                    balance={h.total}
+                    head={h.head}
+                    badge
+                    onChestnut
+                    className="ml-1 shrink-0 font-heading text-lg font-bold"
+                  />
+                  {addable ? (
+                    <HeadSearch value={search} onChange={setSearch} label={t("search")} />
+                  ) : (
+                    <span className="flex-1" />
+                  )}
+                  {/* + New ledger: right beside the search on wider screens; on a phone its own full-width row under
+                      the search, above the header's line */}
+                  {addable && (
+                    <button
+                      type="button"
+                      onClick={() => setSheet({ kind: "new", head: addable })}
+                      className={cn(ADD_BUTTON, "shrink-0")}
+                    >
+                      <Plus className="size-5" aria-hidden /> {t("newLedger")}
+                    </button>
+                  )}
+                </header>
 
-              {/* profit and loss: their total is worked out from everything; their own ledgers are listed under it */}
-              {(h.head === "profit" || h.head === "loss") && <p className="text-sm text-ivory/70">{t("worked")}</p>}
+                {/* profit and loss: their total is worked out from everything; their own ledgers are listed under it */}
+                {(h.head === "profit" || h.head === "loss") && (
+                  <p className="text-sm text-ivory/70">{t("worked")}</p>
+                )}
 
-              {/* its sub-groups */}
-              {masters.length > 0 && (
-                <ul className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {masters.map((m) => {
-                    const href = MASTER_PAGE[m.key];
-                    // two lines: the name with its balance, then how many ledgers with the arrow that opens them
-                    const body = (
-                      <>
-                        <span className="flex min-w-0 items-baseline gap-3">
-                          <span className="min-w-0 flex-1 truncate font-heading text-xl font-bold leading-7">{t(`masters.${m.key}`)}</span>
-                          <SignedAmount balance={m.total} head={h.head} className="shrink-0 font-heading text-lg font-bold" />
-                        </span>
-                        <span className="flex items-center gap-3">
-                          <span className="min-w-0 flex-1 text-sm text-chestnut/70">{t("ledgers", { count: m.ledgers })}</span>
-                          <ChevronRight className="size-5 shrink-0 text-chestnut/60" aria-hidden />
-                        </span>
-                      </>
-                    );
-                    const card = "on-ivory flex w-full flex-col gap-0.5 rounded-control bg-ivory p-4 text-left text-chestnut";
-                    return (
-                      <li key={m.key} className="min-w-0">
-                        {href ? (
-                          <Link href={href} className={card}>
-                            {body}
-                          </Link>
-                        ) : (
-                          <button type="button" onClick={soon} className={card}>
-                            {body}
-                          </button>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
+                {/* its sub-groups */}
+                {/* its sub-groups: the name and how many ledgers, its total and the arrow that opens it */}
+                {masters.length > 0 && (
+                  <ul className={cn("mb-3", CARD_GRID)}>
+                    {masters.map((m) => {
+                      const href = MASTER_PAGE[m.key];
+                      return (
+                        <li key={m.key} className="min-w-0">
+                          <AccountCard
+                            href={href}
+                            onClick={href ? undefined : soon}
+                            name={t(`masters.${m.key}`)}
+                            lines={
+                              <span className={CARD_LINE}>
+                                {t("ledgers", { count: m.ledgers })}
+                              </span>
+                            }
+                            amount={
+                              <SignedAmount
+                                balance={m.total}
+                                head={h.head}
+                                className="font-heading text-xl font-bold leading-7"
+                              />
+                            }
+                          />
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
 
-              {/* the ledgers directly under it: a card each, in the same grid as the sub-groups, so a name sits close to
-                  its balance on a wide screen */}
-              {/* set apart from the sub-groups above by a line, so groups and single ledgers read as two sets */}
-              {ledgers.length > 0 && (
-                <ul className={cn("grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3", masters.length > 0 && "mt-6 border-t border-ivory/25 pt-6")}>
-                  {/* sorted by the name as it reads in this language */}
-                  {[...ledgers].sort((a, b) => nameOf(a).localeCompare(nameOf(b))).map((l) => (
-                    <li key={l.id} className="min-w-0">
-                      {/* one line: the name (cut short with dots when long), its balance and the arrow that opens it; its tags
-                          and any post-dated balance on a second line only when it has them */}
-                      <Link href={`/account/ledgers/${l.id}`} className="on-ivory flex flex-col gap-1 rounded-control bg-ivory p-4 text-chestnut hover:bg-[color-mix(in_srgb,var(--color-ivory)_94%,var(--color-chestnut))]">
-                        <span className="flex min-w-0 items-center gap-3">
-                          <span className="min-w-0 flex-1 truncate font-heading text-xl font-bold leading-7" title={nameOf(l)}>
-                            {nameOf(l)}
-                          </span>
-                          <SignedAmount balance={l.balance.today} head={h.head} className="shrink-0 font-heading text-lg font-bold" />
-                          <ChevronRight className="size-5 shrink-0 text-chestnut/60" aria-hidden />
-                        </span>
-                        {(l.custom || !l.isActive || l.balance.postDated) && (
-                          <span className="flex min-w-0 flex-wrap items-center gap-2">
-                            {/* one the admin added, and whether it's still in use */}
-                            {l.custom && <span className="shrink-0 rounded-control border border-chestnut/40 px-1.5 py-0.5 text-[0.7rem]">{t("added")}</span>}
-                            {!l.isActive && <span className="shrink-0 rounded-control border border-current px-1.5 py-0.5 text-[0.7rem]">{t("inactive")}</span>}
-                            {l.balance.postDated && <span className="tabular text-xs text-chestnut/70">{t("postDated", { amount: postDatedText(l.balance.postDated, h.head) })}</span>}
-                          </span>
-                        )}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                {/* the ledgers directly under it, the same cards; set apart from the sub-groups above by a line, so groups
+                  and single ledgers read as two sets */}
+                {ledgers.length > 0 && (
+                  <ul
+                    className={cn(
+                      CARD_GRID,
+                      masters.length > 0 && "mt-6 border-t border-ivory/25 pt-6",
+                    )}
+                  >
+                    {/* sorted by the name as it reads in this language */}
+                    {[...ledgers]
+                      .sort((a, b) => nameOf(a).localeCompare(nameOf(b)))
+                      .map((l) => (
+                        <li key={l.id} className="min-w-0">
+                          <AccountCard
+                            oneLine
+                            href={`/account/ledgers/${l.id}`}
+                            name={nameOf(l)}
+                            title={nameOf(l)}
+                            inactive={!l.isActive}
+                            // one the admin added, and whether it's still in use
+                            tags={
+                              <>
+                                {l.custom && <CardTag>{t("added")}</CardTag>}
+                                {!l.isActive && <CardTag strong>{t("inactive")}</CardTag>}
+                              </>
+                            }
+                            amount={
+                              <SignedAmount
+                                balance={l.balance.today}
+                                head={h.head}
+                                className="font-heading text-xl font-bold leading-7"
+                              />
+                            }
+                            postDated={
+                              l.balance.postDated
+                                ? t("postDated", {
+                                    amount: postDatedText(l.balance.postDated, h.head),
+                                  })
+                                : null
+                            }
+                          />
+                        </li>
+                      ))}
+                  </ul>
+                )}
 
-              {/* nothing left after the search or the range */}
-              {needle !== "" && masters.length + ledgers.length === 0 && <p className="py-8 text-center text-ivory/70">{t("noMatch")}</p>}
-            </section>
+                {/* nothing left after the search or the range */}
+                {needle !== "" && masters.length + ledgers.length === 0 && (
+                  <p className="py-8 text-center text-ivory/70">{t("noMatch")}</p>
+                )}
+              </section>
             );
           })}
         </div>

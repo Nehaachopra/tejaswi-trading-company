@@ -10,10 +10,20 @@ import { useState } from "react";
 import { Sheet } from "~/components/ui/sheet";
 import { cn } from "~/lib/utils";
 
-import { isCurrent, isSubCurrent, NEW_TRANSACTION_HREF, type NavItem, navFor, type Role, isHead, sideOf, sideTag } from "./nav-items";
+import {
+  isCurrent,
+  isSubCurrent,
+  NEW_TRANSACTION_HREF,
+  type NavItem,
+  navFor,
+  type Role,
+  bySide,
+} from "./nav-items";
 
-const slot = "flex min-h-16 w-full flex-col items-center justify-center gap-1 px-1 text-xs transition-colors";
-const tone = (current: boolean) => (current ? "font-semibold text-chestnut" : "text-chestnut/80 hover:text-chestnut");
+const slot =
+  "flex min-h-16 w-full flex-col items-center justify-center gap-1 px-1 text-xs transition-colors";
+const tone = (current: boolean) =>
+  current ? "font-semibold text-chestnut" : "text-chestnut/80 hover:text-chestnut";
 
 // phones only, ivory: History · Stock · + · Orders · More, fixed to the bottom of the screen
 export function BottomBar({ role }: { role: Role }) {
@@ -25,7 +35,11 @@ export function BottomBar({ role }: { role: Role }) {
   const [toggled, setToggled] = useState<string[]>([]);
 
   const items = navFor(role);
-  const [history, stock, orders] = items.filter((i) => i.place === "bar") as [NavItem, NavItem, NavItem];
+  const [history, stock, orders] = items.filter((i) => i.place === "bar") as [
+    NavItem,
+    NavItem,
+    NavItem,
+  ];
   // staff have nothing in More, so their bar has no More button
   const more = items.filter((i) => i.place === "more");
   const inMore = more.some((i) => isCurrent(i.href, pathname));
@@ -58,13 +72,23 @@ export function BottomBar({ role }: { role: Role }) {
 
           {/* Orders */}
           <li>
-            <BarLink item={orders} current={isCurrent(orders.href, pathname)} label={t(orders.label)} />
+            <BarLink
+              item={orders}
+              current={isCurrent(orders.href, pathname)}
+              label={t(orders.label)}
+            />
           </li>
 
           {/* More: opens the sheet with the admin's remaining pages */}
           {more.length > 0 && (
             <li>
-              <button type="button" data-asks-first aria-expanded={moreOpen} onClick={() => setMoreOpen(true)} className={cn(slot, tone(inMore))}>
+              <button
+                type="button"
+                data-asks-first
+                aria-expanded={moreOpen}
+                onClick={() => setMoreOpen(true)}
+                className={cn(slot, tone(inMore))}
+              >
                 <MenuIcon className="size-5" aria-hidden />
                 {t("more")}
               </button>
@@ -78,14 +102,25 @@ export function BottomBar({ role }: { role: Role }) {
         open={moreOpen}
         title={t("more")}
         dismissible
-        visual={<Image src="/logo-transparent.png" alt="" width={1200} height={400} className="h-10 w-auto" />}
+        visual={
+          <Image
+            src="/logo-transparent.png"
+            alt=""
+            width={1200}
+            height={400}
+            className="h-10 w-auto"
+          />
+        }
         closeLabel={t("close")}
         onClose={() => setMoreOpen(false)}
       >
         <ul className="flex flex-col gap-1 overflow-y-auto p-3">
           {more.map((item) => {
             const current = isCurrent(item.href, pathname);
-            const rowClass = cn("flex min-h-12 w-full items-center gap-3 rounded-control px-3 text-left text-base", current ? "bg-chestnut font-medium text-ivory" : "hover:bg-chestnut/[0.06]");
+            const rowClass = cn(
+              "flex min-h-12 w-full items-center gap-3 rounded-control px-3 text-left text-base",
+              current ? "bg-chestnut font-medium text-ivory" : "hover:bg-chestnut/[0.06]",
+            );
             const groupOpen = current !== toggled.includes(item.href);
             return (
               <li key={item.href}>
@@ -94,38 +129,72 @@ export function BottomBar({ role }: { role: Role }) {
                   <button
                     type="button"
                     aria-expanded={groupOpen}
-                    onClick={() => setToggled((g) => (g.includes(item.href) ? g.filter((h) => h !== item.href) : [...g, item.href]))}
+                    onClick={() =>
+                      setToggled((g) =>
+                        g.includes(item.href)
+                          ? g.filter((h) => h !== item.href)
+                          : [...g, item.href],
+                      )
+                    }
                     className={rowClass}
                   >
-                    <item.icon className="size-5" aria-hidden /> <span className="flex-1">{t(item.label)}</span>
-                    <ChevronDown className={cn("size-4 transition-transform", groupOpen && "rotate-180")} aria-hidden />
+                    <item.icon className="size-5" aria-hidden />{" "}
+                    <span className="flex-1">{t(item.label)}</span>
+                    <ChevronDown
+                      className={cn("size-4 transition-transform", groupOpen && "rotate-180")}
+                      aria-hidden
+                    />
                   </button>
                 ) : (
-                  <Link href={item.href} onClick={() => setMoreOpen(false)} aria-current={current ? "page" : undefined} className={rowClass}>
+                  <Link
+                    href={item.href}
+                    onClick={() => setMoreOpen(false)}
+                    aria-current={current ? "page" : undefined}
+                    className={rowClass}
+                  >
                     <item.icon className="size-5" aria-hidden /> {t(item.label)}
                   </Link>
                 )}
                 {/* its pages, indented (Accounts: the six heads) */}
                 {item.children && groupOpen && (
-                  <ul className="mt-1 flex flex-col gap-0.5 pl-8">
-                    {item.children.map((child) => {
-                      const here = isSubCurrent(child, pathname);
-                      return (
-                        <li key={child.href}>
-                          <Link
-                            href={child.href}
-                            onClick={() => setMoreOpen(false)}
-                            aria-current={here ? "page" : undefined}
-                            className={cn("flex min-h-11 items-center rounded-control px-3 text-base", here ? "bg-chestnut/10 font-semibold" : "hover:bg-chestnut/[0.06]")}
-                          >
-                            <span className="flex-1">{t(`heads.${child.label}`)}</span>
-                            {/* debit or credit account */}
-                            {isHead(child.label) && <span className={sideTag(child.label)}>{t(sideOf(child.label))}</span>}
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
+                  <div className="mt-1 flex flex-col gap-1 pl-8">
+                    {/* Accounts: the heads under Debit and Credit, each a small heading, then Opening balances */}
+                    {bySide(item.children).map((g) => (
+                      <div
+                        key={g.side ?? "rest"}
+                        // Debit and Credit each with a thin line under its heading, so the two read apart at a glance
+                        className="flex flex-col gap-0.5 pt-1.5 first:pt-0"
+                      >
+                        {g.side && (
+                          <p className="px-3 pt-1 text-xs font-semibold uppercase tracking-[0.08em] text-chestnut/50 mx-3 border-b border-chestnut/20 !px-0 pb-1">
+                            {t(g.side)}
+                          </p>
+                        )}
+                        <ul className="flex flex-col gap-0.5">
+                          {g.items.map((child) => {
+                            const here = isSubCurrent(child, pathname);
+                            return (
+                              <li key={child.href}>
+                                <Link
+                                  href={child.href}
+                                  onClick={() => setMoreOpen(false)}
+                                  aria-current={here ? "page" : undefined}
+                                  className={cn(
+                                    "flex min-h-11 items-center rounded-control px-3 text-base",
+                                    here
+                                      ? "bg-chestnut/10 font-semibold"
+                                      : "hover:bg-chestnut/[0.06]",
+                                  )}
+                                >
+                                  {t(`heads.${child.label}`)}
+                                </Link>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </li>
             );
@@ -139,7 +208,11 @@ export function BottomBar({ role }: { role: Role }) {
 // one icon-and-label slot in the bar
 function BarLink({ item, current, label }: { item: NavItem; current: boolean; label: string }) {
   return (
-    <Link href={item.href} aria-current={current ? "page" : undefined} className={cn(slot, tone(current))}>
+    <Link
+      href={item.href}
+      aria-current={current ? "page" : undefined}
+      className={cn(slot, tone(current))}
+    >
       <item.icon className="size-5" aria-hidden />
       {label}
     </Link>

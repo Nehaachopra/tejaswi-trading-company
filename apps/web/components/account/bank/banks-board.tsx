@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ChevronRight, CircleAlert } from "lucide-react";
+import { ArrowLeft, CircleAlert } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -16,6 +16,7 @@ import { chip } from "../../product/row-styles";
 import { postDatedText } from "../balance";
 import { GroupHeader, GroupSearch } from "../group-header";
 import { SignedAmount } from "../signed-amount";
+import { AccountCard, CARD_GRID, CARD_LINE, CardTag } from "../account-card";
 
 // /account/bank, admin only and view only (accounts are added and edited in Entities → Bank accounts): a search (bank, branch, IFSC or account number) with Show
 // inactive, both staying under the header, then a card per account (bank, ••last 4 and type on the left, today's
@@ -86,53 +87,36 @@ export function BanksBoard() {
           )}
         </p>
       ) : (
-        <ul className="mt-2 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <ul className={cn("mt-2", CARD_GRID)}>
           {shown.map((b) => (
             <li key={b.id} className="min-w-0">
-              {/* as the Entities card: the bank (with inactive), then its last digits and type on the left; on the right
-                  the balance on top and the arrow under it that opens it */}
-              <Link
+              {/* the shared card: the bank (with inactive), its last digits and type; the balance and the arrow that
+                  opens it on the right */}
+              <AccountCard
                 href={`/account/bank/${b.id}`}
-                className={cn(
-                  "flex min-w-0 items-center gap-2 rounded-control border p-2 pl-4",
-                  b.isActive
-                    ? "on-ivory border-ivory bg-ivory text-chestnut"
-                    : "border-dashed border-ivory/60 text-ivory",
-                )}
-              >
-                <span className="min-w-0 flex-1 py-1.5">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <span
-                      className="truncate font-heading text-xl font-bold leading-7"
-                      title={bankName(b.bankName)}
-                    >
-                      {bankName(b.bankName)}
-                    </span>
-                    {!b.isActive && (
-                      <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">
-                        {t("inactive")}
-                      </span>
-                    )}
-                  </span>
-                  <span className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs opacity-70">
+                name={bankName(b.bankName)}
+                title={bankName(b.bankName)}
+                inactive={!b.isActive}
+                tags={!b.isActive && <CardTag strong>{t("inactive")}</CardTag>}
+                lines={
+                  <span className={CARD_LINE}>
                     <span className="tabular">••{b.last4}</span>
                     <span className="truncate">{t(`form.types.${b.accountType}`)}</span>
                   </span>
-                </span>
-                <span className="flex shrink-0 flex-col items-end gap-1 py-1.5 pr-2">
+                }
+                amount={
                   <SignedAmount
                     balance={b.balance.today}
                     head="asset"
                     className="font-heading text-xl font-bold leading-7"
                   />
-                  {b.balance.postDated && (
-                    <span className="tabular text-xs opacity-70">
-                      {t("postDated", { amount: postDatedText(b.balance.postDated, "asset") })}
-                    </span>
-                  )}
-                  <ChevronRight className="size-5 opacity-60" aria-hidden />
-                </span>
-              </Link>
+                }
+                postDated={
+                  b.balance.postDated
+                    ? t("postDated", { amount: postDatedText(b.balance.postDated, "asset") })
+                    : null
+                }
+              />
             </li>
           ))}
         </ul>

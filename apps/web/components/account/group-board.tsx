@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ChevronRight, CircleAlert } from "lucide-react";
+import { ArrowLeft, CircleAlert } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -8,13 +8,13 @@ import { useState } from "react";
 import { PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
-import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 
 import { postDatedText } from "./balance";
 import { GroupHeader, GroupSearch } from "./group-header";
 import { useLedgerName } from "./ledger-name";
 import { SignedAmount } from "./signed-amount";
+import { AccountCard, CARD_GRID, CardTag } from "./account-card";
 
 type Group = "lenders" | "personalLenders" | "agents" | "rentPayable" | "employees" | "gstPayable";
 
@@ -31,12 +31,18 @@ export function GroupBoard({ master }: { master: Group }) {
   // a search over the ledger's name and a party's full name
   const [search, setSearch] = useState("");
   const needle = search.trim().toLowerCase();
-  const shown = (ledgers.data ?? []).filter((l) => needle === "" || [nameOf(l), l.fullName ?? ""].some((v) => v.toLowerCase().includes(needle)));
+  const shown = (ledgers.data ?? []).filter(
+    (l) =>
+      needle === "" || [nameOf(l), l.fullName ?? ""].some((v) => v.toLowerCase().includes(needle)),
+  );
 
   return (
     <main className={`${PAGE} pb-16`}>
       {/* back to the head it sits under */}
-      <Link href={`/account/${head}`} className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
+      <Link
+        href={`/account/${head}`}
+        className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory"
+      >
         <ArrowLeft className="size-4" aria-hidden /> {t(`heads.${head}`)}
       </Link>
 
@@ -54,44 +60,49 @@ export function GroupBoard({ master }: { master: Group }) {
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
       ) : shown.length === 0 ? (
-        <p className="mt-16 text-center text-ivory/70">{needle ? t("noMatch") : t("ledgers", { count: 0 })}</p>
+        <p className="mt-16 text-center text-ivory/70">
+          {needle ? t("noMatch") : t("ledgers", { count: 0 })}
+        </p>
       ) : (
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className={CARD_GRID}>
           {/* by name; GST payable keeps the server's order (output GST, then reverse charge) */}
           {[...shown]
             .sort((a, b) => (master === "gstPayable" ? 0 : nameOf(a).localeCompare(nameOf(b))))
             .map((l) => {
-              const full = l.fullName && titleCase(l.fullName.toLowerCase()) !== nameOf(l) ? titleCase(l.fullName.toLowerCase()) : null;
+              const full =
+                l.fullName && titleCase(l.fullName.toLowerCase()) !== nameOf(l)
+                  ? titleCase(l.fullName.toLowerCase())
+                  : null;
               return (
                 <li key={l.id} className="min-w-0">
-                  <Link
+                  <AccountCard
+                    oneLine
                     href={`/account/ledgers/${l.id}`}
-                    className={cn(
-                      "flex min-w-0 flex-col gap-1 rounded-control border p-4",
-                      l.isActive
-                        ? "on-ivory border-ivory bg-ivory text-chestnut hover:bg-[color-mix(in_srgb,var(--color-ivory)_94%,var(--color-chestnut))]"
-                        : "border-dashed border-ivory/60 text-ivory",
-                    )}
-                  >
-                    <span className="flex min-w-0 items-center gap-3">
-                      <span className="min-w-0 flex-1 truncate font-heading text-xl font-bold leading-7" title={nameOf(l)}>
-                        {nameOf(l)}
-                      </span>
-                      <SignedAmount balance={l.balance.today} head={head} className="shrink-0 font-heading text-lg font-bold" />
-                      <ChevronRight className="size-5 shrink-0 opacity-60" aria-hidden />
-                    </span>
-                    {(full || !l.isActive || l.balance.postDated) && (
-                      <span className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
-                        {full && (
-                          <span className="min-w-0 truncate" title={full}>
-                            {full}
-                          </span>
-                        )}
-                        {!l.isActive && <span className="shrink-0 rounded-control border border-current px-1.5 py-0.5 text-[0.7rem]">{t("inactive")}</span>}
-                        {l.balance.postDated && <span className="tabular text-xs opacity-70">{t("postDated", { amount: postDatedText(l.balance.postDated, head) })}</span>}
-                      </span>
-                    )}
-                  </Link>
+                    name={nameOf(l)}
+                    title={nameOf(l)}
+                    inactive={!l.isActive}
+                    tags={!l.isActive && <CardTag strong>{t("inactive")}</CardTag>}
+                    // its full name under a short one
+                    lines={
+                      full && (
+                        <span className="block truncate text-sm" title={full}>
+                          {full}
+                        </span>
+                      )
+                    }
+                    amount={
+                      <SignedAmount
+                        balance={l.balance.today}
+                        head={head}
+                        className="font-heading text-xl font-bold leading-7"
+                      />
+                    }
+                    postDated={
+                      l.balance.postDated
+                        ? t("postDated", { amount: postDatedText(l.balance.postDated, head) })
+                        : null
+                    }
+                  />
                 </li>
               );
             })}

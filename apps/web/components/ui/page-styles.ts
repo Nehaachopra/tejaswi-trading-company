@@ -4,16 +4,27 @@
 export const PAGE = "mx-auto w-full max-w-6xl px-4 pt-6 sm:px-6";
 
 // the filters' row, staying under the header while the list scrolls
-const BAR = "z-20 -mx-4 flex flex-wrap items-center gap-2 bg-chestnut px-4 py-2 sm:-mx-6 sm:flex-nowrap sm:px-6";
+const BAR =
+  "z-20 -mx-4 flex flex-wrap items-center gap-2 bg-chestnut px-4 py-2 sm:-mx-6 sm:flex-nowrap sm:px-6";
 export const FILTER_BAR = `sticky top-16 ${BAR}`;
 // the same row on a page with tabs that stay too: just under them
 export const FILTER_BAR_UNDER_TABS = `sticky top-[6.8125rem] ${BAR}`;
+
+// a list page's bar in two rows (the Entities pages): the name and count, then the search and filters on the right;
+// + Add under them; a line under it all, before the cards start. It scrolls away with the page (not pinned)
+export const FILTER_STACK =
+  "-mx-4 flex flex-col gap-2.5 border-b border-ivory/25 px-4 pb-3 pt-2 sm:-mx-6 sm:px-6";
+// its search and filters: as tall as + Add, the same soft corner
+export const FILTER_CONTROL = "min-h-12 rounded-control";
+// one row in it
+export const FILTER_ROW = "flex flex-wrap items-center gap-2 sm:flex-nowrap";
 
 // a dropdown in the filters; the same size as a filter chip
 export const FILTER_TRIGGER = "min-h-9 min-w-0 max-w-48 gap-1.5 px-3 text-sm";
 
 // a list's + Add button on the chestnut page
-export const ADD_BUTTON = "on-ivory flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-ivory px-5 font-heading text-lg font-bold text-chestnut sm:w-fit";
+export const ADD_BUTTON =
+  "on-ivory flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-ivory px-5 font-heading text-lg font-bold text-chestnut sm:w-fit";
 
 // a + Add button on an ivory card or sheet: ivory too, with a chestnut outline so it reads as a button; full width on
 // a phone, like every button
@@ -31,5 +42,7 @@ export const PICK_LIST = "flex flex-col overflow-x-hidden sm:max-h-80 sm:overflo
 export const PICK_TWO_COLUMNS = "sm:grid sm:grid-cols-2 sm:content-start sm:gap-x-6";
 export const PICK_ROW =
   "flex min-h-12 w-full shrink-0 items-center gap-2 border-b border-chestnut/20 px-1 py-2.5 text-left transition-colors last:border-b-0 hover:bg-chestnut/[0.05]";
-export const PICK_NEW = "sticky bottom-0 col-span-full mt-auto flex flex-col gap-2 bg-ivory pt-4 sm:flex-row sm:justify-center";
-export const PICKED = "flex min-h-12 w-full shrink-0 items-center gap-2 rounded-control border-2 border-chestnut bg-chestnut px-3 py-2 text-left text-ivory";
+export const PICK_NEW =
+  "sticky bottom-0 col-span-full mt-auto flex flex-col gap-2 bg-ivory pt-4 sm:flex-row sm:justify-center";
+export const PICKED =
+  "flex min-h-12 w-full shrink-0 items-center gap-2 rounded-control border-2 border-chestnut bg-chestnut px-3 py-2 text-left text-ivory";
