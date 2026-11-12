@@ -42,7 +42,7 @@ function GodownProductCard({ group, canMove, onMove }: { group: GodownProduct; c
 
       {/* the product on the left, the quantity here on the right */}
       <div className="flex min-w-0 items-center gap-2.5">
-        <ProductImage group={group} imageUrl={pack.imageUrl ?? group.imageUrl} className="size-14 shrink-0 [&_span]:text-lg" />
+        <ProductImage group={group} imageUrl={pack.imageUrl} className="size-14 shrink-0 [&_span]:text-lg" />
         <div className="min-w-0 flex-1">
           <p className="truncate font-heading text-base font-bold leading-6" title={productTitle(group)}>
             {productTitle(group)}

@@ -234,7 +234,7 @@
       "priceBeforeGst": "GST ಮೊದಲು ಬೆಲೆ",
       "gst": "GST",
       "gstAmount": "GST ({gst}%)",
-      "priceWithGst": "GST ಸೇರಿ ಬೆಲೆ",
+      "priceWithGst": "ಬೆಲೆ + GST",
       "packSizes": "ಪ್ಯಾಕ್ ಗಾತ್ರಗಳು",
       "details": "ವಿವರಗಳು",
       "close": "ಮುಚ್ಚಿ",
@@ -284,7 +284,7 @@
         },
         "price": "ಬೆಲೆ",
         "summary": "ಈಗಿನ ಬೆಲೆ {price}",
-        "empty": "ಇನ್ನೂ ಬೆಲೆ ಇತಿಹಾಸವಿಲ್ಲ"
+        "empty": "ಬೆಲೆ ಇತಿಹಾಸ ಲಭ್ಯವಿಲ್ಲ"
       },
       "form": {
         "addTitle": "ಉತ್ಪನ್ನ ಸೇರಿಸಿ",
@@ -336,9 +336,23 @@
           "duplicate": "ಪುನರಾವರ್ತಿತ ಪ್ಯಾಕ್ ಗಾತ್ರ: {packs}."
         },
         "rate": "ದರ / {unit}",
-        "newPack": "ಹೊಸದು"
+        "newPack": "ಹೊಸದು",
+        "optional": "(ಐಚ್ಛಿಕ)",
+        "pick": "ಆಯ್ಕೆಮಾಡಿ",
+        "newCategory": "ಹೊಸ ವರ್ಗ",
+        "newSubCategory": "ಹೊಸ ಉಪ-ವರ್ಗ",
+        "newSubCategoryName": "ಹೊಸ ಉಪ-ವರ್ಗ",
+        "add": "ಸೇರಿಸಿ",
+        "packUnit": "ಪ್ಯಾಕ್ ಘಟಕ",
+        "replacePhoto": "ಫೋಟೋ ಬದಲಿಸಿ"
       },
-      "rateLabel": "ದರ / {unit}"
+      "rateLabel": "ದರ / {unit}",
+      "ratePer": "ದರ / {unit}",
+      "profitEarnable": "ಗಳಿಸಬಹುದಾದ ಲಾಭ",
+      "loss": "ನಷ್ಟ",
+      "available": "ಲಭ್ಯ",
+      "quantity": "ಪ್ರಮಾಣ",
+      "quantityDetails": "ಪ್ರಮಾಣದ ವಿವರಗಳು"
     }
   },
   "settings": {

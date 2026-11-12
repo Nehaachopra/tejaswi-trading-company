@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, db, desc, eq, gte, ilike, inArray, lt, or } from "@repo/database";
+import { and, asc, db, desc, eq, gte, ilike, inArray, lt, or, sql } from "@repo/database";
 import {
   categoriesTable,
   productCostHistoryTable,
@@ -55,8 +55,8 @@ function isStillReferenced(error: unknown) {
 }
 
 // the financial year runs April to March
-function rangeStart(range: "3m" | "fy" | "all", today = new Date()) {
-  if (range === "all") return null;
+function rangeStart(range: "3m" | "fy" | "all" | "recent", today = new Date()) {
+  if (range === "all" || range === "recent") return null;
   if (range === "fy") {
     const year = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
     return new Date(year, 3, 1);
@@ -242,12 +242,20 @@ export default class ProductService {
     });
   }
 
-  // brand, name, category, sub-category and HSN of a product, for all its pack sizes at once;
-  // it can only move into an active category and sub-category
-  async updateDetails(input: UpdateDetailsInputModel) {
+  // brand, name, category, sub-category and HSN of a product, for all its pack sizes at once, with one pack
+  // size's unit, size, own HSN, GST % and active switch; all or nothing. It can only move into an active
+  // category and sub-category
+  async updateDetails(input: UpdateDetailsInputModel, actor: ActorModel) {
+    const { pack } = input;
+    if (!input.productIds.includes(pack.productId)) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "That pack size isn't part of this product." });
+    }
+    const hsn4Digit = input.hsn ? input.hsn.slice(0, 4) : null;
     try {
       await db.transaction(async (tx) => {
         await this.assertActiveSubCategory(tx, input.categoryId, input.subCategoryId);
+
+        // the shared details, on every pack size
         const updated = await tx
           .update(productsTable)
           .set({
@@ -255,12 +263,57 @@ export default class ProductService {
             subCategoryId: input.subCategoryId,
             brand: input.brand,
             name: input.name,
-            hsn4Digit: input.hsn4Digit,
+            hsn4Digit,
           })
           .where(inArray(productsTable.id, input.productIds))
           .returning({ id: productsTable.id });
         if (updated.length !== input.productIds.length) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Product not found." });
+        }
+
+        // this pack size's own: unit, size, active, and its 8-digit HSN (if 8 were typed)
+        await tx
+          .update(productsTable)
+          .set({
+            packSizeCode: pack.packSizeCode,
+            packSize: pack.packSize,
+            isActive: pack.isActive,
+            hsn8Digit: input.hsn?.length === 8 ? input.hsn : null,
+          })
+          .where(eq(productsTable.id, pack.productId));
+
+        // the other pack sizes keep an 8-digit HSN only while it still starts with the shared 4
+        const others = input.productIds.filter((id) => id !== pack.productId);
+        if (others.length > 0) {
+          await tx
+            .update(productsTable)
+            .set({ hsn8Digit: null })
+            .where(
+              and(
+                inArray(productsTable.id, others),
+                hsn4Digit ? sql`left(${productsTable.hsn8Digit}, 4) <> ${hsn4Digit}` : undefined,
+              ),
+            );
+        }
+
+        // a new GST %: the price with GST stays, before-GST and GST are worked out again and logged
+        const [current] = await tx
+          .select({ priceAfterGst: productPricesTable.priceAfterGst, gstPercent: productPricesTable.gstPercent })
+          .from(productPricesTable)
+          .where(eq(productPricesTable.productId, pack.productId));
+        if (!current) throw new TRPCError({ code: "BAD_REQUEST", message: "Set the price for this pack size first." });
+        if (Number(current.gstPercent) !== pack.gstPercent) {
+          const price = splitPrice(Number(current.priceAfterGst), pack.gstPercent);
+          await tx
+            .update(productPricesTable)
+            .set({ ...price, updatedAt: new Date() })
+            .where(eq(productPricesTable.productId, pack.productId));
+          await tx.insert(productPriceHistoryTable).values({
+            productId: pack.productId,
+            ...price,
+            changedById: actor.id,
+            changedByName: actor.name,
+          });
         }
         // the photo belongs to one pack size
         if (input.image) {
@@ -333,6 +386,23 @@ export default class ProductService {
 
     const samePrice = eq(productPriceHistoryTable.productId, input.productId);
     const sameCost = eq(productCostHistoryTable.productId, input.productId);
+
+    // the last 5 price changes, oldest first; no cost line
+    if (input.range === "recent") {
+      const recent = await db.select(priceColumns).from(productPriceHistoryTable)
+        .where(samePrice)
+        .orderBy(desc(productPriceHistoryTable.createdAt))
+        .limit(5);
+      return {
+        prices: recent.reverse().map((p) => ({
+          at: p.at.toISOString(),
+          priceAfterGst: Number(p.priceAfterGst),
+          gstPercent: Number(p.gstPercent),
+          changedByName: p.changedByName,
+        })),
+        costs: [],
+      };
+    }
 
     const [prices, costs, priceBefore, costBefore] = await Promise.all([
       db.select(priceColumns).from(productPriceHistoryTable)

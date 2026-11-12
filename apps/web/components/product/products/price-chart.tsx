@@ -1,19 +1,16 @@
 "use client";
 
-import { useFormatter, useTranslations } from "next-intl";
-import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { useId, useState } from "react";
 
 import { Spinner } from "~/components/ui/spinner";
 import { rupees } from "~/lib/format";
-import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 
-type Range = "3m" | "fy" | "all";
-const RANGES: Range[] = ["3m", "fy", "all"];
-
-const W = 320;
-const H = 140;
-const PAD = { top: 12, right: 10, bottom: 20, left: 10 };
+// the drawing's own units; it scales to the card's width
+const W = 160;
+const H = 80;
+const PAD = { top: 8, right: 8, bottom: 16, left: 8 };
 
 // a smooth line through the points that never overshoots them (monotone cubic, Fritsch–Carlson),
 // so a price that only went up never dips on the way
@@ -38,91 +35,95 @@ function smoothPath(pts: { x: number; y: number }[]) {
   return d;
 }
 
-// one pack size's selling price as a smooth line, over 3 months, this financial year or all time
+// one pack size's last 5 saved price changes as a smooth line with a fade under it; only saved prices, never the
+// one being typed. Only the first and last dates are written; a tap or hover shows a point's price
 export function PriceChart({ productId }: { productId: string }) {
   const t = useTranslations("products.items.chart");
-  const format = useFormatter();
-  const [range, setRange] = useState<Range>("fy");
-  const history = trpc.inventory.product.priceHistory.useQuery({ productId, range });
+  const locale = useLocale();
+  const fadeId = useId();
+  const history = trpc.inventory.product.priceHistory.useQuery({ productId, range: "recent" });
+  const [tip, setTip] = useState<number | null>(null);
 
-  // the price points, in time order
-  const prices = (history.data?.prices ?? []).map((p) => ({ at: new Date(p.at).getTime(), value: p.priceAfterGst }));
-  const now = Date.now();
-  const last = prices[prices.length - 1];
+  if (history.isPending) {
+    return (
+      <div className="grid h-20 place-items-center text-chestnut/70">
+        <Spinner />
+      </div>
+    );
+  }
 
-  // the scales: time from the first price to today, prices with a little room above and below
-  const t0 = prices.length ? prices[0]!.at : now;
-  const values = prices.map((p) => p.value);
-  const lo = values.length ? Math.min(...values) : 0;
-  const hi = values.length ? Math.max(...values) : 1;
-  const room = Math.max((hi - lo) * 0.15, hi * 0.02, 1);
-  const min = lo - room;
-  const max = hi + room;
-  const x = (at: number) => PAD.left + ((at - t0) / Math.max(now - t0, 1)) * (W - PAD.left - PAD.right);
-  const y = (v: number) => PAD.top + (1 - (v - min) / (max - min)) * (H - PAD.top - PAD.bottom);
+  // the points: saved prices only
+  // dates in words, the Indian way round: 22 Oct 2026
+  const day = (at: string) =>
+    new Date(at).toLocaleDateString(`${locale}-IN`, { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+  const pts = (history.data?.prices ?? []).map((p) => ({ label: day(p.at), value: p.priceAfterGst }));
+  const latest = pts[pts.length - 1]?.value;
+  // one price alone (the first one, set when the pack size was added) is no history yet
+  if (pts.length <= 1) return <p className="py-4 text-center text-xs text-chestnut/60">{t("empty")}</p>;
 
-  // the line runs on to today at the latest price, so it reaches the right edge; the area under it is lightly filled
-  const pts = [...prices, ...(last ? [{ at: now, value: last.value }] : [])].map((p) => ({ x: x(p.at), y: y(p.value) }));
-  const line = smoothPath(pts);
-  const area = pts.length > 1 ? `${line}L${pts[pts.length - 1]!.x},${H - PAD.bottom}L${pts[0]!.x},${H - PAD.bottom}Z` : "";
+  // the scales: one price alone sits in the middle; prices get a little room above and below
+  const values = pts.map((p) => p.value);
+  const pad = (Math.max(...values) - Math.min(...values)) * 0.15 || Math.max(...values) * 0.1 || 1;
+  const lo = Math.max(0, Math.min(...values) - pad);
+  const hi = Math.max(...values) + pad;
+  const x = (i: number) => (pts.length === 1 ? (PAD.left + W - PAD.right) / 2 : PAD.left + (i * (W - PAD.left - PAD.right)) / (pts.length - 1));
+  const y = (v: number) => PAD.top + (1 - (v - lo) / (hi - lo)) * (H - PAD.top - PAD.bottom);
 
-  const when = (at: number) => format.dateTime(new Date(at), { month: "short", year: "2-digit" });
+  // the line through the prices, and the same line closed down to the base for the fade
+  const line = smoothPath(pts.map((p, i) => ({ x: x(i), y: y(p.value) })));
+  const base = H - PAD.bottom;
+  const last = pts.length - 1;
+  const area = pts.length > 1 ? `${line}L${x(last)},${base}L${x(0)},${base}Z` : "";
+  const shown = tip == null ? null : pts[tip];
 
   return (
-    <figure className="flex flex-col gap-2">
-      {/* title and the range toggle */}
-      <div className="flex items-center justify-between gap-2">
-        <figcaption className="text-xs text-chestnut/80">{t("title")}</figcaption>
-        <div role="group" aria-label={t("range")} className="flex rounded-control border border-chestnut/50 p-0.5 text-xs">
-          {RANGES.map((r) => (
-            <button
-              key={r}
-              type="button"
-              aria-pressed={range === r}
-              onClick={() => setRange(r)}
-              className={cn("rounded-control px-2.5 py-1", range === r ? "bg-chestnut font-medium text-ivory" : "text-chestnut/80 hover:text-chestnut")}
-            >
-              {t(`ranges.${r}`)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* the chart, or a spinner while it loads */}
-      {history.isPending ? (
-        <div className="grid h-[140px] place-items-center text-chestnut/70">
-          <Spinner />
-        </div>
-      ) : (
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          className="h-auto w-full"
-          role="img"
-          aria-label={last ? t("summary", { price: rupees(last.value) }) : t("empty")}
+    <figure className="relative">
+      <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full overflow-visible" role="img" aria-label={latest != null ? t("summary", { price: rupees(latest) }) : t("empty")}>
+        <defs>
+          <linearGradient id={fadeId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="var(--color-chestnut)" stopOpacity={0.32} />
+            <stop offset="1" stopColor="var(--color-chestnut)" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <line x1={PAD.left} x2={W - PAD.right} y1={base} y2={base} className="stroke-chestnut/15" />
+        {/* the first and last dates only */}
+        {last === 0 ? (
+          <text x={x(0)} y={H - 3} textAnchor="middle" className="tabular fill-chestnut/60 text-[7.5px] font-medium">{pts[0]!.label}</text>
+        ) : (
+          <>
+            <text x={x(0)} y={H - 3} textAnchor="start" className="tabular fill-chestnut/60 text-[7.5px] font-medium">{pts[0]!.label}</text>
+            <text x={x(last)} y={H - 3} textAnchor="end" className="tabular fill-chestnut/60 text-[7.5px] font-medium">{pts[last]!.label}</text>
+          </>
+        )}
+        {area && <path d={area} fill={`url(#${fadeId})`} />}
+        <path d={line} fill="none" className="stroke-chestnut" strokeWidth={2} strokeLinecap="round" />
+        {pts.map((p, i) => (
+          <circle key={i} cx={x(i)} cy={y(p.value)} r={4} strokeWidth={2} className="fill-chestnut stroke-ivory" />
+        ))}
+        {/* wide tap targets, one per point */}
+        {pts.map((p, i) => (
+          <rect
+            key={`hit-${i}`}
+            x={x(i) - 12}
+            y={PAD.top}
+            width={24}
+            height={H - PAD.top - PAD.bottom}
+            fill="transparent"
+            onPointerEnter={() => setTip(i)}
+            onPointerDown={() => setTip(i)}
+            onPointerLeave={() => setTip(null)}
+          />
+        ))}
+      </svg>
+      {/* the point's date and price */}
+      {shown && tip != null && (
+        <span
+          className="tabular pointer-events-none absolute -translate-x-1/2 -translate-y-[120%] whitespace-nowrap rounded-[8px] bg-chestnut px-[7px] py-1 text-[11px] text-ivory"
+          style={{ left: `${(x(tip) / W) * 100}%`, top: `${(y(shown.value) / H) * 100}%` }}
         >
-          <line x1={PAD.left} x2={W - PAD.right} y1={H - PAD.bottom} y2={H - PAD.bottom} className="stroke-chestnut/20" />
-          {area && <path d={area} className="fill-chestnut/8" />}
-          {line && <path d={line} fill="none" className="stroke-chestnut" strokeWidth={2} strokeLinecap="round" />}
-          {prices.map((p) => (
-            <circle key={p.at} cx={x(p.at)} cy={y(p.value)} r={2.5} className="fill-ivory stroke-chestnut" strokeWidth={1.5} />
-          ))}
-          {last && (
-            <>
-              <circle cx={x(now)} cy={y(last.value)} r={3.5} className="fill-chestnut" />
-              <text x={x(now) - 6} y={y(last.value) - 7} textAnchor="end" className="tabular fill-chestnut text-[10px] font-semibold">
-                {rupees(last.value)}
-              </text>
-            </>
-          )}
-          <text x={PAD.left} y={H - 4} className="fill-chestnut/70 text-[9px]">
-            {when(t0)}
-          </text>
-          <text x={W - PAD.right} y={H - 4} textAnchor="end" className="fill-chestnut/70 text-[9px]">
-            {when(now)}
-          </text>
-        </svg>
+          {shown.label}: {rupees(shown.value)}
+        </span>
       )}
-
     </figure>
   );
 }

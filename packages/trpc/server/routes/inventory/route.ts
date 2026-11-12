@@ -140,12 +140,13 @@ const productRouter = router({
     .output(priceHistoryModel)
     .query(({ input }) => productService.priceHistory(input)),
 
-  // brand, name, category, sub-category and HSN, for all of a product's pack sizes
+  // brand, name, category, sub-category and HSN, for all of a product's pack sizes, with one pack size's unit,
+  // size, GST % and active switch
   updateDetails: adminProcedure
     .meta({ openapi: { method: "POST", path: "/inventory/products/details", tags: ["inventory"] } })
     .input(updateDetailsInputModel)
     .output(z.object({ success: z.literal(true) }))
-    .mutation(({ input }) => productService.updateDetails(input)),
+    .mutation(({ ctx, input }) => productService.updateDetails(input, ctx.session.user)),
 
   setActive: adminProcedure
     .meta({ openapi: { method: "POST", path: "/inventory/products/active", tags: ["inventory"] } })

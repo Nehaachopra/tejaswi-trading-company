@@ -1,160 +1,173 @@
 "use client";
 
-import { Plus, Power, Trash2 } from "lucide-react";
+import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 
-import { addSquare } from "~/components/ui/page-styles";
-import { ConfirmDialog } from "~/components/ui/confirm-dialog";
+import { SubmitButton } from "~/components/ui/card-form";
+import { FieldMessage } from "~/components/ui/field-message";
 import { Sheet } from "~/components/ui/sheet";
-import { Spinner } from "~/components/ui/spinner";
+import { Switch } from "~/components/ui/switch";
 import { toast } from "~/components/ui/toast";
-import { packLabel } from "~/lib/format";
-import { cn } from "~/lib/utils";
+import { packLabel, titleCase } from "~/lib/format";
 import { trpc } from "~/trpc/client";
 
+import { PlainRows } from "../../transaction/shared/amount-table";
 import { categoryError } from "../categories/category-errors";
-import { PackChips } from "./pack-chips";
-import { PriceChart } from "./price-chart";
-import { ProductDetails } from "./product-details";
-import { ProductPrice } from "./product-price";
+import { type DetailsDraft, draftFrom, draftOk, ProductDetails } from "./product-details";
 import { type ProductGroup, productTitle } from "./product-tile";
 
-// a small square button in the header
-const headerButton =
-  "grid size-9 shrink-0 place-items-center rounded-control border border-chestnut/50 hover:border-chestnut disabled:not-aria-busy:opacity-30 aria-busy:opacity-80";
+// a part's heading, as the payment's Breakup is headed
+const heading = "-mb-1 text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
+// the line and room above the second and third parts
+const part = "mt-2.5 border-t border-chestnut/15 pt-[18px]";
 
-// everything about one product, opened from its tile on the pack size that tile showed
+const round2 = (v: number) => Math.round(v * 100) / 100;
+
+// one pack size's details drawer, opened from the pen on its card's photo: Active and ✕ on top, then Product details
+// (all changeable), Price details and Quantity details (both read only), and Save details
 export function ProductSheet({
   group,
   packId,
-  onPack,
   onClose,
-  onAddPack,
 }: {
   group: ProductGroup | null;
   packId: string | null;
-  onPack: (productId: string) => void;
   onClose: () => void;
-  onAddPack: (group: ProductGroup) => void;
 }) {
   const t = useTranslations("products.items");
+  const tc = useTranslations("common");
   const utils = trpc.useUtils();
-  const setActive = trpc.inventory.product.setActive.useMutation();
-  const remove = trpc.inventory.product.delete.useMutation();
-  const [confirming, setConfirming] = useState(false);
+  const update = trpc.inventory.product.updateDetails.useMutation();
+  const activeLabel = useId();
+  const pack = group?.packs.find((p) => p.productId === packId) ?? null;
 
-  // the pack size shown; a pack that just went away (deactivated, deleted) falls back to the first
-  const pack = group?.packs.find((p) => p.productId === packId) ?? group?.packs[0] ?? null;
+  const [draft, setDraft] = useState<DetailsDraft | null>(null);
+  const [tried, setTried] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!group || !pack) return <Sheet open={false} title="" closeLabel="" onClose={onClose}>{null}</Sheet>;
+  // copy the saved details once when it opens (or opens on another pack size): a live refresh while it's open
+  // doesn't overwrite what's being typed
+  useEffect(() => {
+    if (!group || !pack) return setDraft(null);
+    setDraft(draftFrom(group, pack));
+    setTried(false);
+    setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when it opens on a pack size
+  }, [pack?.productId]);
 
-  const label = packLabel(pack.packSize, pack.packSizeCode);
-  const refresh = () => {
-    void utils.inventory.product.list.invalidate();
-    void utils.inventory.category.list.invalidate();
+  if (!group || !pack || !draft) return <Sheet open={false} title="" closeLabel="" onClose={onClose}>{null}</Sheet>;
+
+  const change = (patch: Partial<DetailsDraft>) => {
+    setError(null);
+    setDraft((d) => (d ? { ...d, ...patch } : d));
   };
 
-  // deactivate or reactivate this pack size
-  async function toggleActive() {
+  // save everything at once; a new GST % keeps the price with GST
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setTried(true);
+    setError(null);
+    if (!draft || !draftOk(draft) || photoBusy) return;
+    const saved = draftFrom(group!, pack!);
     try {
-      await setActive.mutateAsync({ productIds: [pack!.productId], isActive: !pack!.isActive });
-      toast.success(t(pack!.isActive ? "toast.deactivated" : "toast.reactivated", { pack: label }));
-      refresh();
-    } catch (err) {
-      toast.error(t(`errors.${categoryError(err)}`));
-    }
-  }
-
-  // delete this pack size, once confirmed; refused once it has been used anywhere
-  async function deletePack() {
-    setConfirming(false);
-    try {
-      await remove.mutateAsync({ productIds: [pack!.productId] });
-      toast.success(t("toast.deleted", { pack: label }));
-      refresh();
+      await update.mutateAsync({
+        productIds: group!.packs.map((p) => p.productId),
+        categoryId: draft.categoryId,
+        subCategoryId: draft.subCategoryId!,
+        brand: draft.brand,
+        name: group!.name,
+        hsn: draft.hsn || null,
+        pack: {
+          productId: pack!.productId,
+          packSizeCode: draft.packSizeCode,
+          packSize: Number(draft.packSize),
+          gstPercent: Number(draft.gst),
+          isActive: draft.isActive,
+        },
+        // the photo is this pack size's own, sent only when it was changed
+        image: draft.imageUrl !== saved.imageUrl ? { productId: pack!.productId, imageUrl: draft.imageUrl } : undefined,
+      });
+      toast.success(t("form.toast.saved", { name: `${titleCase(draft.brand.trim())} ${packLabel(Number(draft.packSize), draft.packSizeCode)}` }));
+      void utils.inventory.product.list.invalidate();
+      void utils.inventory.category.list.invalidate();
+      void utils.inventory.product.priceHistory.invalidate({ productId: pack!.productId });
+      onClose();
     } catch (err) {
       const key = categoryError(err);
-      toast.error(t(`errors.${key === "hasProducts" ? "used" : key}`));
+      setError(t(`form.errors.${key === "hasProducts" ? "inactive" : key === "invalidName" ? "check" : key}`));
     }
   }
 
-  const toggleLabel = pack.isActive ? t("deactivatePack", { pack: label }) : t("reactivatePack", { pack: label });
+  // price details: the saved price with GST, split by the GST % typed above
+  const price = pack.priceAfterGst;
+  const gst = Number(draft.gst) || 0;
+  const before = price == null ? null : round2(price / (1 + gst / 100));
+  const priceRows = [
+    { key: "before", label: t("priceBeforeGst"), amount: before },
+    { key: "gst", label: t("gstAmount", { gst }), amount: price == null || before == null ? null : round2(price - before), plus: true },
+    { key: "total", label: t("priceWithGst"), amount: price, tone: "total" as const },
+  ];
+
+  // quantity details: free and reserved, adding up to the quantity held
+  const count = (n: number) => n.toLocaleString("en-IN");
+  const quantityRows = [
+    { key: "free", label: t("available"), amount: 0, text: count(pack.unreservedQuantity) },
+    { key: "reserved", label: t("reserved"), amount: 0, text: count(pack.reservedQuantity) },
+    { key: "total", label: t("quantity"), amount: 0, text: count(pack.quantity), tone: "total" as const },
+  ];
 
   return (
     <Sheet
       open
-      title={productTitle(group)}
+      title={`${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode)}`}
       closeLabel={t("close")}
       onClose={onClose}
-      // the pack sizes sit in the header, in place of the product's name, with + to add another
+      bareHeader
+      // Active on the left, in place of a title
       visual={
-        <div className="flex items-center gap-1.5">
-          <div className="min-w-0">
-            <PackChips packs={group.packs} selected={pack.productId} onSelect={onPack} label={t("packSizes")} />
-          </div>
-          <button
-            type="button"
-            aria-label={t("addPack")}
-            title={t("addPack")}
-            onClick={() => onAddPack(group)}
-            className={addSquare("size-8")}
-          >
-            <Plus className="size-4" aria-hidden />
-          </button>
-        </div>
+        <span className="flex items-center gap-2.5 text-sm">
+          <span id={activeLabel}>{tc("active")}</span>
+          <Switch on={draft.isActive} onFlip={(isActive) => change({ isActive })} labelledBy={activeLabel} />
+        </span>
       }
-      // this pack size's Deactivate (or Reactivate) and Delete, in place of the close button
+      // ✕ with no border
       actions={
-        <>
-          <button
-            type="button"
-            aria-label={toggleLabel}
-            title={toggleLabel}
-            aria-pressed={!pack.isActive}
-            onClick={() => void toggleActive()}
-            disabled={setActive.isPending}
-            aria-busy={setActive.isPending}
-            className={cn(headerButton, !pack.isActive && "border-chestnut bg-chestnut text-ivory")}
-          >
-            {setActive.isPending ? <Spinner /> : <Power className="size-4" aria-hidden />}
-          </button>
-          <button
-            type="button"
-            aria-label={t("deletePack", { pack: label })}
-            title={t("deletePack", { pack: label })}
-            onClick={() => setConfirming(true)}
-            disabled={remove.isPending}
-            aria-busy={remove.isPending}
-            className={cn(headerButton, "text-danger")}
-          >
-            {remove.isPending ? <Spinner /> : <Trash2 className="size-4" aria-hidden />}
-          </button>
-        </>
+        <button
+          type="button"
+          aria-label={t("close")}
+          onClick={onClose}
+          className="grid size-11 shrink-0 place-items-center rounded-control hover:bg-chestnut/8"
+        >
+          <X className="size-5" aria-hidden />
+        </button>
       }
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
-        {/* the product's details, edited in place */}
-        <ProductDetails group={group} pack={pack} />
+      <form onSubmit={save} noValidate className="flex min-h-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5 [&>*]:shrink-0">
+          {/* product details: all changeable */}
+          <h3 className={heading}>{t("productDetails")}</h3>
+          <ProductDetails draft={draft} onChange={change} onPhotoBusy={setPhotoBusy} tried={tried} />
 
-        {/* this pack size's price, edited in place */}
-        <ProductPrice pack={pack} />
+          {/* price details: read only, the payment breakup's rows */}
+          <h3 className={`${heading} ${part}`}>{t("priceDetails")}</h3>
+          <PlainRows rows={priceRows} />
 
-        {/* the price history for this pack size */}
-        <PriceChart productId={pack.productId} />
-      </div>
+          {/* quantity details: read only, the same rows */}
+          <h3 className={`${heading} ${part}`}>{t("quantityDetails")}</h3>
+          <PlainRows rows={quantityRows} />
+        </div>
 
-      {/* the confirmation before deleting a pack size */}
-      <ConfirmDialog
-        open={confirming}
-        title={t("deleteTitle", { name: productTitle(group), pack: label })}
-        body={t("deleteBody")}
-        confirmLabel={t("delete")}
-        cancelLabel={t("cancel")}
-        busy={false}
-        onConfirm={() => void deletePack()}
-        onCancel={() => setConfirming(false)}
-      />
+        {/* Save details */}
+        <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
+          {tried && !draftOk(draft) && <FieldMessage className="mt-0">{t("form.errors.fill")}</FieldMessage>}
+          {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
+          <SubmitButton busy={update.isPending} disabled={photoBusy}>
+            {t("form.saveDetails")}
+          </SubmitButton>
+        </footer>
+      </form>
     </Sheet>
   );
 }

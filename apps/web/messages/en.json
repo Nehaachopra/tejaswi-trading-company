@@ -234,7 +234,7 @@
       "priceBeforeGst": "Price before GST",
       "gst": "GST",
       "gstAmount": "GST ({gst}%)",
-      "priceWithGst": "Price with GST",
+      "priceWithGst": "Price + GST",
       "packSizes": "Pack sizes",
       "details": "Details",
       "close": "Close",
@@ -284,7 +284,7 @@
         },
         "price": "Price",
         "summary": "Price now {price}",
-        "empty": "No price history yet"
+        "empty": "No price history available"
       },
       "form": {
         "addTitle": "Add product",
@@ -336,9 +336,23 @@
           "duplicate": "Duplicate pack size: {packs}."
         },
         "rate": "Rate / {unit}",
-        "newPack": "New"
+        "newPack": "New",
+        "optional": "(optional)",
+        "pick": "Pick one",
+        "newCategory": "New category",
+        "newSubCategory": "New sub-category",
+        "newSubCategoryName": "New sub-category",
+        "add": "Add",
+        "packUnit": "Pack unit",
+        "replacePhoto": "Replace photo"
       },
-      "rateLabel": "Rate / {unit}"
+      "rateLabel": "Rate / {unit}",
+      "ratePer": "Rate / {unit}",
+      "profitEarnable": "Profit earnable",
+      "loss": "Loss",
+      "available": "Available",
+      "quantity": "Quantity",
+      "quantityDetails": "Quantity details"
     }
   },
   "settings": {

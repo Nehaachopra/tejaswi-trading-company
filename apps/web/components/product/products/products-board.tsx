@@ -2,7 +2,7 @@
 
 import { Check, ChevronDown, CircleAlert, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   ADD_BUTTON,
@@ -20,9 +20,9 @@ import { trpc } from "~/trpc/client";
 import { ProductTabs } from "../product-tabs";
 import { chip } from "../row-styles";
 import { NewProductSheet } from "./new-product-sheet";
-import { ProductFormSheet } from "./product-form-sheet";
+import { PriceCard } from "./price-card";
 import { ProductSheet } from "./product-sheet";
-import { type ProductGroup, ProductTile } from "./product-tile";
+import { ProductTile } from "./product-tile";
 import { cn } from "~/lib/utils";
 
 // every product as a tile, filtered by category and sub-category
@@ -57,14 +57,17 @@ export function ProductsBoard() {
     if (opened && open && opened.key !== open.key)
       setOpen({ ...open, key: opened.key, packIds: opened.packs.map((p) => p.productId) });
   }, [opened, open]);
-  // the open forms: a new product, or more pack sizes for one
+  // the price card zoomed in: the product (found again on every change, as the sheet is) and the pack size shown
+  const [pricing, setPricing] = useState<{ packIds: string[]; packId: string } | null>(null);
+  const priced = (pricing && list.data?.find((g) => g.packs.some((p) => pricing.packIds.includes(p.productId)))) ?? null;
+  const closePrice = useCallback(() => setPricing(null), []);
+  // the new-product form
   const [adding, setAdding] = useState(false);
-  const [addingPack, setAddingPack] = useState<ProductGroup | null>(null);
 
   return (
     <main className={`${PAGE} pb-16`}>
-      {/* everything behind an open sheet is inert: no taps, focus or scrolling of tiles and filters */}
-      <div inert={!!opened || adding || !!addingPack} className="contents">
+      {/* everything behind an open sheet or the price card is inert: no taps, focus or scrolling of tiles and filters */}
+      <div inert={!!opened || adding || !!priced} className="contents">
         {/* the page's name, for screen readers only: the tabs say it visually */}
         <h1 className="sr-only">{t("title")}</h1>
 
@@ -201,22 +204,24 @@ export function ProductsBoard() {
                 onDetails={(packId) =>
                   setOpen({ key: group.key, packIds: group.packs.map((p) => p.productId), packId })
                 }
+                onPrice={(packId) => setPricing({ packIds: group.packs.map((p) => p.productId), packId })}
               />
             ))}
           </ul>
         )}
       </div>
 
-      {/* the product sheet, and the forms for a new product or more pack sizes */}
-      <ProductSheet
-        group={opened}
-        packId={open?.packId ?? null}
-        onPack={(packId) => setOpen((o) => (o ? { ...o, packId } : o))}
-        onClose={() => setOpen(null)}
-        onAddPack={setAddingPack}
-      />
+      {/* a pack size's details drawer, the price card, and the new-product form */}
+      <ProductSheet group={opened} packId={open?.packId ?? null} onClose={() => setOpen(null)} />
+      {priced && pricing && (
+        <PriceCard
+          group={priced}
+          packId={pricing.packId}
+          onPack={(packId) => setPricing((p) => (p ? { ...p, packId } : p))}
+          onClose={closePrice}
+        />
+      )}
       <NewProductSheet open={adding} onClose={() => setAdding(false)} />
-      <ProductFormSheet group={addingPack} onClose={() => setAddingPack(null)} />
     </main>
   );
 }

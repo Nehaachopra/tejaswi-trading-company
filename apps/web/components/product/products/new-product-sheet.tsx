@@ -1,39 +1,51 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { addSquare } from "~/components/ui/page-styles";
-import { SubmitButton } from "~/components/ui/card-form";
+import { fieldClass, SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { NumberInput } from "~/components/ui/number-input";
+import { addSquare } from "~/components/ui/page-styles";
 import { Sheet } from "~/components/ui/sheet";
 import { toast } from "~/components/ui/toast";
-import { packLabel, rupees } from "~/lib/format";
+import { packLabel } from "~/lib/format";
 import { parseAmount } from "~/lib/price";
 import { cn } from "~/lib/utils";
 import { trpc } from "~/trpc/client";
 
+import { PickMenu } from "../../stock/pick-menu";
+import { PlainRows } from "../../transaction/shared/amount-table";
+import { fieldRow, pickRow } from "../../transaction/shared/form-basics";
 import { categoryError } from "../categories/category-errors";
+import { CategoryFields } from "./category-fields";
+import { GstPicker } from "./gst-picker";
 import { CODES, emptyPack, packInput, packKey, packOk, packProblems, type PackDraft, settle, wholeAbove0 } from "./pack-draft";
 import { PackChips } from "./pack-chips";
 import { PhotoPicker } from "./photo-picker";
-import { RowPicker, rowInput } from "./product-details";
+import { brandChars } from "./product-details";
 import { productTitle } from "./product-tile";
+import { RatePriceFields } from "./rate-price-fields";
 
-const headerButton =
-  "grid size-9 shrink-0 place-items-center rounded-control border border-chestnut/50 hover:border-chestnut disabled:opacity-30";
-const tableInput = (bad: boolean) => cn(rowInput(bad), "tabular w-28 min-h-9");
+// a part's heading, as in Edit details; the line and room above the second and third parts
+const heading = "-mb-1 text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
+const part = "mt-2.5 border-t border-chestnut/15 pt-[18px]";
+// every value sits at the right end of its box, as in the rows
+const input = (bad: boolean) => cn("min-h-11 w-full min-w-0 px-3 text-right text-base placeholder:text-chestnut/50", fieldClass(bad));
+// a header button with no border (✕, the bin)
+const bareButton = "grid size-11 shrink-0 place-items-center rounded-control hover:bg-chestnut/8 disabled:opacity-30";
 
-// a new product, laid out like a product's sheet: its pack sizes in the header (+ for another, the bin removes
-// the one shown), then Product details and Price details with every field open to type in
+const round2 = (v: number) => Math.round(v * 100) / 100;
+
+// a new product, laid out like Edit details: its pack sizes as chips on top (+ for another, the bin removes the one
+// shown when there's more than one) and ✕; then Product details (shared by every pack size), Pack size and Price
+// details for the chip picked, each field a row (label left, box or accordion right). A new pack size starts
+// empty: nothing is copied from another
 export function NewProductSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useTranslations("products.items");
   const utils = trpc.useUtils();
   const create = trpc.inventory.product.create.useMutation();
-  // the active categories and their active sub-categories, for the dropdowns
-  const categories = trpc.inventory.category.list.useQuery({ includeInactive: false }, { enabled: open });
 
   // the product
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -64,24 +76,23 @@ export function NewProductSheet({ open, onClose }: { open: boolean; onClose: () 
     setServerError(null);
   }, [open]);
 
-  const category = categories.data?.find((c) => c.id === categoryId);
-  const subs = category?.subCategories ?? [];
-  const sub = subs.find((s) => s.id === subCategoryId);
   const pack = packs.find((p) => p.key === shown) ?? packs[0]!;
 
-  // what's missing or wrong
+  // what's missing or wrong: the product's details, and each pack size's
   const bad = {
     category: !categoryId,
     subCategory: !subCategoryId,
     brand: brand.trim() === "" || brand.trim().length > 50,
     name: name.trim().length > 50,
-    hsn: hsn.trim() !== "" && !/^\d{4}$/.test(hsn.trim()),
+    hsn: hsn !== "" && !/^(\d{4}|\d{8})$/.test(hsn),
   };
   const detailsOk = !Object.values(bad).some(Boolean);
+  const wrong = packProblems(pack);
   const keys = packs.filter((p) => wholeAbove0(p.packSize)).map((p) => packKey(p.packSizeCode, p.packSize));
   const isDuplicate = (p: PackDraft) => wholeAbove0(p.packSize) && keys.filter((k) => k === packKey(p.packSizeCode, p.packSize)).length > 1;
   const duplicates = [...new Set(packs.filter(isDuplicate).map((p) => packLabel(Number(p.packSize), p.packSizeCode)))];
 
+  // change the pack size shown; rate and price fill each other in
   const update = (patch: Partial<PackDraft>) => setPacks((all) => all.map((p) => (p.key === pack.key ? settle({ ...p, ...patch }) : p)));
   const addPack = () => {
     const key = Math.max(...packs.map((p) => p.key)) + 1;
@@ -108,7 +119,9 @@ export function NewProductSheet({ open, onClose }: { open: boolean; onClose: () 
         subCategoryId: subCategoryId!,
         brand,
         name: name.trim() || undefined,
-        hsn4Digit: hsn.trim() || undefined,
+        // the first 4 digits are the product's; all 8, when typed, go on every pack size
+        hsn4Digit: hsn ? hsn.slice(0, 4) : undefined,
+        hsn8Digit: hsn.length === 8 ? hsn : undefined,
         imageUrl: imageUrl ?? undefined,
         packs: packInput(packs),
       });
@@ -122,122 +135,15 @@ export function NewProductSheet({ open, onClose }: { open: boolean; onClose: () 
     }
   }
 
-  // the details rows, each an input or a dropdown
-  const detailRows: { label: string; field: React.ReactNode }[] = [
-    {
-      label: t("category"),
-      field: (
-        <RowPicker
-          label={t("category")}
-          current={category?.name}
-          items={categories.data ?? []}
-          picked={categoryId}
-          onPick={(id) => {
-            if (id !== categoryId) setSubCategoryId(null);
-            setCategoryId(id);
-          }}
-          invalid={tried && bad.category}
-        />
-      ),
-    },
-    {
-      label: t("subCategory"),
-      field: (
-        <RowPicker
-          label={t("subCategory")}
-          current={sub?.name}
-          items={subs}
-          picked={subCategoryId}
-          onPick={setSubCategoryId}
-          invalid={tried && bad.subCategory}
-          disabled={subs.length === 0}
-        />
-      ),
-    },
-    {
-      label: t("brand"),
-      field: <input aria-label={t("brand")} value={brand} maxLength={50} onChange={(e) => setBrand(e.target.value)} className={rowInput(tried && bad.brand)} />,
-    },
-    {
-      label: t("name"),
-      field: <input aria-label={t("name")} value={name} maxLength={50} onChange={(e) => setName(e.target.value)} className={rowInput(tried && bad.name)} />,
-    },
-    {
-      label: t("hsn"),
-      field: (
-        <input
-          aria-label={t("hsn")}
-          value={hsn}
-          inputMode="numeric"
-          maxLength={4}
-          onChange={(e) => setHsn(e.target.value.replace(/\D/g, ""))}
-          className={cn(rowInput(tried && bad.hsn), "tabular")}
-        />
-      ),
-    },
-  ];
-
-  // the price rows for the pack size shown: size and unit, GST %, rate or price (either fills the other in),
-  // and what follows from them
-  const wrong = packProblems(pack);
+  // price details: the typed price with GST, split by the GST % picked
   const unit = t(`form.units.${pack.packSizeCode}`);
-  const after = parseAmount(pack.priceAfterGst);
-  const gstPct = parseAmount(pack.gstPercent);
-  const before = after != null && gstPct != null && gstPct <= 100 ? Math.round((after / (1 + gstPct / 100)) * 100) / 100 : null;
-  const dash = (v: number | null) => (v == null ? "–" : rupees(v));
-  const priceRows: { label: string; field?: React.ReactNode; value?: string; strong?: boolean }[] = [
-    {
-      label: t("form.packSize"),
-      field: (
-        <div className="flex justify-end gap-1.5">
-          <NumberInput
-            aria-label={t("form.packSize")}
-            value={pack.packSize}
-            maxDigits={6}
-            onChange={(v) => update({ packSize: v })}
-            placeholder="25"
-            className={cn(tableInput(isDuplicate(pack) || (tried && wrong.size)), "w-16")}
-          />
-          <div className="w-20">
-            <RowPicker
-              label={t("form.unit")}
-              current={unit}
-              items={CODES.map((c) => ({ id: c, name: t(`form.units.${c}`) }))}
-              picked={pack.packSizeCode}
-              onPick={(c) => update({ packSizeCode: c as PackDraft["packSizeCode"] })}
-              invalid={false}
-            />
-          </div>
-        </div>
-      ),
-    },
-    {
-      label: t("gstLabel"),
-      field: (
-        <NumberInput aria-label={t("gstLabel")} value={pack.gstPercent} decimals={2} maxDigits={3} onChange={(v) => update({ gstPercent: v })} placeholder="5" className={tableInput(tried && wrong.gst)} />
-      ),
-    },
-    {
-      label: t("rateLabel", { unit }),
-      field: (
-        <NumberInput aria-label={t("rateLabel", { unit })} value={pack.rate} decimals={2} onChange={(v) => update({ rate: v, from: "rate" })} className={tableInput(false)} />
-      ),
-    },
-    { label: t("priceBeforeGst"), value: dash(before) },
-    { label: gstPct == null ? t("gst") : t("gstAmount", { gst: gstPct }), value: dash(after != null && before != null ? after - before : null) },
-    {
-      label: t("priceWithGst"),
-      strong: true,
-      field: (
-        <NumberInput
-          aria-label={t("priceWithGst")}
-          value={pack.priceAfterGst}
-          decimals={2}
-          onChange={(v) => update({ priceAfterGst: v, from: "price" })}
-          className={cn(tableInput(tried && wrong.price), "font-semibold")}
-        />
-      ),
-    },
+  const price = parseAmount(pack.priceAfterGst);
+  const gst = parseAmount(pack.gstPercent);
+  const before = price != null && gst != null ? round2(price / (1 + gst / 100)) : null;
+  const priceRows = [
+    { key: "before", label: t("priceBeforeGst"), amount: before },
+    { key: "gst", label: gst == null ? t("gst") : t("gstAmount", { gst }), amount: price != null && before != null ? round2(price - before) : null, plus: true },
+    { key: "total", label: t("priceWithGst"), amount: price, tone: "total" as const },
   ];
 
   return (
@@ -246,9 +152,10 @@ export function NewProductSheet({ open, onClose }: { open: boolean; onClose: () 
       title={t("form.addTitle")}
       closeLabel={t("close")}
       onClose={onClose}
+      bareHeader
       // the pack sizes typed so far, with + to add another
       visual={
-        <div className="flex items-center gap-1.5">
+        <div className="flex min-w-0 items-center gap-1.5">
           <div className="min-w-0">
             <PackChips
               packs={packs.map((p) => ({
@@ -263,77 +170,131 @@ export function NewProductSheet({ open, onClose }: { open: boolean; onClose: () 
               label={t("packSizes")}
             />
           </div>
-          <button
-            type="button"
-            aria-label={t("addPack")}
-            title={t("addPack")}
-            onClick={addPack}
-            className={addSquare("size-8")}
-          >
+          <button type="button" aria-label={t("addPack")} title={t("addPack")} onClick={addPack} className={addSquare("size-8")}>
             <Plus className="size-4" aria-hidden />
           </button>
         </div>
       }
-      // remove the pack size shown (there's always at least one)
+      // the bin (when there's more than one pack size) and ✕, no borders
       actions={
-        <button
-          type="button"
-          aria-label={t("form.removePack", { n: packs.indexOf(pack) + 1 })}
-          title={t("form.removePack", { n: packs.indexOf(pack) + 1 })}
-          onClick={removePack}
-          disabled={packs.length === 1}
-          className={cn(headerButton, "text-danger")}
-        >
-          <Trash2 className="size-4" aria-hidden />
-        </button>
+        <div className="flex shrink-0 items-center">
+          {packs.length > 1 && (
+            <button
+              type="button"
+              aria-label={t("form.removePack", { n: packs.indexOf(pack) + 1 })}
+              title={t("form.removePack", { n: packs.indexOf(pack) + 1 })}
+              onClick={removePack}
+              className={cn(bareButton, "text-danger")}
+            >
+              <Trash2 className="size-4" aria-hidden />
+            </button>
+          )}
+          <button type="button" aria-label={t("close")} onClick={onClose} className={bareButton}>
+            <X className="size-5" aria-hidden />
+          </button>
+        </div>
       }
     >
       <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
-          {/* product details: the photo beside the rows */}
-          <section className="flex flex-col gap-2">
-            <h2 className="flex min-h-11 items-center text-xs text-chestnut/80">{t("productDetails")}</h2>
-            <div className="flex gap-4">
-              <PhotoPicker variant="square" value={imageUrl} onChange={setImageUrl} onBusy={setUploading} className="w-2/5 max-w-40 shrink-0 self-start" />
-              <dl className="flex min-w-0 flex-1 flex-col justify-center divide-y divide-chestnut/10 text-sm">
-                {detailRows.map((row) => (
-                  <div key={row.label} className="flex items-center justify-between gap-2 py-1">
-                    <dt className="w-24 shrink-0 text-chestnut/70">{row.label}</dt>
-                    <dd className="min-w-0 flex-1 text-right font-medium">{row.field}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-            {category && subs.length === 0 && <FieldMessage>{t("form.noSubCategories")}</FieldMessage>}
-          </section>
+        <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-5 py-5 [&>*]:shrink-0">
+          {/* product details: shared by every pack size */}
+          <h3 className={heading}>{t("productDetails")}</h3>
+          <PhotoPicker variant="big" value={imageUrl} onChange={setImageUrl} onBusy={setUploading} />
+          <CategoryFields
+            categoryId={categoryId}
+            subCategoryId={subCategoryId}
+            onChange={(patch) => {
+              if (patch.categoryId !== undefined) setCategoryId(patch.categoryId);
+              setSubCategoryId(patch.subCategoryId);
+            }}
+            categoryInvalid={tried && bad.category}
+            subInvalid={tried && bad.subCategory}
+            labelClass={pickRow}
+            pickEnd
+          />
+          <label className={fieldRow}>
+            <span>{t("brand")}</span>
+            <input
+              value={brand}
+              placeholder={t("form.brandPlaceholder")}
+              maxLength={50}
+              onChange={(e) => setBrand(brandChars(e.target.value))}
+              aria-invalid={(tried && bad.brand) || undefined}
+              className={input(tried && bad.brand)}
+            />
+          </label>
+          <label className={fieldRow}>
+            <span className="gap-1">
+              {t("name")} <span className="text-xs opacity-60">{t("form.optional")}</span>
+            </span>
+            <input value={name} maxLength={50} onChange={(e) => setName(brandChars(e.target.value))} className={input(tried && bad.name)} />
+          </label>
+          <label className={fieldRow}>
+            <span>{t("hsn")}</span>
+            <input
+              value={hsn}
+              inputMode="numeric"
+              maxLength={8}
+              placeholder="1006"
+              onChange={(e) => setHsn(e.target.value.replace(/\D/g, "").slice(0, 8))}
+              aria-invalid={(tried && bad.hsn) || undefined}
+              className={cn(input(tried && bad.hsn), "tabular")}
+            />
+          </label>
 
-          {/* price details for the pack size shown */}
-          <section className="flex flex-col gap-2">
-            <h2 className="flex min-h-11 items-center text-xs text-chestnut/80">{t("priceDetails")}</h2>
-            <table className="w-full overflow-hidden rounded-control text-sm">
-              <tbody className="divide-y divide-chestnut/10">
-                {priceRows.map((row) => (
-                  <tr key={row.label} className={cn(row.strong && "bg-chestnut/6 font-semibold")}>
-                    <th scope="row" className="px-3 py-2 text-left font-normal text-chestnut/80">
-                      {row.label}
-                    </th>
-                    <td className={cn("tabular px-3 text-right", row.field ? "py-1" : "py-2", row.value === "–" && "text-chestnut/60")}>
-                      {row.field ?? row.value}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+          {/* pack size: its unit and size */}
+          <h3 className={cn(heading, part)}>{t("form.packSize")}</h3>
+          <div className={pickRow}>
+            <span>{t("form.packUnit")}</span>
+            <PickMenu
+              label={t("form.packUnit")}
+              current={unit}
+              options={CODES.map((c) => ({ id: c, name: t(`form.units.${c}`) }))}
+              picked={pack.packSizeCode}
+              onPick={(c) => update({ packSizeCode: c as PackDraft["packSizeCode"] })}
+              matchWidth
+              valueEnd
+            />
+          </div>
+          <label className={fieldRow}>
+            <span>{t("form.packSize")}</span>
+            <NumberInput
+              value={pack.packSize}
+              maxDigits={5}
+              placeholder="25"
+              onChange={(v) => update({ packSize: v.replace(/^0+/, "") })}
+              aria-invalid={(tried && wrong.size) || isDuplicate(pack) || undefined}
+              className={cn(input((tried && wrong.size) || isDuplicate(pack)), "tabular")}
+            />
+          </label>
 
+          {/* price details: GST %, rate and price (either fills in the other), then the split */}
+          <h3 className={cn(heading, part)}>{t("priceDetails")}</h3>
+          <div className={pickRow}>
+            <span>{t("gstLabel")}</span>
+            <GstPicker value={pack.gstPercent} onPick={(gstPercent) => update({ gstPercent })} invalid={tried && wrong.gst} pickEnd />
+          </div>
+          <RatePriceFields
+            unit={unit}
+            rate={pack.rate}
+            price={pack.priceAfterGst}
+            onRate={(rate) => update({ rate, from: "rate" })}
+            onPrice={(priceAfterGst) => update({ priceAfterGst, from: "price" })}
+            priceInvalid={tried && wrong.price}
+            rows
+            placeholders={{ rate: "55.24", price: "1,450" }}
+          />
+          <PlainRows rows={priceRows} />
         </div>
 
-        {/* what to fix, and the save button, stay at the bottom of the sheet */}
+        {/* what to fix, and Add product, stay at the bottom */}
         <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
           {duplicates.length > 0 && <FieldMessage className="mt-0">{t("form.errors.duplicate", { packs: duplicates.join(", ") })}</FieldMessage>}
           {tried && (!detailsOk || !packs.every(packOk)) && <FieldMessage className="mt-0">{t("form.errors.fill")}</FieldMessage>}
           {serverError && <FieldMessage className="mt-0">{serverError}</FieldMessage>}
-          <SubmitButton busy={create.isPending || uploading}>{t("form.save")}</SubmitButton>
+          <SubmitButton busy={create.isPending} disabled={uploading}>
+            {t("form.addTitle")}
+          </SubmitButton>
         </footer>
       </form>
     </Sheet>

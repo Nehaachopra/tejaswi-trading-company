@@ -125,7 +125,7 @@ export function MoveStockSheet({ start, cards, onClose }: { start: MoveStart | n
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
             {/* the pack size: image on the left, its details on the right */}
             <div className="flex gap-4">
-              <ProductImage group={group} imageUrl={pack.imageUrl ?? group.imageUrl} className="w-2/5 max-w-36 shrink-0 self-start [&_span]:text-3xl" />
+              <ProductImage group={group} imageUrl={pack.imageUrl} className="w-2/5 max-w-36 shrink-0 self-start [&_span]:text-3xl" />
               <dl className="flex min-w-0 flex-1 flex-col justify-center divide-y divide-chestnut/10 text-sm">
                 {rows.map((row) => (
                   <div key={row.label} className="flex items-center justify-between gap-2 py-1.5">

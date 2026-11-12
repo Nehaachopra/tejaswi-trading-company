@@ -31,6 +31,22 @@
       transform: translateX(100%);
     }
   }
+
+  /* a card zoomed in over the dimmed page (a product's price card) */
+  --animate-fade-in: fade-in 180ms ease-out;
+  --animate-zoom-in: zoom-in 220ms ease-out;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes zoom-in {
+    from {
+      transform: scale(0.8);
+      opacity: 0.5;
+    }
+  }
 }
 
 @layer base {

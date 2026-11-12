@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { cn } from "~/lib/utils";
@@ -29,6 +29,9 @@ export function PlacePicker<Id extends string>({
   quiet = false,
   bare = false,
   alignEnd = false,
+  pickEnd = false,
+  addLabel,
+  onAdd,
 }: {
   label: string;
   places: Place<Id>[];
@@ -46,6 +49,11 @@ export function PlacePicker<Id extends string>({
   // collapsed to the pick, its words sit at the right end, beside the ▾ (a payment's bank cards, whose values all
   // line up on the right)
   alignEnd?: boolean;
+  // only the collapsed pick at the right end; the open rows stay on the left (Add product's rows)
+  pickEnd?: boolean;
+  // a last row, + New ..., that starts adding a choice (a product's category or sub-category)
+  addLabel?: string;
+  onAdd?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -118,6 +126,23 @@ export function PlacePicker<Id extends string>({
               </button>
             );
           })}
+          {/* + New ..., under the choices */}
+          {addLabel && onAdd && (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onAdd();
+              }}
+              className={cn(
+                "flex min-h-12 w-full items-center gap-2 border-t border-chestnut/15 px-3.5 py-2 text-base font-medium hover:bg-chestnut/[0.06]",
+                alignEnd ? "justify-end text-right" : "text-left",
+              )}
+            >
+              <Plus className="size-4 shrink-0" aria-hidden />
+              {addLabel}
+            </button>
+          )}
         </div>
       ) : (
         // collapsed to the pick
@@ -132,7 +157,7 @@ export function PlacePicker<Id extends string>({
             picked.sub ? "min-h-14" : "min-h-12",
           )}
         >
-          <span className={cn("min-w-0 flex-1", alignEnd && "text-right")}>
+          <span className={cn("min-w-0 flex-1", (alignEnd || pickEnd) && "text-right")}>
             <span className="block break-words">{picked.name}</span>
             {picked.sub && (
               <span className="tabular block text-[13px] font-normal opacity-65">{picked.sub}</span>

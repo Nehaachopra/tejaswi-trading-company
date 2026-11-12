@@ -100,7 +100,8 @@ export const updatePriceInputModel = z.object({
 
 export type UpdatePriceInputModel = z.infer<typeof updatePriceInputModel>;
 
-export const historyRangeModel = z.enum(["3m", "fy", "all"]);
+// "recent": the last 5 price changes, however far apart
+export const historyRangeModel = z.enum(["3m", "fy", "all", "recent"]);
 
 export const priceHistoryInputModel = z.object({
   productId: z.string().uuid(),
@@ -129,14 +130,24 @@ export type PriceHistoryModel = z.infer<typeof priceHistoryModel>;
 // or just the pack sizes listed
 const productIdsModel = z.array(z.string().uuid()).min(1);
 
-// brand, name, where it sits and its HSN, for every pack size of the product
+// brand, name, where it sits and its HSN, for every pack size of the product; with one pack size's own
+// unit, size, GST % and active switch
 export const updateDetailsInputModel = z.object({
   productIds: productIdsModel,
   categoryId: z.string().uuid(),
   subCategoryId: z.string().uuid(),
   brand: nameModel,
   name: nameModel.nullable(),
-  hsn4Digit: z.string().regex(/^\d{4}$/).nullable(),
+  // 4 digits (shared by the pack sizes) or 8 (this pack size's own; its first 4 are shared)
+  hsn: z.string().regex(/^(\d{4}|\d{8})$/).nullable(),
+  pack: z.object({
+    productId: z.string().uuid(),
+    packSizeCode: packSizeCodeModel,
+    packSize: z.number().int().positive().max(99999),
+    // a new GST % keeps the price with GST and works the rest out again
+    gstPercent: gstPercentModel,
+    isActive: z.boolean(),
+  }),
   // one pack size's photo, changed along with the details; null removes it
   image: z.object({ productId: z.string().uuid(), imageUrl: imageUrlModel.nullable() }).optional(),
 });

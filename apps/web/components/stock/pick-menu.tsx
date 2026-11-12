@@ -35,6 +35,7 @@ export function PickMenu<T extends string | null>({
   moneyHints = false,
   addLabel,
   onAdd,
+  valueEnd = false,
 }: {
   label: string;
   current: string;
@@ -72,6 +73,8 @@ export function PickMenu<T extends string | null>({
   // something new, the list's last row as a payment's ledger list has it ("+ New ledger"), always in view as it scrolls
   addLabel?: string;
   onAdd?: () => void;
+  // the picked value at the right end, beside the ▾ (rows with every value on the right)
+  valueEnd?: boolean;
 }) {
   const tc = useTranslations("common");
   const [search, setSearch] = useState("");
@@ -103,7 +106,7 @@ export function PickMenu<T extends string | null>({
       )}
       trigger={
         <>
-          <span className="min-w-0 flex-1 text-left">
+          <span className={cn("min-w-0 flex-1", valueEnd ? "text-right" : "text-left")}>
             <span className="block truncate">{current}</span>
             {currentSub && (
               <span className="tabular block text-xs font-normal opacity-70">{currentSub}</span>

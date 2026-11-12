@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, Trash2 } from "lucide-react";
+import { Camera, Image as ImageIcon, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 
@@ -45,7 +45,9 @@ export function PhotoPicker({
   value: string | null;
   onChange: (url: string | null) => void;
   onBusy: (busy: boolean) => void;
-  variant?: "row" | "square";
+  // "big": a product's details drawer, a wide box, a dashed placeholder until there's a photo, then a round
+  // camera button over its corner to replace it
+  variant?: "row" | "square" | "big";
   className?: string;
 }) {
   const t = useTranslations("products.items.form");
@@ -110,6 +112,45 @@ export function PhotoPicker({
   );
   const picker = <input ref={input} type="file" accept="image/*" hidden onChange={(e) => void pick(e.target.files?.[0])} />;
   const error = failed && <FieldMessage>{t("errors.upload")}</FieldMessage>;
+
+  if (variant === "big") {
+    return (
+      <div className={cn("flex flex-col gap-1", className)}>
+        <div className="relative h-[200px] overflow-hidden rounded-control">
+          {busy ? (
+            <div className="grid size-full place-items-center bg-chestnut/6">
+              <Spinner />
+            </div>
+          ) : value ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element -- stored photos, already shrunk */}
+              <img src={value} alt="" className="block size-full bg-chestnut/6 object-contain" />
+              <button
+                type="button"
+                onClick={() => input.current?.click()}
+                aria-label={t("replacePhoto")}
+                title={t("replacePhoto")}
+                className="absolute right-2.5 top-2.5 grid size-10 place-items-center rounded-full bg-ivory text-chestnut shadow-[0_1px_2px_rgba(60,25,10,0.08),0_3px_10px_rgba(60,25,10,0.1)]"
+              >
+                <Camera className="size-4" aria-hidden />
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => input.current?.click()}
+              className="grid size-full place-content-center justify-items-center gap-2 rounded-control border-2 border-dashed border-chestnut/30 bg-chestnut/[0.04] text-sm font-medium text-chestnut/60"
+            >
+              <ImageIcon className="size-11" strokeWidth={1.6} aria-hidden />
+              {t("addPhoto")}
+            </button>
+          )}
+        </div>
+        {picker}
+        {error}
+      </div>
+    );
+  }
 
   if (variant === "square") {
     return (

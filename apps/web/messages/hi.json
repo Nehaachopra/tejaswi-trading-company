@@ -234,7 +234,7 @@
       "priceBeforeGst": "GST से पहले कीमत",
       "gst": "GST",
       "gstAmount": "GST ({gst}%)",
-      "priceWithGst": "GST सहित कीमत",
+      "priceWithGst": "कीमत + GST",
       "packSizes": "पैक साइज़",
       "details": "विवरण",
       "close": "बंद करें",
@@ -284,7 +284,7 @@
         },
         "price": "कीमत",
         "summary": "अभी कीमत {price}",
-        "empty": "अभी कीमत का कोई इतिहास नहीं"
+        "empty": "कीमत का कोई इतिहास उपलब्ध नहीं"
       },
       "form": {
         "addTitle": "उत्पाद जोड़ें",
@@ -336,9 +336,23 @@
           "duplicate": "दोहराया गया पैक साइज़: {packs}."
         },
         "rate": "दर / {unit}",
-        "newPack": "नया"
+        "newPack": "नया",
+        "optional": "(वैकल्पिक)",
+        "pick": "चुनें",
+        "newCategory": "नई श्रेणी",
+        "newSubCategory": "नई उप-श्रेणी",
+        "newSubCategoryName": "नई उप-श्रेणी",
+        "add": "जोड़ें",
+        "packUnit": "पैक इकाई",
+        "replacePhoto": "फ़ोटो बदलें"
       },
-      "rateLabel": "दर / {unit}"
+      "rateLabel": "दर / {unit}",
+      "ratePer": "दर / {unit}",
+      "profitEarnable": "संभावित लाभ",
+      "loss": "घाटा",
+      "available": "उपलब्ध",
+      "quantity": "मात्रा",
+      "quantityDetails": "मात्रा विवरण"
     }
   },
   "settings": {

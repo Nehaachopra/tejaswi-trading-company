@@ -3,6 +3,8 @@
 import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { useEffect, useId } from "react";
 
+import { cn } from "~/lib/utils";
+
 // every sheet and drawer follows one rule: up from the bottom on phones, in from the right from 640px;
 // ivory with chestnut ink, over a scrim. The close button and the arrow tab close it; a tap on the scrim
 // and Escape only close a sheet that holds nothing to lose (`dismissible`, e.g. the More menu)
@@ -14,8 +16,11 @@ export function Sheet({
   visual,
   actions,
   dismissible = false,
+  bareHeader = false,
   children,
 }: {
+  // no line under the header and less room around it (a product's details: Active on the left, ✕ on the right)
+  bareHeader?: boolean;
   open: boolean;
   title: string;
   closeLabel: string;
@@ -78,7 +83,12 @@ export function Sheet({
           <ChevronRight className="hidden size-5 sm:block" aria-hidden />
         </button>
 
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-chestnut/15 px-5 py-4">
+        <header
+          className={cn(
+            "flex shrink-0 items-center justify-between gap-3 px-5",
+            bareHeader ? "pt-3" : "border-b border-chestnut/15 py-4",
+          )}
+        >
           {visual ? (
             <div className="min-w-0 flex-1">
               <h2 id={titleId} className="sr-only">
