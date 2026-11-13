@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 
 import { fieldClass } from "~/components/ui/card-form";
 import { NumberInput } from "~/components/ui/number-input";
+import { RequiredMark } from "~/components/ui/required-mark";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
@@ -15,7 +16,7 @@ import { PhotoPicker } from "./photo-picker";
 import type { Pack, ProductGroup } from "./product-tile";
 
 type Code = Pack["packSizeCode"];
-const CODES: Code[] = ["KGS", "ML", "BOX", "PCS"];
+const CODES: Code[] = ["KGS", "LTR", "BOX", "PCS"];
 
 // lengths follow the products table: brand and sub-category 50, HSN 4 or 8 digits, pack size up to 5 digits
 const NAME_MAX = 50;
@@ -100,7 +101,10 @@ export function ProductDetails({
 
       {/* brand */}
       <label className={fieldRow}>
-        <span>{t("brand")}</span>
+        <span>
+          {t("brand")}
+          <RequiredMark />
+        </span>
         <input
           value={draft.brand}
           maxLength={NAME_MAX}
@@ -113,7 +117,10 @@ export function ProductDetails({
 
       {/* pack unit, then pack size */}
       <div className={pickRow}>
-        <span>{t("form.packUnit")}</span>
+        <span>
+          {t("form.packUnit")}
+          <RequiredMark />
+        </span>
         <PickMenu
           label={t("form.packUnit")}
           current={t(`form.units.${draft.packSizeCode}`)}
@@ -125,7 +132,10 @@ export function ProductDetails({
         />
       </div>
       <label className={fieldRow}>
-        <span>{t("form.packSize")}</span>
+        <span>
+          {t("form.packSize")}
+          <RequiredMark />
+        </span>
         <NumberInput
           value={draft.packSize}
           maxDigits={5}
@@ -150,7 +160,10 @@ export function ProductDetails({
         />
       </label>
       <div className={pickRow}>
-        <span>{t("gstLabel")}</span>
+        <span>
+          {t("gstLabel")}
+          <RequiredMark />
+        </span>
         <GstPicker value={draft.gst} onPick={(gst) => onChange({ gst })} invalid={show("gst")} pickEnd />
       </div>
     </div>

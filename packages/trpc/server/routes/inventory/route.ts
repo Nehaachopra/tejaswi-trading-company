@@ -154,7 +154,7 @@ const productRouter = router({
     .output(z.object({ success: z.literal(true) }))
     .mutation(({ input }) => productService.setActive(input)),
 
-  // only pack sizes nothing refers to yet
+  // only pack sizes with no quantity left and no open order; kept (hidden) when old records name them
   delete: adminProcedure
     .meta({ openapi: { method: "POST", path: "/inventory/products/delete", tags: ["inventory"] } })
     .input(deleteProductsInputModel)

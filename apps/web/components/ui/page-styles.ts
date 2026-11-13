@@ -19,6 +19,11 @@ export const FILTER_CONTROL = "min-h-12 rounded-control";
 // one row in it
 export const FILTER_ROW = "flex flex-wrap items-center gap-2 sm:flex-nowrap";
 
+// a list's search box on the chestnut page: see-through with a soft ivory edge, brighter while typing; its input
+export const SEARCH_BOX =
+  "flex min-h-12 w-full min-w-0 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory";
+export const SEARCH_INPUT = "min-w-0 flex-1 bg-transparent text-base text-ivory outline-none placeholder:text-ivory/60";
+
 // a dropdown in the filters; the same size as a filter chip
 export const FILTER_TRIGGER = "min-h-9 min-w-0 max-w-48 gap-1.5 px-3 text-sm";
 

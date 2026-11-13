@@ -1,4 +1,4 @@
-// a pack's price can be typed two ways: the rate per kg (or ml, box, piece) before GST, or the pack's
+// a pack's price can be typed two ways: the rate per kg (or litre, box, piece) before GST, or the pack's
 // price with GST; either one fills in the other
 
 const round2 = (v: number) => Math.round(v * 100) / 100;

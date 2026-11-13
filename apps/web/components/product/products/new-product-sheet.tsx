@@ -8,6 +8,7 @@ import { fieldClass, SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { NumberInput } from "~/components/ui/number-input";
 import { addSquare } from "~/components/ui/page-styles";
+import { RequiredMark } from "~/components/ui/required-mark";
 import { Sheet } from "~/components/ui/sheet";
 import { toast } from "~/components/ui/toast";
 import { packLabel } from "~/lib/format";
@@ -213,7 +214,10 @@ export function NewProductSheet({ open, onClose }: { open: boolean; onClose: () 
             pickEnd
           />
           <label className={fieldRow}>
-            <span>{t("brand")}</span>
+            <span>
+              {t("brand")}
+              <RequiredMark />
+            </span>
             <input
               value={brand}
               placeholder={t("form.brandPlaceholder")}
@@ -245,7 +249,10 @@ export function NewProductSheet({ open, onClose }: { open: boolean; onClose: () 
           {/* pack size: its unit and size */}
           <h3 className={cn(heading, part)}>{t("form.packSize")}</h3>
           <div className={pickRow}>
-            <span>{t("form.packUnit")}</span>
+            <span>
+              {t("form.packUnit")}
+              <RequiredMark />
+            </span>
             <PickMenu
               label={t("form.packUnit")}
               current={unit}
@@ -257,7 +264,10 @@ export function NewProductSheet({ open, onClose }: { open: boolean; onClose: () 
             />
           </div>
           <label className={fieldRow}>
-            <span>{t("form.packSize")}</span>
+            <span>
+              {t("form.packSize")}
+              <RequiredMark />
+            </span>
             <NumberInput
               value={pack.packSize}
               maxDigits={5}
@@ -271,7 +281,10 @@ export function NewProductSheet({ open, onClose }: { open: boolean; onClose: () 
           {/* price details: GST %, rate and price (either fills in the other), then the split */}
           <h3 className={cn(heading, part)}>{t("priceDetails")}</h3>
           <div className={pickRow}>
-            <span>{t("gstLabel")}</span>
+            <span>
+              {t("gstLabel")}
+              <RequiredMark />
+            </span>
             <GstPicker value={pack.gstPercent} onPick={(gstPercent) => update({ gstPercent })} invalid={tried && wrong.gst} pickEnd />
           </div>
           <RatePriceFields

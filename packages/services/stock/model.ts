@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const idModel = z.string().uuid();
 
-const packSizeCodeModel = z.enum(["KGS", "ML", "BOX", "PCS"]);
+const packSizeCodeModel = z.enum(["KGS", "LTR", "BOX", "PCS"]);
 
 // one pack size inside a godown: its quantity there only (the godown view shows no reserved split)
 export const godownPackModel = z.object({

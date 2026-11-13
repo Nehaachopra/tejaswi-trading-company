@@ -16,6 +16,7 @@ export function Menu({
   boxed = false,
   matchWidth = false,
   inFlow = false,
+  floating = false,
   panelClassName,
   asksFirst = false,
   disabled,
@@ -36,6 +37,8 @@ export function Menu({
   matchWidth?: boolean;
   // the panel opens in the page's flow, pushing what's below it down, instead of over it
   inFlow?: boolean;
+  // the panel is pinned to the screen under the trigger, so a row that scrolls sideways doesn't cut it off
+  floating?: boolean;
   panelClassName?: string;
   // a half-filled form asks before it opens (see useLeaveGuard)
   asksFirst?: boolean;
@@ -57,6 +60,24 @@ export function Menu({
   const root = useRef<HTMLDivElement>(null);
   const panelId = useId();
   const close = () => setOpen(false);
+
+  // a floating panel: placed under the trigger's left or right edge, and kept there while the page or row scrolls
+  const [spot, setSpot] = useState<{ top: number; left?: number; right?: number } | null>(null);
+  useEffect(() => {
+    if (!open || !floating) return;
+    const place = () => {
+      const r = root.current?.getBoundingClientRect();
+      if (!r) return;
+      setSpot(align === "right" ? { top: r.bottom, right: window.innerWidth - r.right } : { top: r.bottom, left: r.left });
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [open, floating, align]);
 
   // closing: a tap anywhere else, or Escape
   useEffect(() => {
@@ -102,10 +123,11 @@ export function Menu({
           id={panelId}
           className={cn(
             "on-ivory mt-2 max-h-80 min-w-56 overflow-y-auto rounded-control border border-chestnut/25 bg-ivory p-1.5 text-chestnut",
-            inFlow ? "min-w-0" : "absolute top-full z-40",
-            !inFlow && (matchWidth ? "inset-x-0 min-w-0" : align === "right" ? "right-0" : "left-0"),
+            inFlow ? "min-w-0" : floating ? "fixed z-40" : "absolute top-full z-40",
+            !inFlow && !floating && (matchWidth ? "inset-x-0 min-w-0" : align === "right" ? "right-0" : "left-0"),
             panelClassName,
           )}
+          style={floating ? { top: spot?.top, left: spot?.left, right: spot?.right, visibility: spot ? undefined : "hidden" } : undefined}
         >
           {children(close)}
         </div>

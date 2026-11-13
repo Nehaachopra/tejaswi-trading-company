@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { fieldClass } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
+import { RequiredMark } from "~/components/ui/required-mark";
 import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
@@ -65,7 +66,10 @@ export function CategoryFields({
     <>
       {/* category */}
       <div className={labelClass}>
-        <span>{t("category")}</span>
+        <span>
+          {t("category")}
+          <RequiredMark />
+        </span>
         <PlacePicker
           label={t("category")}
           places={(categories.data ?? []).map((c) => ({ id: c.id, name: titleCase(c.name), disabled: false }))}
@@ -85,7 +89,10 @@ export function CategoryFields({
       {/* its sub-categories, once a category is picked */}
       {categoryId && (
         <div className={labelClass}>
-          <span>{t("subCategory")}</span>
+          <span>
+            {t("subCategory")}
+            <RequiredMark />
+          </span>
           <PlacePicker
             label={t("subCategory")}
             places={subs.map((s) => ({ id: s.id, name: titleCase(s.name), disabled: false }))}

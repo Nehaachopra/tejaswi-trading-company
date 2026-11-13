@@ -6,7 +6,7 @@ import { packLabel } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 // `name` stands in for the size, e.g. a pack size still being typed
-type Pack = { productId: string; packSize: number; packSizeCode: "KGS" | "ML" | "BOX" | "PCS"; isActive: boolean; name?: string };
+type Pack = { productId: string; packSize: number; packSizeCode: "KGS" | "LTR" | "BOX" | "PCS"; isActive: boolean; name?: string };
 
 // the edges fade out where more chips are hidden, so it's clear the row scrolls
 const FADE = "16px";

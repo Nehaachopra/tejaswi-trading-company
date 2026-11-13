@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronRight, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useEffect, useId } from "react";
 
 import { cn } from "~/lib/utils";
@@ -69,24 +69,10 @@ export function Sheet({
         aria-labelledby={titleId}
         className="on-ivory relative flex max-h-[92dvh] w-full animate-sheet-up flex-col rounded-t-control bg-ivory text-chestnut sm:h-full sm:max-h-none sm:max-w-md sm:animate-sheet-left sm:rounded-none sm:rounded-l-control"
       >
-        {/* the close tab on the edge it came from: the middle of the top edge pointing down on phones,
-            the middle of the left edge pointing right from 640px */}
-        <button
-          type="button"
-          aria-label={closeLabel}
-          // the only way to close when the header holds actions, so then it's reachable by keyboard too
-          tabIndex={actions ? 0 : -1}
-          onClick={onClose}
-          className="absolute -top-6 left-1/2 grid h-6 w-16 -translate-x-1/2 place-items-center rounded-t-control bg-ivory text-chestnut/80 hover:text-chestnut sm:top-1/2 sm:-left-6 sm:h-16 sm:w-6 sm:translate-x-0 sm:-translate-y-1/2 sm:rounded-none sm:rounded-l-control"
-        >
-          <ChevronDown className="size-5 sm:hidden" aria-hidden />
-          <ChevronRight className="hidden size-5 sm:block" aria-hidden />
-        </button>
-
         <header
           className={cn(
             "flex shrink-0 items-center justify-between gap-3 px-5",
-            bareHeader ? "pt-3" : "border-b border-chestnut/15 py-4",
+            bareHeader ? "pb-2 pt-3" : "border-b border-chestnut/15 py-4",
           )}
         >
           {visual ? (

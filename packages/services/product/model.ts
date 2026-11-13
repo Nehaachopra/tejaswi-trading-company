@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const packSizeCodeModel = z.enum(["KGS", "ML", "BOX", "PCS"]);
+export const packSizeCodeModel = z.enum(["KGS", "LTR", "BOX", "PCS"]);
 
 // names are stored lowercase; the app capitalises them for display
 const nameModel = z.string().trim().min(1).max(50).transform((v) => v.toLowerCase());

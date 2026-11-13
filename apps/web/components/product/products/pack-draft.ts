@@ -1,6 +1,6 @@
 import { asField, packPriceFromRate, parseAmount, rateFromPackPrice } from "~/lib/price";
 
-export const CODES = ["KGS", "ML", "BOX", "PCS"] as const;
+export const CODES = ["KGS", "LTR", "BOX", "PCS"] as const;
 export type Code = (typeof CODES)[number];
 
 // a pack size being typed; the rate (per unit, before GST) and the price (GST included) fill each other in,

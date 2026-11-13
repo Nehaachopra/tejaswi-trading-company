@@ -1,11 +1,15 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, db, desc, eq, gte, ilike, inArray, lt, or, sql } from "@repo/database";
+import { and, asc, db, desc, eq, gte, ilike, inArray, isNull, lt, or, sql } from "@repo/database";
 import {
   categoriesTable,
   productCostHistoryTable,
   productPriceHistoryTable,
   productPricesTable,
   productsTable,
+  purchaseOrderProductsTable,
+  purchaseOrdersTable,
+  saleOrderProductsTable,
+  saleOrdersTable,
   subCategoriesTable,
 } from "@repo/database/schema";
 
@@ -83,6 +87,8 @@ export default class ProductService {
       .leftJoin(productPricesTable, eq(productPricesTable.productId, productsTable.id))
       .where(
         and(
+          // deleted pack sizes never show, not even with Show inactive
+          isNull(productsTable.deletedAt),
           input.includeInactive ? undefined : eq(productsTable.isActive, true),
           input.categoryId ? eq(productsTable.categoryId, input.categoryId) : undefined,
           input.subCategoryId ? eq(productsTable.subCategoryId, input.subCategoryId) : undefined,
@@ -337,38 +343,61 @@ export default class ProductService {
     const updated = await db
       .update(productsTable)
       .set({ isActive: input.isActive })
-      .where(inArray(productsTable.id, input.productIds))
+      .where(and(inArray(productsTable.id, input.productIds), isNull(productsTable.deletedAt)))
       .returning({ id: productsTable.id });
     if (updated.length !== input.productIds.length) throw new TRPCError({ code: "NOT_FOUND", message: "Product not found." });
     return { success: true as const };
   }
 
-  // safe delete: its own price and cost history go with it, but the database refuses (and nothing changes)
-  // while anything else refers to it: stock in a godown, an order, a purchase, a sale, a stock count
+  // delete pack sizes with no quantity left and no open order waiting on them. One never used anywhere is removed
+  // with its own price and cost history; one that old purchases, sales or orders still name is kept for them, marked
+  // deleted (and inactive) so it leaves every list and picker
   async delete(input: DeleteProductsInputModel) {
-    try {
-      await db.transaction(async (tx) => {
-        const ids = inArray(productPricesTable.productId, input.productIds);
-        await tx.delete(productPricesTable).where(ids);
-        await tx.delete(productPriceHistoryTable).where(inArray(productPriceHistoryTable.productId, input.productIds));
-        await tx.delete(productCostHistoryTable).where(inArray(productCostHistoryTable.productId, input.productIds));
-        const deleted = await tx
-          .delete(productsTable)
-          .where(inArray(productsTable.id, input.productIds))
-          .returning({ id: productsTable.id });
-        if (deleted.length !== input.productIds.length) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Product not found." });
-        }
-      });
-    } catch (error) {
-      if (isStillReferenced(error)) {
-        throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message: "This product has been used (stock, orders, purchases or sales); deactivate it instead.",
-        });
+    await db.transaction(async (tx) => {
+      const products = await tx
+        .select({ id: productsTable.id, quantity: productsTable.quantity, reserved: productsTable.reservedQuantity })
+        .from(productsTable)
+        .where(and(inArray(productsTable.id, input.productIds), isNull(productsTable.deletedAt)))
+        .for("update");
+      if (products.length !== input.productIds.length) throw new TRPCError({ code: "NOT_FOUND", message: "Product not found." });
+      if (products.some((p) => p.quantity > 0 || p.reserved > 0)) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Only a pack size with no quantity left can be deleted." });
       }
-      throw error;
-    }
+
+      // an order still pending would lose its pack size
+      const [purchaseOrder] = await tx
+        .select({ id: purchaseOrdersTable.id })
+        .from(purchaseOrderProductsTable)
+        .innerJoin(purchaseOrdersTable, eq(purchaseOrdersTable.id, purchaseOrderProductsTable.purchaseOrderId))
+        .where(and(inArray(purchaseOrderProductsTable.productId, input.productIds), eq(purchaseOrdersTable.status, "pending")))
+        .limit(1);
+      const [saleOrder] = await tx
+        .select({ id: saleOrdersTable.id })
+        .from(saleOrderProductsTable)
+        .innerJoin(saleOrdersTable, eq(saleOrdersTable.id, saleOrderProductsTable.saleOrderId))
+        .where(and(inArray(saleOrderProductsTable.productId, input.productIds), eq(saleOrdersTable.status, "pending")))
+        .limit(1);
+      if (purchaseOrder || saleOrder) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "An open order still has this pack size. Complete or cancel it first." });
+      }
+
+      // never used: remove it for good (a savepoint, so a refusal leaves the rest of this save working)
+      try {
+        await tx.transaction(async (sp) => {
+          await sp.delete(productPricesTable).where(inArray(productPricesTable.productId, input.productIds));
+          await sp.delete(productPriceHistoryTable).where(inArray(productPriceHistoryTable.productId, input.productIds));
+          await sp.delete(productCostHistoryTable).where(inArray(productCostHistoryTable.productId, input.productIds));
+          await sp.delete(productsTable).where(inArray(productsTable.id, input.productIds));
+        });
+      } catch (error) {
+        if (!isStillReferenced(error)) throw error;
+        // named on old records: keep the row for them, gone from everywhere else
+        await tx
+          .update(productsTable)
+          .set({ deletedAt: new Date(), isActive: false })
+          .where(inArray(productsTable.id, input.productIds));
+      }
+    });
     return { success: true as const };
   }
 

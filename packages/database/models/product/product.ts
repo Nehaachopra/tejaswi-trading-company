@@ -1,6 +1,6 @@
 ﻿// product.ts
 
-import { boolean, integer, pgEnum, pgTable, text, uuid, varchar } from "drizzle-orm/pg-core";
+import { boolean, integer, pgEnum, pgTable, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { money, timestamps } from "../../utils/common/column-type";
 
@@ -11,7 +11,7 @@ import { sql } from "drizzle-orm";
 import { index } from "drizzle-orm/pg-core";
 import { uniqueIndex } from "drizzle-orm/pg-core";
 
-export const unitQuantityCodeEnum = pgEnum("unit_quantity_code_enum", ["KGS", "ML", "BOX", "PCS"]);
+export const unitQuantityCodeEnum = pgEnum("unit_quantity_code_enum", ["KGS", "LTR", "BOX", "PCS"]);
 
 export const productsTable = pgTable(
   "products",
@@ -65,18 +65,19 @@ export const productsTable = pgTable(
 
     isActive: boolean("is_active").default(true).notNull(),
 
+    // deleted from the products page once no quantity was left; kept (and inactive) only so old purchases, sales
+    // and orders still show it. Empty while the product is in use
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+
     ...timestamps,
   },
   (table) => [
     index("products_category_id_idx").on(table.categoryId),
     index("products_sub_category_id_idx").on(table.subCategoryId),
-    uniqueIndex("products_identity_unique").on(
-      table.subCategoryId,
-      table.brand,
-      sql`coalesce(${table.name}, '')`,
-      table.packSizeCode,
-      table.packSize,
-    ),
+    // a deleted pack size doesn't count, so the same one can be added again
+    uniqueIndex("products_identity_unique")
+      .on(table.subCategoryId, table.brand, sql`coalesce(${table.name}, '')`, table.packSizeCode, table.packSize)
+      .where(sql`${table.deletedAt} IS NULL`),
     check("products_brand_lowercase", sql`${table.brand} = lower(${table.brand})`),
     check("products_name_lowercase", sql`${table.name} = lower(${table.name})`),
     check("products_unit_quantity_positive", sql`${table.packSize} > 0`),

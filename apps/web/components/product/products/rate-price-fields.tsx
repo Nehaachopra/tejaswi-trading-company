@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import { NumberInput } from "~/components/ui/number-input";
+import { RequiredMark } from "~/components/ui/required-mark";
 import { cn } from "~/lib/utils";
 
 import { fieldRow } from "../../transaction/shared/form-basics";
@@ -57,9 +58,12 @@ export function RatePriceFields({
           />
         </span>
       </label>
-      {/* the price with GST, chestnut */}
+      {/* the price with GST, chestnut, starred as required (rate never is) */}
       <label className={label}>
-        <span className="truncate">{t("priceWithGst")}</span>
+        <span className="truncate">
+          {t("priceWithGst")}
+          <RequiredMark />
+        </span>
         <span
           className={cn(
             box,

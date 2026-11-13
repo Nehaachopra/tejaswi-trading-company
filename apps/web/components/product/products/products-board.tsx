@@ -1,20 +1,22 @@
 "use client";
 
-import { Check, ChevronDown, CircleAlert, Plus } from "lucide-react";
+import { Check, ChevronDown, CircleAlert, Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   ADD_BUTTON,
+  addSquare,
   FILTER_CONTROL,
-  FILTER_ROW,
-  FILTER_STACK,
   FILTER_TRIGGER,
   PAGE,
+  SEARCH_BOX,
+  SEARCH_INPUT,
 } from "~/components/ui/page-styles";
+import { ClearButton } from "~/components/ui/clear-button";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
-import { titleCase } from "~/lib/format";
+import { packLabel, titleCase } from "~/lib/format";
 import { trpc } from "~/trpc/client";
 
 import { ProductTabs } from "../product-tabs";
@@ -28,6 +30,7 @@ import { cn } from "~/lib/utils";
 // every product as a tile, filtered by category and sub-category
 export function ProductsBoard() {
   const t = useTranslations("products.items");
+  const tc = useTranslations("common");
 
   // the filters: a category, then one of its sub-categories, and Show inactive
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -44,6 +47,20 @@ export function ProductsBoard() {
     subCategoryId: subCategoryId ?? undefined,
     includeInactive: showInactive,
   });
+
+  // the search: every word typed must appear in the brand, name, category, sub-category or a pack size ("5 ltr")
+  const [typed, setTyped] = useState("");
+  const shown = useMemo(() => {
+    const words = typed.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (!list.data || words.length === 0) return list.data;
+    return list.data.filter((g) => {
+      const text = [g.brand, g.name, g.categoryName, g.subCategoryName, ...g.packs.map((p) => packLabel(p.packSize, p.packSizeCode))]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return words.every((w) => text.includes(w));
+    });
+  }, [list.data, typed]);
 
   // the open product sheet, found again on every change: by any of its pack sizes (the key changes when
   // the brand or sub-category is edited), else by the key (when the pack shown was just hidden)
@@ -74,23 +91,46 @@ export function ProductsBoard() {
         {/* Categories · Products */}
         <ProductTabs />
 
-        {/* as the Entities pages: the name and how many there are on the left, the filters on the right (each its own
-            row on a phone); + Add product under them at the right end; a line before the tiles */}
-        <div className={`mt-3 ${FILTER_STACK}`}>
-          <div className={FILTER_ROW}>
-            <h2 className="shrink-0 font-heading text-2xl font-bold">{t("title")}</h2>
-            <span className="tabular ml-1 shrink-0 rounded-control bg-ivory px-2.5 py-0.5 font-heading text-lg font-bold text-chestnut">
-              {list.data?.length ?? 0}
-            </span>
-            <span className="basis-full sm:hidden" aria-hidden />
-            <span className="hidden flex-1 sm:block" aria-hidden />
-            {/* the category, then its sub-category (once one with some is picked), then Show inactive */}
+        {/* the page header: Products and how many are shown on the left; search and + Add product on the right. On a
+            phone: the name, count and a square + on one row, search full width under them */}
+        <div className="mt-3 flex flex-wrap items-center gap-2 sm:flex-nowrap">
+          <h2 className="shrink-0 font-heading text-2xl font-bold">{t("title")}</h2>
+          <span className="tabular ml-1 shrink-0 rounded-control bg-ivory px-2.5 py-0.5 font-heading text-lg font-bold text-chestnut">
+            {shown?.length ?? 0}
+          </span>
+          <span className="flex-1" aria-hidden />
+          <label className={cn(SEARCH_BOX, "order-last sm:order-none sm:w-64")}>
+            <Search className="size-4 shrink-0 text-ivory/70" aria-hidden />
+            <span className="sr-only">{t("search")}</span>
+            <input
+              type="search"
+              value={typed}
+              maxLength={100}
+              onChange={(e) => setTyped(e.target.value)}
+              placeholder={t("search")}
+              className={SEARCH_INPUT}
+            />
+            {typed && <ClearButton onClear={() => setTyped("")} label={tc("clearSearch")} />}
+          </label>
+          {/* + Add product; a square + on a phone */}
+          <button type="button" onClick={() => setAdding(true)} aria-label={t("add")} className={cn(addSquare("size-11"), "sm:hidden")}>
+            <Plus className="size-5" aria-hidden />
+          </button>
+          <button type="button" onClick={() => setAdding(true)} className={cn(ADD_BUTTON, "hidden shrink-0 sm:flex")}>
+            <Plus className="size-5" aria-hidden /> {t("add")}
+          </button>
+        </div>
+
+        {/* the filters, on top of the cards: the category, then its sub-category (once one with some is picked), then
+            Show inactive; one row that scrolls sideways, the dropdown lists floating above it */}
+        <div className="-mx-4 mt-6 flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:-mx-6 sm:px-6">
             <Menu
               label={t("category")}
               surface="chestnut"
               align="left"
               boxed
-              triggerClassName={cn(FILTER_TRIGGER, FILTER_CONTROL)}
+              floating
+              triggerClassName={cn(FILTER_TRIGGER, FILTER_CONTROL, "shrink-0")}
               trigger={
                 <>
                   <span className="truncate">
@@ -130,7 +170,8 @@ export function ProductsBoard() {
               align="left"
               disabled={subs.length === 0}
               boxed
-              triggerClassName={cn(FILTER_TRIGGER, FILTER_CONTROL)}
+              floating
+              triggerClassName={cn(FILTER_TRIGGER, FILTER_CONTROL, "shrink-0")}
               trigger={
                 <>
                   <span className="truncate">
@@ -166,20 +207,10 @@ export function ProductsBoard() {
               type="button"
               aria-pressed={showInactive}
               onClick={() => setShowInactive((v) => !v)}
-              className={cn(chip(showInactive), FILTER_CONTROL)}
+              className={cn(chip(showInactive), FILTER_CONTROL, "shrink-0")}
             >
               {t("showInactive")}
             </button>
-          </div>
-          <div className={cn(FILTER_ROW, "sm:justify-end")}>
-            <button
-              type="button"
-              onClick={() => setAdding(true)}
-              className={cn(ADD_BUTTON, "shrink-0")}
-            >
-              <Plus className="size-5" aria-hidden /> {t("add")}
-            </button>
-          </div>
         </div>
 
         {/* the tiles: 2 across on phones, more on wider screens */}
@@ -191,13 +222,13 @@ export function ProductsBoard() {
           <p role="alert" className="mt-16 flex items-center justify-center gap-2">
             <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
           </p>
-        ) : list.data.length === 0 ? (
+        ) : shown!.length === 0 ? (
           <p className="mt-16 text-center text-ivory/70">
-            {categoryId ? t("noMatch") : t("empty")}
+            {typed.trim() ? t("noSearchMatch", { search: typed.trim() }) : categoryId ? t("noMatch") : t("empty")}
           </p>
         ) : (
           <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
-            {list.data.map((group) => (
+            {shown!.map((group) => (
               <ProductTile
                 key={group.key}
                 group={group}

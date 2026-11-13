@@ -12,8 +12,8 @@ export const rupees = (amount: number) =>
     maximumFractionDigits: 2,
   });
 
-// a pack size as people say it: 25 kg, 500 ml, 1 box, 12 pcs
-const UNIT = { KGS: "kg", ML: "ml", BOX: "box", PCS: "pcs" } as const;
+// a pack size as people say it: 25 kg, 5 l, 1 box, 12 pcs
+const UNIT = { KGS: "kg", LTR: "l", BOX: "box", PCS: "pcs" } as const;
 export const packLabel = (packSize: number, packSizeCode: keyof typeof UNIT) => `${packSize} ${UNIT[packSizeCode]}`;
 
 // the first letters of up to two words: "india gate" → "IG"
