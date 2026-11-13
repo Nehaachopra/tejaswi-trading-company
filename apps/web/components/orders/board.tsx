@@ -15,7 +15,6 @@ import { cn } from "~/lib/utils";
 import { usePurchaseOrders, useSaleOrders } from "~/providers/orders";
 
 import { indiaDay } from "../account/balance";
-import { orderPath } from "../transaction/order/doc-data";
 
 type Kind = "purchase" | "sale";
 type Status = "pending" | "completed" | "cancelled";
@@ -243,7 +242,7 @@ export function OrdersBoard({ isAdmin }: { isAdmin: boolean }) {
           {shown.map((o) => (
             <li key={o.id}>
               <Link
-                href={orderPath(kind, o.id)}
+                href={`/order/${kind}/${o.id}`}
                 className={cn("on-ivory flex flex-col gap-2.5 rounded-control bg-ivory p-3.5 text-chestnut", o.status === "cancelled" && "opacity-65")}
               >
                 {/* its number (smaller than who it's with, muted), and its status with its sign: a softly glowing dot while

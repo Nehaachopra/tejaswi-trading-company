@@ -2234,6 +2234,35 @@
       "ordered": "ऑर्डर किया",
       "products": "प्रोडक्ट",
       "title": "ऑर्डर"
+    },
+    "page": {
+      "items": "आइटम",
+      "details": "विवरण",
+      "pack": "पैक",
+      "quantity": "मात्रा",
+      "tracker": "ट्रैकर",
+      "left": "{n} बाक़ी",
+      "showMoves": "{name} की डिलीवरी दिखाएँ",
+      "nothingOut": "अभी कुछ नहीं गया।",
+      "nothingIn": "अभी कुछ नहीं आया।",
+      "address": "पता",
+      "name": "नाम",
+      "phone": "फ़ोन",
+      "addressLine": "पता",
+      "history": "इतिहास",
+      "cancelled": "रद्द",
+      "sale": "बिक्री {number}",
+      "purchase": "ख़रीद {number}",
+      "vehicle": "गाड़ी {number}",
+      "ordered": "ऑर्डर किया",
+      "by": "{name} ने",
+      "expected": "अपेक्षित {day}",
+      "cancelOrder": "ऑर्डर रद्द करें",
+      "cancelTitle": "यह ऑर्डर रद्द करें?",
+      "cancelBody": "{number} रद्द हो जाएगा। जो आ चुका है वह ख़रीदा ही रहेगा।",
+      "cancelBodySale": "{number} रद्द हो जाएगा, और रोका हुआ स्टॉक वापस आ जाएगा।",
+      "keep": "रहने दें",
+      "loadError": "ऑर्डर लोड नहीं हुआ। कनेक्शन देखें और फिर कोशिश करें।"
     }
   }
 }

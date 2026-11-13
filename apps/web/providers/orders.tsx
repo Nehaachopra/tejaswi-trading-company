@@ -15,3 +15,22 @@ export function usePurchaseOrders(filters: PurchaseFilters, enabled: boolean) {
 export function useSaleOrders(filters: SaleFilters, enabled: boolean) {
   return trpc.orders.sale.list.useQuery(filters, { enabled, placeholderData: (previous) => previous });
 }
+
+// an order called off (the admin's, while pending): its page, the lists and the products (a sale order's held stock is
+// back) are read again
+export function useCancelOrder(kind: "purchase" | "sale", id: string) {
+  const utils = trpc.useUtils();
+  const done = () => {
+    void utils.orders[kind].document.invalidate({ id });
+    void utils.orders[kind].list.invalidate();
+    void utils.inventory.product.list.invalidate();
+  };
+  const purchase = trpc.orders.purchase.cancel.useMutation({ onSuccess: done });
+  const sale = trpc.orders.sale.cancel.useMutation({ onSuccess: done });
+  return kind === "purchase" ? purchase : sale;
+}
+
+// the products, for each order item's photo, category and sub-category
+export function useOrderProducts() {
+  return trpc.inventory.product.list.useQuery({ includeInactive: true });
+}

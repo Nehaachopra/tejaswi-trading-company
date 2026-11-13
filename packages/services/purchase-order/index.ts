@@ -323,7 +323,7 @@ export default class PurchaseOrderService {
         .orderBy(purchaseOrderProductsTable.createdAt, purchaseOrderProductsTable.id),
       this.received(db, [o.id]),
       db
-        .select({ transactionId: transactionsTable.id, assignedId: transactionsTable.assignedId, dateTime: transactionsTable.dateTime, purchaseId: purchasesTable.id })
+        .select({ transactionId: transactionsTable.id, assignedId: transactionsTable.assignedId, dateTime: transactionsTable.dateTime, purchaseId: purchasesTable.id, vehicleNumber: purchasesTable.vehicleNumber })
         .from(purchasesTable)
         .innerJoin(transactionsTable, eq(transactionsTable.id, purchasesTable.transactionId))
         .where(and(eq(purchasesTable.orderId, o.id), eq(transactionsTable.status, "active")))
@@ -338,7 +338,7 @@ export default class PurchaseOrderService {
     // each delivery's quantity, from its purchase's items
     const deliveryItems = deliveries.length
       ? await db
-          .select({ purchaseId: purchaseProductsTable.purchaseId, quantity: purchaseProductsTable.quantity })
+          .select({ purchaseId: purchaseProductsTable.purchaseId, productId: purchaseProductsTable.productId, quantity: purchaseProductsTable.quantity })
           .from(purchaseProductsTable)
           .where(inArray(purchaseProductsTable.purchaseId, deliveries.map((d) => d.purchaseId)))
       : [];
@@ -385,12 +385,20 @@ export default class PurchaseOrderService {
       gst: { cgst, sgst: sameState ? Math.round((gst - cgst) * 100) / 100 : 0, igst: sameState ? 0 : gst, total: gst },
       remarks: o.remarks,
       orderedByName: o.orderedByName,
-      deliveries: deliveries.map((d) => ({
-        transactionId: d.transactionId,
-        assignedId: d.assignedId,
-        dateTime: d.dateTime,
-        quantity: deliveryItems.filter((x) => x.purchaseId === d.purchaseId).reduce((a, x) => a + x.quantity, 0),
-      })),
+      deliveries: deliveries.map((d) => {
+        const items = deliveryItems.filter((x) => x.purchaseId === d.purchaseId);
+        return {
+          transactionId: d.transactionId,
+          assignedId: d.assignedId,
+          dateTime: d.dateTime,
+          quantity: items.reduce((a, x) => a + x.quantity, 0),
+          vehicleNumber: d.vehicleNumber,
+          items: items.map((x) => ({ productId: x.productId, quantity: x.quantity })),
+        };
+      }),
+      createdAt: o.createdAt,
+      // a cancel is the order's last change
+      cancelledAt: o.status === "cancelled" ? o.updatedAt : null,
     };
   }
 }

@@ -23,15 +23,42 @@ export type OrderDoc = {
   kind: OrderKind;
   order: Pick<
     PurchaseDoc["order"],
-    "id" | "orderId" | "orderDate" | "expectedDeliveryDate" | "remarks" | "orderedByName" | "totalAmount" | "orderDiscount" | "itemCount"
-  > & { lines: SaleDoc["order"]["lines"] };
+    | "id"
+    | "orderId"
+    | "orderDate"
+    | "expectedDeliveryDate"
+    | "remarks"
+    | "orderedByName"
+    | "totalAmount"
+    | "orderDiscount"
+    | "itemCount"
+    | "status"
+    | "deliveries"
+    | "createdAt"
+    | "cancelledAt"
+  > & {
+    // each item, with how many have moved (arrived on a purchase order, gone out on a sale order)
+    lines: (Omit<SaleDoc["order"]["lines"][number], "delivered"> & { moved: number })[];
+  };
   toName: string;
   company: PurchaseDoc["company"];
   to: PurchaseDoc["supplier"];
 };
 
-const fromPurchase = (d: PurchaseDoc): OrderDoc => ({ kind: "purchase", order: d.order, toName: d.order.party.name, company: d.company, to: d.supplier });
-const fromSale = (d: SaleDoc): OrderDoc => ({ kind: "sale", order: d.order, toName: d.order.customer.name, company: d.company, to: d.customer });
+const fromPurchase = (d: PurchaseDoc): OrderDoc => ({
+  kind: "purchase",
+  order: { ...d.order, lines: d.order.lines.map((l) => ({ ...l, moved: l.received })) },
+  toName: d.order.party.name,
+  company: d.company,
+  to: d.supplier,
+});
+const fromSale = (d: SaleDoc): OrderDoc => ({
+  kind: "sale",
+  order: { ...d.order, lines: d.order.lines.map(({ delivered, ...l }) => ({ ...l, moved: delivered })) },
+  toName: d.order.customer.name,
+  company: d.company,
+  to: d.customer,
+});
 
 // the order's document: ours (with a share key, the other side's copy from a shared link); only the kind asked is fetched
 export function useOrderDoc(kind: OrderKind, id: string, shareKey?: string) {

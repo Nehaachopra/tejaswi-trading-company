@@ -2234,6 +2234,35 @@
       "ordered": "ಆರ್ಡರ್ ಮಾಡಿದ್ದು",
       "products": "ಉತ್ಪನ್ನಗಳು",
       "title": "ಆರ್ಡರ್‌ಗಳು"
+    },
+    "page": {
+      "items": "ಐಟಂಗಳು",
+      "details": "ವಿವರ",
+      "pack": "ಪ್ಯಾಕ್",
+      "quantity": "ಪ್ರಮಾಣ",
+      "tracker": "ಟ್ರ್ಯಾಕರ್",
+      "left": "{n} ಬಾಕಿ",
+      "showMoves": "{name} ಡೆಲಿವರಿಗಳನ್ನು ತೋರಿಸಿ",
+      "nothingOut": "ಇನ್ನೂ ಏನೂ ಹೋಗಿಲ್ಲ.",
+      "nothingIn": "ಇನ್ನೂ ಏನೂ ಬಂದಿಲ್ಲ.",
+      "address": "ವಿಳಾಸ",
+      "name": "ಹೆಸರು",
+      "phone": "ಫೋನ್",
+      "addressLine": "ವಿಳಾಸ",
+      "history": "ಇತಿಹಾಸ",
+      "cancelled": "ರದ್ದು",
+      "sale": "ಮಾರಾಟ {number}",
+      "purchase": "ಖರೀದಿ {number}",
+      "vehicle": "ವಾಹನ {number}",
+      "ordered": "ಆರ್ಡರ್ ಮಾಡಿದ್ದು",
+      "by": "{name} ಅವರಿಂದ",
+      "expected": "ನಿರೀಕ್ಷಿತ {day}",
+      "cancelOrder": "ಆರ್ಡರ್ ರದ್ದುಮಾಡಿ",
+      "cancelTitle": "ಈ ಆರ್ಡರ್ ರದ್ದುಮಾಡುವುದೇ?",
+      "cancelBody": "{number} ರದ್ದಾಗುತ್ತದೆ. ಬಂದಿರುವುದು ಖರೀದಿಯಾಗಿಯೇ ಉಳಿಯುತ್ತದೆ.",
+      "cancelBodySale": "{number} ರದ್ದಾಗುತ್ತದೆ, ಮತ್ತು ಹಿಡಿದಿಟ್ಟ ಸ್ಟಾಕ್ ಮರಳುತ್ತದೆ.",
+      "keep": "ಇರಲಿ",
+      "loadError": "ಆರ್ಡರ್ ಲೋಡ್ ಆಗಲಿಲ್ಲ. ಸಂಪರ್ಕ ನೋಡಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."
     }
   }
 }

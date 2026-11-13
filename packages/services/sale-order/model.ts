@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { partyAddressInputModel } from "../party/model";
-import { orderLineInputModel, orderStatusModel, sharedPurchaseOrderModel } from "../purchase-order/model";
+import { orderDeliveryModel, orderLineInputModel, orderStatusModel, sharedPurchaseOrderModel } from "../purchase-order/model";
 
 const idModel = z.string().uuid();
 
@@ -81,6 +81,8 @@ export const saleOrderLineModel = z.object({
   gstAmount: z.number(),
   // with GST, less its share of the order discount
   total: z.number(),
+  // how many have gone out through sales made from the order
+  delivered: z.number(),
 });
 
 // who it's for: a customer (their party) or a name kept on the order, with the phone known for either
@@ -128,6 +130,11 @@ export const saleOrderModel = z.object({
   gstAmount: z.number(),
   remarks: z.string().nullable(),
   orderedByName: z.string(),
+  // the sales made from the order, each one dispatch
+  deliveries: z.array(orderDeliveryModel),
+  // when it was made, and when it was cancelled (if it was)
+  createdAt: z.date(),
+  cancelledAt: z.date().nullable(),
 });
 
 export type SaleOrderModel = z.infer<typeof saleOrderModel>;

@@ -2234,6 +2234,35 @@
       "ordered": "Ordered",
       "products": "Products",
       "title": "Orders"
+    },
+    "page": {
+      "items": "Items",
+      "details": "Details",
+      "pack": "Pack",
+      "quantity": "Quantity",
+      "tracker": "Tracker",
+      "left": "{n} left",
+      "showMoves": "Show the deliveries of {name}",
+      "nothingOut": "Nothing has gone out yet.",
+      "nothingIn": "Nothing has arrived yet.",
+      "address": "Address",
+      "name": "Name",
+      "phone": "Phone",
+      "addressLine": "Address",
+      "history": "History",
+      "cancelled": "Cancelled",
+      "sale": "Sale {number}",
+      "purchase": "Purchase {number}",
+      "vehicle": "Vehicle {number}",
+      "ordered": "Ordered",
+      "by": "by {name}",
+      "expected": "Expected {day}",
+      "cancelOrder": "Cancel order",
+      "cancelTitle": "Cancel this order?",
+      "cancelBody": "{number} will be marked cancelled. What already arrived stays bought.",
+      "cancelBodySale": "{number} will be marked cancelled, and the stock it held goes back.",
+      "keep": "Keep it",
+      "loadError": "Couldn't load this order. Check your connection and try again."
     }
   }
 }

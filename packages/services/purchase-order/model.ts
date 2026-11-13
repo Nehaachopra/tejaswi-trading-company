@@ -98,12 +98,15 @@ export const purchaseOrderLineModel = z.object({
   total: z.number(),
 });
 
-// a purchase made from the order: one delivery
+// a purchase (or, for a sale order, a sale) made from the order: one delivery, with its vehicle and how many of each
+// item it carried
 export const orderDeliveryModel = z.object({
   transactionId: idModel,
   assignedId: z.string(),
   dateTime: z.date(),
   quantity: z.number(),
+  vehicleNumber: z.string().nullable(),
+  items: z.array(z.object({ productId: idModel, quantity: z.number() })),
 });
 
 export const purchaseOrderSummaryModel = z.object({
@@ -132,6 +135,9 @@ export const purchaseOrderModel = purchaseOrderSummaryModel.extend({
   remarks: z.string().nullable(),
   orderedByName: z.string(),
   deliveries: z.array(orderDeliveryModel),
+  // when it was made, and when it was cancelled (if it was)
+  createdAt: z.date(),
+  cancelledAt: z.date().nullable(),
 });
 
 export type PurchaseOrderModel = z.infer<typeof purchaseOrderModel>;

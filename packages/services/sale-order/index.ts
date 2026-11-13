@@ -1,6 +1,16 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, count, db, desc, eq, gte, inArray, lte, sql } from "@repo/database";
-import { partiesTable, partyAddressesTable, productPricesTable, productsTable, saleOrderProductsTable, saleOrdersTable } from "@repo/database/schema";
+import {
+  partiesTable,
+  partyAddressesTable,
+  productPricesTable,
+  productsTable,
+  saleOrderProductsTable,
+  saleOrdersTable,
+  saleProductsTable,
+  salesTable,
+  transactionsTable,
+} from "@repo/database/schema";
 
 import type { ActorModel } from "../accounts/model";
 import { fromPaise, toPaise } from "../accounts/money";
@@ -250,6 +260,19 @@ export default class SaleOrderService {
       .innerJoin(productsTable, eq(productsTable.id, saleOrderProductsTable.productId))
       .where(eq(saleOrderProductsTable.saleOrderId, o.id))
       .orderBy(saleOrderProductsTable.createdAt, saleOrderProductsTable.id);
+    // the sales made from it that still stand (each one dispatch), and what each carried
+    const sales = await db
+      .select({ saleId: salesTable.id, transactionId: transactionsTable.id, assignedId: transactionsTable.assignedId, dateTime: transactionsTable.dateTime, vehicleNumber: salesTable.vehicleNumber })
+      .from(salesTable)
+      .innerJoin(transactionsTable, eq(transactionsTable.id, salesTable.transactionId))
+      .where(and(eq(salesTable.orderId, o.id), eq(transactionsTable.status, "active")))
+      .orderBy(transactionsTable.dateTime);
+    const carried = sales.length
+      ? await db
+          .select({ saleId: saleProductsTable.saleId, productId: saleProductsTable.productId, quantity: saleProductsTable.quantity })
+          .from(saleProductsTable)
+          .where(inArray(saleProductsTable.saleId, sales.map((x) => x.saleId)))
+      : [];
     // the figures again, for each line's share of the order discount
     const p = priceLines(
       lines.map(({ l }) => ({ quantity: l.quantityOrdered, rate: Number(l.rateBeforeGst), discount: Number(l.discountAmount), gstRate: Number(l.gstRate) })),
@@ -267,6 +290,7 @@ export default class SaleOrderService {
       gstRate: Number(l.gstRate),
       gstAmount: Number(l.gstAmount),
       total: (p.priced[i]!.value - p.priced[i]!.share + p.priced[i]!.gst) / 100,
+      delivered: carried.filter((c) => c.productId === l.productId).reduce((a, c) => a + c.quantity, 0),
     }));
     return {
       id: o.id,
@@ -287,6 +311,20 @@ export default class SaleOrderService {
       gstAmount: Number(o.gstAmount),
       remarks: o.remarks,
       orderedByName: o.orderedByName,
+      deliveries: sales.map((x) => {
+        const mine = carried.filter((c) => c.saleId === x.saleId);
+        return {
+          transactionId: x.transactionId,
+          assignedId: x.assignedId,
+          dateTime: x.dateTime,
+          quantity: mine.reduce((a, c) => a + c.quantity, 0),
+          vehicleNumber: x.vehicleNumber,
+          items: mine.map((c) => ({ productId: c.productId, quantity: c.quantity })),
+        };
+      }),
+      createdAt: o.createdAt,
+      // a cancel is the order's last change
+      cancelledAt: o.status === "cancelled" ? o.updatedAt : null,
     };
   }
 }
