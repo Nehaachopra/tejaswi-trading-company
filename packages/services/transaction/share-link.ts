@@ -24,3 +24,15 @@ export function opensVoucher(transactionId: string, key: string) {
   const got = Buffer.from(key);
   return want.length === got.length && timingSafeEqual(want, got);
 }
+
+// the key for one purchase order's link, sent to its supplier on WhatsApp (same secret, its own prefix)
+export function orderKey(orderId: string) {
+  return createHmac("sha256", secret).update(`purchase-order:${orderId}`).digest("base64url").slice(0, 32);
+}
+
+// whether a key opens this purchase order
+export function opensOrder(orderId: string, key: string) {
+  const want = Buffer.from(orderKey(orderId));
+  const got = Buffer.from(key);
+  return want.length === got.length && timingSafeEqual(want, got);
+}

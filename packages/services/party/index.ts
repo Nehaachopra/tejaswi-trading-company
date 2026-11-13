@@ -120,6 +120,16 @@ export default class PartyService {
     if (clash) throw phoneTaken(phone, clash.shortName ?? clash.name);
   }
 
+  // a phone given for a party that has none (a supplier's WhatsApp number typed when an order is shared); one already
+  // kept stays, and a phone someone else has is refused
+  async addPhoneIn(tx: Tx, partyId: string, phone: string) {
+    const [party] = await tx.select({ phone: partiesTable.phone }).from(partiesTable).where(eq(partiesTable.id, partyId)).for("update");
+    if (!party) throw notFound();
+    if (party.phone) return;
+    await this.assertPhoneFree(tx, phone, partyId);
+    await tx.update(partiesTable).set({ phone }).where(eq(partiesTable.id, partyId));
+  }
+
   private async assertShortNameFree(tx: Tx, shortName: string | null, partyId?: string) {
     if (shortName === null) return;
     const [clash] = await tx

@@ -434,6 +434,7 @@ export function NewPartyDetails({
         onAddressesOpen={() => setTried(false)}
         onlyPhone={!!match}
         transporter={transporter}
+        rows
       />
       {match?.party && (
         <div className="flex flex-col gap-3 rounded-control border border-chestnut/40 bg-chestnut/4 p-3">

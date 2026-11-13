@@ -8,6 +8,7 @@ import { inventoryRouter } from "./routes/inventory/route";
 import { jobsRouter } from "./routes/jobs/route";
 import { liveRouter } from "./routes/live/route";
 import { settingsRouter } from "./routes/settings/route";
+import { ordersRouter } from "./routes/orders/route";
 
 export const serverRouter = router({
   health: healthRouter,
@@ -15,6 +16,7 @@ export const serverRouter = router({
   inventory: inventoryRouter,
   accounts: accountsRouter,
   transactions: transactionsRouter,
+  orders: ordersRouter,
   jobs: jobsRouter,
   live: liveRouter,
   settings: settingsRouter,

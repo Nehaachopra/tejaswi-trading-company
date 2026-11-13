@@ -2,7 +2,7 @@
 
 import { Building2, House, IdCard, Landmark, Mail, Map, MapPin, MapPinned, MessageSquare, Pencil, Percent, Phone, Plus, QrCode, ReceiptText, Tag, Trash2, User, Wallet, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
 import { fieldClass } from "~/components/ui/card-form";
@@ -21,6 +21,7 @@ import { trpc } from "~/trpc/client";
 import { GSTIN_PATTERN, PHONE_PATTERN, type RouterOutputs, upiFormatOk } from "@repo/trpc/client";
 
 import { PickMenu } from "../../stock/pick-menu";
+import { fieldRow } from "../../transaction/shared/form-basics";
 import { DISTRICTS } from "./districts";
 import { GST_STATES, type StateCode, stateCodeOf } from "./party-kinds";
 
@@ -265,11 +266,27 @@ export function ProfilePhoto() {
   );
 }
 
+// the fields as rows (label left, box or dropdown right; two columns on a wider screen), as a payment or an order
+// adds a supplier; otherwise each label sits above its box
+const RowsContext = createContext(false);
+
 // a part of the form's title
 const SECTION_TITLE = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
 
-// a labelled field, with an icon before its label
+// a labelled field, with an icon before its label; as a row (label left, no icon) inside a rows form
 export function Field({ label, icon: Icon, children, className, required = false, error }: { label: string; icon?: LucideIcon; children: React.ReactNode; className?: string; required?: boolean; error?: string | false }) {
+  const rows = useContext(RowsContext);
+  if (rows)
+    return (
+      <label className={fieldRow}>
+        <span>
+          {label}
+          {required && <RequiredMark />}
+        </span>
+        {children}
+        {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
+      </label>
+    );
   return (
     <label className={cn("flex min-w-0 flex-col gap-2.5", className)}>
       <span className="flex items-center gap-1.5 text-xs font-semibold">
@@ -318,6 +335,7 @@ export function AddressFields({
   onRestart?: () => void;
 }) {
   const t = useTranslations("accounts.party.form");
+  const rows = useContext(RowsContext);
   const bad = blank(address) && !required ? null : addressProblems(address);
   // its must-haves are starred when it must be filled, or once anything is typed in it
   const must = required || !blank(address);
@@ -485,7 +503,7 @@ export function AddressFields({
       )}
 
       {/* the city beside its PIN, each filling the other and the state and district below; then those two */}
-      <div className="grid grid-cols-2 items-start gap-x-6 gap-y-3">
+      <div className={cn("grid items-start gap-x-6 gap-y-3", rows ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2")}>
         <Field icon={Building2} label={t("city")} required={must} error={show("city") && t("required")}>
           <MicField onText={(said) => setCity(noDigits(address.city.trim() ? `${address.city.trim()} ${said}` : said).slice(0, MAX.place))}>
           <input value={address.city} maxLength={MAX.place} onChange={(e) => setCity(noDigits(e.target.value))} aria-invalid={show("city") || undefined} className={cn(input(show("city")), "pr-11")} />
@@ -510,7 +528,7 @@ export function AddressFields({
           {lookup.state === "missing" && <span className="text-xs text-chestnut/70">{t("pinNotFound")}</span>}
         </Field>
       </div>
-      <div className="grid grid-cols-2 items-start gap-x-6 gap-y-3">
+      <div className={cn("grid items-start gap-x-6 gap-y-3", rows ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2")}>
         <Field icon={Map} label={t("state")} required={must} error={show("state") && t("required")}>
           <PickMenu
             label={t("state")}
@@ -559,7 +577,7 @@ export function AddressFields({
       </div>
 
       {/* the address itself */}
-      <div className="grid grid-cols-2 items-end gap-x-6 gap-y-3">
+      <div className={cn("grid gap-x-6 gap-y-3", rows ? "grid-cols-1 items-start sm:grid-cols-2" : "grid-cols-2 items-end")}>
         <Field icon={House} label={t("line1")}>
           <MicField onText={(said) => onChange({ addressLine1: (address.addressLine1.trim() ? `${address.addressLine1.trim()} ${said}` : said).slice(0, MAX.line) })}>
             <input value={address.addressLine1} maxLength={MAX.line} onChange={(e) => onChange({ addressLine1: e.target.value })} className={cn(input(false), "pr-11")} />
@@ -612,6 +630,11 @@ export function PartyFields({
   onAddressesOpen,
   phoneOptional = false,
   asksTypes = false,
+  asksShortName = true,
+  asksPhone = true,
+  asksEmail = true,
+  oneAddress = false,
+  rows = false,
 }: {
   draft: PartyDraft;
   onChange: (patch: Partial<PartyDraft>) => void;
@@ -639,6 +662,16 @@ export function PartyFields({
   phoneOptional?: boolean;
   // Entities and Accounts: what they are to us, as chips on top (a party added from a transaction gets its role from it)
   asksTypes?: boolean;
+  // a supplier added from a purchase order isn't asked a short name (it can be added later in Entities)
+  asksShortName?: boolean;
+  // a supplier added from a purchase order isn't asked a phone (it's asked when the order is shared); goes with
+  // phoneOptional
+  asksPhone?: boolean;
+  // a supplier added from a purchase order: no email, and its one address only (no Add address)
+  asksEmail?: boolean;
+  oneAddress?: boolean;
+  // label left, box right, two columns on a wider screen (a payment's or an order's new supplier)
+  rows?: boolean;
 }) {
   const t = useTranslations("accounts.party.form");
   const bad = draftProblems(draft, strict, phoneOptional).party;
@@ -717,7 +750,7 @@ export function PartyFields({
       <span className={cn("flex min-h-11 items-center gap-2 px-3", fieldClass(phoneBad))}>
         <span className="text-chestnut/70">+91</span>
         <input
-          autoFocus
+          autoFocus={!rows}
           aria-invalid={phoneBad || undefined}
           value={draft.phone}
           inputMode="tel"
@@ -736,14 +769,17 @@ export function PartyFields({
 
   if (onlyPhone) {
     return (
-      <div className="relative flex flex-col gap-2">
-        {phone}
-        {belowPhone}
-      </div>
+      <RowsContext.Provider value={rows}>
+        <div className="relative flex flex-col gap-2">
+          {phone}
+          {belowPhone}
+        </div>
+      </RowsContext.Provider>
     );
   }
 
   return (
+    <RowsContext.Provider value={rows}>
     <div className="flex flex-col gap-5">
       {/* what they are to us: any of customer, supplier, employee, lender and agent (none for anyone else), as an
           accordion that folds to the picks */}
@@ -761,14 +797,46 @@ export function PartyFields({
           {draft.types.includes("employee") && <EmploymentFields draft={draft} onChange={onChange} tried={tried} />}
         </section>
       )}
-      {/* personal details: phone and email in a row where both fit, then name and short name, then the PAN set apart */}
+      {/* personal details: phone and email in a row where both fit, then name and short name (as rows: the name and
+          phone first), then the PAN set apart */}
       <section className="@container flex flex-col gap-3">
         <h3 className={SECTION_TITLE}>{t("personal")}</h3>
         <div className="flex flex-col gap-4 @md:flex-row @md:items-start @md:gap-8">
-        <ProfilePhoto />
+        {!rows && <ProfilePhoto />}
         <div className="flex min-w-0 flex-1 flex-col gap-3">
+        {rows ? (
+          <>
+          {/* as rows: the name first with the phone beside it (under it on a phone), then the email and short name */}
         <div className="relative grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2">
-          {phone}
+          <Field icon={User} label={t("name")} required error={show("name") && t("required")}>
+            <MicField
+              onText={(said) => {
+                const name = noDigits(draft.name.trim() ? `${draft.name.trim()} ${said}` : said).slice(0, MAX.name);
+                onChange({ name });
+                if (name.trim()) setNameDone(true);
+              }}
+            >
+              <input
+                autoFocus
+                value={draft.name}
+                maxLength={MAX.name}
+                onChange={(e) => {
+                  const name = noDigits(e.target.value);
+                  onChange({ name });
+                }}
+                onBlur={() => draft.name.trim() && setNameDone(true)}
+                onKeyDown={(e) => e.key === "Enter" && draft.name.trim() && (e.preventDefault(), setNameDone(true))}
+                aria-invalid={show("name") || undefined}
+                className={cn(input(show("name")), "pr-11")}
+              />
+            </MicField>
+          </Field>
+          {asksPhone && phone}
+          {belowPhone && <div className="col-span-full">{belowPhone}</div>}
+        </div>
+        {(asksEmail || asksShortName || belowName) && (
+        <div className="relative grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2">
+          {asksEmail && (
           <Field icon={Mail} label={t("email")}>
             <input
               value={draft.email}
@@ -780,6 +848,42 @@ export function PartyFields({
               className={input(show("email"))}
             />
           </Field>
+          )}
+          {/* the short name ledgers and lists show (optional; without it they show the full name) */}
+          {asksShortName && (
+          <Field icon={Tag} label={t("shortName")} error={draft.shortNameTaken && t("shortNameTaken")}>
+            <input
+              value={draft.shortName}
+              maxLength={MAX.shortName}
+              autoCapitalize="characters"
+              onChange={(e) => onChange({ shortName: e.target.value.toUpperCase().replace(/[^A-Z0-9 &.-]/g, ""), shortNameTaken: false })}
+              placeholder="SRT"
+              aria-invalid={show("shortName") || draft.shortNameTaken || undefined}
+              className={cn(input(show("shortName") || draft.shortNameTaken), "uppercase")}
+            />
+          </Field>
+          )}
+          {belowName && <div className="col-span-full">{belowName}</div>}
+        </div>
+        )}
+          </>
+        ) : (
+          <>
+        <div className="relative grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2">
+          {asksPhone && phone}
+          {asksEmail && (
+          <Field icon={Mail} label={t("email")}>
+            <input
+              value={draft.email}
+              type="email"
+              maxLength={MAX.email}
+              autoCapitalize="none"
+              onChange={(e) => onChange({ email: e.target.value.replace(/\s/g, "") })}
+              aria-invalid={show("email") || undefined}
+              className={input(show("email"))}
+            />
+          </Field>
+          )}
           {belowPhone && <div className="col-span-full">{belowPhone}</div>}
         </div>
         <div className="relative grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2">
@@ -806,6 +910,7 @@ export function PartyFields({
             </MicField>
           </Field>
           {/* the short name ledgers and lists show (optional; without it they show the full name) */}
+          {asksShortName && (
           <Field icon={Tag} label={t("shortName")} error={draft.shortNameTaken && t("shortNameTaken")}>
             <input
               value={draft.shortName}
@@ -817,8 +922,11 @@ export function PartyFields({
               className={cn(input(show("shortName") || draft.shortNameTaken), "uppercase")}
             />
           </Field>
+          )}
           {belowName && <div className="col-span-full">{belowName}</div>}
         </div>
+          </>
+        )}
         </div>
         </div>
 
@@ -888,7 +996,7 @@ export function PartyFields({
               onMakeDefault={() => onChange({ addresses: draft.addresses.map((x) => ({ ...x, isDefault: x.key === a.key })) })}
             />
           ))}
-          {draft.addresses.length < MAX_ADDRESSES && (
+          {!oneAddress && draft.addresses.length < MAX_ADDRESSES && (
             <button
               type="button"
               onClick={() => onChange({ addresses: [...draft.addresses, emptyAddress(draft.addresses.length === 0)] })}
@@ -908,6 +1016,7 @@ export function PartyFields({
         </Field>
       )}
     </div>
+    </RowsContext.Provider>
   );
 }
 

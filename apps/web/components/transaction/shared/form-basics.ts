@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { fieldClass } from "~/components/ui/card-form";
 import { wordsToNumber } from "~/lib/number-words";
 import { cn } from "~/lib/utils";
@@ -13,8 +15,9 @@ import { type Pickable } from "../pickers/ledger-picker";
 export const REMARKS_MAX = 100;
 export const REFERENCE_MAX = 30;
 
-// a summary line: words, or a name with its amount on the right; a step can have several, one under another
-export type SummaryLine = string | { name: string; amount: string };
+// a summary line: words, or a name with its amount on the right (an order's item: a small photo before the name and
+// its quantity on the right); a step can have several, one under another
+export type SummaryLine = string | { name: string; amount: string; image?: ReactNode };
 
 // another bank account taking part of the bank's share: which account, its amount as typed, and how it went
 export type MorePart = {

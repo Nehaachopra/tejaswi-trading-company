@@ -65,7 +65,7 @@ const fromPayment = ({ paidFor, paidToName, paidToLedgerId: _l, ...p }: Payment)
 });
 
 // a day as on a voucher: 24-10-2026 (India time)
-const dated = (d: Date | string) =>
+export const dated = (d: Date | string) =>
   new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Kolkata",
     day: "2-digit",
@@ -76,19 +76,19 @@ const dated = (d: Date | string) =>
     .replace(/\//g, "-");
 
 // an amount with paise, Indian grouping: 10,204.08
-const money = (n: number) =>
+export const money = (n: number) =>
   n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 // a figure in the strip that adds up to Total
-const total = "tabular font-heading text-base font-bold sm:text-lg";
+export const total = "tabular font-heading text-base font-bold sm:text-lg";
 
 // the voucher's lines and boxes
-const cell = "border-chestnut/40 px-2 py-1.5";
-const band =
+export const cell = "border-chestnut/40 px-2 py-1.5";
+export const band =
   "bg-chestnut px-2 py-1.5 font-heading text-base font-bold text-ivory print:bg-[#3b1f14]";
 
 // one label and its value in the details grid
-function Detail({ label, value }: { label: string; value: React.ReactNode }) {
+export function Detail({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <>
       <span className={cn(cell, "border-b border-r font-medium")}>{label}</span>

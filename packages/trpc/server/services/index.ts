@@ -16,6 +16,7 @@ import TransactionService from "@repo/services/transaction";
 import CategoryService from "@repo/services/category";
 import GodownService from "@repo/services/godown";
 import ProductService from "@repo/services/product";
+import PurchaseOrderService from "@repo/services/purchase-order";
 import StockService from "@repo/services/stock";
 import SettingService from "@repo/services/setting";
 
@@ -24,6 +25,8 @@ export const authService = new AuthService(new QueuedOtpSender());
 export const categoryService = new CategoryService();
 
 export const productService = new ProductService();
+
+export const purchaseOrderService = new PurchaseOrderService();
 
 export const godownService = new GodownService();
 

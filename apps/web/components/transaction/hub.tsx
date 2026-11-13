@@ -5,6 +5,7 @@ import {
   ArrowLeftRight,
   ArrowUpRight,
   BookOpen,
+  ClipboardList,
   HandCoins,
   Landmark,
   type LucideIcon,
@@ -27,6 +28,7 @@ type Kind = { key: string; icon: LucideIcon; href?: string; adminOnly?: boolean 
 const KINDS: Kind[] = [
   { key: "sale", icon: ShoppingCart },
   { key: "purchase", icon: Truck },
+  { key: "order", icon: ClipboardList, adminOnly: true, href: "/transaction/order" },
   { key: "receipt", icon: ArrowDownLeft, href: "/transaction/receipt" },
   { key: "payment", icon: ArrowUpRight, href: "/transaction/payment" },
   { key: "deposit", icon: Landmark, href: "/transaction/deposit" },

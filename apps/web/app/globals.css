@@ -207,6 +207,30 @@ input[type="search"]::-webkit-search-cancel-button {
   min-height: 0;
 }
 
+/* a row just put on an order: it rises in with a soft chestnut glow that fades, so the eye finds where it landed
+   (reduced motion shortens it, above) */
+@keyframes row-arrive {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+    background-color: color-mix(in srgb, var(--color-chestnut) 16%, transparent);
+  }
+  30% {
+    opacity: 1;
+    transform: none;
+    background-color: color-mix(in srgb, var(--color-chestnut) 12%, transparent);
+  }
+  /* no colour at the end: each cell fades back to its own (the held Details cell keeps its ivory) */
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+.row-arrive > td,
+div.row-arrive {
+  animation: row-arrive 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
 /* a field that needs picking again (a question answered No): a chestnut ring that breathes, so the eye goes to it */
 @keyframes attention {
   0%,
