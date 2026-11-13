@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, db, desc, eq, inArray } from "@repo/database";
+import { and, db, desc, eq, gte, inArray, lte } from "@repo/database";
 import {
   partiesTable,
   partyAddressesTable,
@@ -231,7 +231,7 @@ export default class PurchaseOrderService {
     return this.get({ id: input.id });
   }
 
-  // the orders, newest first, each with how much of it has arrived
+  // the orders, newest first (by status, supplier and days ordered), each with how much of it has arrived
   async list(input: ListPurchaseOrdersInputModel): Promise<PurchaseOrderSummaryModel[]> {
     const orders = await db
       .select({ o: purchaseOrdersTable, partyName: partiesTable.name })
@@ -241,6 +241,8 @@ export default class PurchaseOrderService {
         and(
           input.status ? eq(purchaseOrdersTable.status, input.status) : undefined,
           input.partyId ? eq(purchaseOrdersTable.partyId, input.partyId) : undefined,
+          input.from ? gte(purchaseOrdersTable.orderDate, input.from) : undefined,
+          input.to ? lte(purchaseOrdersTable.orderDate, input.to) : undefined,
         ),
       )
       .orderBy(desc(purchaseOrdersTable.orderDate), desc(purchaseOrdersTable.orderId));
@@ -272,7 +274,6 @@ export default class PurchaseOrderService {
     });
   }
 
-  // one order in full: its items with what has arrived, the GST split by the supplier's state, and its deliveries
   // the supplier's WhatsApp number, typed when the order is shared: kept on the supplier if they have no phone yet
   async saveSupplierPhone(input: SupplierPhoneInputModel) {
     await db.transaction(async (tx) => {
@@ -303,6 +304,7 @@ export default class PurchaseOrderService {
     };
   }
 
+  // one order in full: its items with what has arrived, the GST split by the supplier's state, and its deliveries
   async get(input: PurchaseOrderIdInputModel): Promise<PurchaseOrderModel> {
     const [row] = await db
       .select({ o: purchaseOrdersTable, partyName: partiesTable.name })

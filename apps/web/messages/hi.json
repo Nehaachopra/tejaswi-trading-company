@@ -2204,6 +2204,36 @@
       "phone": "फ़ोन (वैकल्पिक)"
     },
     "newPriceGst": "नई कीमत + GST",
-    "discountPerPack": "छूट"
+    "discountPerPack": "छूट",
+    "list": {
+      "status": "स्थिति",
+      "allStatus": "सभी",
+      "statuses": {
+        "pending": "बाक़ी",
+        "completed": "पूरा",
+        "cancelled": "रद्द"
+      },
+      "date": "तारीख़",
+      "allDates": "सभी तारीख़ें",
+      "ranges": {
+        "today": "आज",
+        "week": "इस हफ़्ते",
+        "month": "इस महीने",
+        "lastMonth": "पिछले महीने",
+        "custom": "तारीख़ें चुनें"
+      },
+      "supplier": "सप्लायर",
+      "customer": "ग्राहक",
+      "allSuppliers": "सभी सप्लायर",
+      "allCustomers": "सभी ग्राहक",
+      "from": "से",
+      "to": "तक",
+      "loading": "लोड हो रहा है…",
+      "loadError": "ऑर्डर लोड नहीं हुए। कनेक्शन देखें और फिर कोशिश करें।",
+      "empty": "यहाँ कोई ऑर्डर नहीं।",
+      "ordered": "ऑर्डर किया",
+      "products": "प्रोडक्ट",
+      "title": "ऑर्डर"
+    }
   }
 }

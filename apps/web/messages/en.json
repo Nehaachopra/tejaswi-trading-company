@@ -2204,6 +2204,36 @@
       "phone": "Phone (optional)"
     },
     "newPriceGst": "New price + GST",
-    "discountPerPack": "Discount"
+    "discountPerPack": "Discount",
+    "list": {
+      "status": "Status",
+      "allStatus": "All",
+      "statuses": {
+        "pending": "Pending",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "date": "Date",
+      "allDates": "All dates",
+      "ranges": {
+        "today": "Today",
+        "week": "This week",
+        "month": "This month",
+        "lastMonth": "Last month",
+        "custom": "Pick dates"
+      },
+      "supplier": "Supplier",
+      "customer": "Customer",
+      "allSuppliers": "All suppliers",
+      "allCustomers": "All customers",
+      "from": "From",
+      "to": "To",
+      "loading": "Loading…",
+      "loadError": "Couldn't load the orders. Check your connection and try again.",
+      "empty": "No orders here.",
+      "ordered": "Ordered",
+      "products": "Products",
+      "title": "Orders"
+    }
   }
 }

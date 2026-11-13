@@ -2204,6 +2204,36 @@
       "phone": "ಫೋನ್ (ಐಚ್ಛಿಕ)"
     },
     "newPriceGst": "ಹೊಸ ಬೆಲೆ + GST",
-    "discountPerPack": "ರಿಯಾಯಿತಿ"
+    "discountPerPack": "ರಿಯಾಯಿತಿ",
+    "list": {
+      "status": "ಸ್ಥಿತಿ",
+      "allStatus": "ಎಲ್ಲಾ",
+      "statuses": {
+        "pending": "ಬಾಕಿ",
+        "completed": "ಪೂರ್ಣ",
+        "cancelled": "ರದ್ದು"
+      },
+      "date": "ದಿನಾಂಕ",
+      "allDates": "ಎಲ್ಲಾ ದಿನಾಂಕಗಳು",
+      "ranges": {
+        "today": "ಇಂದು",
+        "week": "ಈ ವಾರ",
+        "month": "ಈ ತಿಂಗಳು",
+        "lastMonth": "ಕಳೆದ ತಿಂಗಳು",
+        "custom": "ದಿನಾಂಕ ಆರಿಸಿ"
+      },
+      "supplier": "ಸರಬರಾಜುದಾರ",
+      "customer": "ಗ್ರಾಹಕ",
+      "allSuppliers": "ಎಲ್ಲಾ ಸರಬರಾಜುದಾರರು",
+      "allCustomers": "ಎಲ್ಲಾ ಗ್ರಾಹಕರು",
+      "from": "ಇಂದ",
+      "to": "ವರೆಗೆ",
+      "loading": "ಲೋಡ್ ಆಗುತ್ತಿದೆ…",
+      "loadError": "ಆರ್ಡರ್‌ಗಳು ಲೋಡ್ ಆಗಲಿಲ್ಲ. ಸಂಪರ್ಕ ನೋಡಿ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
+      "empty": "ಇಲ್ಲಿ ಯಾವುದೇ ಆರ್ಡರ್ ಇಲ್ಲ.",
+      "ordered": "ಆರ್ಡರ್ ಮಾಡಿದ್ದು",
+      "products": "ಉತ್ಪನ್ನಗಳು",
+      "title": "ಆರ್ಡರ್‌ಗಳು"
+    }
   }
 }

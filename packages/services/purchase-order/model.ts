@@ -68,11 +68,13 @@ export type PurchaseOrderIdInputModel = z.infer<typeof purchaseOrderIdInputModel
 
 export const orderStatusModel = z.enum(["pending", "completed", "cancelled"]);
 
-// the list: by status and supplier, newest first
+// the list: by status, supplier and the days ordered (from and to, either open), newest first
 export const listPurchaseOrdersInputModel = z
   .object({
     status: orderStatusModel.optional(),
     partyId: idModel.optional(),
+    from: dayModel.optional(),
+    to: dayModel.optional(),
   })
   .default({});
 

@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, db, eq, inArray, sql } from "@repo/database";
+import { and, asc, count, db, desc, eq, gte, inArray, lte, sql } from "@repo/database";
 import { partiesTable, partyAddressesTable, productPricesTable, productsTable, saleOrderProductsTable, saleOrdersTable } from "@repo/database/schema";
 
 import type { ActorModel } from "../accounts/model";
@@ -14,8 +14,10 @@ import {
   type CreateSaleOrderInputModel,
   createSaleOrderInputModel,
   type CustomerPhoneInputModel,
+  type ListSaleOrdersInputModel,
   type SaleOrderIdInputModel,
   type SaleOrderModel,
+  type SaleOrderSummaryModel,
   type SharedSaleOrderModel,
 } from "./model";
 
@@ -194,6 +196,43 @@ export default class SaleOrderService {
             : null,
       },
     };
+  }
+
+  // the orders, newest first (by status, customer and days ordered): number, status, who it's for and how many products
+  async list(input: ListSaleOrdersInputModel): Promise<SaleOrderSummaryModel[]> {
+    const items = db
+      .select({ saleOrderId: saleOrderProductsTable.saleOrderId, n: count().as("n") })
+      .from(saleOrderProductsTable)
+      .groupBy(saleOrderProductsTable.saleOrderId)
+      .as("items");
+    const rows = await db
+      .select({ o: saleOrdersTable, partyName: partiesTable.name, partyPhone: partiesTable.phone, n: items.n })
+      .from(saleOrdersTable)
+      .leftJoin(partiesTable, eq(partiesTable.id, saleOrdersTable.partyId))
+      .leftJoin(items, eq(items.saleOrderId, saleOrdersTable.id))
+      .where(
+        and(
+          input.status ? eq(saleOrdersTable.status, input.status) : undefined,
+          input.partyId ? eq(saleOrdersTable.partyId, input.partyId) : undefined,
+          input.from ? gte(saleOrdersTable.orderDate, input.from) : undefined,
+          input.to ? lte(saleOrdersTable.orderDate, input.to) : undefined,
+        ),
+      )
+      .orderBy(desc(saleOrdersTable.orderDate), desc(saleOrdersTable.orderId));
+    return rows.map(({ o, partyName, partyPhone, n }) => ({
+      id: o.id,
+      orderId: o.orderId,
+      orderDate: o.orderDate,
+      expectedDeliveryDate: o.expectedDeliveryDate,
+      status: o.status,
+      customer: {
+        partyId: o.partyId,
+        name: o.partyId ? (partyName ?? "") : (o.customerName ?? ""),
+        phone: o.partyId ? (partyPhone ?? null) : o.customerPhone,
+      },
+      itemCount: Number(n ?? 0),
+      totalAmount: Number(o.totalAmount),
+    }));
   }
 
   // one order in full: who it's for and its items with their figures

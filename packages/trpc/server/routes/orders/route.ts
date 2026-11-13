@@ -16,8 +16,10 @@ import {
 import {
   createSaleOrderInputModel,
   customerPhoneInputModel,
+  listSaleOrdersInputModel,
   saleOrderIdInputModel,
   saleOrderModel,
+  saleOrderSummaryModel,
   sharedSaleOrderInputModel,
   sharedSaleOrderModel,
 } from "@repo/services/sale-order/model";
@@ -111,6 +113,13 @@ const saleOrderRouter = router({
       const save = () => saleOrderService.create(input, ctx.session.user);
       return input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save();
     }),
+
+  // newest first, by status, customer and days ordered
+  list: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/orders/sale", tags: ["orders"] } })
+    .input(listSaleOrdersInputModel)
+    .output(z.array(saleOrderSummaryModel))
+    .query(({ input }) => saleOrderService.list(input)),
 
   get: protectedProcedure
     .meta({ openapi: { method: "GET", path: "/orders/sale/{id}", tags: ["orders"] } })

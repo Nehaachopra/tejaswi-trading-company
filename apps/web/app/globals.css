@@ -342,3 +342,22 @@ input.font-heading {
     animation: none;
   }
 }
+
+/* an order's status dot: a soft ring that breathes while the order is pending (still, with reduced motion) */
+@keyframes status-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 30%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, currentColor 0%, transparent);
+  }
+}
+.status-glow {
+  animation: status-glow 1.8s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .status-glow {
+    animation: none;
+  }
+}

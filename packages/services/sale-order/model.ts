@@ -86,6 +86,32 @@ export const saleOrderLineModel = z.object({
 // who it's for: a customer (their party) or a name kept on the order, with the phone known for either
 export const saleOrderCustomerModel = z.object({ partyId: idModel.nullable(), name: z.string(), phone: z.string().nullable() });
 
+// the list: by status, customer and the days ordered (from and to, either open), newest first
+export const listSaleOrdersInputModel = z
+  .object({
+    status: orderStatusModel.optional(),
+    partyId: idModel.optional(),
+    from: dayModel.optional(),
+    to: dayModel.optional(),
+  })
+  .default({});
+
+export type ListSaleOrdersInputModel = z.infer<typeof listSaleOrdersInputModel>;
+
+// one order in the list: its number, status, who it's for, when it was ordered and how many products
+export const saleOrderSummaryModel = z.object({
+  id: idModel,
+  orderId: z.string(),
+  orderDate: z.string(),
+  expectedDeliveryDate: z.string().nullable(),
+  status: orderStatusModel,
+  customer: saleOrderCustomerModel,
+  itemCount: z.number(),
+  totalAmount: z.number(),
+});
+
+export type SaleOrderSummaryModel = z.infer<typeof saleOrderSummaryModel>;
+
 export const saleOrderModel = z.object({
   id: idModel,
   orderId: z.string(),
