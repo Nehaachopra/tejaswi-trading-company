@@ -2078,7 +2078,8 @@
       "products": "प्रोडक्ट",
       "totals": "राशि",
       "supplier": "सप्लायर",
-      "details": "विवरण"
+      "details": "विवरण",
+      "customer": "ग्राहक"
     },
     "kinds": {
       "purchase": "ख़रीद",
@@ -2131,7 +2132,8 @@
       "noGst": "पहले प्रोडक्ट पेज पर {name} का GST % सेट करें।",
       "supplier": "सप्लायर चुनें।",
       "date": "ऑर्डर की तारीख़ चुनें।",
-      "expected": "डिलीवरी ऑर्डर की तारीख़ से पहले नहीं हो सकती।"
+      "expected": "डिलीवरी ऑर्डर की तारीख़ से पहले नहीं हो सकती।",
+      "customer": "ग्राहक चुनें, या नया जोड़ें।"
     },
     "errors": {
       "network": "सर्वर से जुड़ नहीं पा रहे। कनेक्शन जाँचें।",
@@ -2155,7 +2157,10 @@
       "amount": "राशि",
       "whatsAppNumber": "सप्लायर का WhatsApp नंबर",
       "mobileBad": "10 अंकों का मोबाइल नंबर, 6 से 9 से शुरू।",
-      "phoneNotSaved": "सप्लायर का नंबर सेव नहीं हुआ।"
+      "phoneNotSaved": "सप्लायर का नंबर सेव नहीं हुआ।",
+      "customer": "ग्राहक",
+      "shareCustomer": "ऑर्डर ग्राहक को भेजें",
+      "customerWhatsAppNumber": "ग्राहक का WhatsApp नंबर"
     },
     "doc": {
       "title": "ख़रीद ऑर्डर",
@@ -2187,8 +2192,18 @@
       "amount": "राशि",
       "inWords": "राशि शब्दों में (रुपये)",
       "computerGenerated": "यह कंप्यूटर से बना ऑर्डर है।",
-      "signatory": "अधिकृत हस्ताक्षरकर्ता"
+      "signatory": "अधिकृत हस्ताक्षरकर्ता",
+      "titleSale": "बिक्री ऑर्डर",
+      "whatsAppMessageSale": "{company} का बिक्री ऑर्डर {number}, ₹{amount}: {url}"
     },
-    "addOrder": "ऑर्डर जोड़ें"
+    "addOrder": "ऑर्डर जोड़ें",
+    "available": "उपलब्ध मात्रा",
+    "onlyAvailable": "सिर्फ़ {n} ऑर्डर के लिए खाली हैं।",
+    "customer": {
+      "name": "पूरा नाम",
+      "phone": "फ़ोन (वैकल्पिक)"
+    },
+    "newPriceGst": "नई कीमत + GST",
+    "discountPerPack": "छूट"
   }
 }

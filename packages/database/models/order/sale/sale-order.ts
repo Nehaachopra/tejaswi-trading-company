@@ -6,7 +6,7 @@ import { money, timestamps } from "../../../utils/common/column-type";
 
 import { partiesTable } from "../../party/party";
 import { usersTable } from "../../auth/user";
-import { orderStatusEnum } from "../../../utils/common/enum";
+import { gstPlaceOfSupplyEnum, orderStatusEnum } from "../../../utils/common/enum";
 import { date } from "drizzle-orm/pg-core";import { index } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -19,11 +19,32 @@ export const saleOrdersTable = pgTable(
 
     orderId: varchar("order_id", { length: 30 }).notNull(),
 
+    // the customer when one is picked; someone not yet a customer is kept by name (and phone) on the order instead, and
+    // becomes a customer only if the sale is on credit
     partyId: uuid("party_id")
-      .notNull()
       .references(() => partiesTable.id, {
         onDelete: "no action",
       }),
+
+    customerName: varchar("customer_name", { length: 150 }),
+
+    customerPhone: varchar("customer_phone", { length: 10 }),
+
+    // where to deliver for someone kept by name (a customer's own address is on the party): the line and landmark
+    // optional, the town, district, state and PIN as a party's address has them
+    customerAddressLine1: varchar("customer_address_line_1", { length: 200 }),
+
+    customerLandmark: varchar("customer_landmark", { length: 150 }),
+
+    customerCity: varchar("customer_city", { length: 100 }),
+
+    customerDistrict: varchar("customer_district", { length: 100 }),
+
+    customerState: varchar("customer_state", { length: 100 }),
+
+    customerStateCode: gstPlaceOfSupplyEnum("customer_state_code"),
+
+    customerPostalCode: varchar("customer_postal_code", { length: 6 }),
 
     orderedById: uuid("ordered_by_id").references(() => usersTable.id, {
       onDelete: "set null",
@@ -62,6 +83,12 @@ export const saleOrdersTable = pgTable(
         AND ${table.gstAmount} >= 0
         AND ${table.totalAmount} >= 0
       `,
+    ),
+
+    // a customer picked, or a name given (never both, never neither)
+    check(
+      "sale_orders_customer_or_name",
+      sql`(${table.partyId} IS NULL) <> (${table.customerName} IS NULL)`,
     ),
 
     check(

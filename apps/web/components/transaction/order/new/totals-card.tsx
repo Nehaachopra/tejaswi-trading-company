@@ -19,7 +19,8 @@ export function TotalsCard() {
   const typeDiscount = (v: string) => setDiscount(Number(v) > itemsValue ? String(itemsValue) : v);
 
   return (
-    <div className="tabular flex flex-col gap-3 text-sm font-normal">
+    // on a wider screen the breakup sits in the left half, as a payment's amount does; a phone takes the full width
+    <div className="tabular flex min-w-0 flex-col gap-3 text-sm font-normal sm:w-[calc(50%-1.5rem)]">
       <div className={row}>
         <span className="min-w-0">{t("totals.items")}</span>
         <span className={figure}>{rupees(itemsValue)}</span>

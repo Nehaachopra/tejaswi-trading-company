@@ -26,22 +26,23 @@ import { SupplierCard } from "./supplier-card";
 import { TotalsCard } from "./totals-card";
 import { TypeCard } from "./type-card";
 
-// /transaction/order (from Home): a purchase order, laid out like a payment: one card at a time on the left with Back and Next, and a
-// summary on the right (a bar above the card on a phone) that goes back to any card. 1 Type: Purchase (Sale coming);
-// 2 Products: the items on the order (price and quantity each) above every other pack size; 3 Totals; 4 Supplier;
+// /transaction/order (from Home): a purchase or sale order, laid out like a payment: one card at a time on the left with Back
+// and Next, and a summary on the right (a bar above the card on a phone) that goes back to any card. 1 Type: Purchase or
+// Sale; 2 Products: the items on the order (price and quantity each) above every other pack size; 3 Amount; 4 Supplier
+// (a sale's Customer);
 // 5 Details: the order's date, when it's expected, remarks and Save. A save goes to the order's own page. Discarding
 // to open a menu starts the form again
-export function OrderForm() {
+export function OrderForm({ isAdmin }: { isAdmin: boolean }) {
   const [round, setRound] = useState(0);
   return (
-    <PurchaseOrderDataProvider>
-      <OrderEntry key={round} onDiscard={() => setRound((r) => r + 1)} />
+    <PurchaseOrderDataProvider isAdmin={isAdmin}>
+      <OrderEntry key={round} isAdmin={isAdmin} onDiscard={() => setRound((r) => r + 1)} />
     </PurchaseOrderDataProvider>
   );
 }
 
-function OrderEntry({ onDiscard }: { onDiscard: () => void }) {
-  const state = useOrderEntryState({ onDiscard });
+function OrderEntry({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () => void }) {
+  const state = useOrderEntryState({ isAdmin, onDiscard });
   return (
     <OrderEntryProvider value={state}>
       <OrderEntryView />
@@ -63,6 +64,7 @@ function OrderEntryView() {
     supplier,
     supplierPick,
     newSupplier,
+    newCustomer,
     sameNameDialog,
     orderDate,
     expected,
@@ -116,7 +118,7 @@ function OrderEntryView() {
         ];
       }),
     },
-    { key: "supplier", step: "supplier", heading: stepName("supplier"), value: supplier ? (supplier.party ? partyLabel(supplier.party) : supplier.name) : supplierPick?.kind === "party" && newSupplier.name.trim() ? titleCase(newSupplier.name) : null },
+    { key: "supplier", step: "supplier", heading: stepName("supplier"), value: supplier ? (supplier.party ? partyLabel(supplier.party) : supplier.name) : supplierPick?.kind === "party" && (kind === "sale" ? newCustomer.name : newSupplier.name).trim() ? titleCase(kind === "sale" ? newCustomer.name : newSupplier.name) : null },
     {
       key: "details",
       step: "details",
@@ -165,11 +167,12 @@ function OrderEntryView() {
         onBack={index > 0 ? () => show(steps[index - 1]!) : null}
         onChange={null}
         missing={tried && !complete[current] ? missingOf(current) : null}
-        // Type and Supplier move on by themselves once picked (a new supplier waits for Next); Details saves
+        // Type and Supplier move on by themselves once picked; back on Supplier with one picked (or someone new), Next
+        // goes on. Details saves
         end={
           current === "details" ? (
             <SaveBlock />
-          ) : current === "type" || (current === "supplier" && supplierPick?.kind !== "party") ? null : (
+          ) : current === "type" || (current === "supplier" && supplierPick === null) ? null : (
             <NextButton onClick={next} />
           )
         }

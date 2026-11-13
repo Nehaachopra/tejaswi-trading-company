@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { packLabel, rupees, titleCase } from "~/lib/format";
+import { asField } from "~/lib/price";
 import { cn } from "~/lib/utils";
 
 import { type Pack, type ProductGroup, ProductImage, productTitle } from "../../../product/products/product-tile";
@@ -32,10 +33,26 @@ export function LineCard() {
 }
 
 function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
-  const { t, lines, putLine, removeLine, setCardFor } = useOrderEntry();
+  const { t, kind, lines, putLine, removeLine, setCardFor } = useOrderEntry();
   const units = useTranslations("products.items.form.units");
   const saved = lines.find((l) => l.productId === pack.productId);
-  const [draft, setDraft] = useState<OrderLine>(() => saved ?? emptyLine(pack.productId));
+  const sale = kind === "sale";
+  // a sale starts from the pack's saved price with GST (changed here for this order only); a purchase starts empty
+  const [draft, setDraft] = useState<OrderLine>(() => {
+    if (saved) return saved;
+    const empty = emptyLine(pack.productId);
+    return sale && pack.priceAfterGst != null
+      ? settleLine({ ...empty, priceGst: asField(pack.priceAfterGst), from: "priceGst" }, pack.packSize, pack.gstPercent)
+      : empty;
+  });
+  // a sale: how many are free to order (not held for another order); the quantity stops there
+  const available = pack.unreservedQuantity;
+  const most = sale ? Math.min(available, 99_999) : 99_999;
+  // a sale: the pack's saved price with GST, and what the new price takes off it a pack
+  const listPrice = pack.priceAfterGst;
+  const off = listPrice == null ? 0 : Math.round((listPrice - (Number(draft.priceGst) || 0)) * 100) / 100;
+  // more than that was typed: cut to it, and it says so (until the quantity is changed again)
+  const [over, setOver] = useState(false);
   const close = () => setCardFor(null);
   const name = `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode)}`;
 
@@ -55,7 +72,7 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   const setFigure = (field: PriceField, v: string) =>
     setDraft((d) => settleLine({ ...d, [field]: v, from: field }, pack.packSize, pack.gstPercent));
   const { total } = lineFigures(draft, pack.packSize, pack.gstPercent);
-  const ok = (Number(draft[draft.from]) || 0) > 0 && (Number(draft.quantity) || 0) >= 1;
+  const ok = (Number(draft[draft.from]) || 0) > 0 && (Number(draft.quantity) || 0) >= 1 && Number(draft.quantity) <= most;
 
   function done() {
     if (!ok) return;
@@ -106,16 +123,17 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
               <NumberInput autoFocus={!saved} value={draft.unitGst} decimals={2} maxDigits={6} onChange={(v) => setFigure("unitGst", v)} className={boxInput} />
             </span>
           </label>
-          <label className={fieldRow}>
-            <span className="min-w-0">{t("price")}</span>
-            <span className={cn(box, "shadow-chestnut/40 focus-within:shadow-chestnut/80")}>
-              <span className="text-base text-chestnut/60">₹</span>
-              <NumberInput value={draft.price} decimals={2} maxDigits={7} onChange={(v) => setFigure("price", v)} className={boxInput} />
-            </span>
-          </label>
+          {/* a sale: the pack's saved price with GST, as it is */}
+          {sale && (
+            <div className={fieldRow}>
+              <span className="min-w-0">{t("priceGst")}</span>
+              <span className="tabular flex min-h-11 items-center justify-end pr-1 text-base font-bold">{listPrice == null ? "–" : rupees(listPrice)}</span>
+            </div>
+          )}
+          {/* the price with GST on this order (a sale's new price, if it's changed) */}
           <label className={fieldRow}>
             <span className="min-w-0">
-              {t("priceGst")}
+              {sale ? t("newPriceGst") : t("priceGst")}
               <RequiredMark />
             </span>
             <span className={cn(box, "bg-chestnut text-ivory shadow-chestnut/40 focus-within:shadow-chestnut/80")}>
@@ -123,13 +141,55 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
               <NumberInput value={draft.priceGst} decimals={2} maxDigits={7} onChange={(v) => setFigure("priceGst", v)} className={cn(boxInput, "caret-ivory")} />
             </span>
           </label>
-          <div className={fieldRow}>
-            <span className="min-w-0">
-              {t("quantity")}
-              <RequiredMark />
-            </span>
-            <QuantityBox value={draft.quantity} onChange={(v) => setDraft((d) => ({ ...d, quantity: v }))} name={name} />
-          </div>
+          {/* a sale: how much the new price takes off the saved one, a pack */}
+          {sale && (
+            <div className={fieldRow}>
+              <span className="min-w-0">{t("discountPerPack")}</span>
+              <span className="tabular flex min-h-11 items-center justify-end pr-1 text-base font-bold">{off > 0 ? rupees(off) : "–"}</span>
+            </div>
+          )}
+          {/* the quantity, set apart from the prices above: a sale has how many are free to order beside it (each name
+              above its figure, so the whole card fits on a phone); a purchase, the quantity as a row */}
+          {(() => {
+            const quantityBox = (
+              // the box, and under it what more was typed than there is (cut to it)
+              <div className="flex w-32 shrink-0 flex-col gap-1">
+                <QuantityBox
+                  value={draft.quantity}
+                  onChange={(v, cut) => {
+                    setOver(cut);
+                    setDraft((d) => ({ ...d, quantity: v }));
+                  }}
+                  name={name}
+                  max={most}
+                />
+                {sale && over && <span className="text-xs text-danger">{t("onlyAvailable", { n: most.toLocaleString("en-IN") })}</span>}
+              </div>
+            );
+            return sale ? (
+              <div className="mt-3 grid grid-cols-2 items-start gap-3 text-sm">
+                <div className="flex flex-col gap-1.5">
+                  <span>{t("available")}</span>
+                  <span className="tabular flex min-h-11 items-center text-base font-bold">{available.toLocaleString("en-IN")}</span>
+                </div>
+                <div className="flex flex-col items-end gap-1.5">
+                  <span>
+                    {t("quantity")}
+                    <RequiredMark />
+                  </span>
+                  {quantityBox}
+                </div>
+              </div>
+            ) : (
+              <div className={fieldRow}>
+                <span className="min-w-0">
+                  {t("quantity")}
+                  <RequiredMark />
+                </span>
+                {quantityBox}
+              </div>
+            );
+          })()}
 
           {/* the line's total: Price + GST × quantity */}
           <div className="flex items-baseline justify-between border-t border-chestnut/12 pt-2.5">
@@ -167,11 +227,11 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   );
 }
 
-// how many: − and + at the two ends, the number between (never below 1)
-function QuantityBox({ value, onChange, name }: { value: string; onChange: (v: string) => void; name: string }) {
+// how many: − and + at the two ends, the number between (never below 1, never above `max`; `cut` when more was typed)
+function QuantityBox({ value, onChange, name, max = 99_999 }: { value: string; onChange: (v: string, cut: boolean) => void; name: string; max?: number }) {
   const { t } = useOrderEntry();
   const quantity = Number(value) || 0;
-  const set = (n: number) => onChange(String(Math.min(99_999, Math.max(1, n))));
+  const set = (n: number) => onChange(String(Math.min(max, Math.max(1, n))), false);
   return (
     <div className="flex min-h-11 w-32 shrink-0 items-center justify-between rounded-control bg-chestnut text-ivory">
       <button type="button" aria-label={`${t("less")}: ${name}`} disabled={quantity <= 1} onClick={() => set(quantity - 1)} className="grid h-11 w-9 shrink-0 place-items-center disabled:opacity-40">
@@ -180,12 +240,15 @@ function QuantityBox({ value, onChange, name }: { value: string; onChange: (v: s
       <NumberInput
         value={value}
         maxDigits={5}
-        onChange={(v) => onChange(v.replace(/^0+/, ""))}
+        onChange={(v) => {
+          const typed = v.replace(/^0+/, "");
+          onChange(Number(typed) > max ? String(max) : typed, Number(typed) > max);
+        }}
         onBlur={() => quantity < 1 && set(1)}
         aria-label={`${t("quantity")}: ${name}`}
         className="tabular w-full min-w-0 flex-1 bg-transparent text-center text-base font-bold caret-ivory outline-none"
       />
-      <button type="button" aria-label={`${t("more")}: ${name}`} disabled={quantity >= 99_999} onClick={() => set(quantity + 1)} className="grid h-11 w-9 shrink-0 place-items-center disabled:opacity-40">
+      <button type="button" aria-label={`${t("more")}: ${name}`} disabled={quantity >= max} onClick={() => set(quantity + 1)} className="grid h-11 w-9 shrink-0 place-items-center disabled:opacity-40">
         <Plus className="size-4" aria-hidden />
       </button>
     </div>

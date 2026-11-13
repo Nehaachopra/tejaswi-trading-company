@@ -10,7 +10,7 @@ import { useLeaveGuard } from "~/lib/use-leave-guard";
 import { usePurchaseOrderData } from "~/providers/purchase-order";
 
 import { indiaDay } from "../../../account/balance";
-import { draftInput, draftOk, emptyDraft, type PartyDraft } from "../../../account/party/party-fields";
+import { addressProblems, type AddressDraft, draftInput, draftOk, emptyAddress, emptyDraft, type PartyDraft } from "../../../account/party/party-fields";
 import { useSameNameConfirm } from "../../../account/party/same-name";
 import type { LedgerChoice } from "../../pickers/ledger-picker";
 import { usePhoneMatches } from "../../pickers/party-finder";
@@ -66,17 +66,29 @@ export function settleLine(line: OrderLine, packSize: number, gstPercent: number
 }
 
 // everything the new-order form holds and works out. Made once in OrderEntry; every card reads it with useOrderEntry()
-export function useOrderEntryState({ onDiscard }: { onDiscard: () => void }) {
+export function useOrderEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () => void }) {
   const t = useTranslations("orders");
   const router = useRouter();
-  const { products, categories, suppliers, loading, loadFailed, retryLoad, saveOrder, saving: creating, saved } = usePurchaseOrderData();
+  const { products, categories, suppliers, loading, loadFailed, retryLoad, saveOrder, saveSaleOrder, saving: creating, saved } = usePurchaseOrderData();
 
   // the answers
-  const [kind, setKind] = useState<"purchase" | null>(null);
+  const [kind, setKindOnly] = useState<"purchase" | "sale" | null>(null);
   const [lines, setLines] = useState<OrderLine[]>([]);
   // the supplier, as a payment picks one: found in the search, or new (its details typed on the card)
   const [supplierPick, setSupplierPick] = useState<LedgerChoice>(null);
   const [newSupplier, setNewSupplier] = useState<PartyDraft>(() => emptyDraft());
+  // a sale's customer not yet one of ours: a name, an optional phone and where to deliver, kept on the order
+  const [newCustomer, setNewCustomer] = useState<{ name: string; phone: string; address: AddressDraft }>(() => ({ name: "", phone: "", address: emptyAddress(true) }));
+  // the other kind picked: its items and who it's with start again (prices, stock and parties differ)
+  const setKind = (next: "purchase" | "sale") => {
+    if (next === kind) return;
+    setKindOnly(next);
+    setLines([]);
+    setSupplierPick(null);
+    setNewSupplier(emptyDraft());
+    setNewCustomer({ name: "", phone: "", address: emptyAddress(true) });
+  };
+  const sale = kind === "sale";
   // the order is dated the day it's made; the server sets it, this only shows it
   const [orderDate] = useState(() => indiaDay(new Date()));
   const [expected, setExpected] = useState("");
@@ -124,7 +136,10 @@ export function useOrderEntryState({ onDiscard }: { onDiscard: () => void }) {
   const supplierId = supplierPick?.kind === "ledger" ? supplierPick.ledger.referenceId : null;
   const supplier = supplierPick?.kind === "ledger" ? supplierPick.ledger : null;
   const phoneMatches = usePhoneMatches(newSupplier.phone, "customer");
-  const supplierMatch = supplierPick?.kind === "party" && phoneMatches.length > 0 ? phoneMatches[0]! : null;
+  const supplierMatch = !sale && supplierPick?.kind === "party" && phoneMatches.length > 0 ? phoneMatches[0]! : null;
+  // a sale's new customer: a phone one of ours already has shows them instead
+  const customerMatches = usePhoneMatches(newCustomer.phone, "customer");
+  const customerMatch = sale && supplierPick?.kind === "party" && customerMatches.length > 0 ? customerMatches[0]! : null;
   // a party with the same name in the same town asks before it's added again
   const sameName = useSameNameConfirm();
 
@@ -135,10 +150,18 @@ export function useOrderEntryState({ onDiscard }: { onDiscard: () => void }) {
 
   // when each card is filled in
   const complete: Record<OrderStep, boolean> = {
-    type: kind === "purchase",
+    type: kind !== null,
     products: lines.length > 0 && lines.every(lineOk) && !noGst,
     totals: true,
-    supplier: supplierId !== null || (supplierPick?.kind === "party" && !supplierMatch && draftOk(newSupplier, true, true)),
+    supplier:
+      supplierId !== null ||
+      (supplierPick?.kind === "party" &&
+        (sale
+          ? !customerMatch &&
+            newCustomer.name.trim() !== "" &&
+            (newCustomer.phone === "" || /^[6-9]\d{9}$/.test(newCustomer.phone)) &&
+            !Object.values(addressProblems(newCustomer.address)).some(Boolean)
+          : !supplierMatch && draftOk(newSupplier, true, true))),
     details: orderDate !== "" && (expected === "" || expected >= orderDate),
   };
   const [at, setAt] = useState<OrderStep>("type");
@@ -182,7 +205,8 @@ export function useOrderEntryState({ onDiscard }: { onDiscard: () => void }) {
     show(STEPS[index + 1]!);
   }
 
-  const stepName = (s: OrderStep) => t(`steps.${s}`);
+  // a sale's party step is its Customer
+  const stepName = (s: OrderStep) => (s === "supplier" && sale ? t("steps.customer") : t(`steps.${s}`));
   // what the card still needs, once Next or Save was tapped
   const missingOf = (s: OrderStep) =>
     s === "products"
@@ -192,7 +216,7 @@ export function useOrderEntryState({ onDiscard }: { onDiscard: () => void }) {
           ? t("missing.noGst", { name: nameOf(noGst.productId) })
           : t("missing.lines")
       : s === "supplier"
-        ? t("missing.supplier")
+        ? t(sale ? "missing.customer" : "missing.supplier")
         : s === "details"
           ? orderDate === ""
             ? t("missing.date")
@@ -209,17 +233,48 @@ export function useOrderEntryState({ onDiscard }: { onDiscard: () => void }) {
       setAt(STEPS[firstOpen]!);
       return guide();
     }
-    // a new supplier with the same name in the same town: asked first
-    if (supplierPick?.kind === "party" && !(await sameName.confirm(newSupplier))) return;
+    // someone new with the same name in the same town as one already added: asked first
+    if (!sale && supplierPick?.kind === "party" && !(await sameName.confirm(newSupplier))) return;
+    if (sale && supplierPick?.kind === "party" && !(await sameName.confirm({ ...emptyDraft(), name: newCustomer.name, addresses: [newCustomer.address] }))) return;
     setSaving(true);
     setSaveError(null);
+    const items = lines.map((l, i) => ({ productId: l.productId, quantity: Number(l.quantity), rateBeforeGst: figures[i]!.rate / 100, discount: 0 }));
     try {
+      // a sale: to the customer picked, or a name (and phone) kept on the order; on to its own page
+      if (sale) {
+        const order = await saveSaleOrder({
+          saveKey,
+          partyId: supplierId,
+          customer:
+            supplierPick?.kind === "party"
+              ? {
+                  name: newCustomer.name.trim(),
+                  phone: newCustomer.phone,
+                  address: {
+                    addressLine1: newCustomer.address.addressLine1.trim(),
+                    landmark: newCustomer.address.landmark.trim(),
+                    city: newCustomer.address.city.trim(),
+                    district: newCustomer.address.district.trim(),
+                    state: newCustomer.address.state.trim(),
+                    stateCode: newCustomer.address.stateCode!,
+                    postalCode: newCustomer.address.postalCode,
+                  },
+                }
+              : null,
+          expectedDeliveryDate: expected || null,
+          lines: items,
+          orderDiscount: discountValue,
+          remarks: remarks.trim() || null,
+        });
+        router.replace(`/transaction/order/sale/${order.id}`);
+        return;
+      }
       const order = await saveOrder({
         saveKey,
         partyId: supplierId,
         newSupplier: supplierPick?.kind === "party" ? draftInput(newSupplier) : null,
         expectedDeliveryDate: expected || null,
-        lines: lines.map((l, i) => ({ productId: l.productId, quantity: Number(l.quantity), rateBeforeGst: figures[i]!.rate / 100, discount: 0 })),
+        lines: items,
         orderDiscount: discountValue,
         remarks: remarks.trim() || null,
       });
@@ -253,6 +308,7 @@ export function useOrderEntryState({ onDiscard }: { onDiscard: () => void }) {
     categories: categories ?? [],
     suppliers: suppliers ?? [],
     creating,
+    isAdmin,
     kind,
     setKind,
     lines,
@@ -275,7 +331,10 @@ export function useOrderEntryState({ onDiscard }: { onDiscard: () => void }) {
     setSupplierPick,
     newSupplier,
     setNewSupplier,
+    newCustomer,
+    setNewCustomer,
     supplierMatch,
+    customerMatch,
     supplier,
     sameNameDialog: sameName.dialog,
     setTried,

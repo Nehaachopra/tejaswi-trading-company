@@ -13,11 +13,19 @@ import {
   supplierPhoneInputModel,
   updatePurchaseOrderInputModel,
 } from "@repo/services/purchase-order/model";
-import { opensOrder, orderKey } from "@repo/services/transaction/share-link";
+import {
+  createSaleOrderInputModel,
+  customerPhoneInputModel,
+  saleOrderIdInputModel,
+  saleOrderModel,
+  sharedSaleOrderInputModel,
+  sharedSaleOrderModel,
+} from "@repo/services/sale-order/model";
+import { opensOrder, opensSaleOrder, orderKey, saleOrderKey } from "@repo/services/transaction/share-link";
 
-import { purchaseOrderService } from "../../services";
+import { purchaseOrderService, saleOrderService } from "../../services";
 import { limitSaves, onceFor } from "../../guards";
-import { adminProcedure, publicProcedure, router } from "../../trpc";
+import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 
 // Purchase orders: what we've asked a supplier for; the admin's only
 const purchaseOrderRouter = router({
@@ -90,6 +98,66 @@ const purchaseOrderRouter = router({
     .mutation(({ input }) => purchaseOrderService.cancel(input)),
 });
 
+// Sale orders: what a customer has asked us for, its quantities held back from stock; admin and staff take them, the
+// admin cancels
+const saleOrderRouter = router({
+  // a second save with the same key (a retry, a double tap) gets the first one's result
+  create: protectedProcedure
+    .meta({ openapi: { method: "POST", path: "/orders/sale", tags: ["orders"] } })
+    .input(createSaleOrderInputModel)
+    .output(saleOrderModel)
+    .mutation(({ ctx, input }) => {
+      limitSaves(ctx.session.user.id);
+      const save = () => saleOrderService.create(input, ctx.session.user);
+      return input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save();
+    }),
+
+  get: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/orders/sale/{id}", tags: ["orders"] } })
+    .input(saleOrderIdInputModel)
+    .output(saleOrderModel)
+    .query(({ input }) => saleOrderService.get(input)),
+
+  // the order as a document, headed with our details, with the customer's address
+  document: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/orders/sale/{id}/document", tags: ["orders"] } })
+    .input(saleOrderIdInputModel)
+    .output(sharedSaleOrderModel)
+    .query(({ input }) => saleOrderService.document(input)),
+
+  // the customer's WhatsApp number typed when sharing, kept on the customer (or the order) if they have none
+  saveCustomerPhone: protectedProcedure
+    .meta({ openapi: { method: "POST", path: "/orders/sale/{id}/customer-phone", tags: ["orders"] } })
+    .input(customerPhoneInputModel)
+    .output(z.void())
+    .mutation(({ input }) => saleOrderService.saveCustomerPhone(input)),
+
+  // the key for its link, to share it with the customer on WhatsApp
+  shareKey: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/orders/sale/{id}/share-key", tags: ["orders"] } })
+    .input(saleOrderIdInputModel)
+    .output(purchaseOrderShareKeyModel)
+    .query(({ input }) => ({ key: saleOrderKey(input.id) })),
+
+  // the order from a shared link, for the customer: no login, only with the key from that link
+  shared: publicProcedure
+    .meta({ openapi: { method: "GET", path: "/orders/sale/{id}/shared", tags: ["orders"] } })
+    .input(sharedSaleOrderInputModel)
+    .output(sharedSaleOrderModel)
+    .query(({ input }) => {
+      if (!opensSaleOrder(input.id, input.key)) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found." });
+      return saleOrderService.document({ id: input.id });
+    }),
+
+  // while pending; what it held back goes back to stock
+  cancel: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/orders/sale/{id}/cancel", tags: ["orders"] } })
+    .input(saleOrderIdInputModel)
+    .output(saleOrderModel)
+    .mutation(({ input }) => saleOrderService.cancel(input)),
+});
+
 export const ordersRouter = router({
   purchase: purchaseOrderRouter,
+  sale: saleOrderRouter,
 });

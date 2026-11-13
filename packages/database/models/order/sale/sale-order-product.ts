@@ -3,7 +3,7 @@
 import { sql } from "drizzle-orm";
 import { integer, pgTable, uuid, text, check, index, uniqueIndex } from "drizzle-orm/pg-core";
 
-import { money, timestamps } from "../../../utils/common/column-type";
+import { money, percent, timestamps } from "../../../utils/common/column-type";
 import { productsTable } from "../../product/product";
 import { saleOrdersTable } from "./sale-order";
 
@@ -26,11 +26,14 @@ export const saleOrderProductsTable = pgTable(
 
     quantityOrdered: integer("quantity_ordered").notNull(),
 
-    grossProductPrice: money("gross_product_price").notNull(),
+    // the agreed rate per pack before GST (from the product's price with GST, or typed)
+    rateBeforeGst: money("rate_before_gst").notNull(),
 
+    // this line's own discount, in rupees, for the whole quantity
     discountAmount: money("discount_amount").default("0.00").notNull(),
 
-    gstRate: integer("gst_rate").notNull(),
+    // the product's GST %, as when ordered
+    gstRate: percent("gst_rate").notNull(),
 
     gstAmount: money("gst_amount").notNull().default("0.00"),
 
@@ -56,12 +59,12 @@ export const saleOrderProductsTable = pgTable(
 
     check(
       "sale_order_products_sale_price_non_negative",
-      sql`${table.grossProductPrice} >= 0`,
+      sql`${table.rateBeforeGst} >= 0`,
     ),
 
     check(
       "sale_order_products_discount_amount_valid",
-      sql`${table.discountAmount} <= ${table.grossProductPrice}`,
+      sql`${table.discountAmount} <= ${table.quantityOrdered} * ${table.rateBeforeGst}`,
     ),
 
     check("sale_order_products_gst_amount_non_negative", sql`${table.gstAmount} >= 0`),

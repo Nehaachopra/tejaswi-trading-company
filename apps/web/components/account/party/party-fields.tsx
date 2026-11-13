@@ -270,8 +270,13 @@ export function ProfilePhoto() {
 // adds a supplier; otherwise each label sits above its box
 const RowsContext = createContext(false);
 
+// the fields inside as rows (label left, box right), for forms outside PartyFields
+export function FieldRows({ children }: { children: React.ReactNode }) {
+  return <RowsContext.Provider value>{children}</RowsContext.Provider>;
+}
+
 // a part of the form's title
-const SECTION_TITLE = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
+export const SECTION_TITLE = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
 
 // a labelled field, with an icon before its label; as a row (label left, no icon) inside a rows form
 export function Field({ label, icon: Icon, children, className, required = false, error }: { label: string; icon?: LucideIcon; children: React.ReactNode; className?: string; required?: boolean; error?: string | false }) {

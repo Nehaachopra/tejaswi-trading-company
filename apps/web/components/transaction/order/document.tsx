@@ -3,43 +3,38 @@
 import { ArrowLeft, CircleAlert, Download, Flag, Mail, Phone } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import type { RouterOutputs } from "@repo/trpc/client";
 
 import { Spinner } from "~/components/ui/spinner";
 import { WhatsAppIcon } from "~/components/ui/whatsapp-icon";
 import { amountInWords } from "~/lib/amount-words";
 import { packLabel, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { usePurchaseOrderDocument, usePurchaseOrderShareKey, useSharedPurchaseOrder } from "~/providers/purchase-order";
 
 import { band, cell, dated, Detail, money } from "../done/voucher";
-
-export type OrderDocument = RouterOutputs["orders"]["purchase"]["document"];
+import { type OrderDoc, type OrderKind, orderPath, sharedOrderPath, useOrderDoc, useOrderShareKey } from "./doc-data";
 
 // a buttons' look on the chestnut page, as on the voucher
 const pill = "on-ivory flex min-h-11 items-center justify-center gap-2 rounded-control bg-ivory px-3 text-sm font-semibold text-chestnut disabled:opacity-50 sm:px-4";
 
-// WhatsApp opened on the supplier's chat (the phone given, else the one kept, else a contact to pick) with a message
-// ready to send: the order number, the amount and the link that opens the order without a login
-export function orderWhatsAppLink(d: OrderDocument, key: string, message: (values: Record<string, string>) => string, phone = d.supplier.phone) {
-  const url = `${window.location.origin}/voucher/order/${d.order.id}?k=${encodeURIComponent(key)}`;
+// WhatsApp opened on the supplier's or customer's chat (the phone given, else the one kept, else a contact to pick) with a
+// message ready to send: the order number, the amount and the link that opens the order without a login
+export function orderWhatsAppLink(d: OrderDoc, key: string, message: (values: Record<string, string>) => string, phone = d.to.phone) {
+  const url = `${window.location.origin}${sharedOrderPath(d.kind, d.order.id)}?k=${encodeURIComponent(key)}`;
   const text = message({ number: d.order.orderId, amount: money(d.order.totalAmount), company: d.company.name, url });
   const to = phone ? `91${phone.replace(/\D/g, "").slice(-10)}` : "";
   return `https://wa.me/${to}?text=${encodeURIComponent(text)}`;
 }
 
-// a purchase order, laid out like the payment voucher: our details and the order's, the supplier (name, address and
-// GSTIN; no phone) with the remarks beside
+// a purchase or sale order, laid out like the payment voucher: our details and the order's, the supplier or customer
+// (name, address and GSTIN; no phone) with the remarks beside
 // it, each item's price before GST, GST %, GST, price after GST, quantity and total, a Total row, then the discount off
 // that total, the amount, and the amount in words. It prints (or saves as a PDF) on its own. With a share key it's the
-// supplier's copy, opened from a link without a login: only the download, no way back into the app and nothing to share
-export function PurchaseOrderDocument({ id, shareKey }: { id: string; shareKey?: string }) {
+// other side's copy, opened from a link without a login: only the download, no way back into the app and nothing to share
+export function OrderDocument({ kind, id, shareKey }: { kind: OrderKind; id: string; shareKey?: string }) {
   const t = useTranslations("orders.doc");
   const shared = shareKey !== undefined;
-  const own = usePurchaseOrderDocument(id, !shared);
-  const theirs = useSharedPurchaseOrder(id, shareKey ?? "", shared);
-  const doc = shared ? theirs : own;
-  const link = usePurchaseOrderShareKey(id, !shared);
+  const doc = useOrderDoc(kind, id, shareKey);
+  const link = useOrderShareKey(kind, id, !shared);
 
   if (doc.isPending)
     return (
@@ -54,8 +49,8 @@ export function PurchaseOrderDocument({ id, shareKey }: { id: string; shareKey?:
       </p>
     );
 
-  const d = doc.data;
-  const { order: o, company: c, supplier: s } = d;
+  const d = doc.data!;
+  const { order: o, company: c, to: s } = d;
   const a = s.address;
   // each item, per pack: before GST, its GST and after GST; then the line's total (after GST × quantity)
   const rows = o.lines.map((l) => {
@@ -78,7 +73,7 @@ export function PurchaseOrderDocument({ id, shareKey }: { id: string; shareKey?:
 
   return (
     <main className="mx-auto max-w-4xl px-4 pb-28 pt-6 sm:px-6">
-      <h1 className="sr-only">{t("title")}</h1>
+      <h1 className="sr-only">{t(kind === "sale" ? "titleSale" : "title")}</h1>
 
       {/* back to the order's page, sending it on WhatsApp, and the download; on a phone each button is full width,
           under the back link */}
@@ -86,7 +81,7 @@ export function PurchaseOrderDocument({ id, shareKey }: { id: string; shareKey?:
         {shared ? (
           <span className="hidden sm:block" />
         ) : (
-          <Link href={`/transaction/order/${id}`} className="flex min-h-11 items-center gap-1.5 text-sm font-medium">
+          <Link href={orderPath(kind, id)} className="flex min-h-11 items-center gap-1.5 text-sm font-medium">
             <ArrowLeft className="size-4" aria-hidden /> {t("back")}
           </Link>
         )}
@@ -96,7 +91,7 @@ export function PurchaseOrderDocument({ id, shareKey }: { id: string; shareKey?:
             <button
               type="button"
               disabled={!link.data}
-              onClick={() => window.open(orderWhatsAppLink(d, link.data!.key, (v) => t("whatsAppMessage", v)), "_blank", "noopener")}
+              onClick={() => window.open(orderWhatsAppLink(d, link.data!.key, (v) => t(kind === "sale" ? "whatsAppMessageSale" : "whatsAppMessage", v)), "_blank", "noopener")}
               aria-label={t("whatsApp")}
               className={pill}
             >
@@ -114,7 +109,7 @@ export function PurchaseOrderDocument({ id, shareKey }: { id: string; shareKey?:
 
       {/* the order itself */}
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
-        <p className="pb-2 text-center font-heading text-2xl font-bold">{t("title")}</p>
+        <p className="pb-2 text-center font-heading text-2xl font-bold">{t(kind === "sale" ? "titleSale" : "title")}</p>
 
         <div className="border border-chestnut/40">
           {/* our details, and the order's */}
@@ -149,10 +144,10 @@ export function PurchaseOrderDocument({ id, shareKey }: { id: string; shareKey?:
           <div className="grid border-b border-chestnut/40 sm:grid-cols-[1fr_1.5fr]">
             <div className="flex flex-col border-b border-chestnut/40 sm:border-b-0 sm:border-r">
               <p className={band}>
-                {t("to")}: {s.shortName ?? titleCase(o.party.name)}
+                {t("to")}: {s.shortName ?? titleCase(d.toName)}
               </p>
               <div className={cn(cell, "flex flex-col gap-0.5")}>
-                {s.shortName && <span className="font-medium">{titleCase(o.party.name)}</span>}
+                {s.shortName && <span className="font-medium">{titleCase(d.toName)}</span>}
                 {a && (
                   <>
                     <span className="flex items-start gap-1.5">

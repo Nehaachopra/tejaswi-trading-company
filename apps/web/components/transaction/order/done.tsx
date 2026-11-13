@@ -14,8 +14,7 @@ import { rupees, titleCase } from "~/lib/format";
 import { phoneStartsBad } from "~/lib/number-words";
 import { cn } from "~/lib/utils";
 import { toast } from "~/components/ui/toast";
-import { usePurchaseOrderDocument, usePurchaseOrderShareKey, useSaveSupplierPhone } from "~/providers/purchase-order";
-
+import { type OrderKind, orderPath, useOrderDoc, useOrderShareKey, useSaveOrderPhone } from "./doc-data";
 import { orderWhatsAppLink } from "./document";
 
 // a row of the box under the number: the label on the left, the value on the right
@@ -26,11 +25,12 @@ const row = "flex items-baseline justify-between gap-4 py-3";
 // in one box; then its one action, sharing the order with the supplier on WhatsApp. A supplier with no phone kept is
 // asked their WhatsApp number first (a 10-digit mobile), right above the button; it's kept on the supplier, so the next
 // share goes straight to WhatsApp
-export function PurchaseOrderDone({ id }: { id: string }) {
+export function OrderDone({ kind, id }: { kind: OrderKind; id: string }) {
   const t = useTranslations("orders");
-  const doc = usePurchaseOrderDocument(id);
-  const link = usePurchaseOrderShareKey(id);
-  const savePhone = useSaveSupplierPhone(id);
+  const doc = useOrderDoc(kind, id);
+  const link = useOrderShareKey(kind, id);
+  const savePhone = useSaveOrderPhone(kind, id);
+  const sale = kind === "sale";
   const d = doc.data;
   // no phone kept: Share first opens the number's box, then sends to it
   const [asking, setAsking] = useState(false);
@@ -73,7 +73,7 @@ export function PurchaseOrderDone({ id }: { id: string }) {
               </span>
             </p>
             <Link
-              href={`/transaction/order/${id}/view`}
+              href={`${orderPath(kind, id)}/view`}
               className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-chestnut/50 px-4 text-sm font-semibold sm:w-auto"
             >
               <FileText className="size-4" aria-hidden /> {t("done.viewOrder")}
@@ -83,8 +83,8 @@ export function PurchaseOrderDone({ id }: { id: string }) {
           {/* what it is: a row each in one box */}
           <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
             <p className={row}>
-              <span className="text-sm font-semibold">{t("done.supplier")}</span>
-              <span className="min-w-0 truncate font-semibold">{titleCase(d.order.party.name)}</span>
+              <span className="text-sm font-semibold">{t(sale ? "done.customer" : "done.supplier")}</span>
+              <span className="min-w-0 truncate font-semibold">{titleCase(d.toName)}</span>
             </p>
             <p className={cn(row, "border-t border-chestnut/15")}>
               <span className="text-sm font-semibold">{t("done.items")}</span>
@@ -99,7 +99,7 @@ export function PurchaseOrderDone({ id }: { id: string }) {
           {/* no phone kept: the supplier's WhatsApp number, asked once Share is tapped */}
           {asking && (
             <label className="flex w-full max-w-lg flex-col gap-2 text-left text-xs font-semibold">
-              {t("done.whatsAppNumber")}
+              {t(sale ? "done.customerWhatsAppNumber" : "done.whatsAppNumber")}
               <span className={cn("flex min-h-11 items-center gap-2 px-3", fieldClass(phoneBad))}>
                 <span className="font-normal text-chestnut/70">+91</span>
                 <input
@@ -120,10 +120,10 @@ export function PurchaseOrderDone({ id }: { id: string }) {
             type="button"
             disabled={!link.data || (asking && !phoneOk)}
             onClick={() => {
-              if (!d.supplier.phone && !asking) return setAsking(true);
+              if (!d.to.phone && !asking) return setAsking(true);
               // WhatsApp first (a window opened after waiting is blocked), then the number kept on the supplier
-              window.open(orderWhatsAppLink(d, link.data!.key, (v) => t("doc.whatsAppMessage", v), d.supplier.phone ?? phone), "_blank", "noopener");
-              if (!d.supplier.phone) {
+              window.open(orderWhatsAppLink(d, link.data!.key, (v) => t(sale ? "doc.whatsAppMessageSale" : "doc.whatsAppMessage", v), d.to.phone ?? phone), "_blank", "noopener");
+              if (!d.to.phone) {
                 savePhone.mutate(
                   { id, phone },
                   {
@@ -135,7 +135,7 @@ export function PurchaseOrderDone({ id }: { id: string }) {
             }}
             className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control bg-chestnut px-5 text-sm font-semibold text-ivory transition-colors hover:bg-chestnut/90 disabled:opacity-50 sm:w-auto"
           >
-            {t("done.share")}
+            {t(sale ? "done.shareCustomer" : "done.share")}
             <WhatsAppIcon className="size-4 shrink-0" />
           </button>
         </section>

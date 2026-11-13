@@ -2078,7 +2078,8 @@
       "products": "Products",
       "totals": "Amount",
       "supplier": "Supplier",
-      "details": "Details"
+      "details": "Details",
+      "customer": "Customer"
     },
     "kinds": {
       "purchase": "Purchase",
@@ -2131,7 +2132,8 @@
       "noGst": "Set the GST % of {name} on the Products page first.",
       "supplier": "Pick the supplier.",
       "date": "Pick the order date.",
-      "expected": "Delivery can't be before the order date."
+      "expected": "Delivery can't be before the order date.",
+      "customer": "Pick the customer, or add a new one."
     },
     "errors": {
       "network": "Can't reach the server. Check your connection.",
@@ -2155,7 +2157,10 @@
       "amount": "Amount",
       "whatsAppNumber": "Supplier's WhatsApp number",
       "mobileBad": "A 10-digit mobile number, starting 6 to 9.",
-      "phoneNotSaved": "Couldn't save the supplier's number."
+      "phoneNotSaved": "Couldn't save the supplier's number.",
+      "customer": "Customer",
+      "shareCustomer": "Share order to customer",
+      "customerWhatsAppNumber": "Customer's WhatsApp number"
     },
     "doc": {
       "title": "Purchase Order",
@@ -2187,8 +2192,18 @@
       "amount": "Amount",
       "inWords": "Amount in words (Rupees)",
       "computerGenerated": "This is a computer generated order.",
-      "signatory": "Authorised Signatory"
+      "signatory": "Authorised Signatory",
+      "titleSale": "Sale Order",
+      "whatsAppMessageSale": "Sale order {number} for ₹{amount} from {company}: {url}"
     },
-    "addOrder": "Add order"
+    "addOrder": "Add order",
+    "available": "Available quantity",
+    "onlyAvailable": "Only {n} are free to order.",
+    "customer": {
+      "name": "Full name",
+      "phone": "Phone (optional)"
+    },
+    "newPriceGst": "New price + GST",
+    "discountPerPack": "Discount"
   }
 }

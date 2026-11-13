@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { PurchaseOrderDocument } from "~/components/transaction/order/document";
+import { OrderDocument } from "~/components/transaction/order/document";
 
 export const metadata: Metadata = { title: "Purchase order · Tejaswi trading company", robots: { index: false } };
 
@@ -17,7 +17,7 @@ export default async function SharedPurchaseOrderPage({
   if (!k) notFound();
   return (
     <div className="min-h-dvh bg-chestnut text-ivory">
-      <PurchaseOrderDocument id={id} shareKey={k} />
+      <OrderDocument kind="purchase" id={id} shareKey={k} />
     </div>
   );
 }

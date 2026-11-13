@@ -19,7 +19,7 @@ const heading = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
 // the Products card: on top, the items on the order in one row that scrolls sideways; below, every other pack size,
 // filtered by category, where Add opens the line card to put the picked pack size on the order
 export function ProductsCard() {
-  const { t, products, categories, lines, setCardFor } = useOrderEntry();
+  const { t, kind, products, categories, lines, setCardFor } = useOrderEntry();
 
   // the filters for the products below
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -31,7 +31,8 @@ export function ProductsCard() {
   const taken = new Set(lines.map((l) => l.productId));
   const rest = products
     .filter((g) => (!categoryId || g.categoryId === categoryId) && (!subCategoryId || g.subCategoryId === subCategoryId))
-    .map((g) => ({ ...g, packs: g.packs.filter((p) => !taken.has(p.productId)) }))
+    // a sale offers only pack sizes with stock free to order (not held for another order)
+    .map((g) => ({ ...g, packs: g.packs.filter((p) => !taken.has(p.productId) && (kind !== "sale" || p.unreservedQuantity > 0)) }))
     .filter((g) => g.packs.length > 0);
 
   return (

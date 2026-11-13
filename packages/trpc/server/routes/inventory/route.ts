@@ -47,7 +47,8 @@ const subCategoryRowModel = categoryRowModel.extend({ categoryId: z.string().uui
 
 // categories and sub-categories come first: a product is always created under existing ones
 const categoryRouter = router({
-  list: adminProcedure
+  // staff read them too, to take sale orders
+  list: protectedProcedure
     .meta({ openapi: { method: "GET", path: "/inventory/categories", tags: ["inventory"] } })
     .input(listCategoriesInputModel)
     .output(z.array(categoryModel))
@@ -109,11 +110,15 @@ const subCategoryRouter = router({
 
 // the product master; /product is admin only
 const productRouter = router({
-  list: adminProcedure
+  // staff read it too, to take sale orders, without what each pack cost us
+  list: protectedProcedure
     .meta({ openapi: { method: "GET", path: "/inventory/products", tags: ["inventory"] } })
     .input(listProductsInputModel)
     .output(z.array(productGroupModel))
-    .query(({ input }) => productService.list(input)),
+    .query(async ({ ctx, input }) => {
+      const groups = await productService.list(input);
+      return ctx.session.user.role === "admin" ? groups : groups.map((g) => ({ ...g, packs: g.packs.map((p) => ({ ...p, weightedAverageCost: null })) }));
+    }),
 
   create: adminProcedure
     .meta({ openapi: { method: "POST", path: "/inventory/products", tags: ["inventory"] } })

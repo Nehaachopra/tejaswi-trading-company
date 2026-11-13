@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { PurchaseOrderDocument } from "~/components/transaction/order/document";
+import { OrderDocument } from "~/components/transaction/order/document";
 import { getSession } from "~/trpc/session";
 
 export const metadata: Metadata = { title: "Purchase order · Tejaswi trading company" };
@@ -11,5 +11,5 @@ export default async function PurchaseOrderViewPage({ params }: { params: Promis
   const session = await getSession();
   if (session!.user.role !== "admin") redirect("/");
   const { id } = await params;
-  return <PurchaseOrderDocument id={id} />;
+  return <OrderDocument kind="purchase" id={id} />;
 }
