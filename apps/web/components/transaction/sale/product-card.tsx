@@ -282,7 +282,9 @@ function GodownRows({
         <span className="text-center">{t("available")}</span>
         <span className="text-right">{t("quantity")}</span>
       </div>
-      <div className="flex flex-col">
+      {/* at most about three rows tall, then the rows scroll inside the card (the meter and column names stay put), so
+          Total and Add to cart stay on the screen; room at the sides so the boxes' soft edges aren't cut */}
+      <div className="-mx-1.5 flex max-h-[9.75rem] flex-col overflow-y-auto overscroll-contain px-1.5 [scrollbar-width:thin]">
         {godowns.map((g) => {
           const mine = Number(parts[g.godownId]) || 0;
           // never more than it holds, nor more than the quantity still to place

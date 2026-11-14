@@ -196,11 +196,14 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
           </div>
 
           {/* the items: quantity, a pack's price, the discount off the line, its taxable value, GST % and the GST by tax
-              (CGST and SGST within our state, IGST outside it), and its total. Sideways on a phone */}
-          <div className="overflow-x-auto">
+              (CGST and SGST within our state, IGST outside it), and its total. Sideways on a phone. On the screen at
+              most five rows tall, then it scrolls with the column names held on top and the Total row at the
+              bottom; printed (the PDF), every row shows */}
+          <div className="max-h-[294px] overflow-auto print:max-h-none print:overflow-visible">
             <table className="tabular w-full min-w-[40rem] border-collapse text-[0.8125rem] [&_td]:px-1.5 [&_th]:px-1.5">
               <thead>
-                <tr className="border-b border-chestnut/40 text-left">
+                {/* held on top while the rows scroll (its bottom line drawn as a shadow, which stays with it) */}
+                <tr className="text-left [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-ivory [&>th]:shadow-[inset_0_-1px_0_rgb(90_42_26/0.4)] print:[&>th]:static">
                   <th className={cn(cell, "w-10 border-r font-semibold")}>{t("sl")}</th>
                   <th className={cn(cell, "border-r font-semibold")}>{t("particulars")}</th>
                   <th className={cn(cell, "border-r font-semibold")}>HSN</th>
@@ -254,7 +257,7 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                   <td />
                 </tr>
                 {/* the totals: how many, the discount, the taxable value, each tax and the items' total */}
-                <tr className="border-t border-chestnut/40 font-bold">
+                <tr className="font-bold [&>td]:sticky [&>td]:bottom-0 [&>td]:z-10 [&>td]:bg-ivory [&>td]:shadow-[inset_0_1px_0_rgb(90_42_26/0.4)] print:[&>td]:static">
                   <td className={cn(cell, "border-r")} />
                   <td className={cn(cell, "border-r")}>{t("total")}</td>
                   <td className={cn(cell, "border-r")} />

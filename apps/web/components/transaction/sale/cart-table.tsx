@@ -15,7 +15,7 @@ const cell = "whitespace-nowrap border-b border-chestnut/15 px-1.5 py-2 align-mi
 type ProductRows = { group: ProductGroup; rows: { line: CartLine; pack: Pack; total: number }[] };
 
 // what's in the cart, as an order's items table: read only (a tap on a row opens the product card to change it), the
-// cart's total under the last one; at most about six rows tall, then it scrolls with the column names held on top and
+// cart's total under the last one; at most five products' rows tall, then it scrolls with the column names held on top and
 // the Total row held at the bottom. A wider screen: each product's details once (a small photo, its name, category |
 // sub-category) beside each of its pack sizes: Pack, Price + GST, Quantity, Total and a red bin. A phone: each
 // product's photo, name and category on a row across the table, then its pack sizes under it (Pack, Price + GST,
@@ -43,8 +43,8 @@ export function CartTable() {
 
   return (
     <>
-      {/* a wider screen: the full table */}
-      <div className="hidden max-h-[22rem] overflow-auto rounded-control border border-chestnut/15 [scrollbar-width:none] sm:block [&::-webkit-scrollbar]:hidden">
+      {/* a wider screen: the full table, five rows tall at most (the header 32px, a row 65px, the Total 48px) */}
+      <div className="hidden max-h-[405px] overflow-auto rounded-control border border-chestnut/15 [scrollbar-width:none] sm:block [&::-webkit-scrollbar]:hidden">
         <table className="tabular w-full min-w-[40rem] border-separate border-spacing-0">
           <thead>
             <tr>
@@ -77,8 +77,9 @@ export function CartTable() {
         </table>
       </div>
 
-      {/* a phone: each product across the table, then its pack sizes under it */}
-      <div className="max-h-[22rem] overflow-y-auto rounded-control border border-chestnut/15 [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden">
+      {/* a phone: each product across the table, then its pack sizes under it; five products tall at most (a product's
+          row 61px and a pack size's 49px) */}
+      <div className="max-h-[630px] overflow-y-auto rounded-control border border-chestnut/15 [scrollbar-width:none] sm:hidden [&::-webkit-scrollbar]:hidden">
         <table className="tabular w-full border-separate border-spacing-0">
           <thead>
             <tr>
