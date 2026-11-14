@@ -21,12 +21,27 @@ import { moveCard, useCardHistory } from "../../shared/card-steps";
 // the cards, in order: Purchase or Sale, the products on the order, the totals, the supplier, then the dates, remarks
 // and Save
 export type OrderStep = "type" | "products" | "totals" | "supplier" | "details";
-const STEPS: OrderStep[] = ["type", "products", "totals", "supplier", "details"];
+const ALL_STEPS: OrderStep[] = ["type", "products", "totals", "supplier", "details"];
 
 // one item on the order, as typed: the price with GST per kg (or l, box, piece), the pack's price before GST and its
 // price with GST fill each other in; `from` is the one typed last, which the figures follow
 export type PriceField = "unitGst" | "price" | "priceGst";
 export type OrderLine = { productId: string; unitGst: string; price: string; priceGst: string; from: PriceField; quantity: string };
+
+// an order being changed, as the form starts from it: its kind and id, its date, the items as typed (with how many of
+// each have moved, which an item can't go below, and for a sale how many it holds now, free again for it), the discount,
+// expected day and remarks (who it's with can't change)
+export type OrderEditSeed = {
+  kind: "purchase" | "sale";
+  id: string;
+  orderDate: string;
+  lines: OrderLine[];
+  moved: Record<string, number>;
+  held: Record<string, number>;
+  discount: string;
+  expected: string;
+  remarks: string;
+};
 
 // a pack size not on the order yet: nothing typed, quantity 1
 export const emptyLine = (productId: string): OrderLine => ({ productId, unitGst: "", price: "", priceGst: "", from: "priceGst", quantity: "1" });
@@ -66,19 +81,25 @@ export function settleLine(line: OrderLine, packSize: number, gstPercent: number
 }
 
 // everything the new-order form holds and works out. Made once in OrderEntry; every card reads it with useOrderEntry()
-export function useOrderEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () => void }) {
+export function useOrderEntryState({ isAdmin, onDiscard, edit = null }: { isAdmin: boolean; onDiscard: () => void; edit?: OrderEditSeed | null }) {
   const t = useTranslations("orders");
   const router = useRouter();
-  const { products, categories, suppliers, loading, loadFailed, retryLoad, saveOrder, saveSaleOrder, saving: creating, saved } = usePurchaseOrderData();
+  const { products, categories, suppliers, loading, loadFailed, retryLoad, saveOrder, saveSaleOrder, updateOrder, updateSaleOrder, saving: creating, saved } = usePurchaseOrderData();
+  // the cards: an order being changed keeps its kind and who it's with, so it has no Type or Supplier (Customer) card
+  const STEPS: OrderStep[] = edit ? ALL_STEPS.filter((s) => s !== "type" && s !== "supplier") : ALL_STEPS;
 
-  // the answers
-  const [kind, setKindOnly] = useState<"purchase" | "sale" | null>(null);
-  const [lines, setLines] = useState<OrderLine[]>([]);
+  // the answers (an order being changed starts from what it has)
+  const [kind, setKindOnly] = useState<"purchase" | "sale" | null>(edit?.kind ?? null);
+  const [lines, setLines] = useState<OrderLine[]>(edit?.lines ?? []);
   // the supplier, as a payment picks one: found in the search, or new (its details typed on the card)
   const [supplierPick, setSupplierPick] = useState<LedgerChoice>(null);
   const [newSupplier, setNewSupplier] = useState<PartyDraft>(() => emptyDraft());
   // a sale's customer not yet one of ours: a name, an optional phone and where to deliver, kept on the order
   const [newCustomer, setNewCustomer] = useState<{ name: string; phone: string; address: AddressDraft }>(() => ({ name: "", phone: "", address: emptyAddress(true) }));
+  // what has moved of each item (arrived, or gone out): it can't go below that or come off; nothing for a new order
+  const movedOf = (productId: string) => edit?.moved[productId] ?? 0;
+  // a sale order being changed: what it holds of an item now, free again for it when it's saved
+  const heldOf = (productId: string) => (edit?.kind === "sale" ? (edit.held[productId] ?? 0) : 0);
   // the other kind picked: its items and who it's with start again (prices, stock and parties differ)
   const setKind = (next: "purchase" | "sale") => {
     if (next === kind) return;
@@ -90,11 +111,11 @@ export function useOrderEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; o
   };
   const sale = kind === "sale";
   // the order is dated the day it's made; the server sets it, this only shows it
-  const [orderDate] = useState(() => indiaDay(new Date()));
-  const [expected, setExpected] = useState("");
-  const [remarks, setRemarks] = useState("");
+  const [orderDate] = useState(() => edit?.orderDate ?? indiaDay(new Date()));
+  const [expected, setExpected] = useState(edit?.expected ?? "");
+  const [remarks, setRemarks] = useState(edit?.remarks ?? "");
   // one discount on the whole order, in rupees, off the total after GST
-  const [discount, setDiscount] = useState("");
+  const [discount, setDiscount] = useState(edit?.discount ?? "");
   // made when the form opens: a second save with it (a retry after the connection dropped) gets the first one's result
   const [saveKey] = useState(() => crypto.randomUUID());
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -146,7 +167,11 @@ export function useOrderEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; o
   // change the items: put one on (or change it, from the line card), or take it off
   const putLine = (line: OrderLine) =>
     setLines((all) => (all.some((l) => l.productId === line.productId) ? all.map((l) => (l.productId === line.productId ? line : l)) : [...all, line]));
-  const removeLine = (productId: string) => setLines((all) => all.filter((l) => l.productId !== productId));
+  // (one with some already moved stays on)
+  const removeLine = (productId: string) => {
+    if (movedOf(productId) > 0) return;
+    setLines((all) => all.filter((l) => l.productId !== productId));
+  };
 
   // when each card is filled in
   const complete: Record<OrderStep, boolean> = {
@@ -164,7 +189,7 @@ export function useOrderEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; o
           : !supplierMatch && draftOk(newSupplier, true, true))),
     details: orderDate !== "" && (expected === "" || expected >= orderDate),
   };
-  const [at, setAt] = useState<OrderStep>("type");
+  const [at, setAt] = useState<OrderStep>(STEPS[0]!);
   const current = at;
   const index = STEPS.indexOf(current);
   const firstOpen = STEPS.findIndex((s) => !complete[s]);
@@ -176,7 +201,7 @@ export function useOrderEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; o
   const [summaryOpen, setSummaryOpen] = useState(false);
 
   // the phone's Back goes to the card before
-  const remember = useCardHistory<OrderStep>("type", (card) => {
+  const remember = useCardHistory<OrderStep>(STEPS[0]!, (card) => {
     moveCard(() => {
       setTried(false);
       setAt(card);
@@ -233,34 +258,44 @@ export function useOrderEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; o
       setAt(STEPS[firstOpen]!);
       return guide();
     }
-    // someone new with the same name in the same town as one already added: asked first
-    if (!sale && supplierPick?.kind === "party" && !(await sameName.confirm(newSupplier))) return;
-    if (sale && supplierPick?.kind === "party" && !(await sameName.confirm({ ...emptyDraft(), name: newCustomer.name, addresses: [newCustomer.address] }))) return;
+    // someone new with the same name in the same town as one already added: asked first (not on an edit)
+    if (!edit && !sale && supplierPick?.kind === "party" && !(await sameName.confirm(newSupplier))) return;
+    if (!edit && sale && supplierPick?.kind === "party" && !(await sameName.confirm({ ...emptyDraft(), name: newCustomer.name, addresses: [newCustomer.address] }))) return;
     setSaving(true);
     setSaveError(null);
     const items = lines.map((l, i) => ({ productId: l.productId, quantity: Number(l.quantity), rateBeforeGst: figures[i]!.rate / 100, discount: 0 }));
+    // the customer as a sale order keeps it: a name (and phone) with where to deliver, for someone not one of ours
+    const keptCustomer =
+      supplierPick?.kind === "party"
+        ? {
+            name: newCustomer.name.trim(),
+            phone: newCustomer.phone,
+            address: {
+              addressLine1: newCustomer.address.addressLine1.trim(),
+              landmark: newCustomer.address.landmark.trim(),
+              city: newCustomer.address.city.trim(),
+              district: newCustomer.address.district.trim(),
+              state: newCustomer.address.state.trim(),
+              stateCode: newCustomer.address.stateCode!,
+              postalCode: newCustomer.address.postalCode,
+            },
+          }
+        : null;
     try {
+      // an order being changed: saved over, then back to its own page (replace, so Back doesn't land on the form)
+      if (edit) {
+        const fields = { id: edit.id, expectedDeliveryDate: expected || null, lines: items, orderDiscount: discountValue, remarks: remarks.trim() || null };
+        if (sale) await updateSaleOrder(fields);
+        else await updateOrder(fields);
+        router.replace(`/order/${edit.kind}/${edit.id}`);
+        return;
+      }
       // a sale: to the customer picked, or a name (and phone) kept on the order; on to its own page
       if (sale) {
         const order = await saveSaleOrder({
           saveKey,
           partyId: supplierId,
-          customer:
-            supplierPick?.kind === "party"
-              ? {
-                  name: newCustomer.name.trim(),
-                  phone: newCustomer.phone,
-                  address: {
-                    addressLine1: newCustomer.address.addressLine1.trim(),
-                    landmark: newCustomer.address.landmark.trim(),
-                    city: newCustomer.address.city.trim(),
-                    district: newCustomer.address.district.trim(),
-                    state: newCustomer.address.state.trim(),
-                    stateCode: newCustomer.address.stateCode!,
-                    postalCode: newCustomer.address.postalCode,
-                  },
-                }
-              : null,
+          customer: keptCustomer,
           expectedDeliveryDate: expected || null,
           lines: items,
           orderDiscount: discountValue,
@@ -309,6 +344,9 @@ export function useOrderEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; o
     suppliers: suppliers ?? [],
     creating,
     isAdmin,
+    editing: edit !== null,
+    movedOf,
+    heldOf,
     kind,
     setKind,
     lines,

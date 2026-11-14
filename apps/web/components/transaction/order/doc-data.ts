@@ -31,6 +31,8 @@ export type OrderDoc = {
     | "orderedByName"
     | "totalAmount"
     | "orderDiscount"
+    | "subtotal"
+    | "edits"
     | "itemCount"
     | "status"
     | "deliveries"
@@ -39,16 +41,21 @@ export type OrderDoc = {
   > & {
     // each item, with how many have moved (arrived on a purchase order, gone out on a sale order)
     lines: (Omit<SaleDoc["order"]["lines"][number], "delivered"> & { moved: number })[];
+    // the GST on it, in all
+    gstAmount: number;
   };
   toName: string;
+  // the party it's with; null for a sale's customer kept by name on the order
+  partyId: string | null;
   company: PurchaseDoc["company"];
   to: PurchaseDoc["supplier"];
 };
 
 const fromPurchase = (d: PurchaseDoc): OrderDoc => ({
   kind: "purchase",
-  order: { ...d.order, lines: d.order.lines.map((l) => ({ ...l, moved: l.received })) },
+  order: { ...d.order, gstAmount: d.order.gst.total, lines: d.order.lines.map((l) => ({ ...l, moved: l.received })) },
   toName: d.order.party.name,
+  partyId: d.order.party.id,
   company: d.company,
   to: d.supplier,
 });
@@ -56,6 +63,7 @@ const fromSale = (d: SaleDoc): OrderDoc => ({
   kind: "sale",
   order: { ...d.order, lines: d.order.lines.map(({ delivered, ...l }) => ({ ...l, moved: delivered })) },
   toName: d.order.customer.name,
+  partyId: d.order.customer.partyId,
   company: d.company,
   to: d.customer,
 });

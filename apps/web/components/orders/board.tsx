@@ -1,13 +1,13 @@
 "use client";
 
-import { Ban, Check, ChevronDown, CircleAlert, Plus } from "lucide-react";
+import { Ban, Check, ChevronDown, CircleAlert, Truck } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { DateInput } from "~/components/ui/date-input";
 import { Menu, MenuItem } from "~/components/ui/menu";
-import { ADD_BUTTON, FILTER_BAR_UNDER_TABS, FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
+import { FILTER_BAR_UNDER_TABS, FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
 import { PageTabs } from "~/components/ui/page-tabs";
 import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
@@ -70,11 +70,11 @@ const trigger = (set: boolean) => cn(FILTER_TRIGGER, set && "border-ivory bg-ivo
 // form on Home; the filters stay under the tabs: status, the days ordered, then the supplier or customer. A card shows
 // its number with its status (the pending dot softly glowing), who it's with, the day it was ordered and how many
 // products; tapping it opens the order
-export function OrdersBoard({ isAdmin }: { isAdmin: boolean }) {
+export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initialKind: Kind }) {
   const t = useTranslations("orders");
   const tl = useTranslations("orders.list");
   const locale = useLocale();
-  const [kind, setKind] = useState<Kind>(isAdmin ? "purchase" : "sale");
+  const [kind, setKind] = useState<Kind>(initialKind);
   const [status, setStatus] = useState<Status | null>(null);
   const [range, setRange] = useState<Range | null>(null);
   const [picked, setPicked] = useState({ from: "", to: "" });
@@ -98,9 +98,11 @@ export function OrdersBoard({ isAdmin }: { isAdmin: boolean }) {
   const partyName = parties.find(([key]) => key === party)?.[1];
 
   // another tab: its own supplier or customer to pick
+  // a tab picked: kept in the address too, so coming back (browser Back included) opens the same tab
   const pick = (next: Kind) => {
     setKind(next);
     setParty(null);
+    window.history.replaceState(null, "", next === "sale" ? "/order" : `/order?kind=${next}`);
   };
 
   return (
@@ -110,16 +112,11 @@ export function OrdersBoard({ isAdmin }: { isAdmin: boolean }) {
       {/* Purchase (the admin's) and Sale */}
       <PageTabs
         label={tl("title")}
-        tabs={(isAdmin ? (["purchase", "sale"] as Kind[]) : (["sale"] as Kind[])).map((k) => ({ key: k, label: t(`kinds.${k}`), current: kind === k, onPick: () => pick(k) }))}
+        tabs={(isAdmin ? (["sale", "purchase"] as Kind[]) : (["sale"] as Kind[])).map((k) => ({ key: k, label: t(`kinds.${k}`), current: kind === k, onPick: () => pick(k) }))}
       />
 
-      {/* + Add order: the form on Home */}
-      <Link href="/transaction/order" className={`mt-6 ${ADD_BUTTON}`}>
-        <Plus className="size-5" aria-hidden /> {t("addOrder")}
-      </Link>
-
       {/* the filters, under the tabs while the list scrolls: status, the days ordered, the supplier or customer */}
-      <div className={`mt-2 ${FILTER_BAR_UNDER_TABS}`}>
+      <div className={`mt-3 ${FILTER_BAR_UNDER_TABS}`}>
         <Menu
           label={tl("status")}
           surface="chestnut"
@@ -240,42 +237,50 @@ export function OrdersBoard({ isAdmin }: { isAdmin: boolean }) {
       ) : (
         <ul className={cn("mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3", list.isPlaceholderData && "opacity-60")}>
           {shown.map((o) => (
-            <li key={o.id}>
-              <Link
-                href={`/order/${kind}/${o.id}`}
-                className={cn("on-ivory flex flex-col gap-2.5 rounded-control bg-ivory p-3.5 text-chestnut", o.status === "cancelled" && "opacity-65")}
-              >
-                {/* its number (smaller than who it's with, muted), and its status with its sign: a softly glowing dot while
-                    pending, a tick once completed, a crossed circle when cancelled */}
-                <span className="flex items-center justify-between gap-2">
-                  <span className="tabular text-sm font-semibold text-chestnut/60">{o.orderId}</span>
-                  <span className={cn("flex items-center gap-1.5 text-xs font-semibold", STATUS_TONE[o.status])}>
-                    {o.status === "pending" ? (
-                      <span className="status-glow size-2 rounded-full bg-current" aria-hidden />
-                    ) : o.status === "completed" ? (
-                      <Check className="size-3.5" strokeWidth={3} aria-hidden />
-                    ) : (
-                      <Ban className="size-3.5" strokeWidth={2.5} aria-hidden />
-                    )}
-                    {tl(`statuses.${o.status}`)}
-                  </span>
+            // the whole card opens the order (its link stretched over it); Record arrival or dispatch sits above that
+            <li
+              key={o.id}
+              className={cn("on-ivory relative flex flex-col gap-2.5 rounded-control bg-ivory p-3.5 text-chestnut", o.status === "cancelled" && "opacity-65")}
+            >
+              {/* the day it was ordered then its number (smaller than who it's with, muted), and its status with its sign:
+                  a softly glowing dot while pending, a tick once completed, a crossed circle when cancelled */}
+              <span className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 flex-wrap items-center gap-x-4 text-sm font-semibold text-chestnut/60">
+                  <span className="font-medium">{dateThenDay(o.orderDate, locale)}</span>
+                  <span className="tabular">{o.orderId}</span>
                 </span>
-                {/* who it's with */}
-                <span className="-mt-1 truncate text-base font-bold">{titleCase(o.who)}</span>
-                {/* the day it was ordered, and how many products: a row each */}
-                <span className="flex flex-col gap-1.5 border-t border-chestnut/15 pt-2.5 text-sm">
-                  <span className="flex items-baseline justify-between gap-3">
-                    <span className="opacity-70">{tl("ordered")}</span>
-                    <span className="tabular text-sm font-semibold">
-                      {dateThenDay(o.orderDate, locale)}
-                    </span>
-                  </span>
-                  <span className="flex items-baseline justify-between gap-3">
-                    <span className="opacity-70">{tl("products")}</span>
-                    <span className="tabular text-sm font-semibold">{o.itemCount}</span>
-                  </span>
+                <span className={cn("flex shrink-0 items-center gap-1.5 text-xs font-semibold", STATUS_TONE[o.status])}>
+                  {o.status === "pending" ? (
+                    <span className="status-glow size-2 rounded-full bg-current" aria-hidden />
+                  ) : o.status === "completed" ? (
+                    <Check className="size-3.5" strokeWidth={3} aria-hidden />
+                  ) : (
+                    <Ban className="size-3.5" strokeWidth={2.5} aria-hidden />
+                  )}
+                  {tl(`statuses.${o.status}`)}
                 </span>
+              </span>
+              {/* who it's with: the link that opens the order */}
+              <Link href={`/order/${kind}/${o.id}`} className="-mt-1 truncate text-base font-bold after:absolute after:inset-0 after:rounded-control">
+                {titleCase(o.who)}
               </Link>
+              {/* how many products; beside it, while pending, Record arrival (purchase) or dispatch (sale): its page comes next */}
+              <span className="flex min-h-9 items-center justify-between gap-3 border-t border-chestnut/15 pt-2.5 text-sm">
+                <span className="flex items-baseline gap-2">
+                  <span className="opacity-70">{tl("products")}</span>
+                  <span className="tabular font-semibold">{o.itemCount}</span>
+                </span>
+                {o.status === "pending" && (
+                  <button
+                    type="button"
+                    disabled
+                    className="relative z-10 flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-control bg-chestnut px-3 text-xs font-semibold text-ivory disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Truck className="size-3.5 shrink-0" aria-hidden />
+                    {t(kind === "sale" ? "page.recordDispatch" : "page.recordArrival")}
+                  </button>
+                )}
+              </span>
             </li>
           ))}
         </ul>

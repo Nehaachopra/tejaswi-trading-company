@@ -21,7 +21,7 @@ import {
 } from "../../shared/entry-frame";
 import { DetailsCard, SaveBlock } from "./details-card";
 import { ProductsCard } from "./products-card";
-import { type OrderStep, OrderEntryProvider, useOrderEntry, useOrderEntryState } from "./state";
+import { type OrderEditSeed, type OrderStep, OrderEntryProvider, useOrderEntry, useOrderEntryState } from "./state";
 import { SupplierCard } from "./supplier-card";
 import { TotalsCard } from "./totals-card";
 import { TypeCard } from "./type-card";
@@ -41,8 +41,9 @@ export function OrderForm({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
-function OrderEntry({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () => void }) {
-  const state = useOrderEntryState({ isAdmin, onDiscard });
+// the form itself: a new order, or (with `edit`) one being changed
+export function OrderEntry({ isAdmin, onDiscard, edit = null }: { isAdmin: boolean; onDiscard: () => void; edit?: OrderEditSeed | null }) {
+  const state = useOrderEntryState({ isAdmin, onDiscard, edit });
   return (
     <OrderEntryProvider value={state}>
       <OrderEntryView />
@@ -83,17 +84,20 @@ function OrderEntryView() {
     leaveDialog,
     show,
     next,
+    editing,
   } = useOrderEntry();
+  // an order being changed says so
+  const title = editing ? t("edit.title") : t("title");
 
   if (loading)
     return (
-      <EntryNote title={t("title")} loading>
+      <EntryNote title={title} loading>
         {t("loading")}
       </EntryNote>
     );
   if (loadFailed)
     return (
-      <EntryNote title={t("title")} failed onRetry={retryLoad}>
+      <EntryNote title={title} failed onRetry={retryLoad}>
         {t("loadFailed")}
       </EntryNote>
     );
@@ -101,7 +105,8 @@ function OrderEntryView() {
   // a line for each card answered: the type, each item (a small photo, its name, its quantity), the supplier, then the
   // dates and remarks
   const summary: SummaryItem<OrderStep>[] = [
-    { key: "type", step: "type", heading: stepName("type"), value: kind ? t(`kinds.${kind}`) : null },
+    // (an order being changed has no Type card)
+    ...(editing ? [] : [{ key: "type", step: "type" as const, heading: stepName("type"), value: kind ? t(`kinds.${kind}`) : null }]),
     {
       key: "products",
       step: "products",
@@ -118,7 +123,8 @@ function OrderEntryView() {
         ];
       }),
     },
-    { key: "supplier", step: "supplier", heading: stepName("supplier"), value: supplier ? (supplier.party ? partyLabel(supplier.party) : supplier.name) : supplierPick?.kind === "party" && (kind === "sale" ? newCustomer.name : newSupplier.name).trim() ? titleCase(kind === "sale" ? newCustomer.name : newSupplier.name) : null },
+    // (nor a Supplier card)
+    ...(editing ? [] : [{ key: "supplier", step: "supplier" as const, heading: stepName("supplier"), value: supplier ? (supplier.party ? partyLabel(supplier.party) : supplier.name) : supplierPick?.kind === "party" && (kind === "sale" ? newCustomer.name : newSupplier.name).trim() ? titleCase(kind === "sale" ? newCustomer.name : newSupplier.name) : null }]),
     {
       key: "details",
       step: "details",
@@ -142,7 +148,7 @@ function OrderEntryView() {
 
   return (
     <EntryPage
-      title={t("title")}
+      title={title}
       summaryLabel={t("summary")}
       showBar={kind !== null}
       bar={

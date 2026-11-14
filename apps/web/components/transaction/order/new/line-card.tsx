@@ -33,7 +33,7 @@ export function LineCard() {
 }
 
 function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
-  const { t, kind, lines, putLine, removeLine, setCardFor } = useOrderEntry();
+  const { t, kind, lines, putLine, removeLine, setCardFor, movedOf, heldOf } = useOrderEntry();
   const units = useTranslations("products.items.form.units");
   const saved = lines.find((l) => l.productId === pack.productId);
   const sale = kind === "sale";
@@ -45,9 +45,13 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
       ? settleLine({ ...empty, priceGst: asField(pack.priceAfterGst), from: "priceGst" }, pack.packSize, pack.gstPercent)
       : empty;
   });
-  // a sale: how many are free to order (not held for another order); the quantity stops there
-  const available = pack.unreservedQuantity;
+  // a sale: how many are free to order (not held for another order; what this order holds now counts as free for it);
+  // the quantity stops there
+  const available = pack.unreservedQuantity + heldOf(pack.productId);
   const most = sale ? Math.min(available, 99_999) : 99_999;
+  // an order being changed: what has already moved (arrived, or gone out); the quantity can't go below it
+  const moved = movedOf(pack.productId);
+  const least = Math.max(1, moved);
   // a sale: the pack's saved price with GST, and what the new price takes off it a pack
   const listPrice = pack.priceAfterGst;
   const off = listPrice == null ? 0 : Math.round((listPrice - (Number(draft.priceGst) || 0)) * 100) / 100;
@@ -72,7 +76,7 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   const setFigure = (field: PriceField, v: string) =>
     setDraft((d) => settleLine({ ...d, [field]: v, from: field }, pack.packSize, pack.gstPercent));
   const { total } = lineFigures(draft, pack.packSize, pack.gstPercent);
-  const ok = (Number(draft[draft.from]) || 0) > 0 && (Number(draft.quantity) || 0) >= 1 && Number(draft.quantity) <= most;
+  const ok = (Number(draft[draft.from]) || 0) > 0 && (Number(draft.quantity) || 0) >= least && Number(draft.quantity) <= most;
 
   function done() {
     if (!ok) return;
@@ -162,8 +166,10 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                   }}
                   name={name}
                   max={most}
+                  min={least}
                 />
                 {sale && over && <span className="text-xs text-danger">{t("onlyAvailable", { n: most.toLocaleString("en-IN") })}</span>}
+                {moved > 0 && <span className="text-xs opacity-70">{t(sale ? "goneOut" : "arrived", { n: moved.toLocaleString("en-IN") })}</span>}
               </div>
             );
             return sale ? (
@@ -208,7 +214,8 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
           >
             {saved ? t("saveLine") : t("addToOrder")}
           </button>
-          {saved && (
+          {/* (not for one with some already moved) */}
+          {saved && moved === 0 && (
             <button
               type="button"
               onClick={() => {
@@ -227,14 +234,15 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   );
 }
 
-// how many: − and + at the two ends, the number between (never below 1, never above `max`; `cut` when more was typed)
-function QuantityBox({ value, onChange, name, max = 99_999 }: { value: string; onChange: (v: string, cut: boolean) => void; name: string; max?: number }) {
+// how many: − and + at the two ends, the number between (never below `min`, 1 unless some have moved, never above
+// `max`; `cut` when more was typed)
+function QuantityBox({ value, onChange, name, max = 99_999, min = 1 }: { value: string; onChange: (v: string, cut: boolean) => void; name: string; max?: number; min?: number }) {
   const { t } = useOrderEntry();
   const quantity = Number(value) || 0;
-  const set = (n: number) => onChange(String(Math.min(max, Math.max(1, n))), false);
+  const set = (n: number) => onChange(String(Math.min(max, Math.max(min, n))), false);
   return (
     <div className="flex min-h-11 w-32 shrink-0 items-center justify-between rounded-control bg-chestnut text-ivory">
-      <button type="button" aria-label={`${t("less")}: ${name}`} disabled={quantity <= 1} onClick={() => set(quantity - 1)} className="grid h-11 w-9 shrink-0 place-items-center disabled:opacity-40">
+      <button type="button" aria-label={`${t("less")}: ${name}`} disabled={quantity <= min} onClick={() => set(quantity - 1)} className="grid h-11 w-9 shrink-0 place-items-center disabled:opacity-40">
         <Minus className="size-4" aria-hidden />
       </button>
       <NumberInput
@@ -244,7 +252,7 @@ function QuantityBox({ value, onChange, name, max = 99_999 }: { value: string; o
           const typed = v.replace(/^0+/, "");
           onChange(Number(typed) > max ? String(max) : typed, Number(typed) > max);
         }}
-        onBlur={() => quantity < 1 && set(1)}
+        onBlur={() => quantity < min && set(min)}
         aria-label={`${t("quantity")}: ${name}`}
         className="tabular w-full min-w-0 flex-1 bg-transparent text-center text-base font-bold caret-ivory outline-none"
       />

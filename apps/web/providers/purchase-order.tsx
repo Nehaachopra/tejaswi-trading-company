@@ -7,6 +7,8 @@ import { trpc } from "~/trpc/client";
 
 type CreateIn = RouterInputs["orders"]["purchase"]["create"];
 type CreateSaleIn = RouterInputs["orders"]["sale"]["create"];
+type UpdateIn = RouterInputs["orders"]["purchase"]["update"];
+type UpdateSaleIn = RouterInputs["orders"]["sale"]["update"];
 
 // what the new-order form needs from the server before anything is typed: the active products (as the products page
 // shows them), their categories, the suppliers, and the save. Made once for the page; the form reads it with
@@ -19,6 +21,8 @@ function usePurchaseOrderDataState({ isAdmin }: { isAdmin: boolean }) {
   const suppliers = trpc.accounts.party.list.useQuery({ type: "supplier" }, { enabled: isAdmin });
   const create = trpc.orders.purchase.create.useMutation();
   const createSale = trpc.orders.sale.create.useMutation();
+  const update = trpc.orders.purchase.update.useMutation();
+  const updateSale = trpc.orders.sale.update.useMutation();
 
   // saves it, then the saved order is put in hand for its own page and the list is asked again
   async function saveOrder(input: CreateIn) {
@@ -32,6 +36,24 @@ function usePurchaseOrderDataState({ isAdmin }: { isAdmin: boolean }) {
   async function saveSaleOrder(input: CreateSaleIn) {
     const order = await createSale.mutateAsync(input);
     utils.orders.sale.get.setData({ id: order.id }, order);
+    void utils.inventory.product.list.invalidate();
+    return order;
+  }
+
+  // an order changed: its page, the lists and (a sale's held stock moved) the products are read again
+  async function updateOrder(input: UpdateIn) {
+    const order = await update.mutateAsync(input);
+    utils.orders.purchase.get.setData({ id: order.id }, order);
+    void utils.orders.purchase.document.invalidate({ id: order.id });
+    void utils.orders.purchase.list.invalidate();
+    return order;
+  }
+
+  async function updateSaleOrder(input: UpdateSaleIn) {
+    const order = await updateSale.mutateAsync(input);
+    utils.orders.sale.get.setData({ id: order.id }, order);
+    void utils.orders.sale.document.invalidate({ id: order.id });
+    void utils.orders.sale.list.invalidate();
     void utils.inventory.product.list.invalidate();
     return order;
   }
@@ -50,8 +72,10 @@ function usePurchaseOrderDataState({ isAdmin }: { isAdmin: boolean }) {
     },
     saveOrder,
     saveSaleOrder,
-    saving: create.isPending || createSale.isPending,
-    saved: create.isSuccess || createSale.isSuccess,
+    updateOrder,
+    updateSaleOrder,
+    saving: create.isPending || createSale.isPending || update.isPending || updateSale.isPending,
+    saved: create.isSuccess || createSale.isSuccess || update.isSuccess || updateSale.isSuccess,
   };
 }
 

@@ -19,6 +19,7 @@ export * from "./models/order/purchase/purchase-order";
 export * from "./models/order/purchase/purchase-order-product";
 export * from "./models/order/sale/sale-order";
 export * from "./models/order/sale/sale-order-product";
+export * from "./models/order/order-edit";
 export * from "./models/lender/lender";
 export * from "./models/party/party";
 export * from "./models/party/party-address";

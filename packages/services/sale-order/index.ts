@@ -17,6 +17,7 @@ import { fromPaise, toPaise } from "../accounts/money";
 import PartyService from "../party";
 import { priceLines } from "../purchase-order";
 import type { OrderLineInputModel } from "../purchase-order/model";
+import OrderEditService from "../order-edit";
 import SettingService from "../setting";
 import type { Tx } from "../stock/engine";
 import AssignedIdCounter from "../transaction/assigned-id";
@@ -29,6 +30,8 @@ import {
   type SaleOrderModel,
   type SaleOrderSummaryModel,
   type SharedSaleOrderModel,
+  type UpdateSaleOrderInputModel,
+  updateSaleOrderInputModel,
 } from "./model";
 
 // the day it is in India, as YYYY-MM-DD
@@ -42,6 +45,7 @@ export default class SaleOrderService {
     private readonly ids = new AssignedIdCounter(),
     private readonly settings = new SettingService(),
     private readonly parties = new PartyService(),
+    private readonly edits = new OrderEditService(),
   ) {}
 
   // the customer: an active party
@@ -151,6 +155,102 @@ export default class SaleOrderService {
     return this.get({ id });
   }
 
+  // how many of each item have gone out on the order, from its sales that still stand (a cancelled one doesn't count)
+  private async delivered(tx: Tx, orderId: string) {
+    const rows = await tx
+      .select({ productId: saleProductsTable.productId, quantity: saleProductsTable.quantity })
+      .from(saleProductsTable)
+      .innerJoin(salesTable, eq(salesTable.id, saleProductsTable.saleId))
+      .innerJoin(transactionsTable, eq(transactionsTable.id, salesTable.transactionId))
+      .where(and(eq(salesTable.orderId, orderId), eq(transactionsTable.status, "active")));
+    const out = new Map<string, number>();
+    for (const r of rows) out.set(r.productId, (out.get(r.productId) ?? 0) + r.quantity);
+    return out;
+  }
+
+  // a pending order changed: its expected day, items, discount and remarks (the customer stays). What it held back is
+  // given back and the new quantities held again; no item goes below what has gone out
+  async update(rawInput: UpdateSaleOrderInputModel, actor: ActorModel): Promise<SaleOrderModel> {
+    const input = updateSaleOrderInputModel.parse(rawInput);
+    await db.transaction(async (tx) => {
+      const [order] = await tx.select().from(saleOrdersTable).where(eq(saleOrdersTable.id, input.id)).for("update");
+      if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found." });
+      if (order.status !== "pending") throw new TRPCError({ code: "PRECONDITION_FAILED", message: `This order is ${order.status}.` });
+      // its date stays the day it was made
+      if (input.expectedDeliveryDate && input.expectedDeliveryDate < order.orderDate) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Delivery can't be before the order date." });
+      }
+      const went = await this.delivered(tx, order.id);
+      for (const [productId, quantity] of went) {
+        const line = input.lines.find((l) => l.productId === productId);
+        if (!line || line.quantity < quantity) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: `${quantity} of an item have already gone out; order at least that many.` });
+        }
+      }
+
+      // what it held, given back first (every product it touches locked in id order), then the new items checked and held
+      const old = await tx
+        .select({ productId: saleOrderProductsTable.productId, quantity: saleOrderProductsTable.quantityOrdered, rate: saleOrderProductsTable.rateBeforeGst })
+        .from(saleOrderProductsTable)
+        .where(eq(saleOrderProductsTable.saleOrderId, order.id));
+      const touched = [...new Set([...old.map((l) => l.productId), ...input.lines.map((l) => l.productId)])].sort();
+      await tx.select({ id: productsTable.id }).from(productsTable).where(inArray(productsTable.id, touched)).orderBy(asc(productsTable.id)).for("update");
+      await this.hold(tx, old, -1);
+      const rates = await this.productsIn(tx, input.lines);
+      const p = priceLines(
+        input.lines.map((l, i) => ({ quantity: l.quantity, rate: l.rateBeforeGst, discount: l.discount, gstRate: rates[i]! })),
+        input.orderDiscount,
+      );
+      await tx.delete(saleOrderProductsTable).where(eq(saleOrderProductsTable.saleOrderId, order.id));
+      await tx
+        .update(saleOrdersTable)
+        .set({
+          expectedDeliveryDate: input.expectedDeliveryDate,
+          remarks: input.remarks || null,
+          subtotal: fromPaise(p.subtotal),
+          discountAmount: fromPaise(p.off),
+          gstAmount: fromPaise(p.gst),
+          totalAmount: fromPaise(p.total),
+          // already all gone out (items cut to what went): done
+          status: input.lines.every((l) => (went.get(l.productId) ?? 0) >= l.quantity) ? "completed" : "pending",
+        })
+        .where(eq(saleOrdersTable.id, order.id));
+      await tx.insert(saleOrderProductsTable).values(
+        input.lines.map((l, i) => ({
+          saleOrderId: order.id,
+          productId: l.productId,
+          quantityOrdered: l.quantity,
+          rateBeforeGst: fromPaise(toPaise(l.rateBeforeGst)),
+          discountAmount: fromPaise(toPaise(l.discount)),
+          gstRate: String(rates[i]),
+          gstAmount: fromPaise(p.priced[i]!.gst),
+        })),
+      );
+      await this.hold(tx, input.lines, 1);
+      // what changed, kept for its History
+      await this.edits.record(
+        tx,
+        { kind: "sale", id: order.id },
+        actor,
+        {
+          party: "",
+          expected: order.expectedDeliveryDate,
+          discount: Number(order.discountAmount),
+          remarks: order.remarks,
+          lines: old.map((l) => ({ productId: l.productId, quantity: l.quantity, rate: Number(l.rate) })),
+        },
+        {
+          party: "",
+          expected: input.expectedDeliveryDate,
+          discount: p.off / 100,
+          remarks: input.remarks || null,
+          lines: input.lines.map((l) => ({ productId: l.productId, quantity: l.quantity, rate: l.rateBeforeGst })),
+        },
+      );
+    });
+    return this.get({ id: input.id });
+  }
+
   // a pending order called off: what it held back goes back to stock
   async cancel(input: SaleOrderIdInputModel): Promise<SaleOrderModel> {
     await db.transaction(async (tx) => {
@@ -200,9 +300,9 @@ export default class SaleOrderService {
         shortName: party?.shortName ?? null,
         phone: order.customer.phone,
         address: a
-          ? { line1: a.addressLine1, line2: a.addressLine2, landmark: a.landmark, city: a.city, state: a.state, stateCode: a.stateCode, postalCode: a.postalCode, gstin: a.gstin }
+          ? { line1: a.addressLine1, line2: a.addressLine2, landmark: a.landmark, city: a.city, district: a.district, state: a.state, stateCode: a.stateCode, postalCode: a.postalCode, gstin: a.gstin }
           : kept?.customerCity && kept.customerState && kept.customerStateCode && kept.customerPostalCode
-            ? { line1: kept.customerAddressLine1 ?? "", line2: null, landmark: kept.customerLandmark, city: kept.customerCity, state: kept.customerState, stateCode: kept.customerStateCode, postalCode: kept.customerPostalCode, gstin: null }
+            ? { line1: kept.customerAddressLine1 ?? "", line2: null, landmark: kept.customerLandmark, city: kept.customerCity, district: kept.customerDistrict, state: kept.customerState, stateCode: kept.customerStateCode, postalCode: kept.customerPostalCode, gstin: null }
             : null,
       },
     };
@@ -322,6 +422,7 @@ export default class SaleOrderService {
           items: mine.map((c) => ({ productId: c.productId, quantity: c.quantity })),
         };
       }),
+      edits: await this.edits.listFor(db, { kind: "sale", id: o.id }),
       createdAt: o.createdAt,
       // a cancel is the order's last change
       cancelledAt: o.status === "cancelled" ? o.updatedAt : null,

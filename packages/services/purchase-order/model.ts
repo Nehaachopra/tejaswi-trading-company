@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { orderEditModel } from "../order-edit/model";
 import { createPayeeInputModel } from "../party/model";
 
 const idModel = z.string().uuid();
@@ -58,7 +59,9 @@ export const createPurchaseOrderInputModel = orderFieldsModel
 
 export type CreatePurchaseOrderInputModel = z.infer<typeof createPurchaseOrderInputModel>;
 
-export const updatePurchaseOrderInputModel = orderFieldsModel.extend({ id: idModel }).superRefine(orderChecks);
+// a pending order changed: its items, discount, expected day and remarks, and which order. The supplier (and their
+// details) stays as it was made
+export const updatePurchaseOrderInputModel = orderFieldsModel.omit({ partyId: true }).extend({ id: idModel }).superRefine(orderChecks);
 
 export type UpdatePurchaseOrderInputModel = z.infer<typeof updatePurchaseOrderInputModel>;
 
@@ -135,6 +138,8 @@ export const purchaseOrderModel = purchaseOrderSummaryModel.extend({
   remarks: z.string().nullable(),
   orderedByName: z.string(),
   deliveries: z.array(orderDeliveryModel),
+  // each save of a change to it, oldest first
+  edits: z.array(orderEditModel),
   // when it was made, and when it was cancelled (if it was)
   createdAt: z.date(),
   cancelledAt: z.date().nullable(),
@@ -178,6 +183,8 @@ export const sharedPurchaseOrderModel = z.object({
         line2: z.string().nullable(),
         landmark: z.string().nullable(),
         city: z.string(),
+        // for filling a sale order's kept address back in when it's edited
+        district: z.string().nullable().default(null),
         state: z.string(),
         stateCode: z.string(),
         postalCode: z.string(),

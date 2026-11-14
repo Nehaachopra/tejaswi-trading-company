@@ -22,6 +22,7 @@ import {
   saleOrderSummaryModel,
   sharedSaleOrderInputModel,
   sharedSaleOrderModel,
+  updateSaleOrderInputModel,
 } from "@repo/services/sale-order/model";
 import { opensOrder, opensSaleOrder, orderKey, saleOrderKey } from "@repo/services/transaction/share-link";
 
@@ -59,7 +60,7 @@ const purchaseOrderRouter = router({
     .meta({ openapi: { method: "POST", path: "/orders/purchase/{id}", tags: ["orders"] } })
     .input(updatePurchaseOrderInputModel)
     .output(purchaseOrderModel)
-    .mutation(({ input }) => purchaseOrderService.update(input)),
+    .mutation(({ ctx, input }) => purchaseOrderService.update(input, ctx.session.user)),
 
   // the order as a document, headed with our details, with the supplier's address and phone
   document: adminProcedure
@@ -157,6 +158,13 @@ const saleOrderRouter = router({
       if (!opensSaleOrder(input.id, input.key)) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found." });
       return saleOrderService.document({ id: input.id });
     }),
+
+  // while pending, the admin's: what it held back is held again for the new quantities
+  update: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/orders/sale/{id}", tags: ["orders"] } })
+    .input(updateSaleOrderInputModel)
+    .output(saleOrderModel)
+    .mutation(({ ctx, input }) => saleOrderService.update(input, ctx.session.user)),
 
   // while pending; what it held back goes back to stock
   cancel: adminProcedure

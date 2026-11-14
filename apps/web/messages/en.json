@@ -2196,9 +2196,14 @@
       "titleSale": "Sale Order",
       "whatsAppMessageSale": "Sale order {number} for ₹{amount} from {company}: {url}"
     },
-    "addOrder": "Add order",
     "available": "Available quantity",
     "onlyAvailable": "Only {n} are free to order.",
+    "arrived": "{n} have arrived.",
+    "goneOut": "{n} have gone out.",
+    "edit": {
+      "title": "Edit order",
+      "notPending": "Only a pending order can be changed."
+    },
     "customer": {
       "name": "Full name",
       "phone": "Phone (optional)"
@@ -2231,18 +2236,12 @@
       "loading": "Loading…",
       "loadError": "Couldn't load the orders. Check your connection and try again.",
       "empty": "No orders here.",
-      "ordered": "Ordered",
       "products": "Products",
       "title": "Orders"
     },
     "page": {
       "items": "Items",
-      "details": "Details",
-      "pack": "Pack",
-      "quantity": "Quantity",
-      "tracker": "Tracker",
-      "left": "{n} left",
-      "showMoves": "Show the deliveries of {name}",
+      "remaining": "Remaining",
       "nothingOut": "Nothing has gone out yet.",
       "nothingIn": "Nothing has arrived yet.",
       "address": "Address",
@@ -2257,12 +2256,21 @@
       "ordered": "Ordered",
       "by": "by {name}",
       "expected": "Expected {day}",
+      "editOrder": "Edit order",
+      "recordDispatch": "Record dispatch",
+      "recordArrival": "Record arrival",
       "cancelOrder": "Cancel order",
       "cancelTitle": "Cancel this order?",
       "cancelBody": "{number} will be marked cancelled. What already arrived stays bought.",
       "cancelBodySale": "{number} will be marked cancelled, and the stock it held goes back.",
       "keep": "Keep it",
-      "loadError": "Couldn't load this order. Check your connection and try again."
+      "loadError": "Couldn't load this order. Check your connection and try again.",
+      "amount": "Amount",
+      "itemsValue": "Items value",
+      "discount": "Discount",
+      "gst": "GST",
+      "total": "Total",
+      "edited": "Edited by {name}"
     }
   }
 }

@@ -71,7 +71,9 @@ export function TileTop({
         <p className="truncate font-heading text-base font-bold leading-6" title={productTitle(group)}>
           {productTitle(group)}
         </p>
-        <p className="truncate text-xs opacity-70">{titleCase(group.categoryName)} | {titleCase(group.subCategoryName)}</p>
+        <p className="truncate text-xs opacity-70" title={`${titleCase(group.categoryName)} | ${titleCase(group.subCategoryName)}`}>
+          {titleCase(group.categoryName)} | {titleCase(group.subCategoryName)}
+        </p>
       </div>
 
       {/* the photo, with its button over the corner */}

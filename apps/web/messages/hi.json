@@ -2196,9 +2196,14 @@
       "titleSale": "बिक्री ऑर्डर",
       "whatsAppMessageSale": "{company} का बिक्री ऑर्डर {number}, ₹{amount}: {url}"
     },
-    "addOrder": "ऑर्डर जोड़ें",
     "available": "उपलब्ध मात्रा",
     "onlyAvailable": "सिर्फ़ {n} ऑर्डर के लिए खाली हैं।",
+    "arrived": "{n} आ चुके हैं।",
+    "goneOut": "{n} भेजे जा चुके हैं।",
+    "edit": {
+      "title": "ऑर्डर बदलें",
+      "notPending": "सिर्फ़ बाक़ी ऑर्डर ही बदला जा सकता है।"
+    },
     "customer": {
       "name": "पूरा नाम",
       "phone": "फ़ोन (वैकल्पिक)"
@@ -2231,18 +2236,12 @@
       "loading": "लोड हो रहा है…",
       "loadError": "ऑर्डर लोड नहीं हुए। कनेक्शन देखें और फिर कोशिश करें।",
       "empty": "यहाँ कोई ऑर्डर नहीं।",
-      "ordered": "ऑर्डर किया",
       "products": "प्रोडक्ट",
       "title": "ऑर्डर"
     },
     "page": {
       "items": "आइटम",
-      "details": "विवरण",
-      "pack": "पैक",
-      "quantity": "मात्रा",
-      "tracker": "ट्रैकर",
-      "left": "{n} बाक़ी",
-      "showMoves": "{name} की डिलीवरी दिखाएँ",
+      "remaining": "बाक़ी",
       "nothingOut": "अभी कुछ नहीं गया।",
       "nothingIn": "अभी कुछ नहीं आया।",
       "address": "पता",
@@ -2257,12 +2256,21 @@
       "ordered": "ऑर्डर किया",
       "by": "{name} ने",
       "expected": "अपेक्षित {day}",
+      "editOrder": "ऑर्डर बदलें",
+      "recordDispatch": "डिस्पैच दर्ज करें",
+      "recordArrival": "माल आया दर्ज करें",
       "cancelOrder": "ऑर्डर रद्द करें",
       "cancelTitle": "यह ऑर्डर रद्द करें?",
       "cancelBody": "{number} रद्द हो जाएगा। जो आ चुका है वह ख़रीदा ही रहेगा।",
       "cancelBodySale": "{number} रद्द हो जाएगा, और रोका हुआ स्टॉक वापस आ जाएगा।",
       "keep": "रहने दें",
-      "loadError": "ऑर्डर लोड नहीं हुआ। कनेक्शन देखें और फिर कोशिश करें।"
+      "loadError": "ऑर्डर लोड नहीं हुआ। कनेक्शन देखें और फिर कोशिश करें।",
+      "amount": "रकम",
+      "itemsValue": "माल की कीमत",
+      "discount": "छूट",
+      "gst": "GST",
+      "total": "कुल",
+      "edited": "{name} ने बदला"
     }
   }
 }

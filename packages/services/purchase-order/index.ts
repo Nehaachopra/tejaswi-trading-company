@@ -15,6 +15,7 @@ import {
 import type { ActorModel } from "../accounts/model";
 import { fromPaise, toPaise } from "../accounts/money";
 import PartyService from "../party";
+import OrderEditService from "../order-edit";
 import SettingService from "../setting";
 import type { Tx } from "../stock/engine";
 import AssignedIdCounter from "../transaction/assigned-id";
@@ -65,6 +66,7 @@ export default class PurchaseOrderService {
     private readonly ids = new AssignedIdCounter(),
     private readonly settings = new SettingService(),
     private readonly parties = new PartyService(),
+    private readonly edits = new OrderEditService(),
   ) {}
 
   // the supplier: an active party marked as a supplier
@@ -183,23 +185,24 @@ export default class PurchaseOrderService {
 
   // a pending order's supplier, dates, items and discounts; once anything has arrived, the supplier stays and no item
   // goes below what came
-  async update(rawInput: UpdatePurchaseOrderInputModel): Promise<PurchaseOrderModel> {
+  async update(rawInput: UpdatePurchaseOrderInputModel, actor: ActorModel): Promise<PurchaseOrderModel> {
     const input = updatePurchaseOrderInputModel.parse(rawInput);
     await db.transaction(async (tx) => {
       const order = await this.pendingIn(tx, input.id);
       // its date stays the day it was made
       this.checkExpected(input.expectedDeliveryDate, order.orderDate);
       const came = (await this.received(tx, [order.id])).get(order.id) ?? new Map<string, number>();
-      if (came.size > 0 && input.partyId !== order.partyId) {
-        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Goods have arrived on this order, so the supplier can't change." });
-      }
       for (const [productId, quantity] of came) {
         const line = input.lines.find((l) => l.productId === productId);
         if (!line || line.quantity < quantity) {
           throw new TRPCError({ code: "PRECONDITION_FAILED", message: `${quantity} of an item have already arrived; order at least that many.` });
         }
       }
-      await this.supplierIn(tx, input.partyId);
+      // the order as it was, for its edit log
+      const oldLines = await tx
+        .select({ productId: purchaseOrderProductsTable.productId, quantity: purchaseOrderProductsTable.quantityOrdered, rate: purchaseOrderProductsTable.rateBeforeGst })
+        .from(purchaseOrderProductsTable)
+        .where(eq(purchaseOrderProductsTable.purchaseOrderId, order.id));
       await tx.delete(purchaseOrderProductsTable).where(eq(purchaseOrderProductsTable.purchaseOrderId, order.id));
       // totals to zero first, so the totals check holds while the items are rewritten
       await tx
@@ -211,13 +214,32 @@ export default class PurchaseOrderService {
         .update(purchaseOrdersTable)
         .set({
           ...totals,
-          partyId: input.partyId,
           expectedDeliveryDate: input.expectedDeliveryDate,
           remarks: input.remarks || null,
           // already fully arrived (items cut to what came): done
           status: input.lines.every((l) => (came.get(l.productId) ?? 0) >= l.quantity) ? "completed" : "pending",
         })
         .where(eq(purchaseOrdersTable.id, order.id));
+      // what changed, kept for its History
+      await this.edits.record(
+        tx,
+        { kind: "purchase", id: order.id },
+        actor,
+        {
+          party: "",
+          expected: order.expectedDeliveryDate,
+          discount: Number(order.discountAmount),
+          remarks: order.remarks,
+          lines: oldLines.map((l) => ({ productId: l.productId, quantity: l.quantity, rate: Number(l.rate) })),
+        },
+        {
+          party: "",
+          expected: input.expectedDeliveryDate,
+          discount: Number(totals.discountAmount),
+          remarks: input.remarks || null,
+          lines: input.lines.map((l) => ({ productId: l.productId, quantity: l.quantity, rate: l.rateBeforeGst })),
+        },
+      );
     });
     return this.get({ id: input.id });
   }
@@ -298,7 +320,7 @@ export default class PurchaseOrderService {
         shortName: party?.shortName ?? null,
         phone: party?.phone ?? null,
         address: a
-          ? { line1: a.addressLine1, line2: a.addressLine2, landmark: a.landmark, city: a.city, state: a.state, stateCode: a.stateCode, postalCode: a.postalCode, gstin: a.gstin }
+          ? { line1: a.addressLine1, line2: a.addressLine2, landmark: a.landmark, city: a.city, district: a.district, state: a.state, stateCode: a.stateCode, postalCode: a.postalCode, gstin: a.gstin }
           : null,
       },
     };
@@ -396,6 +418,7 @@ export default class PurchaseOrderService {
           items: items.map((x) => ({ productId: x.productId, quantity: x.quantity })),
         };
       }),
+      edits: await this.edits.listFor(db, { kind: "purchase", id: o.id }),
       createdAt: o.createdAt,
       // a cancel is the order's last change
       cancelledAt: o.status === "cancelled" ? o.updatedAt : null,

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { orderEditModel } from "../order-edit/model";
+
 import { partyAddressInputModel } from "../party/model";
 import { orderDeliveryModel, orderLineInputModel, orderStatusModel, sharedPurchaseOrderModel } from "../purchase-order/model";
 
@@ -61,6 +63,23 @@ export const createSaleOrderInputModel = z
   .refine((o) => (o.partyId === null) !== (o.customer === null), { message: "Pick the customer, or give a name.", path: ["partyId"] });
 
 export type CreateSaleOrderInputModel = z.infer<typeof createSaleOrderInputModel>;
+
+// a pending order changed: its items, discount, expected day and remarks, and which order. The customer (and their
+// details, or the name, phone and address kept on the order) stays as it was made
+export const updateSaleOrderInputModel = z
+  .object({
+    id: idModel,
+    expectedDeliveryDate: dayModel.nullable().default(null),
+    lines: z.array(orderLineInputModel).min(1, "Add an item.").max(100),
+    orderDiscount: rupeesModel.default(0),
+    remarks: z.string().trim().max(1000).nullable().default(null),
+  })
+  .superRefine((o, ctx) => {
+    const ids = o.lines.map((l) => l.productId);
+    if (new Set(ids).size !== ids.length) ctx.addIssue({ code: "custom", message: "Each pack size once.", path: ["lines"] });
+  });
+
+export type UpdateSaleOrderInputModel = z.infer<typeof updateSaleOrderInputModel>;
 
 export const saleOrderIdInputModel = z.object({ id: idModel });
 
@@ -133,6 +152,8 @@ export const saleOrderModel = z.object({
   // the sales made from the order, each one dispatch
   deliveries: z.array(orderDeliveryModel),
   // when it was made, and when it was cancelled (if it was)
+  // each save of a change to it, oldest first
+  edits: z.array(orderEditModel),
   createdAt: z.date(),
   cancelledAt: z.date().nullable(),
 });
