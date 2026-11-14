@@ -13,12 +13,24 @@ export const companyModel = z.object({
   jurisdiction: z.string(),
 });
 
+// where we do business, as an address's parts: a cash sale goes here unless changed
+export const placeOfBusinessModel = z.object({
+  addressLine1: z.string(),
+  landmark: z.string(),
+  city: z.string(),
+  district: z.string(),
+  state: z.string(),
+  stateCode: z.string(),
+  postalCode: z.string(),
+});
+
 // a financial year's name: "2026-27"
 const yearModel = z.string().regex(/^\d{4}-\d{2}$/);
 
 // each setting's key and the shape of its value
 export const SETTINGS = {
   company: companyModel,
+  placeOfBusiness: placeOfBusinessModel,
   tds194qYears: z.array(yearModel),
   // the financial years our last year's turnover was above ₹1 crore (a proprietor's tax audit limit): TDS on rent,
   // contract work and brokerage

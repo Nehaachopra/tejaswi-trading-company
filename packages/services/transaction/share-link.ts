@@ -37,6 +37,18 @@ export function opensOrder(orderId: string, key: string) {
   return want.length === got.length && timingSafeEqual(want, got);
 }
 
+// the key for one sale's invoice link, sent to its customer on WhatsApp (same secret, its own prefix)
+export function saleKey(transactionId: string) {
+  return createHmac("sha256", secret).update(`sale:${transactionId}`).digest("base64url").slice(0, 32);
+}
+
+// whether a key opens this sale's invoice
+export function opensSale(transactionId: string, key: string) {
+  const want = Buffer.from(saleKey(transactionId));
+  const got = Buffer.from(key);
+  return want.length === got.length && timingSafeEqual(want, got);
+}
+
 // the key for one sale order's link, sent to its customer on WhatsApp (same secret, its own prefix)
 export function saleOrderKey(orderId: string) {
   return createHmac("sha256", secret).update(`sale-order:${orderId}`).digest("base64url").slice(0, 32);

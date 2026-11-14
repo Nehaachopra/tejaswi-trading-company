@@ -13,6 +13,8 @@ import {
 } from "@repo/services/transaction/model";
 
 import { ledgerSummaryModel } from "@repo/services/accounts/model";
+import { createSaleInputModel, saleIdInputModel, saleInvoiceModel, saleShareKeyModel, saleSummaryModel, savedSaleModel, sharedSaleInputModel } from "@repo/services/sale/model";
+import { placeOfBusinessModel } from "@repo/services/setting/model";
 import { createReceiptInputModel, receiptIdInputModel, receiptModel, receiptShareKeyModel, savedReceiptModel, sharedReceiptInputModel } from "@repo/services/receipt/model";
 import {
   cashTodayInputModel,
@@ -44,9 +46,9 @@ import {
 import { contraIdInputModel, contraModel, type ContraKind, createContraInputModel, createTransferInputModel, savedContraModel } from "@repo/services/contra/model";
 import { createOtherInputModel, otherIdInputModel, otherModel, savedOtherModel } from "@repo/services/other/model";
 import { paySalariesInputModel, paySalaryInputModel, salaryEmployeeModel, salaryIdInputModel, salaryPaymentModel } from "@repo/services/salary/model";
-import { opensVoucher, voucherKey } from "@repo/services/transaction/share-link";
+import { opensSale, opensVoucher, saleKey, voucherKey } from "@repo/services/transaction/share-link";
 
-import { accountsService, contraService, documentService, dueService, otherService, paymentService, receiptService, salaryService, transactionService } from "../../services";
+import { accountsService, contraService, documentService, dueService, otherService, paymentService, receiptService, salaryService, saleService, settingService, transactionService } from "../../services";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 import { checkDate, limitSaves, onceFor } from "../../guards";
 
@@ -81,6 +83,63 @@ const historyRouter = router({
     .input(storedDocumentsInputModel)
     .output(z.array(storedDocumentModel))
     .query(({ input }) => documentService.list(input)),
+});
+
+// sales: goods going out for cash or on credit, recorded by the admin or staff
+const saleRouter = router({
+  create: protectedProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/sales", tags: ["transactions"] } })
+    .input(createSaleInputModel)
+    .output(savedSaleModel)
+    .mutation(({ ctx, input }) => {
+      // only the admin adds a customer while recording one
+      if (input.newCustomer && ctx.session.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only the admin adds customers." });
+      // dated today or before (staff a few days back at most), within the user's saves a minute, and once per form
+      checkDate(input.dateTime, ctx.session.user.role);
+      const save = () => {
+        limitSaves(ctx.session.user.id);
+        return saleService.create(input, ctx.session.user);
+      };
+      return input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save();
+    }),
+
+  // a saved sale for its success page
+  get: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/sales/{transactionId}", tags: ["transactions"] } })
+    .input(saleIdInputModel)
+    .output(saleSummaryModel)
+    .query(({ input }) => saleService.get(input)),
+
+  // a sale as its tax invoice
+  invoice: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/sales/{transactionId}/invoice", tags: ["transactions"] } })
+    .input(saleIdInputModel)
+    .output(saleInvoiceModel)
+    .query(({ input }) => saleService.invoice(input)),
+
+  // the key for the invoice's link, sent to the customer on WhatsApp
+  shareKey: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/sales/{transactionId}/share-key", tags: ["transactions"] } })
+    .input(saleIdInputModel)
+    .output(saleShareKeyModel)
+    .query(({ input }) => ({ key: saleKey(input.transactionId) })),
+
+  // the invoice from a shared link, for the customer: no login, only with the key from that link
+  shared: publicProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/sales/{transactionId}/shared", tags: ["transactions"] } })
+    .input(sharedSaleInputModel)
+    .output(saleInvoiceModel)
+    .query(({ input }) => {
+      if (!opensSale(input.transactionId, input.key)) throw new TRPCError({ code: "NOT_FOUND", message: "Sale not found." });
+      return saleService.invoice({ transactionId: input.transactionId });
+    }),
+
+  // where a cash sale goes unless changed: our place of business
+  placeOfBusiness: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/sales/place-of-business", tags: ["transactions"] } })
+    .input(z.void())
+    .output(placeOfBusinessModel)
+    .query(() => settingService.get("placeOfBusiness")),
 });
 
 // receipts: money coming in, recorded by the admin or staff
@@ -397,6 +456,7 @@ const salaryRouter = router({
 
 export const transactionsRouter = router({
   history: historyRouter,
+  sale: saleRouter,
   receipt: receiptRouter,
   payment: paymentRouter,
   deposit: contraRouter("deposit"),

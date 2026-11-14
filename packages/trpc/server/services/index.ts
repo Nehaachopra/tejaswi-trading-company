@@ -10,6 +10,7 @@ import LenderService from "@repo/services/lender";
 import OtherService from "@repo/services/other";
 import PartyService from "@repo/services/party";
 import PaymentService from "@repo/services/payment";
+import SaleService from "@repo/services/sale";
 import ReceiptService from "@repo/services/receipt";
 import SalaryService from "@repo/services/salary";
 import TransactionService from "@repo/services/transaction";
@@ -49,6 +50,7 @@ export const lenderService = new LenderService();
 export const transactionService = new TransactionService();
 
 export const receiptService = new ReceiptService(accountsService, transactionService, partyService);
+export const saleService = new SaleService(accountsService, transactionService, partyService);
 
 export const paymentService = new PaymentService(accountsService, transactionService, partyService);
 

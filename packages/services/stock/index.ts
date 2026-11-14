@@ -22,10 +22,10 @@ import {
   type StockMoveModel,
 } from "./model";
 
-const UNIT = { KGS: "kg", LTR: "l", BOX: "box", PCS: "pcs" } as const;
+export const UNIT = { KGS: "kg", LTR: "l", BOX: "box", PCS: "pcs" } as const;
 
 // "rice sona masoori india gate 25 kg", as stock_moves keeps it (200 characters at most)
-const productNameSnapshot = (p: {
+export const productNameSnapshot = (p: {
   categoryName: string;
   subCategoryName: string;
   brand: string;

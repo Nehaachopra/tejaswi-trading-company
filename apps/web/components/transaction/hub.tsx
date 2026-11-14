@@ -26,7 +26,7 @@ type Kind = { key: string; icon: LucideIcon; href?: string; adminOnly?: boolean 
 
 // every kind of transaction, in the order people reach for them; the ones built so far open their page
 const KINDS: Kind[] = [
-  { key: "sale", icon: ShoppingCart },
+  { key: "sale", icon: ShoppingCart, href: "/transaction/sale" },
   { key: "purchase", icon: Truck },
   { key: "order", icon: ClipboardList, href: "/transaction/order" },
   { key: "receipt", icon: ArrowDownLeft, href: "/transaction/receipt" },

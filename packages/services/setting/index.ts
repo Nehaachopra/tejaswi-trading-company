@@ -18,6 +18,16 @@ import {
 // what a setting is when it was never saved; the company has none (it's seeded: pnpm --filter @repo/database seed:settings)
 const DEFAULTS: { [K in SettingKey]: SettingValue<K> | null } = {
   company: null,
+  // Hiriyur, until it's changed
+  placeOfBusiness: {
+    addressLine1: "VMP Compound, Main Road",
+    landmark: "",
+    city: "Hiriyur",
+    district: "Chitradurga",
+    state: "Karnataka",
+    stateCode: "29",
+    postalCode: "577598",
+  },
   tds194qYears: [],
   taxAuditYears: [],
 };

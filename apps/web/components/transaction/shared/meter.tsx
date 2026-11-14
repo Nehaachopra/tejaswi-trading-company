@@ -34,7 +34,6 @@ export function Meter({
         {done ? (
           <span className="flex items-center gap-1.5 font-heading text-lg font-bold text-success">
             <Check className="size-4" strokeWidth={2.5} aria-hidden />
-            {doneLabel}
           </span>
         ) : (
           <span className="font-heading text-2xl font-bold leading-none">{rupees(figure)}</span>

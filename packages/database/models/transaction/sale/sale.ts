@@ -136,7 +136,8 @@ export const salesTable = pgTable(
       .default("regular")
       .notNull(),
 
-    invoiceUrl: text("invoice_url").notNull(),
+    // the invoice PDF, once it's made (none until invoices are built)
+    invoiceUrl: text("invoice_url"),
 
     rcmApplicable: boolean("rcm_applicable").default(false).notNull(),
 
