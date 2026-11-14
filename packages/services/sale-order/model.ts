@@ -127,6 +127,8 @@ export const saleOrderSummaryModel = z.object({
   expectedDeliveryDate: z.string().nullable(),
   status: orderStatusModel,
   customer: saleOrderCustomerModel,
+  // the town: the customer's default address, or the one kept on the order for a name
+  city: z.string().nullable(),
   itemCount: z.number(),
   totalAmount: z.number(),
 });

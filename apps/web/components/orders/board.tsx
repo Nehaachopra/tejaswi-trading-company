@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Check, ChevronDown, CircleAlert, Truck } from "lucide-react";
+import { Ban, Check, ChevronDown, CircleAlert, MapPin, Phone, Truck } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
@@ -11,6 +11,7 @@ import { FILTER_BAR_UNDER_TABS, FILTER_TRIGGER, PAGE } from "~/components/ui/pag
 import { PageTabs } from "~/components/ui/page-tabs";
 import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
+import { useLocalLetters } from "~/lib/use-local-letters";
 import { cn } from "~/lib/utils";
 import { usePurchaseOrders, useSaleOrders } from "~/providers/orders";
 
@@ -78,30 +79,33 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
   const [status, setStatus] = useState<Status | null>(null);
   const [range, setRange] = useState<Range | null>(null);
   const [picked, setPicked] = useState({ from: "", to: "" });
-  // the supplier or customer: their party, or (for a sale) a name kept on the order
-  const [party, setParty] = useState<string | null>(null);
+  // the town of who it's with (their default address, or the one kept on a sale order)
+  const [town, setTown] = useState<string | null>(null);
+  // names and towns in the app's letters
+  const local = useLocalLetters();
 
-  // the filters the server applies; the party is picked from what came back
+  // the filters the server applies; the town is picked from what came back
   const filters = { ...(status ? { status } : {}), ...rangeDays(range, picked) };
   const purchases = usePurchaseOrders(filters, kind === "purchase");
   const sales = useSaleOrders(filters, kind === "sale");
   const list = kind === "purchase" ? purchases : sales;
 
-  // every order the same way: its number, status, who it's with (and their key), when and how many products
+  // every order the same way: its number, status, who it's with (their phone and town), when and how many products
   const orders = (
     kind === "purchase"
-      ? (purchases.data ?? []).map((o) => ({ ...o, who: o.party.name, whoKey: o.party.id }))
-      : (sales.data ?? []).map((o) => ({ ...o, who: o.customer.name, whoKey: o.customer.partyId ?? `name:${o.customer.name.toLowerCase()}` }))
-  ).map((o) => ({ id: o.id, orderId: o.orderId, status: o.status, orderDate: o.orderDate, itemCount: o.itemCount, who: o.who, whoKey: o.whoKey }));
-  const parties = [...new Map(orders.map((o) => [o.whoKey, o.who])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
-  const shown = party ? orders.filter((o) => o.whoKey === party) : orders;
-  const partyName = parties.find(([key]) => key === party)?.[1];
+      ? (purchases.data ?? []).map((o) => ({ ...o, who: o.party.name, phone: o.phone }))
+      : (sales.data ?? []).map((o) => ({ ...o, who: o.customer.name, phone: o.customer.phone }))
+  ).map((o) => ({ id: o.id, orderId: o.orderId, status: o.status, orderDate: o.orderDate, itemCount: o.itemCount, who: o.who, phone: o.phone, city: o.city }));
+  // the towns in the list, A to Z (the same town however it was typed)
+  const towns = [...new Map(orders.filter((o) => o.city).map((o) => [o.city!.trim().toLowerCase(), o.city!.trim()])).entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  const shown = town ? orders.filter((o) => o.city?.trim().toLowerCase() === town) : orders;
+  const townName = towns.find(([key]) => key === town)?.[1];
 
   // another tab: its own supplier or customer to pick
   // a tab picked: kept in the address too, so coming back (browser Back included) opens the same tab
   const pick = (next: Kind) => {
     setKind(next);
-    setParty(null);
+    setTown(null);
     window.history.replaceState(null, "", next === "sale" ? "/order" : `/order?kind=${next}`);
   };
 
@@ -177,32 +181,34 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
           }
         </Menu>
 
-        {parties.length > 0 && (
+        {/* the town of who it's with, once there's more than one */}
+        {towns.length > 1 && (
           <Menu
-            label={kind === "purchase" ? tl("supplier") : tl("customer")}
+            label={tl("town")}
             surface="chestnut"
             align="left"
             boxed
-            triggerClassName={trigger(party !== null)}
+            triggerClassName={trigger(town !== null)}
             trigger={
               <>
-                <span className="truncate">{partyName ? titleCase(partyName) : kind === "purchase" ? tl("allSuppliers") : tl("allCustomers")}</span>
+                <MapPin className="size-3.5 shrink-0" aria-hidden />
+                <span className="truncate">{townName ? local(townName) : tl("allTowns")}</span>
                 <ChevronDown className="size-4 shrink-0" aria-hidden />
               </>
             }
           >
             {(close) =>
-              [[null, kind === "purchase" ? tl("allSuppliers") : tl("allCustomers")] as const, ...parties.map(([key, name]) => [key, titleCase(name)] as const)].map(([key, name]) => (
+              [[null, tl("allTowns")] as const, ...towns.map(([key, name]) => [key, local(name)] as const)].map(([key, name]) => (
                 <MenuItem
                   key={key ?? "all"}
-                  selected={party === key}
+                  selected={town === key}
                   onClick={() => {
-                    setParty(key);
+                    setTown(key);
                     close();
                   }}
                 >
                   <span className="flex-1 truncate">{name}</span>
-                  {party === key && <Check className="size-4" aria-hidden />}
+                  {town === key && <Check className="size-4" aria-hidden />}
                 </MenuItem>
               ))
             }
@@ -245,7 +251,7 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
               {/* the day it was ordered then its number (smaller than who it's with, muted), and its status with its sign:
                   a softly glowing dot while pending, a tick once completed, a crossed circle when cancelled */}
               <span className="flex items-center justify-between gap-2">
-                <span className="flex min-w-0 flex-wrap items-center gap-x-4 text-sm font-semibold text-chestnut/60">
+                <span className="flex min-w-0 flex-wrap items-center gap-x-4 text-xs font-semibold text-chestnut/60">
                   <span className="font-medium">{dateThenDay(o.orderDate, locale)}</span>
                   <span className="tabular">{o.orderId}</span>
                 </span>
@@ -260,10 +266,26 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
                   {tl(`statuses.${o.status}`)}
                 </span>
               </span>
-              {/* who it's with: the link that opens the order */}
-              <Link href={`/order/${kind}/${o.id}`} className="-mt-1 truncate text-base font-bold after:absolute after:inset-0 after:rounded-control">
-                {titleCase(o.who)}
-              </Link>
+              {/* who it's with: the link that opens the order; under it their phone and town */}
+              <span className="mt-1 flex min-w-0 flex-col gap-0.5">
+                <Link href={`/order/${kind}/${o.id}`} className="truncate text-base font-bold after:absolute after:inset-0 after:rounded-control">
+                  {titleCase(o.who)}
+                </Link>
+                {(o.phone || o.city) && (
+                  <span className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs opacity-70">
+                    {o.phone && (
+                      <span className="tabular inline-flex items-center gap-1 whitespace-nowrap">
+                        <Phone className="size-3" aria-hidden /> +91 {o.phone}
+                      </span>
+                    )}
+                    {o.city && (
+                      <span className="inline-flex min-w-0 items-center gap-1">
+                        <MapPin className="size-3 shrink-0" aria-hidden /> <span className="truncate leading-normal">{local(o.city)}</span>
+                      </span>
+                    )}
+                  </span>
+                )}
+              </span>
               {/* how many products; beside it, while pending, Record arrival (purchase) or dispatch (sale): its page comes next */}
               <span className="flex min-h-9 items-center justify-between gap-3 border-t border-chestnut/15 pt-2.5 text-sm">
                 <span className="flex items-baseline gap-2">

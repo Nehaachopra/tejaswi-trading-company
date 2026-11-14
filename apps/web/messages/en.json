@@ -2227,17 +2227,15 @@
         "lastMonth": "Last month",
         "custom": "Pick dates"
       },
-      "supplier": "Supplier",
-      "customer": "Customer",
-      "allSuppliers": "All suppliers",
-      "allCustomers": "All customers",
       "from": "From",
       "to": "To",
       "loading": "Loading…",
       "loadError": "Couldn't load the orders. Check your connection and try again.",
       "empty": "No orders here.",
       "products": "Products",
-      "title": "Orders"
+      "title": "Orders",
+      "town": "Town",
+      "allTowns": "All towns"
     },
     "page": {
       "items": "Items",

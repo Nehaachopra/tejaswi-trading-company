@@ -119,6 +119,9 @@ export const purchaseOrderSummaryModel = z.object({
   expectedDeliveryDate: z.string().nullable(),
   status: orderStatusModel,
   party: z.object({ id: idModel, name: z.string() }),
+  // the supplier's phone, and the town of their default address
+  phone: z.string().nullable(),
+  city: z.string().nullable(),
   itemCount: z.number(),
   totalAmount: z.number(),
   // every item fully arrived
@@ -128,7 +131,7 @@ export const purchaseOrderSummaryModel = z.object({
 
 export type PurchaseOrderSummaryModel = z.infer<typeof purchaseOrderSummaryModel>;
 
-export const purchaseOrderModel = purchaseOrderSummaryModel.extend({
+export const purchaseOrderModel = purchaseOrderSummaryModel.omit({ phone: true, city: true }).extend({
   lines: z.array(purchaseOrderLineModel),
   // before the order discount and GST, after each item's own discount
   subtotal: z.number(),

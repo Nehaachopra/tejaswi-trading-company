@@ -316,9 +316,14 @@ export default class SaleOrderService {
       .groupBy(saleOrderProductsTable.saleOrderId)
       .as("items");
     const rows = await db
-      .select({ o: saleOrdersTable, partyName: partiesTable.name, partyPhone: partiesTable.phone, n: items.n })
+      .select({ o: saleOrdersTable, partyName: partiesTable.name, partyPhone: partiesTable.phone, partyCity: partyAddressesTable.city, n: items.n })
       .from(saleOrdersTable)
       .leftJoin(partiesTable, eq(partiesTable.id, saleOrdersTable.partyId))
+      // the customer's default address, for its town
+      .leftJoin(
+        partyAddressesTable,
+        and(eq(partyAddressesTable.partyId, saleOrdersTable.partyId), eq(partyAddressesTable.isActive, true), eq(partyAddressesTable.isDefault, true)),
+      )
       .leftJoin(items, eq(items.saleOrderId, saleOrdersTable.id))
       .where(
         and(
@@ -329,7 +334,7 @@ export default class SaleOrderService {
         ),
       )
       .orderBy(desc(saleOrdersTable.orderDate), desc(saleOrdersTable.orderId));
-    return rows.map(({ o, partyName, partyPhone, n }) => ({
+    return rows.map(({ o, partyName, partyPhone, partyCity, n }) => ({
       id: o.id,
       orderId: o.orderId,
       orderDate: o.orderDate,
@@ -340,6 +345,7 @@ export default class SaleOrderService {
         name: o.partyId ? (partyName ?? "") : (o.customerName ?? ""),
         phone: o.partyId ? (partyPhone ?? null) : o.customerPhone,
       },
+      city: o.partyId ? (partyCity ?? null) : o.customerCity,
       itemCount: Number(n ?? 0),
       totalAmount: Number(o.totalAmount),
     }));

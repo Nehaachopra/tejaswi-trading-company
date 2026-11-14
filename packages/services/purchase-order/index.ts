@@ -256,9 +256,14 @@ export default class PurchaseOrderService {
   // the orders, newest first (by status, supplier and days ordered), each with how much of it has arrived
   async list(input: ListPurchaseOrdersInputModel): Promise<PurchaseOrderSummaryModel[]> {
     const orders = await db
-      .select({ o: purchaseOrdersTable, partyName: partiesTable.name })
+      .select({ o: purchaseOrdersTable, partyName: partiesTable.name, partyPhone: partiesTable.phone, city: partyAddressesTable.city })
       .from(purchaseOrdersTable)
       .innerJoin(partiesTable, eq(partiesTable.id, purchaseOrdersTable.partyId))
+      // the supplier's default address, for its town
+      .leftJoin(
+        partyAddressesTable,
+        and(eq(partyAddressesTable.partyId, purchaseOrdersTable.partyId), eq(partyAddressesTable.isActive, true), eq(partyAddressesTable.isDefault, true)),
+      )
       .where(
         and(
           input.status ? eq(purchaseOrdersTable.status, input.status) : undefined,
@@ -278,7 +283,7 @@ export default class PurchaseOrderService {
         : [],
       this.received(db, ids),
     ]);
-    return orders.map(({ o, partyName }) => {
+    return orders.map(({ o, partyName, partyPhone, city }) => {
       const mine = lines.filter((l) => l.orderId === o.id);
       const arrived = came.get(o.id);
       return {
@@ -288,6 +293,8 @@ export default class PurchaseOrderService {
         expectedDeliveryDate: o.expectedDeliveryDate,
         status: o.status,
         party: { id: o.partyId, name: partyName },
+        phone: partyPhone,
+        city,
         itemCount: mine.length,
         totalAmount: Number(o.totalAmount),
         quantity: mine.reduce((a, l) => a + l.quantity, 0),
