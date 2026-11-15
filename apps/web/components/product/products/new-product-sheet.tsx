@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
@@ -8,11 +8,10 @@ import { fieldClass, SubmitButton } from "~/components/ui/card-form";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { FieldMessage } from "~/components/ui/field-message";
 import { NumberInput } from "~/components/ui/number-input";
-import { addSquare } from "~/components/ui/page-styles";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { Sheet } from "~/components/ui/sheet";
 import { toast } from "~/components/ui/toast";
-import { packLabel } from "~/lib/format";
+import { packLabel, titleCase } from "~/lib/format";
 import { parseAmount } from "~/lib/price";
 import { cn } from "~/lib/utils";
 import { useProductActions } from "~/providers/products";
@@ -24,28 +23,26 @@ import { categoryError } from "../categories/category-errors";
 import { CategoryFields } from "./category-fields";
 import { GstPicker } from "./gst-picker";
 import { CODES, emptyPack, packInput, packKey, packOk, packProblems, type PackDraft, settle, wholeAbove0 } from "./pack-draft";
-import { PackChips } from "./pack-chips";
 import { PhotoPicker } from "./photo-picker";
 import { brandChars } from "./product-details";
 import { type ProductGroup, productTitle } from "./product-tile";
 import { RatePriceFields } from "./rate-price-fields";
 
-// a part's heading, as in Edit details; the line and room above the second and third parts
+// a part's heading, as in Edit details; the line and room above the second part
 const heading = "-mb-1 text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
 const part = "mt-2.5 border-t border-chestnut/15 pt-[18px]";
 // every value sits at the right end of its box, as in the rows
 const input = (bad: boolean) => cn("min-h-11 w-full min-w-0 px-3 text-right text-base placeholder:text-chestnut/50", fieldClass(bad));
-// a header button with no border (✕, the bin)
+// a header button with no border (✕)
 const bareButton = "grid size-11 shrink-0 place-items-center rounded-control hover:bg-chestnut/8 disabled:opacity-30";
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
-// a new product, laid out like Edit details: the bin (removes the pack size shown when there's more than one) and ✕
-// on top; then Product details (category, sub-category and brand, the pack sizes as chips with + for another, the
-// photo, name and HSN), Pack size and Price details for the chip picked, each field a row (label left, box or accordion right). A new pack size starts
-// empty: nothing is copied from another. Opened from a product's details (the + after its pack sizes), it starts with
-// that product's category, sub-category and brand (`from`), all still changeable, and its pack sizes come first among
-// the chips: one tapped goes back to its details
+// a new product, laid out like Edit details, with one pack size: ✕ on top; then Product details (the photo, category,
+// sub-category, brand, name, pack size and HSN) and Price details, each field a row (label left, box or accordion
+// right). Opened from a product's card (the + after its pack sizes), it adds one more pack size to that product
+// (`from`): its category, sub-category, brand and name are filled in, all still changeable, and the unit is the
+// product's and can't be changed
 export function NewProductSheet({
   open,
   onClose,
@@ -59,8 +56,6 @@ export function NewProductSheet({
     brand: string;
     name: string | null;
     packs: ProductGroup["packs"];
-    // one of its pack sizes tapped: this form closes and that one's details show
-    onPack: (productId: string) => void;
   };
 }) {
   const t = useTranslations("products.items");
@@ -74,33 +69,32 @@ export function NewProductSheet({
   const [hsn, setHsn] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  // its pack sizes, and the one shown
-  const [packs, setPacks] = useState<PackDraft[]>([emptyPack(0)]);
-  const [shown, setShown] = useState(0);
+  // its pack size
+  const [pack, setPack] = useState<PackDraft>(emptyPack(0));
   const [tried, setTried] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   // "Create a new product?" is open (Add product with the category, sub-category or brand changed)
   const [asking, setAsking] = useState(false);
 
-  // each time it opens, start empty (or with the category, sub-category and brand it was opened from)
+  // opened from a product to add a pack size: the unit is that product's and can't be changed
+  const fixedUnit = from?.packs[0]?.packSizeCode;
+
+  // each time it opens, start empty (or with the category, sub-category, brand and name it was opened from)
   useEffect(() => {
     if (!open) return;
     setCategoryId(from?.categoryId ?? null);
     setSubCategoryId(from?.subCategoryId ?? null);
     setBrand(from?.brand ?? "");
-    setName("");
+    setName(from?.name ? titleCase(from.name) : "");
     setHsn("");
     setImageUrl(null);
-    setPacks([emptyPack(0)]);
-    setShown(0);
+    setPack(emptyPack(0, fixedUnit));
     setTried(false);
     setServerError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when it opens
   }, [open]);
 
-  const pack = packs.find((p) => p.key === shown) ?? packs[0]!;
-
-  // what's missing or wrong: the product's details, and each pack size's
+  // what's missing or wrong: the product's details, and the pack size's
   const bad = {
     category: !categoryId,
     subCategory: !subCategoryId,
@@ -110,43 +104,25 @@ export function NewProductSheet({
   };
   const detailsOk = !Object.values(bad).some(Boolean);
   const wrong = packProblems(pack);
-  const keys = packs.filter((p) => wholeAbove0(p.packSize)).map((p) => packKey(p.packSizeCode, p.packSize));
-  // while the details are still the product it was opened from, a pack size that product already has is a duplicate too
+  // while the details are still the product it was opened from, a pack size that product already has is a duplicate
   const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
   const sameProduct = !!from && categoryId === from.categoryId && subCategoryId === from.subCategoryId && same(brand, from.brand) && same(name, from.name ?? "");
-  const existing = new Set(sameProduct ? from.packs.map((p) => packKey(p.packSizeCode, p.packSize)) : []);
-  const isDuplicate = (p: PackDraft) => {
-    if (!wholeAbove0(p.packSize)) return false;
-    const k = packKey(p.packSizeCode, p.packSize);
-    return existing.has(k) || keys.filter((x) => x === k).length > 1;
-  };
-  const duplicates = [...new Set(packs.filter(isDuplicate).map((p) => packLabel(Number(p.packSize), p.packSizeCode)))];
+  const duplicate =
+    sameProduct && wholeAbove0(pack.packSize) && from.packs.some((p) => packKey(p.packSizeCode, p.packSize) === packKey(pack.packSizeCode, pack.packSize));
 
-  // change the pack size shown; rate and price fill each other in
-  const update = (patch: Partial<PackDraft>) => setPacks((all) => all.map((p) => (p.key === pack.key ? settle({ ...p, ...patch }) : p)));
-  const addPack = () => {
-    const key = Math.max(...packs.map((p) => p.key)) + 1;
-    setPacks((all) => [...all, emptyPack(key)]);
-    setShown(key);
-  };
-  const removePack = () => {
-    const rest = packs.filter((p) => p.key !== pack.key);
-    setPacks(rest);
-    setShown(rest[0]!.key);
-  };
+  // change the pack size; rate and price fill each other in
+  const update = (patch: Partial<PackDraft>) => setPack((p) => settle({ ...p, ...patch }));
 
   // opened from a product, and the category, sub-category or brand is no longer that product's
   const moved = !!from && (categoryId !== from.categoryId || subCategoryId !== from.subCategoryId || !same(brand, from.brand));
 
-  // Add product: a pack size that needs fixing is brought into view; with the category, sub-category or brand
-  // changed from the product it was opened from, ask first whether a new product is wanted
+  // Add product: with the category, sub-category or brand changed from the product it was opened from, ask first
+  // whether a new product is wanted
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setTried(true);
     setServerError(null);
-    const firstBad = packs.find((p) => !packOk(p) || isDuplicate(p));
-    if (firstBad) setShown(firstBad.key);
-    if (!detailsOk || firstBad || uploading) return;
+    if (!detailsOk || !packOk(pack) || duplicate || uploading) return;
     if (moved) return setAsking(true);
     void save();
   }
@@ -159,7 +135,7 @@ export function NewProductSheet({
     setBrand(from!.brand);
   }
 
-  // save the product with all its pack sizes
+  // save the product with its pack size
   async function save() {
     try {
       const created = await create.mutateAsync({
@@ -167,11 +143,11 @@ export function NewProductSheet({
         subCategoryId: subCategoryId!,
         brand,
         name: name.trim() || undefined,
-        // the first 4 digits are the product's; all 8, when typed, go on every pack size
+        // the first 4 digits are the product's; all 8, when typed, go on the pack size
         hsn4Digit: hsn ? hsn.slice(0, 4) : undefined,
         hsn8Digit: hsn.length === 8 ? hsn : undefined,
         imageUrl: imageUrl ?? undefined,
-        packs: packInput(packs),
+        packs: packInput([pack]),
       });
       setAsking(false);
       toast.success(t("form.toast.added", { name: productTitle(created) }));
@@ -202,30 +178,20 @@ export function NewProductSheet({
       closeLabel={t("close")}
       onClose={onClose}
       bareHeader
-      // the bin (when there's more than one pack size) and ✕, no borders
+      // ✕, no border
       actions={
-        <div className="flex shrink-0 items-center">
-          {packs.length > 1 && (
-            <button
-              type="button"
-              aria-label={t("form.removePack", { n: packs.indexOf(pack) + 1 })}
-              title={t("form.removePack", { n: packs.indexOf(pack) + 1 })}
-              onClick={removePack}
-              className={cn(bareButton, "text-danger")}
-            >
-              <Trash2 className="size-4" aria-hidden />
-            </button>
-          )}
-          <button type="button" aria-label={t("close")} onClick={onClose} className={bareButton}>
-            <X className="size-5" aria-hidden />
-          </button>
-        </div>
+        <button type="button" aria-label={t("close")} onClick={onClose} className={bareButton}>
+          <X className="size-5" aria-hidden />
+        </button>
       }
     >
       <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-5 py-5 [&>*]:shrink-0">
-          {/* product details: shared by every pack size */}
+        <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-5 py-5 *:shrink-0">
+          {/* product details: the photo first */}
           <h3 className={heading}>{t("productDetails")}</h3>
+          <PhotoPicker variant="big" value={imageUrl} onChange={setImageUrl} onBusy={setUploading} />
+
+          {/* category, then its sub-categories (+ New) */}
           <CategoryFields
             categoryId={categoryId}
             subCategoryId={subCategoryId}
@@ -238,6 +204,8 @@ export function NewProductSheet({
             labelClass={pickRow}
             pickEnd
           />
+
+          {/* brand, then the optional name */}
           <label className={fieldRow}>
             <span>
               {t("brand")}
@@ -252,53 +220,14 @@ export function NewProductSheet({
               className={input(tried && bad.brand)}
             />
           </label>
-
-          {/* after the brand: the pack sizes the product already has (when opened from its details), then the ones
-              typed so far, on one line that scrolls; the + that adds another stays put at the end */}
-          <PackChips
-            packs={[
-              ...(from?.packs ?? []),
-              ...packs.map((p) => ({
-                productId: `new-${p.key}`,
-                packSize: Number(p.packSize),
-                packSizeCode: p.packSizeCode,
-                isActive: true,
-                name: wholeAbove0(p.packSize) ? undefined : t("form.newPack"),
-              })),
-            ]}
-            selected={`new-${pack.key}`}
-            onSelect={(id) => (id.startsWith("new-") ? setShown(Number(id.slice(4))) : from?.onPack(id))}
-            label={t("packSizes")}
-            end={
-              <button type="button" aria-label={t("addPack")} title={t("addPack")} onClick={addPack} className={addSquare("size-8")}>
-                <Plus className="size-4" aria-hidden />
-              </button>
-            }
-          />
-
-          {/* the photo, then the rest of the product's details */}
-          <PhotoPicker variant="big" value={imageUrl} onChange={setImageUrl} onBusy={setUploading} />
           <label className={fieldRow}>
             <span className="gap-1">
               {t("name")} <span className="text-xs opacity-60">{t("form.optional")}</span>
             </span>
             <input value={name} maxLength={50} onChange={(e) => setName(brandChars(e.target.value))} className={input(tried && bad.name)} />
           </label>
-          <label className={fieldRow}>
-            <span>{t("hsn")}</span>
-            <input
-              value={hsn}
-              inputMode="numeric"
-              maxLength={8}
-              placeholder="1006"
-              onChange={(e) => setHsn(e.target.value.replace(/\D/g, "").slice(0, 8))}
-              aria-invalid={(tried && bad.hsn) || undefined}
-              className={cn(input(tried && bad.hsn), "tabular")}
-            />
-          </label>
 
           {/* pack size: the size, and beside it its unit */}
-          <h3 className={cn(heading, part)}>{t("form.packSize")}</h3>
           <div className={fieldRow}>
             <span>
               {t("form.packSize")}
@@ -311,22 +240,41 @@ export function NewProductSheet({
                 maxDigits={5}
                 placeholder="25"
                 onChange={(v) => update({ packSize: v.replace(/^0+/, "") })}
-                aria-invalid={(tried && wrong.size) || isDuplicate(pack) || undefined}
-                className={cn(input((tried && wrong.size) || isDuplicate(pack)), "tabular")}
+                aria-invalid={(tried && wrong.size) || duplicate || undefined}
+                className={cn(input((tried && wrong.size) || duplicate), "tabular")}
               />
-              <div className="w-24 shrink-0">
-                <PickMenu
-                  label={t("form.packUnit")}
-                  current={unit}
-                  options={CODES.map((c) => ({ id: c, name: t(`form.units.${c}`) }))}
-                  picked={pack.packSizeCode}
-                  onPick={(c) => update({ packSizeCode: c as PackDraft["packSizeCode"] })}
-                  matchWidth
-                  valueEnd
-                />
-              </div>
+              {/* the unit: plain text, a little apart, when it's the product's; a dropdown for a new product */}
+              {fixedUnit ? (
+                <span className="ml-2 grid min-h-11 shrink-0 place-items-center text-base">{unit}</span>
+              ) : (
+                <div className="w-24 shrink-0">
+                  <PickMenu
+                    label={t("form.packUnit")}
+                    current={unit}
+                    options={CODES.map((c) => ({ id: c, name: t(`form.units.${c}`) }))}
+                    picked={pack.packSizeCode}
+                    onPick={(c) => update({ packSizeCode: c as PackDraft["packSizeCode"] })}
+                    matchWidth
+                    valueEnd
+                  />
+                </div>
+              )}
             </div>
           </div>
+
+          {/* HSN */}
+          <label className={fieldRow}>
+            <span>{t("hsn")}</span>
+            <input
+              value={hsn}
+              inputMode="numeric"
+              maxLength={8}
+              placeholder="1006"
+              onChange={(e) => setHsn(e.target.value.replace(/\D/g, "").slice(0, 8))}
+              aria-invalid={(tried && bad.hsn) || undefined}
+              className={cn(input(tried && bad.hsn), "tabular")}
+            />
+          </label>
 
           {/* price details: GST %, rate and price (either fills in the other), then the split */}
           <h3 className={cn(heading, part)}>{t("priceDetails")}</h3>
@@ -352,8 +300,10 @@ export function NewProductSheet({
 
         {/* what to fix, and Add product, stay at the bottom */}
         <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
-          {duplicates.length > 0 && <FieldMessage className="mt-0">{t("form.errors.duplicate", { packs: duplicates.join(", ") })}</FieldMessage>}
-          {tried && (!detailsOk || !packs.every(packOk)) && <FieldMessage className="mt-0">{t("form.errors.fill")}</FieldMessage>}
+          {duplicate && (
+            <FieldMessage className="mt-0">{t("form.errors.duplicate", { packs: packLabel(Number(pack.packSize), pack.packSizeCode) })}</FieldMessage>
+          )}
+          {tried && (!detailsOk || !packOk(pack)) && <FieldMessage className="mt-0">{t("form.errors.fill")}</FieldMessage>}
           {serverError && <FieldMessage className="mt-0">{serverError}</FieldMessage>}
           <SubmitButton busy={create.isPending} disabled={uploading}>
             {t("form.addTitle")}

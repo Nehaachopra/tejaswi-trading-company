@@ -15,9 +15,9 @@ export type PackDraft = {
   from: "rate" | "price";
 };
 
-export const emptyPack = (key: number): PackDraft => ({
+export const emptyPack = (key: number, packSizeCode: Code = "KGS"): PackDraft => ({
   key,
-  packSizeCode: "KGS",
+  packSizeCode,
   packSize: "",
   gstPercent: "",
   rate: "",

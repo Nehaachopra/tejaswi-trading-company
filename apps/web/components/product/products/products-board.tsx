@@ -250,7 +250,6 @@ export function ProductsBoard() {
       <ProductSheet
         group={opened}
         packId={open?.packId ?? null}
-        onPack={(packId) => setOpen((o) => (o ? { ...o, packId } : o))}
         onClose={() => setOpen(null)}
       />
       {priced && pricing && (
@@ -262,8 +261,7 @@ export function ProductsBoard() {
         />
       )}
       <NewProductSheet open={adding} onClose={() => setAdding(false)} />
-      {/* from a card's +: its category, sub-category and brand filled in, its pack sizes among the chips (one tapped
-          opens that pack size's details) */}
+      {/* from a card's +: one more pack size for that product, its category, sub-category, brand and name filled in */}
       <NewProductSheet
         open={!!addingTo}
         onClose={() => setAddingTo(null)}
@@ -275,10 +273,6 @@ export function ProductsBoard() {
                 brand: titleCase(addingTo.brand),
                 name: addingTo.name,
                 packs: addingTo.packs,
-                onPack: (packId) => {
-                  setOpen({ key: addingTo.key, packIds: addingTo.packs.map((p) => p.productId), packId });
-                  setAddingTo(null);
-                },
               }
             : undefined
         }

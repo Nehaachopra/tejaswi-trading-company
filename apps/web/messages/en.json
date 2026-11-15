@@ -278,7 +278,7 @@
         "gone": "This product no longer exists. Refresh the page.",
         "network": "Can't reach the server. Check your connection.",
         "failed": "Something went wrong. Try again.",
-        "duplicate": "Duplicate pack size: {packs}."
+        "duplicate": "{packs} already listed."
       },
       "chart": {
         "title": "Price history",
@@ -313,7 +313,7 @@
         "unit": "Unit",
         "units": {
           "KGS": "kg",
-          "LTR": "l",
+          "LTR": "ltr",
           "BOX": "box",
           "PCS": "pcs"
         },
@@ -347,7 +347,7 @@
           "gone": "This product no longer exists. Refresh the page.",
           "network": "Can't reach the server. Check your connection.",
           "failed": "Something went wrong. Try again.",
-          "duplicate": "Duplicate pack size: {packs}."
+          "duplicate": "{packs} already listed."
         },
         "rate": "Rate / {unit}",
         "newPack": "New",

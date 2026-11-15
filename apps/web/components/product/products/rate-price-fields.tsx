@@ -42,10 +42,10 @@ export function RatePriceFields({
   const t = useTranslations("products.items");
   const label = rows ? fieldRow : fieldLabel;
   return (
-    <div className={cn(rows ? "flex flex-col gap-3.5" : "grid grid-cols-2 gap-2", className)}>
+    <div className={cn("flex gap-4 items-end", className)}>
       {/* rate per unit */}
-      <label className={label}>
-        <span className="truncate">{t("ratePer", { unit })}</span>
+      <label className="flex flex-col gap-2 flex-1">
+        <span className="truncate text-sm">{t("ratePer", { unit })}</span>
         <span className={cn(box, "shadow-chestnut/40 focus-within:shadow-chestnut/80")}>
           <span className="text-base text-chestnut/60">₹</span>
           <NumberInput
@@ -59,8 +59,8 @@ export function RatePriceFields({
         </span>
       </label>
       {/* the price with GST, chestnut, starred as required (rate never is) */}
-      <label className={label}>
-        <span className="truncate">
+      <label className="flex flex-col gap-2 flex-2">
+        <span className="truncate text-sm">
           {t("priceWithGst")}
           <RequiredMark />
         </span>

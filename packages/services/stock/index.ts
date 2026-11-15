@@ -22,7 +22,7 @@ import {
   type StockMoveModel,
 } from "./model";
 
-export const UNIT = { KGS: "kg", LTR: "l", BOX: "box", PCS: "pcs" } as const;
+export const UNIT = { KGS: "kg", LTR: "ltr", BOX: "box", PCS: "pcs" } as const;
 
 // "rice sona masoori india gate 25 kg", as stock_moves keeps it (200 characters at most)
 export const productNameSnapshot = (p: {
@@ -75,7 +75,8 @@ export default class StockService {
     for (const { godownId, quantity, product: p, categoryName, subCategoryName } of rows) {
       const card = cards.get(godownId);
       if (!card) continue; // an inactive godown holds nothing, but skip it if it ever does
-      const key = `${p.subCategoryId}|${p.brand}|${p.name ?? ""}`;
+      // a product is one sub-category, brand, name and unit, as on the Products page
+      const key = `${p.subCategoryId}|${p.brand}|${p.name ?? ""}|${p.packSizeCode}`;
       let group = card.products.find((g) => g.key === key);
       if (!group) {
         group = { key, categoryName, subCategoryName, brand: p.brand, name: p.name, imageUrl: p.imageUrl, packs: [] };

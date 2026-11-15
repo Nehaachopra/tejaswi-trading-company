@@ -9,17 +9,14 @@ import { titleCase } from "~/lib/format";
 import { asField, packPriceFromRate, parseAmount, rateFromPackPrice } from "~/lib/price";
 import { cn } from "~/lib/utils";
 
-import { PickMenu } from "../../stock/pick-menu";
 import { fieldRow, pickRow } from "../../transaction/shared/form-basics";
 import { CategoryFields } from "./category-fields";
-import { GstPicker } from "./gst-picker";
 import { PhotoPicker } from "./photo-picker";
 import type { Pack, ProductGroup } from "./product-tile";
 
 type Code = Pack["packSizeCode"];
-const CODES: Code[] = ["KGS", "LTR", "BOX", "PCS"];
 
-// lengths follow the products table: brand and sub-category 50, HSN 4 or 8 digits, pack size up to 5 digits
+// lengths follow the products table: brand, name and sub-category 50, HSN 4 or 8 digits, pack size up to 5 digits
 const NAME_MAX = 50;
 
 // one pack size's details as typed
@@ -27,6 +24,7 @@ export type DetailsDraft = {
   categoryId: string;
   subCategoryId: string | null;
   brand: string;
+  name: string;
   packSizeCode: Code;
   packSize: string;
   hsn: string;
@@ -43,6 +41,7 @@ export const draftFrom = (group: ProductGroup, pack: Pack): DetailsDraft => ({
   categoryId: group.categoryId,
   subCategoryId: group.subCategoryId,
   brand: titleCase(group.brand),
+  name: group.name ? titleCase(group.name) : "",
   packSizeCode: pack.packSizeCode,
   packSize: String(pack.packSize),
   hsn: pack.hsn8Digit ?? group.hsn4Digit ?? "",
@@ -89,17 +88,14 @@ export const brandChars = (v: string) => v.replace(/[^\p{L}\d &.'-]/gu, "");
 // every value at the right end of its box, as in the rows
 const input = (bad: boolean) => cn("min-h-11 w-full min-w-0 px-3 text-right text-base placeholder:text-chestnut/50", fieldClass(bad));
 
-// the Product details part, each field a row (label left, value right): category, sub-category (+ New) and brand,
-// then the pack size chips, the photo, pack unit and size, HSN and GST % (an accordion)
+// the Product details part, each field a row (label left, value right): the photo, category, sub-category (+ New),
+// brand, name, pack size with its unit, and HSN
 export function ProductDetails({
   draft,
   onChange,
   onPhotoBusy,
   tried,
-  chips,
 }: {
-  // the pack size chips, shown after the brand
-  chips: React.ReactNode;
   draft: DetailsDraft;
   onChange: (patch: Partial<DetailsDraft>) => void;
   onPhotoBusy: (busy: boolean) => void;
@@ -111,6 +107,9 @@ export function ProductDetails({
 
   return (
     <div className="flex flex-col gap-3.5">
+      {/* the photo: a big placeholder until one is uploaded; a camera button over it replaces it */}
+      <PhotoPicker variant="big" value={draft.imageUrl} onChange={(imageUrl) => onChange({ imageUrl })} onBusy={onPhotoBusy} />
+
       {/* category, then its sub-categories (+ New) */}
       <CategoryFields
         categoryId={draft.categoryId}
@@ -137,13 +136,15 @@ export function ProductDetails({
         />
       </label>
 
-      {/* the product's pack sizes, with + */}
-      {chips}
+      {/* the optional name */}
+      <label className={fieldRow}>
+        <span className="gap-1">
+          {t("name")} <span className="text-xs opacity-60">{t("form.optional")}</span>
+        </span>
+        <input value={draft.name} maxLength={NAME_MAX} onChange={(e) => onChange({ name: brandChars(e.target.value) })} className={input(false)} />
+      </label>
 
-      {/* the photo: a big placeholder until one is uploaded; a camera button over it replaces it */}
-      <PhotoPicker variant="big" value={draft.imageUrl} onChange={(imageUrl) => onChange({ imageUrl })} onBusy={onPhotoBusy} />
-
-      {/* pack size: the size, and beside it its unit */}
+      {/* pack size: the size, and beside it its unit (read only) */}
       <div className={fieldRow}>
         <span>
           {t("form.packSize")}
@@ -159,21 +160,12 @@ export function ProductDetails({
             aria-invalid={show("packSize") || undefined}
             className={cn(input(show("packSize")), "tabular")}
           />
-          <div className="w-24 shrink-0">
-            <PickMenu
-              label={t("form.packUnit")}
-              current={t(`form.units.${draft.packSizeCode}`)}
-              options={CODES.map((c) => ({ id: c, name: t(`form.units.${c}`) }))}
-              picked={draft.packSizeCode}
-              onPick={(packSizeCode) => onChange({ packSizeCode })}
-              matchWidth
-              valueEnd
-            />
-          </div>
+          {/* the unit is set when the product is made and never changes: plain text, a little apart */}
+          <span className="ml-2 grid min-h-11 shrink-0 place-items-center text-base">{t(`form.units.${draft.packSizeCode}`)}</span>
         </div>
       </div>
 
-      {/* HSN, then GST % (an accordion) */}
+      {/* HSN (GST % sits in the drawer's Price details) */}
       <label className={fieldRow}>
         <span>{t("hsn")}</span>
         <input
@@ -186,13 +178,6 @@ export function ProductDetails({
           className={cn(input(show("hsn")), "tabular")}
         />
       </label>
-      <div className={pickRow}>
-        <span>
-          {t("gstLabel")}
-          <RequiredMark />
-        </span>
-        <GstPicker value={draft.gst} onPick={(gst) => onChange({ gst })} invalid={show("gst")} pickEnd />
-      </div>
     </div>
   );
 }

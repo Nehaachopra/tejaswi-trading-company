@@ -1,13 +1,12 @@
 "use client";
 
-import { Eye, EyeOff, Plus, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { SubmitButton } from "~/components/ui/card-form";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { FieldMessage } from "~/components/ui/field-message";
-import { addSquare } from "~/components/ui/page-styles";
 import { Sheet } from "~/components/ui/sheet";
 import { toast } from "~/components/ui/toast";
 import { packLabel, titleCase } from "~/lib/format";
@@ -15,12 +14,14 @@ import { parseAmount } from "~/lib/price";
 import { cn } from "~/lib/utils";
 import { useProductActions } from "~/providers/products";
 
+import { RequiredMark } from "~/components/ui/required-mark";
+
 import { PlainRows } from "../../transaction/shared/amount-table";
+import { pickRow } from "../../transaction/shared/form-basics";
 import { categoryError } from "../categories/category-errors";
-import { PackChips } from "./pack-chips";
+import { GstPicker } from "./gst-picker";
 import { type DetailsDraft, draftFrom, draftOk, draftProblems, ProductDetails, settleDraft } from "./product-details";
 import { RatePriceFields } from "./rate-price-fields";
-import { NewProductSheet } from "./new-product-sheet";
 import { type ProductGroup, productTitle } from "./product-tile";
 
 // a part's heading, as the payment's Breakup is headed
@@ -35,13 +36,10 @@ const round2 = (v: number) => Math.round(v * 100) / 100;
 export function ProductSheet({
   group,
   packId,
-  onPack,
   onClose,
 }: {
   group: ProductGroup | null;
   packId: string | null;
-  // another of its pack sizes picked from the chips on top
-  onPack: (productId: string) => void;
   onClose: () => void;
 }) {
   const t = useTranslations("products.items");
@@ -54,8 +52,6 @@ export function ProductSheet({
   const [saving, setSaving] = useState<"all" | "one">("all");
   // the details, then the price, are being saved
   const [busy, setBusy] = useState(false);
-  // Add product is open over this one
-  const [addingPack, setAddingPack] = useState(false);
   const pack = group?.packs.find((p) => p.productId === packId) ?? null;
 
   const [draft, setDraft] = useState<DetailsDraft | null>(null);
@@ -122,7 +118,7 @@ export function ProductSheet({
         categoryId: draft.categoryId,
         subCategoryId: draft.subCategoryId!,
         brand: draft.brand,
-        name: group!.name,
+        name: draft.name.trim() || null,
         hsn: draft.hsn || null,
         pack: {
           productId: pack!.productId,
@@ -194,7 +190,6 @@ export function ProductSheet({
   ];
 
   return (
-    <>
     <Sheet
       open
       title={`${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode)}`}
@@ -250,25 +245,17 @@ export function ProductSheet({
             onChange={change}
             onPhotoBusy={setPhotoBusy}
             tried={tried}
-            // after the brand: the product's pack sizes on one line that scrolls, this one filled (another one tapped
-            // opens its details here); the + that opens Add product stays put at the end
-            chips={
-              <PackChips
-                packs={group.packs}
-                selected={pack.productId}
-                onSelect={onPack}
-                label={t("packSizes")}
-                end={
-                  <button type="button" aria-label={t("addPack")} title={t("addPack")} onClick={() => setAddingPack(true)} className={addSquare("size-8")}>
-                    <Plus className="size-4" aria-hidden />
-                  </button>
-                }
-              />
-            }
           />
 
-          {/* price details: rate and price (either fills in the other), then the split in the payment breakup's rows */}
+          {/* price details: GST %, rate and price (either fills in the other), then the split in the payment breakup's rows */}
           <h3 className={`${heading} ${part}`}>{t("priceDetails")}</h3>
+          <div className={pickRow}>
+            <span>
+              {t("gstLabel")}
+              <RequiredMark />
+            </span>
+            <GstPicker value={draft.gst} onPick={(gst) => change({ gst })} invalid={tried && draftProblems(draft).gst} pickEnd />
+          </div>
           <RatePriceFields
             unit={t(`form.units.${draft.packSizeCode}`)}
             rate={draft.rate}
@@ -322,23 +309,5 @@ export function ProductSheet({
         onCancel={undoMove}
       />
     </Sheet>
-
-    {/* Add product, starting with this product's category, sub-category and brand, its pack sizes among the chips */}
-    <NewProductSheet
-      open={addingPack}
-      onClose={() => setAddingPack(false)}
-      from={{
-        categoryId: group.categoryId,
-        subCategoryId: group.subCategoryId,
-        brand: titleCase(group.brand),
-        name: group.name,
-        packs: group.packs,
-        onPack: (productId) => {
-          setAddingPack(false);
-          onPack(productId);
-        },
-      }}
-    />
-    </>
   );
 }

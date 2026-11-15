@@ -139,20 +139,8 @@ export function PriceCard({
         {/* the card as on the page, its photo shorter */}
         <TileTopForPrice group={group} pack={pack} onPack={onPack} short />
 
-        <div className="flex flex-col gap-2.5">
-          {/* rate per unit, then the price with GST (chestnut), each a row: label left, box right */}
-          <RatePriceFields
-            unit={unit}
-            rate={rate}
-            price={price}
-            onRate={typeRate}
-            onPrice={typePrice}
-            autoFocus
-            rows
-          />
-
-          {/* cost and profit: two big numbers, a line between; the profit's digits spin as it changes */}
-          <div className="mt-2.5 grid grid-cols-2 text-center">
+        {/* cost and profit: two big numbers, a line between; the profit's digits spin as it changes */}
+          <div className="grid grid-cols-2 text-center">
             <div className="grid justify-items-center">
               <b className="tabular font-heading text-2xl font-extrabold leading-[1.15]">
                 {cost == null ? "–" : rupees(cost)}
@@ -181,8 +169,24 @@ export function PriceCard({
             </div>
           </div>
 
-          {/* the last 5 saved prices */}
+        {/* the last 5 saved prices */}
           <PriceChart productId={pack.productId} />
+
+        <div className="flex flex-col gap-3 mt-3.5">
+          {/* rate per unit, then the price with GST (chestnut), each a row: label left, box right */}
+          <RatePriceFields
+            unit={unit}
+            rate={rate}
+            price={price}
+            onRate={typeRate}
+            onPrice={typePrice}
+            autoFocus
+            rows
+          />
+
+          
+
+          
 
           {/* Save price */}
           <button

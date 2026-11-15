@@ -111,10 +111,10 @@ export default class ProductService {
         asc(productsTable.packSize),
       );
 
-    // every pack size is its own product row; a card groups them by sub-category, brand and name
+    // every pack size is its own product row; a card groups them by sub-category, brand, name and unit
     const groups = new Map<string, ProductGroupModel>();
     for (const { product: p, categoryName, subCategoryName, price } of rows) {
-      const key = `${p.subCategoryId}|${p.brand}|${p.name ?? ""}`;
+      const key = `${p.subCategoryId}|${p.brand}|${p.name ?? ""}|${p.packSizeCode}`;
       const group = groups.get(key) ?? {
         key,
         categoryId: p.categoryId,
@@ -202,7 +202,7 @@ export default class ProductService {
       });
 
       const groups = await this.list({ includeInactive: true });
-      return groups.find((g) => g.key === `${subCategoryId}|${brand}|${name ?? ""}`)!;
+      return groups.find((g) => g.key === `${subCategoryId}|${brand}|${name ?? ""}|${input.packs[0]!.packSizeCode}`)!;
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new TRPCError({ code: "CONFLICT", message: "One of these pack sizes already exists for this product." });
@@ -249,7 +249,7 @@ export default class ProductService {
   }
 
   // brand, name, category, sub-category and HSN of a product, for all its pack sizes at once, with one pack
-  // size's unit, size, own HSN, GST % and active switch; all or nothing. It can only move into an active
+  // size's size, own HSN, GST % and active switch; all or nothing. It can only move into an active
   // category and sub-category
   async updateDetails(input: UpdateDetailsInputModel, actor: ActorModel) {
     const { pack } = input;
@@ -277,11 +277,11 @@ export default class ProductService {
           throw new TRPCError({ code: "NOT_FOUND", message: "Product not found." });
         }
 
-        // this pack size's own: unit, size, active, and its 8-digit HSN (if 8 were typed)
+        // this pack size's own: size, active, and its 8-digit HSN (if 8 were typed); the unit, set when the product
+        // was made, is never changed
         await tx
           .update(productsTable)
           .set({
-            packSizeCode: pack.packSizeCode,
             packSize: pack.packSize,
             isActive: pack.isActive,
             hsn8Digit: input.hsn?.length === 8 ? input.hsn : null,
