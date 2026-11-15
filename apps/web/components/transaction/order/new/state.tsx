@@ -18,10 +18,10 @@ import type { Pack, ProductGroup } from "../../../product/products/product-tile"
 import { productTitle } from "../../../product/products/product-tile";
 import { moveCard, useCardHistory } from "../../shared/card-steps";
 
-// the cards, in order: Purchase or Sale, the products on the order, the totals, the supplier, then the dates, remarks
-// and Save
-export type OrderStep = "type" | "products" | "totals" | "supplier" | "details";
-const ALL_STEPS: OrderStep[] = ["type", "products", "totals", "supplier", "details"];
+// the cards, in order: the products on the order, the totals, the supplier (a sale's customer), then the dates, remarks
+// and Save. Purchase or sale is picked on Home, each with its own page
+export type OrderStep = "products" | "totals" | "supplier" | "details";
+const ALL_STEPS: OrderStep[] = ["products", "totals", "supplier", "details"];
 
 // one item on the order, as typed: the price with GST per kg (or l, box, piece), the pack's price before GST and its
 // price with GST fill each other in; `from` is the one typed last, which the figures follow
@@ -80,16 +80,26 @@ export function settleLine(line: OrderLine, packSize: number, gstPercent: number
   };
 }
 
-// everything the new-order form holds and works out. Made once in OrderEntry; every card reads it with useOrderEntry()
-export function useOrderEntryState({ isAdmin, onDiscard, edit = null }: { isAdmin: boolean; onDiscard: () => void; edit?: OrderEditSeed | null }) {
+// everything the new-order form holds and works out, for a purchase or a sale order (`kind`, from the page). Made once
+// in OrderEntry; every card reads it with useOrderEntry()
+export function useOrderEntryState({
+  kind,
+  isAdmin,
+  onDiscard,
+  edit = null,
+}: {
+  kind: "purchase" | "sale";
+  isAdmin: boolean;
+  onDiscard: () => void;
+  edit?: OrderEditSeed | null;
+}) {
   const t = useTranslations("orders");
   const router = useRouter();
   const { products, categories, suppliers, loading, loadFailed, retryLoad, saveOrder, saveSaleOrder, updateOrder, updateSaleOrder, saving: creating, saved } = usePurchaseOrderData();
-  // the cards: an order being changed keeps its kind and who it's with, so it has no Type or Supplier (Customer) card
-  const STEPS: OrderStep[] = edit ? ALL_STEPS.filter((s) => s !== "type" && s !== "supplier") : ALL_STEPS;
+  // the cards: an order being changed keeps who it's with, so it has no Supplier (Customer) card
+  const STEPS: OrderStep[] = edit ? ALL_STEPS.filter((s) => s !== "supplier") : ALL_STEPS;
 
   // the answers (an order being changed starts from what it has)
-  const [kind, setKindOnly] = useState<"purchase" | "sale" | null>(edit?.kind ?? null);
   const [lines, setLines] = useState<OrderLine[]>(edit?.lines ?? []);
   // the supplier, as a payment picks one: found in the search, or new (its details typed on the card)
   const [supplierPick, setSupplierPick] = useState<LedgerChoice>(null);
@@ -100,15 +110,6 @@ export function useOrderEntryState({ isAdmin, onDiscard, edit = null }: { isAdmi
   const movedOf = (productId: string) => edit?.moved[productId] ?? 0;
   // a sale order being changed: what it holds of an item now, free again for it when it's saved
   const heldOf = (productId: string) => (edit?.kind === "sale" ? (edit.held[productId] ?? 0) : 0);
-  // the other kind picked: its items and who it's with start again (prices, stock and parties differ)
-  const setKind = (next: "purchase" | "sale") => {
-    if (next === kind) return;
-    setKindOnly(next);
-    setLines([]);
-    setSupplierPick(null);
-    setNewSupplier(emptyDraft());
-    setNewCustomer({ name: "", phone: "", address: emptyAddress(true) });
-  };
   const sale = kind === "sale";
   // the order is dated the day it's made; the server sets it, this only shows it
   const [orderDate] = useState(() => edit?.orderDate ?? indiaDay(new Date()));
@@ -175,7 +176,6 @@ export function useOrderEntryState({ isAdmin, onDiscard, edit = null }: { isAdmi
 
   // when each card is filled in
   const complete: Record<OrderStep, boolean> = {
-    type: kind !== null,
     products: lines.length > 0 && lines.every(lineOk) && !noGst,
     totals: true,
     supplier:
@@ -348,7 +348,6 @@ export function useOrderEntryState({ isAdmin, onDiscard, edit = null }: { isAdmi
     movedOf,
     heldOf,
     kind,
-    setKind,
     lines,
     figures,
     putLine,

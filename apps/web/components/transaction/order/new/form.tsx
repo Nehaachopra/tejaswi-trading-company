@@ -24,26 +24,34 @@ import { ProductsCard } from "./products-card";
 import { type OrderEditSeed, type OrderStep, OrderEntryProvider, useOrderEntry, useOrderEntryState } from "./state";
 import { SupplierCard } from "./supplier-card";
 import { TotalsCard } from "./totals-card";
-import { TypeCard } from "./type-card";
 
-// /transaction/order (from Home): a purchase or sale order, laid out like a payment: one card at a time on the left with Back
-// and Next, and a summary on the right (a bar above the card on a phone) that goes back to any card. 1 Type: Purchase or
-// Sale; 2 Products: the items on the order (price and quantity each) above every other pack size; 3 Amount; 4 Supplier
-// (a sale's Customer);
-// 5 Details: the order's date, when it's expected, remarks and Save. A save goes to the order's own page. Discarding
-// to open a menu starts the form again
-export function OrderForm({ isAdmin }: { isAdmin: boolean }) {
+// /transaction/purchase-order and /transaction/sale-order (from Home): a purchase or a sale order, laid out like a
+// payment: one card at a time on the left with Back and Next, and a summary on the right (a bar above the card on a
+// phone) that goes back to any card. 1 Products: the items on the order (price and quantity each) above every other pack
+// size; 2 Amount; 3 Supplier (a sale's Customer); 4 Details: the order's date, when it's expected, remarks and Save. A
+// save goes to the order's own page. Discarding to open a menu starts the form again
+export function OrderForm({ kind, isAdmin }: { kind: "purchase" | "sale"; isAdmin: boolean }) {
   const [round, setRound] = useState(0);
   return (
     <PurchaseOrderDataProvider isAdmin={isAdmin}>
-      <OrderEntry key={round} isAdmin={isAdmin} onDiscard={() => setRound((r) => r + 1)} />
+      <OrderEntry key={round} kind={kind} isAdmin={isAdmin} onDiscard={() => setRound((r) => r + 1)} />
     </PurchaseOrderDataProvider>
   );
 }
 
 // the form itself: a new order, or (with `edit`) one being changed
-export function OrderEntry({ isAdmin, onDiscard, edit = null }: { isAdmin: boolean; onDiscard: () => void; edit?: OrderEditSeed | null }) {
-  const state = useOrderEntryState({ isAdmin, onDiscard, edit });
+export function OrderEntry({
+  kind,
+  isAdmin,
+  onDiscard,
+  edit = null,
+}: {
+  kind: "purchase" | "sale";
+  isAdmin: boolean;
+  onDiscard: () => void;
+  edit?: OrderEditSeed | null;
+}) {
+  const state = useOrderEntryState({ kind, isAdmin, onDiscard, edit });
   return (
     <OrderEntryProvider value={state}>
       <OrderEntryView />
@@ -87,7 +95,7 @@ function OrderEntryView() {
     editing,
   } = useOrderEntry();
   // an order being changed says so
-  const title = editing ? t("edit.title") : t("title");
+  const title = editing ? t("edit.title") : t(kind === "sale" ? "titleSale" : "titlePurchase");
 
   if (loading)
     return (
@@ -102,11 +110,9 @@ function OrderEntryView() {
       </EntryNote>
     );
 
-  // a line for each card answered: the type, each item (a small photo, its name, its quantity), the supplier, then the
-  // dates and remarks
+  // a line for each card answered: each item (a small photo, its name, its quantity), the supplier, then the dates and
+  // remarks
   const summary: SummaryItem<OrderStep>[] = [
-    // (an order being changed has no Type card)
-    ...(editing ? [] : [{ key: "type", step: "type" as const, heading: stepName("type"), value: kind ? t(`kinds.${kind}`) : null }]),
     {
       key: "products",
       step: "products",
@@ -123,7 +129,7 @@ function OrderEntryView() {
         ];
       }),
     },
-    // (nor a Supplier card)
+    // (an order being changed has no Supplier card)
     ...(editing ? [] : [{ key: "supplier", step: "supplier" as const, heading: stepName("supplier"), value: supplier ? (supplier.party ? partyLabel(supplier.party) : supplier.name) : supplierPick?.kind === "party" && (kind === "sale" ? newCustomer.name : newSupplier.name).trim() ? titleCase(kind === "sale" ? newCustomer.name : newSupplier.name) : null }]),
     {
       key: "details",
@@ -150,7 +156,7 @@ function OrderEntryView() {
     <EntryPage
       title={title}
       summaryLabel={t("summary")}
-      showBar={kind !== null}
+      showBar
       bar={
         <SummaryBar label={t("summary")} total={total} open={summaryOpen} onToggle={() => setSummaryOpen((o) => !o)}>
           {linesView}
@@ -173,19 +179,17 @@ function OrderEntryView() {
         onBack={index > 0 ? () => show(steps[index - 1]!) : null}
         onChange={null}
         missing={tried && !complete[current] ? missingOf(current) : null}
-        // Type and Supplier move on by themselves once picked; back on Supplier with one picked (or someone new), Next
-        // goes on. Details saves
+        // Supplier moves on by itself once picked; back on it with one picked (or someone new), Next goes on. Details
+        // saves
         end={
           current === "details" ? (
             <SaveBlock />
-          ) : current === "type" || (current === "supplier" && supplierPick === null) ? null : (
+          ) : current === "supplier" && supplierPick === null ? null : (
             <NextButton onClick={next} />
           )
         }
       >
-        {current === "type" ? (
-          <TypeCard />
-        ) : current === "products" ? (
+        {current === "products" ? (
           <ProductsCard />
         ) : current === "totals" ? (
           <TotalsCard />

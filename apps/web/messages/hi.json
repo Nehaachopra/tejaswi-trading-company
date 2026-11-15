@@ -1089,10 +1089,17 @@
     "hub": {
       "title": "नया लेनदेन",
       "comingSoon": "जल्द आ रहा है।",
+      "groups": {
+        "goods": "माल",
+        "orders": "ऑर्डर",
+        "money": "पैसा",
+        "admin": "एडमिन"
+      },
       "kinds": {
         "sale": "बिक्री",
         "purchase": "खरीद",
-        "order": "ऑर्डर",
+        "saleOrder": "बिक्री ऑर्डर",
+        "purchaseOrder": "खरीद ऑर्डर",
         "receipt": "रसीद",
         "payment": "भुगतान",
         "deposit": "जमा",
@@ -2211,13 +2218,13 @@
     "save": "ऋणदाता सहेजें"
   },
   "orders": {
-    "title": "नया ऑर्डर",
+    "titlePurchase": "नया ख़रीद ऑर्डर",
+    "titleSale": "नया बिक्री ऑर्डर",
     "summary": "सारांश",
     "loading": "प्रोडक्ट और सप्लायर ला रहे हैं…",
     "loadFailed": "प्रोडक्ट और सप्लायर लोड नहीं हो पाए।",
     "tryAgain": "फिर कोशिश करें",
     "steps": {
-      "type": "प्रकार",
       "products": "प्रोडक्ट",
       "totals": "राशि",
       "supplier": "सप्लायर",

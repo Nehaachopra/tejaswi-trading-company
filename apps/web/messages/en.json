@@ -1089,10 +1089,17 @@
     "hub": {
       "title": "New transaction",
       "comingSoon": "Coming soon.",
+      "groups": {
+        "goods": "Goods",
+        "orders": "Orders",
+        "money": "Money",
+        "admin": "Admin"
+      },
       "kinds": {
         "sale": "Sale",
         "purchase": "Purchase",
-        "order": "Order",
+        "saleOrder": "Sale order",
+        "purchaseOrder": "Purchase order",
         "receipt": "Receipt",
         "payment": "Payment",
         "deposit": "Deposit",
@@ -2211,13 +2218,13 @@
     "save": "Save lender"
   },
   "orders": {
-    "title": "New order",
+    "titlePurchase": "New purchase order",
+    "titleSale": "New sale order",
     "summary": "Summary",
     "loading": "Getting products and suppliers…",
     "loadFailed": "Couldn't load the products and suppliers.",
     "tryAgain": "Try again",
     "steps": {
-      "type": "Type",
       "products": "Products",
       "totals": "Amount",
       "supplier": "Supplier",

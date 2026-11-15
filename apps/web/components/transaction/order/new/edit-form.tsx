@@ -11,8 +11,8 @@ import { type OrderDoc, type OrderKind, useOrderDoc } from "../doc-data";
 import { OrderEntry } from "./form";
 import { emptyLine, type OrderEditSeed, settleLine } from "./state";
 
-// /order/[kind]/[id]/edit, from Edit order on the order's page: the new-order form started from the order (no Type
-// card), saved over it and back to its page. Only while it's pending
+// /order/[kind]/[id]/edit, from Edit order on the order's page: the new-order form started from the order (no
+// Supplier card), saved over it and back to its page. Only while it's pending
 export function OrderEditForm({ kind, id }: { kind: OrderKind; id: string }) {
   const [round, setRound] = useState(0);
   return (
@@ -39,7 +39,7 @@ function EditEntry({ kind, id, onDiscard }: { kind: OrderKind; id: string; onDis
       </EntryNote>
     );
   if (doc.data.order.status !== "pending") return <EntryNote title={t("edit.title")}>{t("edit.notPending")}</EntryNote>;
-  return <OrderEntry isAdmin onDiscard={onDiscard} edit={seedOf(kind, doc.data)} />;
+  return <OrderEntry kind={kind} isAdmin onDiscard={onDiscard} edit={seedOf(kind, doc.data)} />;
 }
 
 // the form's starting point from the saved order: each item at its rate before GST, how many have moved and (a sale)

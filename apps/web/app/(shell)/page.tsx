@@ -5,13 +5,9 @@ import { getSession } from "~/lib/session";
 
 export const metadata: Metadata = { title: "Home · Tejaswi trading company" };
 
-// Home: on desktop, the tiles for a new transaction (phones have the raised + in the bottom bar); the rest of
-// Home is left until it's designed
+// Home: the tiles for a new transaction, group by group, on phone and desktop alike (a phone's raised + in the bottom
+// bar opens the same tiles); the rest of Home is left until it's designed
 export default async function HomePage() {
   const session = await getSession();
-  return (
-    <div className="hidden lg:block">
-      <TransactionHub isAdmin={session!.user.role === "admin"} />
-    </div>
-  );
+  return <TransactionHub isAdmin={session!.user.role === "admin"} />;
 }
