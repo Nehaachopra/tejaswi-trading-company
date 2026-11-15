@@ -7,7 +7,7 @@ import { useState } from "react";
 
 import { PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
-import { trpc } from "~/trpc/client";
+import { useParty } from "~/providers/accounts";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { DetailRows, DetailsCard, DetailsEdit } from "../details-card";
@@ -61,7 +61,7 @@ function PartyDetails({ party: p }: { party: RouterOutputs["accounts"]["party"][
 export function PartyPage({ partyId, type }: { partyId: string; type: PartyType }) {
   const t = useTranslations("accounts.party");
   const tf = useTranslations("accounts.party.form");
-  const party = trpc.accounts.party.get.useQuery({ id: partyId });
+  const party = useParty(partyId);
   // its details being changed, in the card
   const [editing, setEditing] = useState(false);
   const list = party.data ? kindOf(party.data.types) : type;

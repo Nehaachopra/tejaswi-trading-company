@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { OtherForm } from "~/components/transaction/other/form";
-import { getSession } from "~/trpc/session";
+import { getSession } from "~/lib/session";
 
 export const metadata: Metadata = { title: "Others · Tejaswi trading company" };
 

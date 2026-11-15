@@ -12,7 +12,9 @@ import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { packLabel, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useCategories } from "~/providers/categories";
+import { useProducts } from "~/providers/products";
+import { useGodownActions } from "~/providers/stock";
 
 import { categoryError } from "../../product/categories/category-errors";
 import { ProductImage, productTitle } from "../../product/products/product-tile";
@@ -28,10 +30,9 @@ const quantityOk = (v: string) => /^\d+$/.test(v) && Number(v) >= 1 && Number(v)
 export function AddGodownSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useTranslations("stock.form");
   const tg = useTranslations("stock.godowns");
-  const utils = trpc.useUtils();
-  const create = trpc.inventory.godown.create.useMutation();
-  const products = trpc.inventory.product.list.useQuery({ includeInactive: false }, { enabled: open });
-  const categories = trpc.inventory.category.list.useQuery({ includeInactive: false }, { enabled: open });
+  const { create, refreshWithProducts } = useGodownActions();
+  const products = useProducts({ includeInactive: false }, open);
+  const categories = useCategories(false, open);
 
   const [step, setStep] = useState<"details" | "stock">("details");
   const [draft, setDraft] = useState<GodownDraft>(emptyDraft);
@@ -76,9 +77,7 @@ export function AddGodownSheet({ open, onClose }: { open: boolean; onClose: () =
         openingStock: typed.map(([productId, v]) => ({ productId, quantity: Number(v) })),
       });
       toast.success(tg("toast.added", { name: created.godownName }));
-      void utils.inventory.godown.list.invalidate();
-      void utils.inventory.stock.byGodown.invalidate();
-      void utils.inventory.product.list.invalidate();
+      refreshWithProducts();
       close();
     } catch (err) {
       const key = categoryError(err);

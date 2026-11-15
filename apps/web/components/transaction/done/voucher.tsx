@@ -12,7 +12,15 @@ import { amountInWords } from "~/lib/amount-words";
 import { useBankName } from "~/lib/bank-names";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import {
+  usePaymentShareKey,
+  useReceiptShareKey,
+  useSavedPayment,
+  useSavedReceipt,
+  useSharedPayment,
+  useSharedReceipt,
+  useStoredCopies,
+} from "~/providers/saved";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 type Receipt = RouterOutputs["transactions"]["receipt"]["get"];
@@ -267,22 +275,10 @@ export function ReceiptVoucher({
   const particulars = useParticulars();
   const shared = shareKey !== undefined;
   const isPayment = flow === "payment";
-  const receiptOwn = trpc.transactions.receipt.get.useQuery(
-    { transactionId: id },
-    { enabled: !shared && !isPayment },
-  );
-  const receiptTheirs = trpc.transactions.receipt.shared.useQuery(
-    { transactionId: id, key: shareKey ?? "" },
-    { enabled: shared && !isPayment, retry: false },
-  );
-  const paymentOwn = trpc.transactions.payment.get.useQuery(
-    { transactionId: id },
-    { enabled: !shared && isPayment },
-  );
-  const paymentTheirs = trpc.transactions.payment.shared.useQuery(
-    { transactionId: id, key: shareKey ?? "" },
-    { enabled: shared && isPayment, retry: false },
-  );
+  const receiptOwn = useSavedReceipt(id, !shared && !isPayment);
+  const receiptTheirs = useSharedReceipt(id, shareKey ?? "", shared && !isPayment);
+  const paymentOwn = useSavedPayment(id, !shared && isPayment);
+  const paymentTheirs = useSharedPayment(id, shareKey ?? "", shared && isPayment);
   const receipt = isPayment
     ? shared
       ? paymentTheirs
@@ -291,20 +287,11 @@ export function ReceiptVoucher({
       ? receiptTheirs
       : receiptOwn;
   // the key for the link sent on WhatsApp
-  const receiptLink = trpc.transactions.receipt.shareKey.useQuery(
-    { transactionId: id },
-    { enabled: !shared && !isPayment },
-  );
-  const paymentLink = trpc.transactions.payment.shareKey.useQuery(
-    { transactionId: id },
-    { enabled: !shared && isPayment },
-  );
+  const receiptLink = useReceiptShareKey(id, !shared && !isPayment);
+  const paymentLink = usePaymentShareKey(id, !shared && isPayment);
   const link = isPayment ? paymentLink : receiptLink;
   // a payment under reverse charge has a copy kept as a file, once the job has stored it; the newest version comes first
-  const documents = trpc.transactions.history.documents.useQuery(
-    { transactionId: id },
-    { enabled: !shared && !!paymentOwn.data?.rcm, retry: false },
-  );
+  const documents = useStoredCopies(id, !shared && !!paymentOwn.data?.rcm);
   const storedCopy = documents.data?.[0];
 
   if (receipt.isPending)

@@ -3,8 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 
-import { trpc } from "~/trpc/client";
-import { tabId } from "~/trpc/create-client";
+import { useLiveChanges } from "~/providers/session";
 
 // tRPC query keys start with the procedure path as an array: [["inventory", "stock", "byGodown"], …]
 const inScope = (key: readonly unknown[], scope: string) => Array.isArray(key[0]) && key[0][0] === scope;
@@ -16,17 +15,14 @@ export function LiveUpdates() {
   const queryClient = useQueryClient();
   const started = useRef(false);
 
-  trpc.live.changes.useSubscription(
-    { tabId },
-    {
-      // after a reconnect (sleep, lost network), changes may have been missed: refresh everything once
-      onStarted: () => {
-        if (started.current) void queryClient.invalidateQueries();
-        started.current = true;
-      },
-      onData: ({ scope }) => void queryClient.invalidateQueries({ predicate: (q) => inScope(q.queryKey, scope) }),
+  useLiveChanges({
+    // after a reconnect (sleep, lost network), changes may have been missed: refresh everything once
+    onStarted: () => {
+      if (started.current) void queryClient.invalidateQueries();
+      started.current = true;
     },
-  );
+    onData: ({ scope }) => void queryClient.invalidateQueries({ predicate: (q) => inScope(q.queryKey, scope) }),
+  });
 
   return null;
 }

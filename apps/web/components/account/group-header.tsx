@@ -4,7 +4,7 @@ import { Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { ClearButton } from "~/components/ui/clear-button";
-import { trpc } from "~/trpc/client";
+import { useAccountsOverview } from "~/providers/accounts";
 
 import { type Head } from "./balance";
 import { SignedAmount } from "./signed-amount";
@@ -14,7 +14,7 @@ import { SignedAmount } from "./signed-amount";
 // filters the row below it). It stays under the page header while the list scrolls. The total is the one /account
 // shows on the sub-group's card
 export function GroupHeader({ title, head, master, children }: { title: string; head: Head; master: string; children?: React.ReactNode }) {
-  const overview = trpc.accounts.overview.useQuery();
+  const overview = useAccountsOverview();
   const total = overview.data?.heads.find((h) => h.head === head)?.masters.find((m) => m.key === master)?.total;
   return (
     <header className="sticky top-16 z-10 -mx-4 mt-3 mb-3 flex flex-wrap items-center gap-x-3 gap-y-2.5 border-b border-ivory/20 bg-chestnut px-4 py-3 sm:-mx-6 sm:px-6">

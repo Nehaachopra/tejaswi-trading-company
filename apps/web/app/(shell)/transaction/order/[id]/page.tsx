@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { OrderDone } from "~/components/transaction/order/done";
-import { getSession } from "~/trpc/session";
+import { getSession } from "~/lib/session";
 
 export const metadata: Metadata = { title: "Order saved · Tejaswi trading company" };
 

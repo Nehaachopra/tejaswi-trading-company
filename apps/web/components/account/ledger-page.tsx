@@ -9,7 +9,7 @@ import { PAGE } from "~/components/ui/page-styles";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
-import { trpc } from "~/trpc/client";
+import { useLedger, useLedgerActions } from "~/providers/accounts";
 
 import { useLedgerName } from "./ledger-name";
 import { LedgerSheet, type LedgerSheetFor } from "./ledger-sheet";
@@ -18,11 +18,10 @@ import { LedgerStatement } from "./ledger-statement";
 // /account/ledgers/[id], admin only: one ledger's statement, under its name and today's balance
 export function LedgerPage({ ledgerId }: { ledgerId: string }) {
   const t = useTranslations("accounts.overview");
-  const ledger = trpc.accounts.ledger.get.useQuery({ id: ledgerId });
+  const ledger = useLedger(ledgerId);
   const nameOf = useLedgerName();
   const tm = useTranslations("accounts.ledgerMenu");
-  const utils = trpc.useUtils();
-  const setActive = trpc.accounts.ledger.setActive.useMutation();
+  const { setActive, refreshAccounts } = useLedgerActions();
   const [sheet, setSheet] = useState<LedgerSheetFor | null>(null);
 
   // a ledger the admin added is made inactive only at a zero balance
@@ -30,7 +29,7 @@ export function LedgerPage({ ledgerId }: { ledgerId: string }) {
     try {
       await setActive.mutateAsync({ id, isActive: makeActive });
       toast.success(tm(makeActive ? "toast.reactivated" : "toast.deactivated", { name }));
-      void utils.accounts.invalidate();
+      refreshAccounts();
     } catch (err) {
       const code = (err as { data?: { code?: string } })?.data?.code;
       toast.error(tm(code === "PRECONDITION_FAILED" ? "errors.hasBalance" : code === undefined ? "errors.network" : "errors.failed"));

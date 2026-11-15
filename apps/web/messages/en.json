@@ -323,6 +323,14 @@
         "anotherPack": "Another pack size",
         "save": "Save product",
         "saveDetails": "Save details",
+        "newProduct": {
+          "title": "Create a new product?",
+          "body": "The category, sub-category or brand was changed. {name} stays as it is.",
+          "bodyEdit": "The category, sub-category or brand was changed. Make {pack} a new product, or change every pack size of {name}?",
+          "all": "Change for all pack sizes",
+          "yes": "Create new product",
+          "no": "Undo changes"
+        },
         "toast": {
           "added": "{name} added",
           "packsAdded": "Pack sizes added to {name}",

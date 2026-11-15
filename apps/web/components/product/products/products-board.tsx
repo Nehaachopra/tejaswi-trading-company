@@ -17,14 +17,15 @@ import { ClearButton } from "~/components/ui/clear-button";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
 import { packLabel, titleCase } from "~/lib/format";
-import { trpc } from "~/trpc/client";
+import { useCategories } from "~/providers/categories";
+import { useProducts } from "~/providers/products";
 
 import { ProductTabs } from "../product-tabs";
 import { chip } from "../row-styles";
 import { NewProductSheet } from "./new-product-sheet";
 import { PriceCard } from "./price-card";
 import { ProductSheet } from "./product-sheet";
-import { ProductTile } from "./product-tile";
+import { type ProductGroup, ProductTile } from "./product-tile";
 import { cn } from "~/lib/utils";
 
 // every product as a tile, filtered by category and sub-category
@@ -36,13 +37,13 @@ export function ProductsBoard() {
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [subCategoryId, setSubCategoryId] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
-  const categories = trpc.inventory.category.list.useQuery({ includeInactive: false });
+  const categories = useCategories(false);
   const category = categories.data?.find((c) => c.id === categoryId);
   const subs = category?.subCategories ?? [];
   const sub = subs.find((s) => s.id === subCategoryId);
 
   // the products for those filters
-  const list = trpc.inventory.product.list.useQuery({
+  const list = useProducts({
     categoryId: categoryId ?? undefined,
     subCategoryId: subCategoryId ?? undefined,
     includeInactive: showInactive,
@@ -80,11 +81,13 @@ export function ProductsBoard() {
   const closePrice = useCallback(() => setPricing(null), []);
   // the new-product form
   const [adding, setAdding] = useState(false);
+  // the same form opened from a card's + (after its pack sizes): it starts with that product
+  const [addingTo, setAddingTo] = useState<ProductGroup | null>(null);
 
   return (
     <main className={`${PAGE} pb-16`}>
       {/* everything behind an open sheet or the price card is inert: no taps, focus or scrolling of tiles and filters */}
-      <div inert={!!opened || adding || !!priced} className="contents">
+      <div inert={!!opened || adding || !!addingTo || !!priced} className="contents">
         {/* the page's name, for screen readers only: the tabs say it visually */}
         <h1 className="sr-only">{t("title")}</h1>
 
@@ -236,6 +239,7 @@ export function ProductsBoard() {
                   setOpen({ key: group.key, packIds: group.packs.map((p) => p.productId), packId })
                 }
                 onPrice={(packId) => setPricing({ packIds: group.packs.map((p) => p.productId), packId })}
+                onAdd={() => setAddingTo(group)}
               />
             ))}
           </ul>
@@ -243,7 +247,12 @@ export function ProductsBoard() {
       </div>
 
       {/* a pack size's details drawer, the price card, and the new-product form */}
-      <ProductSheet group={opened} packId={open?.packId ?? null} onClose={() => setOpen(null)} />
+      <ProductSheet
+        group={opened}
+        packId={open?.packId ?? null}
+        onPack={(packId) => setOpen((o) => (o ? { ...o, packId } : o))}
+        onClose={() => setOpen(null)}
+      />
       {priced && pricing && (
         <PriceCard
           group={priced}
@@ -253,6 +262,27 @@ export function ProductsBoard() {
         />
       )}
       <NewProductSheet open={adding} onClose={() => setAdding(false)} />
+      {/* from a card's +: its category, sub-category and brand filled in, its pack sizes among the chips (one tapped
+          opens that pack size's details) */}
+      <NewProductSheet
+        open={!!addingTo}
+        onClose={() => setAddingTo(null)}
+        from={
+          addingTo
+            ? {
+                categoryId: addingTo.categoryId,
+                subCategoryId: addingTo.subCategoryId,
+                brand: titleCase(addingTo.brand),
+                name: addingTo.name,
+                packs: addingTo.packs,
+                onPack: (packId) => {
+                  setOpen({ key: addingTo.key, packIds: addingTo.packs.map((p) => p.productId), packId });
+                  setAddingTo(null);
+                },
+              }
+            : undefined
+        }
+      />
     </main>
   );
 }

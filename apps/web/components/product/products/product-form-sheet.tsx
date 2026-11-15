@@ -12,7 +12,7 @@ import { Sheet } from "~/components/ui/sheet";
 import { toast } from "~/components/ui/toast";
 import { packLabel } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useProductActions } from "~/providers/products";
 
 import { categoryError } from "../categories/category-errors";
 import { CODES, emptyPack, packInput, packKey, packOk, packProblems, type PackDraft, settle, wholeAbove0 } from "./pack-draft";
@@ -21,8 +21,7 @@ import { type ProductGroup, productTitle } from "./product-tile";
 // more pack sizes for a product (the + beside its pack sizes); its details are edited in place on its sheet
 export function ProductFormSheet({ group, onClose }: { group: ProductGroup | null; onClose: () => void }) {
   const t = useTranslations("products.items.form");
-  const utils = trpc.useUtils();
-  const create = trpc.inventory.product.create.useMutation();
+  const { create, refreshProducts } = useProductActions();
 
   const [packs, setPacks] = useState<PackDraft[]>([emptyPack(0)]);
   // after a save attempt, the fields that need attention are outlined in red
@@ -67,8 +66,7 @@ export function ProductFormSheet({ group, onClose }: { group: ProductGroup | nul
         packs: packInput(packs),
       });
       toast.success(t("toast.packsAdded", { name: productTitle(group) }));
-      void utils.inventory.product.list.invalidate();
-      void utils.inventory.category.list.invalidate();
+      refreshProducts();
       onClose();
     } catch (err) {
       const key = categoryError(err);

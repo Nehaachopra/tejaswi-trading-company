@@ -15,7 +15,7 @@ import {
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useLandlordActions, useLandlordList } from "~/providers/entities";
 
 import { partyLabel } from "../account/party/party-kinds";
 import { chip } from "../product/row-styles";
@@ -27,14 +27,13 @@ export function LandlordsManager() {
   const tc = useTranslations("common");
   const t = useTranslations("landlords");
   const tf = useTranslations("accounts.party.form");
-  const utils = trpc.useUtils();
-  const setActive = trpc.accounts.landlord.setActive.useMutation();
+  const { setActive, refreshLandlords } = useLandlordActions();
   const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState("");
   // the sheet: a new landlord, or the one being edited
   const [open, setOpen] = useState<string | "new" | null>(null);
 
-  const landlords = trpc.accounts.landlord.list.useQuery({ includeInactive: showInactive });
+  const landlords = useLandlordList(showInactive);
   const needle = search.trim().toLowerCase();
   const shown = (landlords.data ?? []).filter(
     (l) =>
@@ -47,7 +46,7 @@ export function LandlordsManager() {
     try {
       await setActive.mutateAsync({ id, isActive: makeActive });
       toast.success(t(makeActive ? "toast.reactivated" : "toast.deactivated", { name }));
-      void utils.accounts.landlord.invalidate();
+      void refreshLandlords();
     } catch (err) {
       const code = (err as { data?: { code?: string } })?.data?.code;
       toast.error(

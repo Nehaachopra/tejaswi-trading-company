@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { SalaryForm } from "~/components/transaction/salary/form";
-import { getSession } from "~/trpc/session";
+import { getSession } from "~/lib/session";
 
 export const metadata: Metadata = { title: "Salary · Tejaswi trading company" };
 

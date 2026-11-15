@@ -9,7 +9,7 @@ import { fieldClass } from "~/components/ui/card-form";
 import { Spinner } from "~/components/ui/spinner";
 import { noDigits, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useBankDirectory, useIfsc } from "~/providers/accounts";
 import { appOfUpi, lengthFits, lengthsFor, type RouterOutputs, upiProblem } from "@repo/trpc/client";
 
 import { PickMenu } from "../../stock/pick-menu";
@@ -146,7 +146,7 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
 
   // look the IFSC up in our branch directory once it's complete; what it names is the bank and branch
   const ifscValid = IFSC.test(draft.ifscCode);
-  const named = trpc.accounts.bank.ifsc.useQuery({ ifsc: draft.ifscCode }, { enabled: ifscValid, staleTime: Infinity });
+  const named = useIfsc(draft.ifscCode, ifscValid);
   useEffect(() => {
     if (!ifscValid) return setLookup({ state: "idle" });
     if (named.isFetching && !named.data) return setLookup({ state: "looking" });
@@ -161,7 +161,7 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
 
   const setUpi = (key: string, patch: Partial<UpiDraft>) => onChange({ upiIds: draft.upiIds.map((u) => (u.key === key ? { ...u, ...patch } : u)) });
   // the banks from the branch directory (the built-in list until it has loaded, or if it's empty)
-  const directory = trpc.accounts.bank.banks.useQuery(undefined, { staleTime: Infinity });
+  const directory = useBankDirectory();
   const bankNames: readonly string[] = directory.data && directory.data.length > 0 ? directory.data : BANKS;
   const listed = bankNames.find((n) => n.toLowerCase() === draft.bankName.trim().toLowerCase());
 

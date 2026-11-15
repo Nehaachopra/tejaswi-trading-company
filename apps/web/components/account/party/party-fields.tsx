@@ -17,7 +17,7 @@ import { Spinner } from "~/components/ui/spinner";
 import { noDigits, titleCase } from "~/lib/format";
 import { indiaPostPlace, indiaPostTownPin } from "~/lib/india-post";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useSavedPlaces, useShortNameCheck } from "~/providers/accounts";
 import { GSTIN_PATTERN, PHONE_PATTERN, type RouterOutputs, upiFormatOk } from "@repo/trpc/client";
 
 import { PickMenu } from "../../stock/pick-menu";
@@ -345,7 +345,7 @@ export function AddressFields({
   // its must-haves are starred when it must be filled, or once anything is typed in it
   const must = required || !blank(address);
   const show = (field: keyof ReturnType<typeof addressProblems>) => tried && !!bad?.[field];
-  const utils = trpc.useUtils();
+  const savedPlaces = useSavedPlaces();
   const [lookup, setLookup] = useState<Lookup>({ state: "idle" });
   // its name being changed
   const [naming, setNaming] = useState(false);
@@ -407,8 +407,8 @@ export function AddressFields({
         fill({ ...place, stateCode: stateCodeOf(place.state) });
       });
 
-    utils.accounts.party.pinPlace
-      .fetch({ postalCode: pin })
+    savedPlaces
+      .pinPlace(pin)
       .catch(() => null)
       .then((saved) => {
         // the PIN changed while it looked
@@ -433,8 +433,8 @@ export function AddressFields({
         pinFromTown.current = place.postalCode;
         onChange({ postalCode: place.postalCode, district: place.district, ...(place.stateCode ? { state: place.state, stateCode: place.stateCode } : {}) });
       };
-      void utils.accounts.party.townPin
-        .fetch({ city })
+      void savedPlaces
+        .townPin(city)
         .catch(() => null)
         .then(async (saved) => {
           if (controller.signal.aborted) return;
@@ -713,7 +713,7 @@ export function PartyFields({
     const timer = setTimeout(() => setAskedShort(short), 300);
     return () => clearTimeout(timer);
   }, [short]);
-  const shortCheck = trpc.accounts.party.nameCheck.useQuery({ shortName: askedShort, exceptId: partyId }, { enabled: askedShort !== "", staleTime: 0 });
+  const shortCheck = useShortNameCheck(askedShort, partyId);
   useEffect(() => {
     const found = shortCheck.data;
     if (!found || askedShort !== short) return;

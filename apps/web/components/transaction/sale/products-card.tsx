@@ -30,7 +30,11 @@ export function ProductsCard() {
   // the products with a pack size not yet in the cart that can be sold (priced, with free stock)
   const taken = new Set(lines.map((l) => l.productId));
   const rest = products
-    .filter((g) => (!categoryId || g.categoryId === categoryId) && (!subCategoryId || g.subCategoryId === subCategoryId))
+    .filter(
+      (g) =>
+        (!categoryId || g.categoryId === categoryId) &&
+        (!subCategoryId || g.subCategoryId === subCategoryId),
+    )
     .map((g) => ({ ...g, packs: g.packs.filter((p) => !taken.has(p.productId) && sellable(p)) }))
     .filter((g) => g.packs.length > 0);
   const anySellable = products.some((g) => g.packs.some(sellable));
@@ -41,7 +45,9 @@ export function ProductsCard() {
       <div className="flex flex-col gap-2">
         <h3 className={heading}>{t("inCart")}</h3>
         {lines.length === 0 ? (
-          <p className="rounded-control border border-dashed border-chestnut/35 py-6 text-center text-sm opacity-80">{t("addFromBelow")}</p>
+          <p className="rounded-control border border-dashed border-chestnut/35 py-6 text-center text-sm opacity-80">
+            {t("addFromBelow")}
+          </p>
         ) : (
           <CartTable />
         )}
@@ -58,16 +64,25 @@ export function ProductsCard() {
           align="left"
           boxed
           floating
-          triggerClassName={cn(FILTER_TRIGGER, "min-h-10 shrink-0 rounded-control", categoryId && "border-chestnut bg-chestnut text-ivory")}
+          triggerClassName={cn(
+            FILTER_TRIGGER,
+            "min-h-10 shrink-0 rounded-control",
+            categoryId && "border-chestnut bg-chestnut text-ivory",
+          )}
           trigger={
             <>
-              <span className="truncate">{category ? titleCase(category.name) : t("allCategories")}</span>
+              <span className="truncate">
+                {category ? titleCase(category.name) : t("allCategories")}
+              </span>
               <ChevronDown className="size-4 shrink-0" aria-hidden />
             </>
           }
         >
           {(close) =>
-            [{ id: null, name: t("allCategories") }, ...categories.map((c) => ({ id: c.id, name: titleCase(c.name) }))].map((c) => (
+            [
+              { id: null, name: t("allCategories") },
+              ...categories.map((c) => ({ id: c.id, name: titleCase(c.name) })),
+            ].map((c) => (
               <MenuItem
                 key={c.id ?? "all"}
                 selected={categoryId === c.id}
@@ -90,16 +105,27 @@ export function ProductsCard() {
           boxed
           floating
           disabled={subs.length === 0}
-          triggerClassName={cn(FILTER_TRIGGER, "min-h-10 shrink-0 rounded-control", subCategoryId && "border-chestnut bg-chestnut text-ivory")}
+          triggerClassName={cn(
+            FILTER_TRIGGER,
+            "min-h-10 shrink-0 rounded-control",
+            subCategoryId && "border-chestnut bg-chestnut text-ivory",
+          )}
           trigger={
             <>
-              <span className="truncate">{subs.find((s) => s.id === subCategoryId) ? titleCase(subs.find((s) => s.id === subCategoryId)!.name) : t("allSubCategories")}</span>
+              <span className="truncate">
+                {subs.find((s) => s.id === subCategoryId)
+                  ? titleCase(subs.find((s) => s.id === subCategoryId)!.name)
+                  : t("allSubCategories")}
+              </span>
               <ChevronDown className="size-4 shrink-0" aria-hidden />
             </>
           }
         >
           {(close) =>
-            [{ id: null, name: t("allSubCategories") }, ...subs.map((s) => ({ id: s.id, name: titleCase(s.name) }))].map((s) => (
+            [
+              { id: null, name: t("allSubCategories") },
+              ...subs.map((s) => ({ id: s.id, name: titleCase(s.name) })),
+            ].map((s) => (
               <MenuItem
                 key={s.id ?? "all"}
                 selected={subCategoryId === s.id}
@@ -117,7 +143,9 @@ export function ProductsCard() {
       </div>
 
       {rest.length === 0 ? (
-        <p className="py-6 text-center text-sm opacity-70">{!anySellable ? t("noProducts") : lines.length > 0 ? t("allInCart") : t("noMatch")}</p>
+        <p className="py-6 text-center text-sm opacity-70">
+          {!anySellable ? t("noProducts") : lines.length > 0 ? t("allInCart") : t("noMatch")}
+        </p>
       ) : (
         <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
           {rest.map((group) => (
@@ -142,18 +170,19 @@ function SaleTile({ group }: { group: ProductGroup }) {
     <li className="flex min-w-0 flex-col gap-2 rounded-control border border-chestnut/15 p-2.5 sm:p-3.5">
       <TileTop group={group} pack={pack} onPack={setPicked} />
       {/* its price with GST, on chestnut, in the middle */}
-      <p className="tabular flex w-full items-center justify-center self-center truncate rounded-control bg-chestnut px-3 py-2 font-heading text-xl font-semibold text-ivory">
-        <span className="sr-only">{t("priceGst")}: </span>
-        {rupees(pack.priceAfterGst ?? 0)}
-      </p>
-      <button
-        type="button"
-        aria-haspopup="dialog"
-        onClick={() => setCardFor(pack.productId)}
-        className="mt-auto flex min-h-9 w-full items-center justify-center gap-1.5 rounded-control border border-chestnut/35 text-xs font-semibold hover:bg-chestnut/[0.06]"
-      >
-        <Plus className="size-3.5" aria-hidden /> {t("add")}
-      </button>
+      <div className="flex items-center justify-center gap-2">
+        <div className="flex flex-1 justify-center bg-chestnut rounded-lg py-1 tabular truncate font-heading text-xl font-semibold text-ivory">
+          {rupees(pack.priceAfterGst ?? 0)}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setCardFor(pack.productId)}
+          className="mt-auto flex min-h-9 px-2 items-center justify-center gap-1 rounded-control border border-chestnut/35 text-xs font-semibold hover:bg-chestnut/[0.06]"
+        >
+          <Plus className="size-4.5" aria-hidden /> {t("add")}
+        </button>
+      </div>
     </li>
   );
 }

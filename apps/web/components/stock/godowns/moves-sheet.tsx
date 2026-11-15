@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { Sheet } from "~/components/ui/sheet";
 import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
-import { trpc } from "~/trpc/client";
+import { useStockMoves } from "~/providers/stock";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { PickMenu } from "../pick-menu";
@@ -20,11 +20,10 @@ const PAGE = 30;
 export function MovesSheet({ open, godowns, onClose }: { open: boolean; godowns: { id: string; name: string }[]; onClose: () => void }) {
   const t = useTranslations("stock.moves");
   const format = useFormatter();
-  const utils = trpc.useUtils();
   const [godownId, setGodownId] = useState<string | null>(null);
 
   // the first page, then older pages appended below it
-  const first = trpc.inventory.stock.moves.useQuery({ godownId: godownId ?? undefined, limit: PAGE }, { enabled: open });
+  const { first, fetchOlder } = useStockMoves({ godownId: godownId ?? undefined, limit: PAGE }, open);
   const [older, setOlder] = useState<Move[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -40,7 +39,7 @@ export function MovesSheet({ open, godowns, onClose }: { open: boolean; godowns:
     if (!last) return;
     setLoadingMore(true);
     try {
-      const page = await utils.inventory.stock.moves.fetch({ godownId: godownId ?? undefined, before: last.movedAt, limit: PAGE });
+      const page = await fetchOlder(last.movedAt);
       setOlder((o) => [...o, ...page]);
       setHasMore(page.length === PAGE);
     } finally {

@@ -7,7 +7,7 @@ import { fieldClass } from "~/components/ui/card-form";
 import { NumberInput } from "~/components/ui/number-input";
 import { Switch } from "~/components/ui/switch";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useLandlordChoices } from "~/providers/entities";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { LandlordSearch } from "../../entities/landlord-search";
@@ -93,7 +93,7 @@ export function GodownFields({
   const bad = draftProblems(draft);
   const show = (field: keyof typeof bad) => tried && bad[field];
   // the landlords to pick from
-  const landlords = trpc.accounts.landlord.pick.useQuery(undefined, { enabled: draft.ownership === "rented" });
+  const landlords = useLandlordChoices(draft.ownership === "rented");
   const rentedLabel = useId();
 
   return (

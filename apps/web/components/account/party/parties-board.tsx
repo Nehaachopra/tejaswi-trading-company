@@ -10,7 +10,7 @@ import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useParties } from "~/providers/accounts";
 
 import { chip } from "../../product/row-styles";
 import { postDatedText } from "../balance";
@@ -40,10 +40,7 @@ export function PartiesBoard({ type }: { type: PartyType }) {
     return () => clearTimeout(timer);
   }, [typed]);
 
-  const parties = trpc.accounts.party.list.useQuery(
-    { master: kind.master, includeInactive: showInactive, search },
-    { placeholderData: (previous) => previous },
-  );
+  const parties = useParties({ master: kind.master, includeInactive: showInactive, search });
   // the places these parties are in, and the ones in the picked place
   const cities = [
     ...new Set((parties.data ?? []).map((p) => p.city).filter((c): c is string => !!c)),

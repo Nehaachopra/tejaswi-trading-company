@@ -9,7 +9,7 @@ import { PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
 import { useBankName } from "~/lib/bank-names";
 import { titleCase } from "~/lib/format";
-import { trpc } from "~/trpc/client";
+import { useBank } from "~/providers/accounts";
 
 import { DetailRows, DetailsCard, DetailsEdit } from "../details-card";
 import { LedgerStatement } from "../ledger-statement";
@@ -22,7 +22,7 @@ export function BankPage({ bankId }: { bankId: string }) {
   const bankName = useBankName();
   const t = useTranslations("accounts.bank");
   const tf = useTranslations("accounts.bank.form");
-  const bank = trpc.accounts.bank.get.useQuery({ id: bankId });
+  const bank = useBank(bankId);
   // its details being changed, in the bank form
   const [editing, setEditing] = useState(false);
 

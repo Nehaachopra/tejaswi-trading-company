@@ -16,7 +16,7 @@ import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
 import { useBankName } from "~/lib/bank-names";
-import { trpc } from "~/trpc/client";
+import { useBankActions, useBanks } from "~/providers/accounts";
 
 import { BankSheet } from "../account/bank/bank-sheet";
 import { chip } from "../product/row-styles";
@@ -31,10 +31,9 @@ export function BanksManager() {
   const tc = useTranslations("common");
   const t = useTranslations("banks");
   const tb = useTranslations("accounts.bank");
-  const utils = trpc.useUtils();
-  const setActive = trpc.accounts.bank.setActive.useMutation();
+  const { setActive, refreshAccounts } = useBankActions();
   const [showInactive, setShowInactive] = useState(false);
-  const banks = trpc.accounts.bank.list.useQuery({ includeInactive: showInactive });
+  const banks = useBanks(showInactive);
   const [search, setSearch] = useState("");
   // the sheet: a new account, or the one being edited
   const [open, setOpen] = useState<string | "new" | null>(null);
@@ -57,7 +56,7 @@ export function BanksManager() {
     try {
       await setActive.mutateAsync({ id, isActive: makeActive });
       toast.success(tb(makeActive ? "toast.reactivated" : "toast.deactivated", { name }));
-      void utils.accounts.invalidate();
+      refreshAccounts();
     } catch (err) {
       const code = (err as { data?: { code?: string } })?.data?.code;
       toast.error(

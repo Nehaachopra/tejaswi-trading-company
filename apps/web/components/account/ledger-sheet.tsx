@@ -8,7 +8,7 @@ import { FieldMessage } from "~/components/ui/field-message";
 import { Sheet } from "~/components/ui/sheet";
 import { toast } from "~/components/ui/toast";
 import { titleCase } from "~/lib/format";
-import { trpc } from "~/trpc/client";
+import { useLedgerActions } from "~/providers/accounts";
 
 import { type TdsType, TdsTypePicker } from "../transaction/pickers/tds-type-picker";
 import { type Head, usualSide } from "./balance";
@@ -27,9 +27,7 @@ const input = (bad: boolean) => `min-h-11 w-full min-w-0 px-3 text-base placehol
 export function LedgerSheet({ open, onClose }: { open: LedgerSheetFor | null; onClose: () => void }) {
   const t = useTranslations("accounts.ledgerForm");
   const th = useTranslations("accounts.overview.heads");
-  const utils = trpc.useUtils();
-  const create = trpc.accounts.ledger.create.useMutation();
-  const update = trpc.accounts.ledger.update.useMutation();
+  const { create, update, refreshAccounts } = useLedgerActions();
   const [name, setName] = useState("");
   // an expense head's TDS (rent, transport and labour, brokerage)
   const [tdsType, setTdsType] = useState<TdsType | null>(null);
@@ -60,7 +58,7 @@ export function LedgerSheet({ open, onClose }: { open: LedgerSheetFor | null; on
           ? await create.mutateAsync({ head: open!.head, name: name.trim(), tdsType: tds })
           : await update.mutateAsync({ id: open!.id, name: name.trim(), ...(open!.head === "expense" ? { tdsType: tds } : {}) });
       toast.success(t(open!.kind === "new" ? "toast.added" : "toast.saved", { name: titleCase(saved.name) }));
-      void utils.accounts.invalidate();
+      refreshAccounts();
       onClose();
     } catch (err) {
       const data = (err as { data?: { code?: string } })?.data;

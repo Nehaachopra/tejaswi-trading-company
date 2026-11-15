@@ -12,7 +12,7 @@ import { NumberInput } from "~/components/ui/number-input";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useOpening } from "~/providers/accounts";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { type Head, indiaDay, startOfIndiaDay, usualSide } from "./balance";
@@ -51,9 +51,7 @@ export function OpeningBoard() {
   const tm = useTranslations("accounts.overview.masters");
   const tn = useTranslations("shell.nav");
   const nameOf = useLedgerName();
-  const utils = trpc.useUtils();
-  const sheet = trpc.accounts.opening.get.useQuery();
-  const save = trpc.accounts.opening.save.useMutation();
+  const { sheet, save, refreshAccounts } = useOpening();
 
   const [date, setDate] = useState("");
   const [amounts, setAmounts] = useState<Record<string, string>>({});
@@ -99,7 +97,7 @@ export function OpeningBoard() {
           }),
       });
       toast.success(t("saved"));
-      void utils.accounts.invalidate();
+      refreshAccounts();
     } catch (err) {
       const data = (err as { data?: { code?: string } })?.data;
       setError(t(`errors.${data ? "failed" : "network"}`));

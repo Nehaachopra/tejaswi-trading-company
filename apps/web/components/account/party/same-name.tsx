@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { titleCase } from "~/lib/format";
-import { trpc } from "~/trpc/client";
+import { useSameNameCheck } from "~/providers/accounts";
 
 import type { PartyDraft } from "./party-fields";
 
@@ -13,7 +13,7 @@ import type { PartyDraft } from "./party-fields";
 // the same name in another town is saved without asking. `confirm` resolves true to go on, false to go back
 export function useSameNameConfirm() {
   const t = useTranslations("accounts.party.form.sameName");
-  const utils = trpc.useUtils();
+  const sameNameCheck = useSameNameCheck();
   const [asking, setAsking] = useState<{ body: string; answer: (go: boolean) => void } | null>(null);
 
   async function confirm(d: PartyDraft, exceptId: string | null = null) {
@@ -22,7 +22,7 @@ export function useSameNameConfirm() {
     const city = address?.city.trim() ?? "";
     if (!name || !city) return true;
     // asked fresh each time (a party just added counts)
-    const found = await utils.client.accounts.party.nameCheck.query({ name, city, exceptId }).catch(() => null);
+    const found = await sameNameCheck({ name, city, exceptId }).catch(() => null);
     if (!found || found.sameInTown.length === 0) return true;
     return new Promise<boolean>((answer) => setAsking({ body: t("body", { name: titleCase(name), city: titleCase(city) }), answer }));
   }

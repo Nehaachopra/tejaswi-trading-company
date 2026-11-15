@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 
-import { getSession } from "~/trpc/session";
+import { getSession } from "~/lib/session";
 
 // categories (with their sub-categories) and products: both pages are for the admin only
 // (the shell has already made sure someone is signed in)

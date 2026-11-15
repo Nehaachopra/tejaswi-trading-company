@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { SaleForm } from "~/components/transaction/sale/form";
-import { getSession } from "~/trpc/session";
+import { getSession } from "~/lib/session";
 
 export const metadata: Metadata = { title: "Sale · Tejaswi trading company" };
 

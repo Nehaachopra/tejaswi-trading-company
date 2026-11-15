@@ -11,20 +11,16 @@ import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
 
-import { type SubCategory, useCategoryCache } from "../categories/category-cache";
+import { type SubCategory, useCategoryCache, useSubCategoryActions } from "~/providers/categories";
 import { type CategoryError, categoryError, NAME_MAX, nameProblem } from "../categories/category-errors";
 import { actionBox, iconButton, rowBodyInline, rowShellOnIvory, segmentInline } from "../row-styles";
 
 // one sub-category inside its category's sheet: name and product count, then Rename, Deactivate and Delete
 export function SubCategoryRow({ sub }: { sub: SubCategory }) {
   const t = useTranslations("products.subCategories");
-  const utils = trpc.useUtils();
   const cache = useCategoryCache();
-  const rename = trpc.inventory.subCategory.rename.useMutation();
-  const setActive = trpc.inventory.subCategory.setActive.useMutation();
-  const remove = trpc.inventory.subCategory.delete.useMutation();
+  const { rename, setActive, remove } = useSubCategoryActions();
 
   // the delete confirmation is open
   const [confirming, setConfirming] = useState(false);
@@ -60,7 +56,7 @@ export function SubCategoryRow({ sub }: { sub: SubCategory }) {
       if (key !== "taken") return toast.error(t(`errors.${key}`));
 
       // taken: say so plainly when it's by an inactive sub-category of the same category
-      const all = await utils.inventory.category.list.fetch({ includeInactive: true });
+      const all = await cache.fetchAll();
       const siblings = all.find((c) => c.id === sub.categoryId)?.subCategories ?? [];
       const hidden = siblings.some((s) => !s.isActive && s.name === name.trim().toLowerCase());
       setError(hidden ? "takenInactive" : "taken");

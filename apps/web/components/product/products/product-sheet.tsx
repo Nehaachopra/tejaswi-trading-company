@@ -1,21 +1,26 @@
 "use client";
 
-import { Eye, EyeOff, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, Plus, Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { SubmitButton } from "~/components/ui/card-form";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { FieldMessage } from "~/components/ui/field-message";
+import { addSquare } from "~/components/ui/page-styles";
 import { Sheet } from "~/components/ui/sheet";
 import { toast } from "~/components/ui/toast";
 import { packLabel, titleCase } from "~/lib/format";
+import { parseAmount } from "~/lib/price";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useProductActions } from "~/providers/products";
 
 import { PlainRows } from "../../transaction/shared/amount-table";
 import { categoryError } from "../categories/category-errors";
-import { type DetailsDraft, draftFrom, draftOk, ProductDetails } from "./product-details";
+import { PackChips } from "./pack-chips";
+import { type DetailsDraft, draftFrom, draftOk, draftProblems, ProductDetails, settleDraft } from "./product-details";
+import { RatePriceFields } from "./rate-price-fields";
+import { NewProductSheet } from "./new-product-sheet";
 import { type ProductGroup, productTitle } from "./product-tile";
 
 // a part's heading, as the payment's Breakup is headed
@@ -25,35 +30,32 @@ const part = "mt-2.5 border-t border-chestnut/15 pt-[18px]";
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
-type Utils = ReturnType<typeof trpc.useUtils>;
-// take a pack size off the cards at once (a product with no pack size left goes too): from the lists that hide
-// inactive ones (made inactive), or from every list (deleted); the refetch after then confirms it
-function dropPack(utils: Utils, productId: string, everywhere: boolean) {
-  utils.inventory.product.list.setQueriesData(
-    {},
-    { predicate: (q) => everywhere || !(q.queryKey[1] as { input?: { includeInactive?: boolean } } | undefined)?.input?.includeInactive },
-    (groups) =>
-      groups?.map((g) => ({ ...g, packs: g.packs.filter((p) => p.productId !== productId) })).filter((g) => g.packs.length > 0),
-  );
-}
-
 // one pack size's details drawer, opened from the pen on its card's photo: Active and ✕ on top, then Product details
-// (all changeable), Price details and Quantity details (both read only), and Save details
+// (all changeable), Price details (rate and price changeable), Quantity details (read only), and Save details
 export function ProductSheet({
   group,
   packId,
+  onPack,
   onClose,
 }: {
   group: ProductGroup | null;
   packId: string | null;
+  // another of its pack sizes picked from the chips on top
+  onPack: (productId: string) => void;
   onClose: () => void;
 }) {
   const t = useTranslations("products.items");
-  const utils = trpc.useUtils();
-  const update = trpc.inventory.product.updateDetails.useMutation();
-  const remove = trpc.inventory.product.delete.useMutation();
+  const { updateDetails: update, updatePrice, remove, refreshProducts, refreshPrices, dropPack } = useProductActions();
   // the delete confirmation is open
   const [confirming, setConfirming] = useState(false);
+  // "Create a new product?" is open (Save details with the category, sub-category or brand changed), and which of
+  // its answers is being saved
+  const [asking, setAsking] = useState(false);
+  const [saving, setSaving] = useState<"all" | "one">("all");
+  // the details, then the price, are being saved
+  const [busy, setBusy] = useState(false);
+  // Add product is open over this one
+  const [addingPack, setAddingPack] = useState(false);
   const pack = group?.packs.find((p) => p.productId === packId) ?? null;
 
   const [draft, setDraft] = useState<DetailsDraft | null>(null);
@@ -75,19 +77,48 @@ export function ProductSheet({
 
   const change = (patch: Partial<DetailsDraft>) => {
     setError(null);
-    setDraft((d) => (d ? { ...d, ...patch } : d));
+    setDraft((d) => (d ? settleDraft(d, patch) : d));
   };
 
-  // save everything at once; a new GST % keeps the price with GST
-  async function save(e: React.FormEvent) {
+  // the category, sub-category or brand is no longer the saved one
+  const saved = draftFrom(group, pack);
+  const moved =
+    draft.categoryId !== saved.categoryId ||
+    draft.subCategoryId !== saved.subCategoryId ||
+    draft.brand.trim().toLowerCase() !== saved.brand.trim().toLowerCase();
+
+  // Save details: with the category, sub-category or brand changed, ask first whether a new product is wanted
+  function save(e: React.FormEvent) {
     e.preventDefault();
     setTried(true);
     setError(null);
     if (!draft || !draftOk(draft) || photoBusy) return;
-    const saved = draftFrom(group!, pack!);
+    // a product with one pack size has nothing to choose between
+    if (moved && group!.packs.length > 1) return setAsking(true);
+    void saveDetails("all");
+  }
+
+  // Undo changes: the category, sub-category and brand go back to the saved ones; everything else typed stays
+  function undoMove() {
+    setAsking(false);
+    change({ categoryId: saved.categoryId, subCategoryId: saved.subCategoryId, brand: saved.brand });
+  }
+
+  // save everything at once; a new GST % keeps the price with GST. "all": the category, sub-category, brand and HSN
+  // go on every pack size of the product. "one": only this pack size takes them, so it leaves the others and becomes
+  // a product of its own, with its stock, price and history
+  async function saveDetails(scope: "all" | "one") {
+    if (!draft) return;
+    setSaving(scope);
+    setBusy(true);
+    // the price with GST, saved only when it was changed
+    const price = parseAmount(draft.price)!;
+    const newPrice = () => updatePrice.mutateAsync({ productId: pack!.productId, priceAfterGst: price, gstPercent: Number(draft.gst) });
     try {
+      // a pack size with no price yet needs one before its details can be saved
+      if (pack!.priceAfterGst == null) await newPrice();
       await update.mutateAsync({
-        productIds: group!.packs.map((p) => p.productId),
+        productIds: scope === "one" ? [pack!.productId] : group!.packs.map((p) => p.productId),
         categoryId: draft.categoryId,
         subCategoryId: draft.subCategoryId!,
         brand: draft.brand,
@@ -103,38 +134,39 @@ export function ProductSheet({
         // the photo is this pack size's own, sent only when it was changed
         image: draft.imageUrl !== saved.imageUrl ? { productId: pack!.productId, imageUrl: draft.imageUrl } : undefined,
       });
+      if (pack!.priceAfterGst != null && price !== pack!.priceAfterGst) await newPrice();
       // made inactive: off the cards at once
-      if (!draft.isActive && pack!.isActive) dropPack(utils, pack!.productId, false);
+      if (!draft.isActive && pack!.isActive) dropPack(pack!.productId, false);
       toast.success(t("form.toast.saved", { name: `${titleCase(draft.brand.trim())} ${packLabel(Number(draft.packSize), draft.packSizeCode)}` }));
-      void utils.inventory.product.list.invalidate();
-      void utils.inventory.category.list.invalidate();
-      void utils.inventory.product.priceHistory.invalidate({ productId: pack!.productId });
+      refreshProducts();
+      refreshPrices(pack!.productId);
+      setAsking(false);
       onClose();
     } catch (err) {
+      setAsking(false);
       const key = categoryError(err);
       setError(t(`form.errors.${key === "hasProducts" ? "inactive" : key === "invalidName" ? "check" : key}`));
+    } finally {
+      setBusy(false);
     }
   }
 
   // only a pack size with no quantity left (none in stock, none reserved) can be deleted
   const canDelete = pack.quantity === 0 && pack.reservedQuantity === 0;
-  const name = `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode)}`;
+  const name: string =`${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode)}`;
 
   // delete, once confirmed: off the cards and the sheet closed at once; back with a red toast if the server refuses
   // (an open order still has it, or stock arrived meanwhile)
   function deletePack() {
     const productId = pack!.productId;
     setConfirming(false);
-    dropPack(utils, productId, true);
+    dropPack(productId, true);
     onClose();
     toast.success(t("toast.deleted", { pack: name }));
     remove.mutate(
       { productIds: [productId] },
       {
-        onSettled: () => {
-          void utils.inventory.product.list.invalidate();
-          void utils.inventory.category.list.invalidate();
-        },
+        onSettled: refreshProducts,
         onError: (err) => {
           const key = categoryError(err);
           toast.error(t(`errors.${key === "hasProducts" ? "used" : key === "invalidName" ? "failed" : key}`));
@@ -143,8 +175,8 @@ export function ProductSheet({
     );
   }
 
-  // price details: the saved price with GST, split by the GST % typed above
-  const price = pack.priceAfterGst;
+  // price details: the typed price with GST, split by the GST % typed above
+  const price = parseAmount(draft.price);
   const gst = Number(draft.gst) || 0;
   const before = price == null ? null : round2(price / (1 + gst / 100));
   const priceRows = [
@@ -162,15 +194,13 @@ export function ProductSheet({
   ];
 
   return (
+    <>
     <Sheet
       open
       title={`${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode)}`}
       closeLabel={t("close")}
       onClose={onClose}
       bareHeader
-      // Active on the left, in place of a title
-      // nothing on the left (the title is read out, not shown)
-      visual={<span aria-hidden />}
       // on the right: the eye (open while it shows on the cards, crossed out once hidden; saved with Save details),
       // the bin (only while no quantity is left) and ✕; all three the same plain chestnut icons, no borders
       actions={
@@ -215,10 +245,39 @@ export function ProductSheet({
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5 [&>*]:shrink-0">
           {/* product details: all changeable */}
           <h3 className={heading}>{t("productDetails")}</h3>
-          <ProductDetails draft={draft} onChange={change} onPhotoBusy={setPhotoBusy} tried={tried} />
+          <ProductDetails
+            draft={draft}
+            onChange={change}
+            onPhotoBusy={setPhotoBusy}
+            tried={tried}
+            // after the brand: the product's pack sizes on one line that scrolls, this one filled (another one tapped
+            // opens its details here); the + that opens Add product stays put at the end
+            chips={
+              <PackChips
+                packs={group.packs}
+                selected={pack.productId}
+                onSelect={onPack}
+                label={t("packSizes")}
+                end={
+                  <button type="button" aria-label={t("addPack")} title={t("addPack")} onClick={() => setAddingPack(true)} className={addSquare("size-8")}>
+                    <Plus className="size-4" aria-hidden />
+                  </button>
+                }
+              />
+            }
+          />
 
-          {/* price details: read only, the payment breakup's rows */}
+          {/* price details: rate and price (either fills in the other), then the split in the payment breakup's rows */}
           <h3 className={`${heading} ${part}`}>{t("priceDetails")}</h3>
+          <RatePriceFields
+            unit={t(`form.units.${draft.packSizeCode}`)}
+            rate={draft.rate}
+            price={draft.price}
+            onRate={(rate) => change({ rate })}
+            onPrice={(price) => change({ price })}
+            priceInvalid={tried && draftProblems(draft).price}
+            rows
+          />
           <PlainRows rows={priceRows} />
 
           {/* quantity details: read only, the same rows */}
@@ -230,7 +289,7 @@ export function ProductSheet({
         <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
           {tried && !draftOk(draft) && <FieldMessage className="mt-0">{t("form.errors.fill")}</FieldMessage>}
           {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
-          <SubmitButton busy={update.isPending} disabled={photoBusy}>
+          <SubmitButton busy={busy} disabled={photoBusy}>
             {t("form.saveDetails")}
           </SubmitButton>
         </footer>
@@ -247,6 +306,39 @@ export function ProductSheet({
         onConfirm={deletePack}
         onCancel={() => setConfirming(false)}
       />
+
+      {/* the category, sub-category or brand was changed: this pack size becomes a new product, or every pack size
+          changes, or the three go back */}
+      <ConfirmDialog
+        open={asking}
+        tone="plain"
+        title={t("form.newProduct.title")}
+        body={t("form.newProduct.bodyEdit", { pack: packLabel(pack.packSize, pack.packSizeCode), name: productTitle(group) })}
+        confirmLabel={t("form.newProduct.yes")}
+        cancelLabel={t("form.newProduct.no")}
+        busy={busy && saving === "one"}
+        onConfirm={() => void saveDetails("one")}
+        extra={{ label: t("form.newProduct.all"), busy: busy && saving === "all", onClick: () => void saveDetails("all") }}
+        onCancel={undoMove}
+      />
     </Sheet>
+
+    {/* Add product, starting with this product's category, sub-category and brand, its pack sizes among the chips */}
+    <NewProductSheet
+      open={addingPack}
+      onClose={() => setAddingPack(false)}
+      from={{
+        categoryId: group.categoryId,
+        subCategoryId: group.subCategoryId,
+        brand: titleCase(group.brand),
+        name: group.name,
+        packs: group.packs,
+        onPack: (productId) => {
+          setAddingPack(false);
+          onPack(productId);
+        },
+      }}
+    />
+    </>
   );
 }

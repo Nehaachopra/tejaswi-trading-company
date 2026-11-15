@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { FILTER_TRIGGER } from "~/components/ui/page-styles";
-import { titleCase } from "~/lib/format";
+import { rupees, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 import { type ProductGroup, TileTop } from "../../../product/products/product-tile";
@@ -30,9 +30,18 @@ export function ProductsCard() {
   // the products not yet (fully) on the order, each with only its pack sizes still off it
   const taken = new Set(lines.map((l) => l.productId));
   const rest = products
-    .filter((g) => (!categoryId || g.categoryId === categoryId) && (!subCategoryId || g.subCategoryId === subCategoryId))
+    .filter(
+      (g) =>
+        (!categoryId || g.categoryId === categoryId) &&
+        (!subCategoryId || g.subCategoryId === subCategoryId),
+    )
     // a sale offers only pack sizes with stock free to order (not held for another order)
-    .map((g) => ({ ...g, packs: g.packs.filter((p) => !taken.has(p.productId) && (kind !== "sale" || p.unreservedQuantity > 0)) }))
+    .map((g) => ({
+      ...g,
+      packs: g.packs.filter(
+        (p) => !taken.has(p.productId) && (kind !== "sale" || p.unreservedQuantity > 0),
+      ),
+    }))
     .filter((g) => g.packs.length > 0);
 
   return (
@@ -41,7 +50,9 @@ export function ProductsCard() {
       <div className="flex flex-col gap-2">
         <p className={heading}>{t("onOrder")}</p>
         {lines.length === 0 ? (
-          <p className="rounded-control border border-dashed border-chestnut/35 py-6 text-center text-sm opacity-80">{t("addFromBelow")}</p>
+          <p className="rounded-control border border-dashed border-chestnut/35 py-6 text-center text-sm opacity-80">
+            {t("addFromBelow")}
+          </p>
         ) : (
           <OrderTable />
         )}
@@ -58,16 +69,25 @@ export function ProductsCard() {
           align="left"
           boxed
           floating
-          triggerClassName={cn(FILTER_TRIGGER, "min-h-10 shrink-0 rounded-control", categoryId && "border-chestnut bg-chestnut text-ivory")}
+          triggerClassName={cn(
+            FILTER_TRIGGER,
+            "min-h-10 shrink-0 rounded-control",
+            categoryId && "border-chestnut bg-chestnut text-ivory",
+          )}
           trigger={
             <>
-              <span className="truncate">{category ? titleCase(category.name) : t("allCategories")}</span>
+              <span className="truncate">
+                {category ? titleCase(category.name) : t("allCategories")}
+              </span>
               <ChevronDown className="size-4 shrink-0" aria-hidden />
             </>
           }
         >
           {(close) =>
-            [{ id: null, name: t("allCategories") }, ...categories.map((c) => ({ id: c.id, name: titleCase(c.name) }))].map((c) => (
+            [
+              { id: null, name: t("allCategories") },
+              ...categories.map((c) => ({ id: c.id, name: titleCase(c.name) })),
+            ].map((c) => (
               <MenuItem
                 key={c.id ?? "all"}
                 selected={categoryId === c.id}
@@ -90,16 +110,27 @@ export function ProductsCard() {
           boxed
           floating
           disabled={subs.length === 0}
-          triggerClassName={cn(FILTER_TRIGGER, "min-h-10 shrink-0 rounded-control", subCategoryId && "border-chestnut bg-chestnut text-ivory")}
+          triggerClassName={cn(
+            FILTER_TRIGGER,
+            "min-h-10 shrink-0 rounded-control",
+            subCategoryId && "border-chestnut bg-chestnut text-ivory",
+          )}
           trigger={
             <>
-              <span className="truncate">{subs.find((s) => s.id === subCategoryId)?.name ? titleCase(subs.find((s) => s.id === subCategoryId)!.name) : t("allSubCategories")}</span>
+              <span className="truncate">
+                {subs.find((s) => s.id === subCategoryId)?.name
+                  ? titleCase(subs.find((s) => s.id === subCategoryId)!.name)
+                  : t("allSubCategories")}
+              </span>
               <ChevronDown className="size-4 shrink-0" aria-hidden />
             </>
           }
         >
           {(close) =>
-            [{ id: null, name: t("allSubCategories") }, ...subs.map((s) => ({ id: s.id, name: titleCase(s.name) }))].map((s) => (
+            [
+              { id: null, name: t("allSubCategories") },
+              ...subs.map((s) => ({ id: s.id, name: titleCase(s.name) })),
+            ].map((s) => (
               <MenuItem
                 key={s.id ?? "all"}
                 selected={subCategoryId === s.id}
@@ -117,11 +148,19 @@ export function ProductsCard() {
       </div>
 
       {rest.length === 0 ? (
-        <p className="py-6 text-center text-sm opacity-70">{products.length === 0 ? t("noProducts") : t("allOnOrder")}</p>
+        <p className="py-6 text-center text-sm opacity-70">
+          {products.length === 0 ? t("noProducts") : t("allOnOrder")}
+        </p>
       ) : (
         <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
           {rest.map((group) => (
-            <RestTile key={group.key} group={group} onAdd={setCardFor} addLabel={t("add")} />
+            <RestTile
+              key={group.key}
+              group={group}
+              onAdd={setCardFor}
+              addLabel={t("add")}
+              kind={kind}
+            />
           ))}
         </ul>
       )}
@@ -134,20 +173,44 @@ export function ProductsCard() {
 
 // a product not (fully) on the order: Add under the photo opens the line card for the pack size picked on its chips (the first
 // to start)
-function RestTile({ group, onAdd, addLabel }: { group: ProductGroup; onAdd: (productId: string) => void; addLabel: string }) {
+function RestTile({
+  group,
+  onAdd,
+  addLabel,
+  kind,
+}: {
+  group: ProductGroup;
+  onAdd: (productId: string) => void;
+  addLabel: string;
+  kind: "sale" | "purchase" | null;
+}) {
   const [picked, setPicked] = useState(group.packs[0]!.productId);
   const pack = group.packs.find((p) => p.productId === picked) ?? group.packs[0]!;
   return (
     <li className="flex min-w-0 flex-col gap-2 rounded-control border border-chestnut/15 p-3.5">
       <TileTop group={group} pack={pack} onPack={setPicked} />
       {/* under the photo: open the line card for the pack size picked */}
-      <button
+      {kind === "sale" ? (
+        <div className="flex items-center justify-center gap-2">
+          <div className="flex flex-1 justify-center bg-chestnut rounded-lg py-1 tabular truncate font-heading text-xl font-semibold text-ivory">
+            {rupees(pack.priceAfterGst ?? 0)}
+          </div>
+
+          <button
         type="button"
         onClick={() => onAdd(pack.productId)}
-        className="mt-auto flex min-h-9 w-full items-center justify-center gap-1.5 rounded-control border border-chestnut/35 text-xs font-semibold hover:bg-chestnut/[0.06]"
+        className="mt-auto flex p-2 items-center justify-center gap-1 rounded-control border border-chestnut/35 text-xs font-semibold hover:bg-chestnut/[0.06]"
       >
-        <Plus className="size-3.5" aria-hidden /> {addLabel}
+        <Plus className="size-5" aria-hidden /> {addLabel}
       </button>
+        </div>
+      ): <button
+        type="button"
+        onClick={() => onAdd(pack.productId)}
+        className="mt-auto flex w-full items-center justify-center gap-1.5 rounded-control border border-chestnut/35 text-xs font-semibold p-2 hover:bg-chestnut/[0.06]"
+      >
+        <Plus className="size-5" aria-hidden /> {addLabel}
+      </button>}
     </li>
   );
 }

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 
-import { trpc } from "~/trpc/client";
+import { useLoginCalls } from "~/providers/session";
 
 export type Step = "phone" | "code";
 export type LoginError = "invalidPhone" | "notRegistered" | "tooMany" | "wrongCode" | "network";
@@ -39,8 +39,7 @@ function useLoginState(next: string) {
   // stays true after a correct code while the next page loads, so the spinner doesn't stop early
   const [signingIn, setSigningIn] = useState(false);
 
-  const requestOtp = trpc.auth.requestOtp.useMutation();
-  const verifyOtp = trpc.auth.verifyOtp.useMutation();
+  const { requestOtp, verifyOtp } = useLoginCalls();
 
   useEffect(() => {
     if (resendIn <= 0) return;

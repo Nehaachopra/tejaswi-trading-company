@@ -5,7 +5,7 @@ import { useId, useState } from "react";
 
 import { Spinner } from "~/components/ui/spinner";
 import { rupees } from "~/lib/format";
-import { trpc } from "~/trpc/client";
+import { usePriceHistory } from "~/providers/products";
 
 // the drawing's own units; it scales to the card's width
 const W = 160;
@@ -41,7 +41,7 @@ export function PriceChart({ productId }: { productId: string }) {
   const t = useTranslations("products.items.chart");
   const locale = useLocale();
   const fadeId = useId();
-  const history = trpc.inventory.product.priceHistory.useQuery({ productId, range: "recent" });
+  const history = usePriceHistory(productId);
   const [tip, setTip] = useState<number | null>(null);
 
   if (history.isPending) {

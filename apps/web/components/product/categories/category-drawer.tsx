@@ -11,10 +11,9 @@ import { Sheet } from "~/components/ui/sheet";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { titleCase } from "~/lib/format";
-import { trpc } from "~/trpc/client";
 
 import { SubCategoryRow } from "../sub-categories/sub-category-row";
-import { type Category, useCategoryCache } from "./category-cache";
+import { type Category, useCategoryCache, useSubCategoryActions } from "~/providers/categories";
 import { type CategoryError, categoryError, NAME_MAX, nameProblem } from "./category-errors";
 
 type Option = { id: string; name: string };
@@ -22,10 +21,8 @@ type Option = { id: string; name: string };
 // a category's sub-categories, in a sheet: add one at the top, then one row each
 export function CategoryDrawer({ category, onClose }: { category: Category | null; onClose: () => void }) {
   const t = useTranslations("products.subCategories");
-  const utils = trpc.useUtils();
   const cache = useCategoryCache();
-  const create = trpc.inventory.subCategory.create.useMutation();
-  const reactivate = trpc.inventory.subCategory.setActive.useMutation();
+  const { create, setActive: reactivate } = useSubCategoryActions();
 
   // the add field, its problem, and an inactive sub-category that already has the name
   const [name, setName] = useState("");
@@ -62,7 +59,7 @@ export function CategoryDrawer({ category, onClose }: { category: Category | nul
       if (key !== "taken") return toast.error(t(`errors.${key}`));
 
       // taken: if it's by an inactive sub-category here, say so and offer to bring it back
-      const all = await utils.inventory.category.list.fetch({ includeInactive: true });
+      const all = await cache.fetchAll();
       const siblings = all.find((c) => c.id === category.id)?.subCategories ?? [];
       const match = siblings.find((s) => !s.isActive && s.name === name.trim().toLowerCase());
       setInactive(match ? { id: match.id, name: match.name } : null);

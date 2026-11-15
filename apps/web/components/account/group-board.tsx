@@ -8,7 +8,7 @@ import { useState } from "react";
 import { PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
-import { trpc } from "~/trpc/client";
+import { useLedgerGroup } from "~/providers/accounts";
 
 import { postDatedText } from "./balance";
 import { GroupHeader, GroupSearch } from "./group-header";
@@ -25,7 +25,7 @@ type Group = "lenders" | "personalLenders" | "agents" | "rentPayable" | "employe
 export function GroupBoard({ master }: { master: Group }) {
   const t = useTranslations("accounts.overview");
   const nameOf = useLedgerName();
-  const ledgers = trpc.accounts.ledger.group.useQuery({ master });
+  const ledgers = useLedgerGroup(master);
   // every one of these sits under Liability
   const head = "liability" as const;
   // a search over the ledger's name and a party's full name

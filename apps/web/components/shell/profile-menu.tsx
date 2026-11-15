@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
-import { trpc } from "~/trpc/client";
+import { useLogout } from "~/providers/session";
 
 import type { Role } from "./nav-items";
 
@@ -24,7 +24,7 @@ const initials = (name: string) =>
 export function ProfileMenu({ name, role }: { name: string; role: Role }) {
   const t = useTranslations("shell");
   const router = useRouter();
-  const logout = trpc.auth.logout.useMutation({
+  const logout = useLogout({
     onSuccess: () => {
       router.replace("/login");
       router.refresh();

@@ -10,7 +10,7 @@ import { Spinner } from "~/components/ui/spinner";
 import { cn } from "~/lib/utils";
 import { useBankName } from "~/lib/bank-names";
 
-import { trpc } from "~/trpc/client";
+import { useBanks } from "~/providers/accounts";
 
 import { chip } from "../../product/row-styles";
 import { postDatedText } from "../balance";
@@ -26,7 +26,7 @@ export function BanksBoard() {
   const bankName = useBankName();
   const t = useTranslations("accounts.bank");
   const [showInactive, setShowInactive] = useState(false);
-  const banks = trpc.accounts.bank.list.useQuery({ includeInactive: showInactive });
+  const banks = useBanks(showInactive);
   const [search, setSearch] = useState("");
   const needle = search.trim().toLowerCase();
   const shown = (banks.data ?? []).filter(

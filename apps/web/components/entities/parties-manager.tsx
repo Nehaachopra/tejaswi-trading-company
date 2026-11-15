@@ -19,7 +19,7 @@ import { PageTabs } from "~/components/ui/page-tabs";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useParties, usePartyActions } from "~/providers/accounts";
 
 import { kindOf, partyLabel, type PartyRole, type PartyType } from "../account/party/party-kinds";
 
@@ -91,8 +91,7 @@ export function PartiesManager() {
   const tc = useTranslations("common");
   const t = useTranslations("parties");
   const tf = useTranslations("accounts.party.form");
-  const utils = trpc.useUtils();
-  const setActive = trpc.accounts.party.setActive.useMutation();
+  const { setActive, refreshAccounts } = usePartyActions();
 
   // a type picked from the chips on top (a party with several shows under each), or every party
   const [type, setType] = useState<ListType | null>(null);
@@ -110,10 +109,7 @@ export function PartiesManager() {
   }, [typed]);
 
   const router = useRouter();
-  const parties = trpc.accounts.party.list.useQuery(
-    { type: type ?? undefined, includeInactive: showInactive, search },
-    { placeholderData: (previous) => previous },
-  );
+  const parties = useParties({ type: type ?? undefined, includeInactive: showInactive, search });
   const cities = [
     ...new Set((parties.data ?? []).map((p) => p.city).filter((c): c is string => !!c)),
   ].sort((a, b) => a.localeCompare(b));
@@ -130,7 +126,7 @@ export function PartiesManager() {
     try {
       await setActive.mutateAsync({ id, isActive: makeActive });
       toast.success(t(makeActive ? "toast.reactivated" : "toast.deactivated", { name: shortName }));
-      void utils.accounts.invalidate();
+      refreshAccounts();
     } catch (err) {
       const code = (err as { data?: { code?: string } })?.data?.code;
       toast.error(

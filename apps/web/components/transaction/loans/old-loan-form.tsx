@@ -10,7 +10,7 @@ import { FieldMessage } from "~/components/ui/field-message";
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { Spinner } from "~/components/ui/spinner";
-import { trpc } from "~/trpc/client";
+import { useAddOldDue } from "~/providers/dues";
 import { cn } from "~/lib/utils";
 
 import { indiaDay } from "../../account/balance";
@@ -65,8 +65,7 @@ export function OldLoanForm({
 }) {
   const t = useTranslations("transactions.chat");
   const tl = useTranslations("transactions.loan");
-  const utils = trpc.useUtils();
-  const add = trpc.transactions.due.addOld.useMutation();
+  const { add, refreshAfterOld } = useAddOldDue();
 
   const [who, setWho] = useState<LedgerChoice>(null);
   const [newParty, setNewParty] = useState<PartyDraft>(() => emptyParty());
@@ -115,8 +114,7 @@ export function OldLoanForm({
         lenderType: given ? null : lender,
         remarks: "",
       });
-      void utils.accounts.invalidate();
-      await utils.transactions.due.invalidate();
+      await refreshAfterOld();
       onAdded(due.id);
     } catch (e) {
       setFailed((e as Error).message);

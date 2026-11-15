@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 
-import { getSession } from "~/trpc/session";
+import { getSession } from "~/lib/session";
 
 // every Accounts page is for the admin only, the one role that sees balances
 // (the shell has already made sure someone is signed in)

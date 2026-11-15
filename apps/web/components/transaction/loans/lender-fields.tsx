@@ -20,7 +20,8 @@ import { PickedCard } from "../shared/picked-card";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useBankDirectory } from "~/providers/accounts";
+import { useLenderActions, useLenders } from "~/providers/entities";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { BANKS } from "../../account/bank/bank-list";
@@ -90,10 +91,7 @@ export function BankNamePick({
 }) {
   const t = useTranslations("transactions.lender");
   const tf = useTranslations("accounts.party.form");
-  const directory = trpc.accounts.bank.banks.useQuery(undefined, {
-    staleTime: Infinity,
-    retry: false,
-  });
+  const directory = useBankDirectory(false);
   const names: readonly string[] =
     directory.data && directory.data.length > 0 ? directory.data : BANKS;
   return (
@@ -126,9 +124,8 @@ export function LenderEdit({
   const t = useTranslations("transactions.lender");
   const tc = useTranslations("transactions.chat");
   const tf = useTranslations("accounts.party.form");
-  const utils = trpc.useUtils();
-  const update = trpc.accounts.lender.update.useMutation();
-  const lenders = trpc.accounts.lender.list.useQuery({ includeInactive: true });
+  const { update, refreshLendersAndDues } = useLenderActions();
+  const lenders = useLenders(true);
   const lender = lenders.data?.find((l) => l.id === lenderId);
   const [edits, setEdits] = useState<{ name?: string; branch?: string; pan?: string }>({});
   const [failed, setFailed] = useState(false);
@@ -148,8 +145,7 @@ export function LenderEdit({
         branch: branch.trim(),
         pan,
       });
-      void utils.accounts.lender.invalidate();
-      void utils.transactions.due.invalidate();
+      refreshLendersAndDues();
       onSaved(saved);
     } catch {
       setFailed(true);
@@ -247,7 +243,7 @@ export function LenderFields({
 }) {
   const t = useTranslations("transactions.lender");
   const tp = useTranslations("transactions.picker");
-  const lenders = trpc.accounts.lender.list.useQuery({ includeInactive: false });
+  const lenders = useLenders(false);
   const [search, setSearch] = useState("");
   const needle = search.trim().toLowerCase();
   const shown = (lenders.data ?? []).filter(

@@ -6,7 +6,7 @@ import { useCallback, useState } from "react";
 
 import { ADD_BUTTON, FILTER_BAR_UNDER_TABS, PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
-import { trpc } from "~/trpc/client";
+import { useCategories } from "~/providers/categories";
 
 import { ProductTabs } from "../product-tabs";
 import { chip } from "../row-styles";
@@ -20,7 +20,7 @@ export function CategoriesBoard() {
   const [showInactive, setShowInactive] = useState(false);
   const [adding, setAdding] = useState(false);
   // the categories, with or without the inactive ones
-  const list = trpc.inventory.category.list.useQuery({ includeInactive: showInactive });
+  const list = useCategories(showInactive);
   const close = useCallback(() => setAdding(false), []);
 
   // the category whose drawer is open; read from the list each time, so the drawer follows every change

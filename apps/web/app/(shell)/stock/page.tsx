@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { GodownsBoard } from "~/components/stock/godowns/godowns-board";
-import { getSession } from "~/trpc/session";
+import { getSession } from "~/lib/session";
 
 export const metadata: Metadata = { title: "Godowns · Tejaswi trading company" };
 

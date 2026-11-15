@@ -18,12 +18,15 @@ export function PackChips({
   onSelect,
   label,
   onChestnut = false,
+  end,
 }: {
   packs: Pack[];
   selected: string;
   onSelect: (productId: string) => void;
   label: string;
   onChestnut?: boolean;
+  // something after the last chip, on the same scrolling line (the + that adds a pack size)
+  end?: React.ReactNode;
 }) {
   const filled = onChestnut ? "border-ivory bg-ivory text-chestnut" : "border-chestnut bg-chestnut text-ivory";
   const side = useSideScroll<HTMLDivElement>(packs.length);
@@ -41,13 +44,14 @@ export function PackChips({
   }, [row, selected]);
 
   return (
-    <div
+    <div className="flex min-w-0 items-center gap-3">
+      <div
       ref={row}
       role="group"
       aria-label={label}
       onScroll={side.onScroll}
       style={side.style}
-      className="-mx-1 flex min-w-0 touch-pan-x gap-1.5 overflow-x-auto overscroll-x-contain px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="-mx-1 flex min-w-0 touch-pan-x items-center gap-1.5 overflow-x-auto overscroll-x-contain px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {packs.map((pack) => (
         <button
@@ -64,6 +68,10 @@ export function PackChips({
           {pack.name ?? packLabel(pack.packSize, pack.packSizeCode)}
         </button>
       ))}
+      
     </div>
+    {end}
+    </div>
+    
   );
 }

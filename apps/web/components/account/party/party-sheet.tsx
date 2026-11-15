@@ -9,7 +9,8 @@ import { ActiveRow } from "~/components/ui/active-row";
 import { Sheet } from "~/components/ui/sheet";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
-import { trpc } from "~/trpc/client";
+import { useParty, usePartyActions } from "~/providers/accounts";
+import { useSettings } from "~/providers/settings";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import {
@@ -60,10 +61,9 @@ export function PartyEdit({
 }) {
   const t = useTranslations("accounts.party.form");
   const tc = useTranslations("transactions.chat");
-  const utils = trpc.useUtils();
   const sameName = useSameNameConfirm();
-  const party = trpc.accounts.party.get.useQuery({ id: partyId });
-  const update = trpc.accounts.party.update.useMutation();
+  const party = useParty(partyId);
+  const { update, refreshAccounts, refreshPayments } = usePartyActions();
   const [draft, setDraft] = useState<PartyDraft | null>(null);
   const [tried, setTried] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,8 +83,8 @@ export function PartyEdit({
     try {
       const saved = await update.mutateAsync({ id: partyId, ...draftInput(draft) });
       toast.success(t("toast.saved", { name: partyLabel(saved) }));
-      void utils.accounts.invalidate();
-      void utils.transactions.payment.invalidate();
+      refreshAccounts();
+      refreshPayments();
       onSaved(saved);
     } catch (err) {
       setError(t(`errors.${errorKey(err)}`));
@@ -161,15 +161,10 @@ export function PartySheet({
   onSaved?: (party: { id: string; type: PartyType }) => void;
 }) {
   const t = useTranslations("accounts.party.form");
-  const utils = trpc.useUtils();
   const sameName = useSameNameConfirm();
   const editing = partyId !== null && partyId !== "new";
-  const party = trpc.accounts.party.get.useQuery(
-    { id: editing ? partyId : "" },
-    { enabled: editing },
-  );
-  const create = trpc.accounts.party.create.useMutation();
-  const update = trpc.accounts.party.update.useMutation();
+  const party = useParty(editing ? partyId : "", editing);
+  const { create, update, refreshAccounts } = usePartyActions();
 
   const [draft, setDraft] = useState<PartyDraft>(() => emptyDraft());
   const [tried, setTried] = useState(false);
@@ -178,7 +173,7 @@ export function PartySheet({
   // by the types ticked on the form: paid so far this year, only while TDS is on, for someone with no type (paid for
   // transport or labour) or an agent alone (brokerage), with the TDS taken too; a supplier only the amount; never a
   // customer or an employee. A transporter's declaration only for someone with no type
-  const taxes = trpc.settings.page.useQuery(undefined, { enabled: !!partyId });
+  const taxes = useSettings(!!partyId);
   const paidForWork = draft.types.length === 0 || draft.types.every((r) => r === "agent");
   const asksTds = paidForWork && !!taxes.data?.taxAudit;
   const asksPaid = asksTds || (draft.types.includes("supplier") && !!taxes.data?.tds194q);
@@ -232,7 +227,7 @@ export function PartySheet({
         ? await update.mutateAsync({ id: partyId, ...details })
         : await create.mutateAsync(details);
       toast.success(t(editing ? "toast.saved" : "toast.added", { name: partyLabel(saved) }));
-      void utils.accounts.invalidate();
+      refreshAccounts();
       onSaved?.({ id: saved.id, type: kindOf(saved.types) });
       onClose();
     } catch (err) {

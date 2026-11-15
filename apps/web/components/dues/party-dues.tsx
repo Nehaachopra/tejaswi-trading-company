@@ -12,7 +12,7 @@ import { WhatsAppIcon } from "~/components/ui/whatsapp-icon";
 import { rupees } from "~/lib/format";
 import { useLocalLetters } from "~/lib/use-local-letters";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { usePartyDues, useWriteOff } from "~/providers/dues";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { kindOf, PARTY_KINDS } from "../account/party/party-kinds";
@@ -57,7 +57,7 @@ export function PartyDues({ kind, partyId }: { kind: DueKind; partyId: string })
   const tp = useTranslations("dues.party");
   const ti = useTranslations("dues.insights");
   const local = useLocalLetters();
-  const page = trpc.transactions.due.party.useQuery({ kind, partyId });
+  const page = usePartyDues({ kind, partyId });
   const BackIcon = TAB_ICON[kind];
 
   const back = (
@@ -173,8 +173,7 @@ function DuesTable({ page, kind, partyName, actions }: { page: Page; kind: DueKi
   const tp = useTranslations("dues.party");
   const tf = useTranslations("transactions.loan.frequencies");
   const dueIn = useDueIn();
-  const utils = trpc.useUtils();
-  const writeOff = trpc.transactions.due.writeOff.useMutation();
+  const { writeOff, keepWrittenOff } = useWriteOff();
   const tfl = useTranslations("dues.filters");
   const [status, setStatus] = useState<Status | null>(null);
   const [sort, setSort] = useState<Sort>("oldest");
@@ -210,9 +209,7 @@ function DuesTable({ page, kind, partyName, actions }: { page: Page; kind: DueKi
     setFailed(false);
     try {
       const r = await writeOff.mutateAsync({ kind: kind as "debtor" | "loanGiven", partyId: page.party.id, dueId: x.id, remarks: reason });
-      utils.transactions.due.party.setData({ kind, partyId: page.party.id }, r);
-      void utils.transactions.due.list.invalidate();
-      void utils.accounts.invalidate();
+      keepWrittenOff({ kind, partyId: page.party.id }, r);
       setConfirming(null);
       setReason("");
     } catch {

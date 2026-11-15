@@ -97,17 +97,18 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
         aria-label={name}
         className="on-ivory flex w-[min(340px,100%)] animate-zoom-in flex-col gap-2 rounded-control bg-ivory p-4 text-chestnut shadow-[0_12px_40px_rgba(0,0,0,0.4)]"
       >
-        {/* ✕ on top, no border */}
-        <div className="-mb-1.5 -mr-1.5 -mt-1.5 flex justify-end">
-          <button type="button" onClick={close} aria-label={t("close")} className="grid size-11 place-items-center rounded-control hover:bg-chestnut/8">
+        {/* pack quantity and ✕ on top*/}
+        <div className="flex justify-between">
+          <span className="tabular inline-flex min-h-8 w-fit items-center rounded-control border border-chestnut bg-chestnut px-2.5 text-xs font-semibold text-ivory">
+          {packLabel(pack.packSize, pack.packSizeCode)}
+        </span>
+          <button type="button" onClick={close} aria-label={t("close")} className="grid place-items-center rounded-control hover:bg-chestnut/8 p-2">
+            
             <X className="size-5" aria-hidden />
           </button>
         </div>
 
-        {/* the product card's top: this pack size's chip, the name, category | sub-category, the photo */}
-        <span className="tabular inline-flex min-h-8 w-fit items-center rounded-control border border-chestnut bg-chestnut px-2.5 text-xs font-semibold text-ivory">
-          {packLabel(pack.packSize, pack.packSizeCode)}
-        </span>
+        {/* the product card's top: the name, category | sub-category, the photo */}
         <div className="min-w-0">
           <p className="truncate font-heading text-base font-bold leading-6" title={productTitle(group)}>
             {productTitle(group)}
@@ -120,13 +121,6 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
 
         {/* the figures, each a row: label left, box right */}
         <div className="mt-1 flex flex-col gap-3">
-          <label className={fieldRow}>
-            <span className="min-w-0">{t("ratePer", { unit: units(pack.packSizeCode) })}</span>
-            <span className={cn(box, "shadow-chestnut/40 focus-within:shadow-chestnut/80")}>
-              <span className="text-base text-chestnut/60">₹</span>
-              <NumberInput autoFocus={!saved} value={draft.unitGst} decimals={2} maxDigits={6} onChange={(v) => setFigure("unitGst", v)} className={boxInput} />
-            </span>
-          </label>
           {/* a sale: the pack's saved price with GST, as it is */}
           {sale && (
             <div className={fieldRow}>
@@ -134,6 +128,14 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
               <span className="tabular flex min-h-11 items-center justify-end pr-1 text-base font-bold">{listPrice == null ? "–" : rupees(listPrice)}</span>
             </div>
           )}
+          <label className={fieldRow}>
+            <span className="min-w-0">{t("ratePer", { unit: units(pack.packSizeCode) })}</span>
+            <span className={cn(box, "shadow-chestnut/40 focus-within:shadow-chestnut/80")}>
+              <span className="text-base text-chestnut/60">₹</span>
+              <NumberInput autoFocus={!saved} value={draft.unitGst} decimals={2} maxDigits={6} onChange={(v) => setFigure("unitGst", v)} className={boxInput} />
+            </span>
+          </label>
+          
           {/* the price with GST on this order (a sale's new price, if it's changed) */}
           <label className={fieldRow}>
             <span className="min-w-0">
@@ -146,12 +148,12 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
             </span>
           </label>
           {/* a sale: how much the new price takes off the saved one, a pack */}
-          {sale && (
+          {/* {sale && (
             <div className={fieldRow}>
               <span className="min-w-0">{t("discountPerPack")}</span>
               <span className="tabular flex min-h-11 items-center justify-end pr-1 text-base font-bold">{off > 0 ? rupees(off) : "–"}</span>
             </div>
-          )}
+          )} */}
           {/* the quantity, set apart from the prices above: a sale has how many are free to order beside it (each name
               above its figure, so the whole card fits on a phone); a purchase, the quantity as a row */}
           {(() => {

@@ -13,7 +13,9 @@ import { noDigits, rupees, titleCase } from "~/lib/format";
 import { indiaPostPlace } from "~/lib/india-post";
 import { spokenDigits, wholePhone, wordsToNumber } from "~/lib/number-words";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { usePickableLedgers } from "~/providers/accounts";
+import { useChatEntry } from "~/providers/chat";
+import { useOpenLoansOf } from "~/providers/dues";
 import { PHONE_PATTERN, type RouterInputs, type RouterOutputs } from "@repo/trpc/client";
 
 import { indiaDay } from "../../account/balance";
@@ -232,18 +234,10 @@ function MoneyChat({
     (flow === "payment" ? tkPayment : flow === "oldDue" ? tkDue : tkReceipt)(k as never);
   const tf = useTranslations("transactions.loan.frequencies");
   const tl = useTranslations("transactions.loan");
-  const utils = trpc.useUtils();
+  const { banks, sources, createReceipt, createPayment, addOldDue, paymentFits, pinPlace, afterOldDue, afterPayment, afterReceipt } = useChatEntry(flow);
   const sameName = useSameNameConfirm();
   const router = useRouter();
   const nameOf = useLedgerName();
-  const banks = trpc.accounts.bank.pickable.useQuery();
-  // a payment never takes more than where it's paid from holds: what each holds today (null for staff)
-  const sources = trpc.transactions.payment.sources.useQuery(undefined, {
-    enabled: flow === "payment",
-  });
-  const createReceipt = trpc.transactions.receipt.create.useMutation();
-  const createPayment = trpc.transactions.payment.create.useMutation();
-  const addOldDue = trpc.transactions.due.addOld.useMutation();
   const create = flow === "payment" ? createPayment : flow === "oldDue" ? addOldDue : createReceipt;
   const {
     kinds: KINDS,
@@ -307,10 +301,7 @@ function MoneyChat({
   const makesLoan = kind !== null && loanKinds.includes(kind);
   const loanOf = kind !== null ? loanPicks[kind] : undefined;
   const repays = kind !== null && repayKinds.includes(kind);
-  const loans = trpc.transactions.due.openLoans.useQuery(
-    { kind: loanOf ?? "loanTaken" },
-    { enabled: !!loanOf },
-  );
+  const loans = useOpenLoansOf({ kind: loanOf ?? "loanTaken" }, !!loanOf);
 
   // who it came from: the box searches (phone, name or short name) once typing pauses; the ones used last first
   const [asked, setAsked] = useState("");
@@ -318,7 +309,7 @@ function MoneyChat({
     const timer = setTimeout(() => setAsked(typed.trim()), 250);
     return () => clearTimeout(timer);
   }, [typed]);
-  const found = trpc.accounts.ledger.pickable.useQuery(
+  const found = usePickableLedgers(
     {
       // an old due is on any party: the customer's search covers every party
       purpose: flow === "payment" ? "payment" : "receipt",
@@ -327,7 +318,8 @@ function MoneyChat({
       paymentKind: flow === "payment" ? (kind as PaymentKind | null) : null,
       search: asked,
     },
-    { enabled: kind !== null && !done.has("from"), placeholderData: (previous) => previous },
+    kind !== null && !done.has("from"),
+    true,
   );
   const tdsAmount = tdsParty && tds && tdsValue > 0 && tdsValue < 100 ? tdsOn(value, tdsValue) : 0;
 
@@ -495,8 +487,7 @@ function MoneyChat({
         const n = Number(text.replace(/,/g, "")) || wordsToNumber(text) || 0;
         if (!(n > 0)) return bad("amount");
         if (paysOut) {
-          const { fits } = await utils.transactions.payment.fits
-            .fetch({ settledIn: into, bankDetailsId: into === "bank" ? bankId : null, amount: n })
+          const { fits } = await paymentFits({ settledIn: into, bankDetailsId: into === "bank" ? bankId : null, amount: n })
             .catch(() => ({ fits: true }));
           if (!fits) {
             const where = t(into === "cash" ? "fromCash" : "fromBank");
@@ -548,9 +539,7 @@ function MoneyChat({
       case "pin": {
         if (!/^\d{6}$/.test(text)) return bad("pin");
         const after: Q[] = ["city", "district", "state"];
-        const saved = await utils.accounts.party.pinPlace
-          .fetch({ postalCode: text })
-          .catch(() => null);
+        const saved = await pinPlace(text).catch(() => null);
         // a PIN already saved on an address: its town, district and state are taken as they are (tap one to
         // change it), and the address line comes next
         if (saved) {
@@ -668,8 +657,7 @@ function MoneyChat({
           lenderType: kind === "loanTaken" ? lender : null,
           remarks,
         });
-        void utils.accounts.invalidate();
-        void utils.transactions.due.invalidate();
+        afterOldDue();
         router.replace(back ? `/transaction/${back}` : `/dues?kind=${kind}`);
       } else if (flow === "payment") {
         const r = await createPayment.mutateAsync({
@@ -677,9 +665,7 @@ function MoneyChat({
           paidFor: kind as PaymentKind,
           paidToLedgerId: ledgerId,
         });
-        void utils.accounts.invalidate();
-        utils.transactions.payment.get.setData({ transactionId: r.transactionId }, r);
-        utils.transactions.payment.balances.setData({ transactionId: r.transactionId }, r.balances);
+        afterPayment(r);
         router.replace(`/transaction/payment/${r.transactionId}`);
       } else {
         const r = await createReceipt.mutateAsync({
@@ -688,9 +674,7 @@ function MoneyChat({
           receivedFor: kind as ReceiptKind,
           receivedFromLedgerId: ledgerId,
         });
-        void utils.accounts.invalidate();
-        utils.transactions.receipt.get.setData({ transactionId: r.transactionId }, r);
-        utils.transactions.receipt.balances.setData({ transactionId: r.transactionId }, r.balances);
+        afterReceipt(r);
         router.replace(`/transaction/receipt/${r.transactionId}`);
       }
     } catch (err) {

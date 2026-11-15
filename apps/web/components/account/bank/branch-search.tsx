@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
-import { trpc } from "~/trpc/client";
+import { useBankBranches } from "~/providers/accounts";
 
 // the branch field when the IFSC isn't known: typing searches the bank's branches (by branch name or city) and
 // lists them under the field; picking one gives its IFSC, which then fills in and locks the bank and branch.
@@ -45,7 +45,7 @@ export function BranchSearch({
     return () => document.removeEventListener("pointerdown", away);
   }, [open]);
 
-  const branches = trpc.accounts.bank.branches.useQuery({ bank, search }, { enabled: open && bank !== "" && search.length >= 2, placeholderData: (previous) => previous });
+  const branches = useBankBranches({ bank, search }, open && bank !== "" && search.length >= 2);
 
   return (
     <div ref={root} className="relative">

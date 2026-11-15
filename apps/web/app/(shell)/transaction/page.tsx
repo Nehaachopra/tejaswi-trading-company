@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { TransactionHub } from "~/components/transaction/hub";
-import { getSession } from "~/trpc/session";
+import { getSession } from "~/lib/session";
 
 export const metadata: Metadata = { title: "New transaction · Tejaswi trading company" };
 

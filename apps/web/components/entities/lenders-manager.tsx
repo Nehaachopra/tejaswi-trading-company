@@ -20,7 +20,7 @@ import { Sheet } from "~/components/ui/sheet";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useLenderActions, useLenders } from "~/providers/entities";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { chip } from "../product/row-styles";
@@ -38,14 +38,13 @@ export function LendersManager() {
   const t = useTranslations("lenders");
   const tc = useTranslations("common");
   const tl = useTranslations("transactions.loan");
-  const utils = trpc.useUtils();
-  const setActive = trpc.accounts.lender.setActive.useMutation();
+  const { setActive, refreshLenders } = useLenderActions();
   const [showInactive, setShowInactive] = useState(false);
   const [search, setSearch] = useState("");
   // the sheet: a new lender, or the one being edited
   const [open, setOpen] = useState<Lender | "new" | null>(null);
 
-  const lenders = trpc.accounts.lender.list.useQuery({ includeInactive: showInactive });
+  const lenders = useLenders(showInactive);
   const needle = search.trim().toLowerCase();
   const shown = (lenders.data ?? []).filter(
     (l) => needle === "" || lenderLabel(l).toLowerCase().includes(needle),
@@ -55,7 +54,7 @@ export function LendersManager() {
   async function toggleActive(l: Lender) {
     try {
       await setActive.mutateAsync({ id: l.id, isActive: !l.isActive });
-      void utils.accounts.lender.invalidate();
+      refreshLenders();
     } catch (err) {
       const code = (err as { data?: { code?: string } })?.data?.code;
       toast.error(t(code === "PRECONDITION_FAILED" ? "hasLoans" : "failed"));
@@ -201,9 +200,7 @@ function LenderSheet({
   const t = useTranslations("lenders");
   const tf = useTranslations("transactions.lender");
   const tl = useTranslations("transactions.loan");
-  const utils = trpc.useUtils();
-  const create = trpc.accounts.lender.create.useMutation();
-  const update = trpc.accounts.lender.update.useMutation();
+  const { create, update, refreshLenders } = useLenderActions();
   const [type, setType] = useState<BankLender>(lender?.type ?? "bank");
   const [name, setName] = useState(lender?.name ?? "");
   const [branch, setBranch] = useState(lender?.branch ?? "");
@@ -222,7 +219,7 @@ function LenderSheet({
       if (lender)
         await update.mutateAsync({ id: lender.id, name: name.trim(), branch: branch.trim(), pan });
       else await create.mutateAsync({ name: name.trim(), branch: branch.trim(), type, pan });
-      void utils.accounts.lender.invalidate();
+      refreshLenders();
       onClose();
     } catch (err) {
       const code = (err as { data?: { code?: string } })?.data?.code;

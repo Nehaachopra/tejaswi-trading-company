@@ -9,7 +9,7 @@ import { FILTER_BAR, PAGE } from "~/components/ui/page-styles";
 import { chip } from "../product/row-styles";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
-import { trpc } from "~/trpc/client";
+import { useJobs, useRetryJob } from "~/providers/jobs";
 
 type Job = RouterOutputs["jobs"]["list"]["jobs"][number];
 type State = Job["state"];
@@ -23,7 +23,7 @@ const WHEN = { day: "numeric", month: "short", hour: "numeric", minute: "2-digit
 export function JobsBoard() {
   const t = useTranslations("jobs");
   const [state, setState] = useState<State>("failed");
-  const jobs = trpc.jobs.list.useQuery({ state, limit: 50 }, { refetchInterval: 15_000, staleTime: 0 });
+  const jobs = useJobs(state);
 
   return (
     <main className={`${PAGE} pb-16`}>
@@ -78,14 +78,7 @@ export function JobsBoard() {
 function JobCard({ job }: { job: Job }) {
   const t = useTranslations("jobs");
   const format = useFormatter();
-  const utils = trpc.useUtils();
-  const retry = trpc.jobs.retry.useMutation({
-    onSuccess: () => {
-      toast.success(t("queued"));
-      void utils.jobs.list.invalidate();
-    },
-    onError: (error) => toast.error(error.message),
-  });
+  const retry = useRetryJob({ onSuccess: () => toast.success(t("queued")), onError: (message) => toast.error(message) });
 
   // a queue the translation files don't know yet shows the server's English title
   const title = t.has(`queues.${job.queue}`) ? t(`queues.${job.queue}`) : job.queueTitle;

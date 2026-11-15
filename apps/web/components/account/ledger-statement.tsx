@@ -9,7 +9,7 @@ import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { rupees, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useLedgerStatement } from "~/providers/accounts";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { type Balance, type Head, indiaDay, postDatedText, startOfIndiaDay, usualSide } from "./balance";
@@ -102,19 +102,16 @@ export function LedgerStatement({
   // a month picked from the dropdown, or every entry (null)
   const [month, setMonth] = useState<string | null>(null);
 
-  const statement = trpc.accounts.ledger.statement.useQuery(
-    {
-      ledgerId,
-      from: month ? startOfIndiaDay(`${month}-01`) : null,
-      // up to the last moment of that month
-      to: month ? new Date(startOfIndiaDay(`${monthAfter(month)}-01`).getTime() - 1) : null,
-      types: [],
-      minAmount: null,
-      maxAmount: null,
-      search: "",
-    },
-    { placeholderData: (previous) => previous },
-  );
+  const statement = useLedgerStatement({
+    ledgerId,
+    from: month ? startOfIndiaDay(`${month}-01`) : null,
+    // up to the last moment of that month
+    to: month ? new Date(startOfIndiaDay(`${monthAfter(month)}-01`).getTime() - 1) : null,
+    types: [],
+    minAmount: null,
+    maxAmount: null,
+    search: "",
+  });
   const narrowed = statement.data?.narrowed ?? null;
 
   // "October 2026" over each month's entries, which show only their day

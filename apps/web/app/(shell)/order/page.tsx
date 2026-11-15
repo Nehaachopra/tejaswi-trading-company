@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { OrdersBoard } from "~/components/orders/board";
-import { getSession } from "~/trpc/session";
+import { getSession } from "~/lib/session";
 
 export const metadata: Metadata = { title: "Orders · Tejaswi trading company" };
 

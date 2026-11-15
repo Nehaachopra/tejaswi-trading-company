@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import { ContraForm } from "~/components/transaction/contra/form";
-import { getSession } from "~/trpc/session";
+import { getSession } from "~/lib/session";
 
 export const metadata: Metadata = { title: "Withdrawal · Tejaswi trading company" };
 

@@ -12,9 +12,8 @@ import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
 
-import { useCategoryCache } from "./category-cache";
+import { useCategoryActions, useCategoryCache } from "~/providers/categories";
 import { type CategoryError, categoryError, NAME_MAX, nameProblem } from "./category-errors";
 
 type Category = RouterOutputs["inventory"]["category"]["list"][number];
@@ -30,11 +29,8 @@ const segment =
 // one category as a compact row: name and counts (tap → its drawer of sub-categories), then Rename, Deactivate and Delete
 export function CategoryRow({ category, onOpen }: { category: Category; onOpen: () => void }) {
   const t = useTranslations("products.categories");
-  const utils = trpc.useUtils();
   const cache = useCategoryCache();
-  const rename = trpc.inventory.category.rename.useMutation();
-  const setActive = trpc.inventory.category.setActive.useMutation();
-  const remove = trpc.inventory.category.delete.useMutation();
+  const { rename, setActive, remove } = useCategoryActions();
 
   // the delete confirmation is open
   const [confirming, setConfirming] = useState(false);
@@ -71,7 +67,7 @@ export function CategoryRow({ category, onOpen }: { category: Category; onOpen: 
       if (key !== "taken") return toast.error(t(`errors.${key}`));
 
       // taken: say so plainly when it's by an inactive category, which the list may be hiding
-      const all = await utils.inventory.category.list.fetch({ includeInactive: true });
+      const all = await cache.fetchAll();
       const hidden = all.some((c) => !c.isActive && c.name === name.trim().toLowerCase());
       setError(hidden ? "takenInactive" : "taken");
     }

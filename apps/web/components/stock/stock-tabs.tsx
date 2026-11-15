@@ -4,13 +4,13 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { PageTabs } from "~/components/ui/page-tabs";
-import { trpc } from "~/trpc/client";
+import { useGodowns } from "~/providers/stock";
 
 // the two parts of stock, one tap apart: Godowns (with how many active ones) and Stock count
 export function StockTabs() {
   const t = useTranslations("stock.tabs");
   const pathname = usePathname();
-  const godowns = trpc.inventory.godown.list.useQuery({ includeInactive: false });
+  const godowns = useGodowns(false);
 
   return (
     <PageTabs

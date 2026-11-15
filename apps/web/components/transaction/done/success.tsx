@@ -10,7 +10,18 @@ import { Spinner } from "~/components/ui/spinner";
 import { useBankName } from "~/lib/bank-names";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { usePickableBanks } from "~/providers/accounts";
+import {
+  useMoneyHeld,
+  useSavedDeposit,
+  useSavedOther,
+  useSavedPayment,
+  useSavedReceipt,
+  useSavedSalaries,
+  useSavedSalary,
+  useSavedTransfer,
+  useSavedWithdrawal,
+} from "~/providers/saved";
 
 import { NEW_TRANSACTION_HREF } from "../../shell/nav-items";
 
@@ -60,24 +71,18 @@ export function ReceiptSuccess({
   const isDeposit = flow === "deposit" || flow === "withdrawal" || flow === "transfer";
   // a journal entry (Others): no cash or bank, no voucher; only its number
   const isOther = flow === "other";
-  const otherGet = trpc.transactions.other.get.useQuery({ transactionId: id }, { enabled: isOther });
+  const otherGet = useSavedOther(id, isOther);
   // a salary or advance: cash or one bank account, no voucher yet
   const isSalary = flow === "salary";
-  const salaryGet = trpc.transactions.salary.get.useQuery({ transactionId: id }, { enabled: isSalary });
+  const salaryGet = useSavedSalary(id, isSalary);
   // salary paid to many: every payment, each with its employee and number
-  const salaryMany = trpc.useQueries((q) => (isSalary ? also : []).map((x) => q.transactions.salary.get({ transactionId: x })));
+  const salaryMany = useSavedSalaries(isSalary ? also : []);
   const many = isSalary && also.length > 0 && salaryGet.data && salaryMany.every((m) => m.data) ? [salaryGet.data, ...salaryMany.map((m) => m.data!)] : null;
-  const receiptGet = trpc.transactions.receipt.get.useQuery(
-    { transactionId: id },
-    { enabled: flow === "receipt" },
-  );
-  const paymentGet = trpc.transactions.payment.get.useQuery(
-    { transactionId: id },
-    { enabled: isPayment },
-  );
-  const depositGet = trpc.transactions.deposit.get.useQuery({ transactionId: id }, { enabled: flow === "deposit" });
-  const withdrawalGet = trpc.transactions.withdrawal.get.useQuery({ transactionId: id }, { enabled: flow === "withdrawal" });
-  const transferGet = trpc.transactions.transfer.get.useQuery({ transactionId: id }, { enabled: flow === "transfer" });
+  const receiptGet = useSavedReceipt(id, flow === "receipt");
+  const paymentGet = useSavedPayment(id, isPayment);
+  const depositGet = useSavedDeposit(id, flow === "deposit");
+  const withdrawalGet = useSavedWithdrawal(id, flow === "withdrawal");
+  const transferGet = useSavedTransfer(id, flow === "transfer");
   const contraGet = flow === "withdrawal" ? withdrawalGet : flow === "transfer" ? transferGet : depositGet;
   const asked = isSalary ? salaryGet : isOther ? otherGet : isDeposit ? contraGet : isPayment ? paymentGet : receiptGet;
   // what this page shows of it, the same for every flow: a deposit or withdrawal moved cash and one account (shown as
@@ -115,10 +120,8 @@ export function ReceiptSuccess({
       : (isPayment ? paymentGet : receiptGet).data,
   };
   // what cash and each bank account hold now, asked again so it includes this one (null for staff, who don't see them)
-  const sources = trpc.transactions.payment.sources.useQuery(undefined, {
-    refetchOnMount: "always",
-  });
-  const banks = trpc.accounts.bank.pickable.useQuery();
+  const sources = useMoneyHeld({ fresh: true });
+  const banks = usePickableBanks();
   // only once asked again, so it never shows what they held before this one
   const held =
     sources.data && sources.data.cash !== null && !sources.isFetching ? sources.data : null;

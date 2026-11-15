@@ -9,7 +9,7 @@ import { RequiredMark } from "~/components/ui/required-mark";
 import { Spinner } from "~/components/ui/spinner";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useCategories, useCategoryActions, useCategoryCache, useSubCategoryActions } from "~/providers/categories";
 
 import { PlacePicker } from "../../transaction/shared/place-picker";
 import { categoryError } from "../categories/category-errors";
@@ -38,10 +38,10 @@ export function CategoryFields({
   pickEnd?: boolean;
 }) {
   const t = useTranslations("products.items");
-  const utils = trpc.useUtils();
-  const categories = trpc.inventory.category.list.useQuery({ includeInactive: false });
-  const createCategory = trpc.inventory.category.create.useMutation();
-  const createSub = trpc.inventory.subCategory.create.useMutation();
+  const cache = useCategoryCache();
+  const categories = useCategories(false);
+  const { create: createCategory } = useCategoryActions();
+  const { create: createSub } = useSubCategoryActions();
   const [adding, setAdding] = useState<"category" | "sub" | null>(null);
 
   // the picked category's sub-categories
@@ -51,13 +51,13 @@ export function CategoryFields({
   // a new category is picked once added, with no sub-category yet; a new sub-category is picked once added
   async function addCategory(name: string) {
     const created = await createCategory.mutateAsync({ name });
-    await utils.inventory.category.list.invalidate();
+    await cache.refresh();
     onChange({ categoryId: created.id, subCategoryId: null });
     setAdding(null);
   }
   async function addSub(name: string) {
     const created = await createSub.mutateAsync({ categoryId: categoryId!, name });
-    await utils.inventory.category.list.invalidate();
+    await cache.refresh();
     onChange({ subCategoryId: created.id });
     setAdding(null);
   }

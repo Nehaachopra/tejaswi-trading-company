@@ -10,7 +10,7 @@ import { Sheet } from "~/components/ui/sheet";
 import { toast } from "~/components/ui/toast";
 import { packLabel, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useGodownActions } from "~/providers/stock";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { ProductImage, productTitle } from "../../product/products/product-tile";
@@ -32,8 +32,7 @@ const REMARKS_MAX = 100;
 export function MoveStockSheet({ start, cards, onClose }: { start: MoveStart | null; cards: GodownCard[]; onClose: () => void }) {
   const t = useTranslations("stock.move");
   const tg = useTranslations("stock.godowns");
-  const utils = trpc.useUtils();
-  const move = trpc.inventory.stock.move.useMutation();
+  const { move, refreshMoved, refreshStock } = useGodownActions();
 
   const [toId, setToId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState("");
@@ -94,15 +93,14 @@ export function MoveStockSheet({ start, cards, onClose }: { start: MoveStart | n
       toast.success(
         tg("toast.moved", { quantity: qty.toLocaleString("en-IN"), pack: `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode)}`, to: to!.godownName }),
       );
-      void utils.inventory.stock.invalidate();
-      void utils.inventory.godown.list.invalidate();
+      refreshMoved();
       onClose();
     } catch (err) {
       const code = (err as { data?: { code?: string } })?.data?.code;
       setError(
         t(`errors.${code === undefined ? "network" : code === "PRECONDITION_FAILED" ? "stock" : code === "CONFLICT" ? "counting" : "failed"}`),
       );
-      void utils.inventory.stock.byGodown.invalidate();
+      refreshStock();
     }
   }
 

@@ -15,7 +15,7 @@ import { toast } from "~/components/ui/toast";
 import { noDigits } from "~/lib/format";
 import { capPhone, phoneStartsBad } from "~/lib/number-words";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useLandlord, useLandlordActions } from "~/providers/entities";
 import { GSTIN_PATTERN, PHONE_PATTERN, type RouterOutputs } from "@repo/trpc/client";
 
 import {
@@ -346,14 +346,9 @@ export function LandlordAdd({
 }) {
   const t = useTranslations("accounts.party.form");
   const tc = useTranslations("transactions.chat");
-  const utils = trpc.useUtils();
-  const create = trpc.accounts.landlord.create.useMutation();
-  const update = trpc.accounts.landlord.update.useMutation();
+  const { create, update, refreshLandlords } = useLandlordActions();
   // with `landlordId` it edits them: it starts from what's saved, once
-  const saved = trpc.accounts.landlord.get.useQuery(
-    { id: landlordId ?? "" },
-    { enabled: !!landlordId },
-  );
+  const saved = useLandlord(landlordId ?? null);
   const [draft, setDraft] = useState<Draft>(() => ({ ...emptyDraft(), name }));
   const started = useRef(false);
   useEffect(() => {
@@ -380,7 +375,7 @@ export function LandlordAdd({
         ? await update.mutateAsync({ id: landlordId, details: detailsOf(draft) })
         : await create.mutateAsync(detailsOf(draft));
       toast.success(t(landlordId ? "toast.saved" : "toast.added", { name: partyLabel(done) }));
-      await utils.accounts.landlord.invalidate();
+      await refreshLandlords();
       onSaved(done.id);
     } catch (err) {
       setError(t(`errors.${errorKey(err)}`));
@@ -441,14 +436,9 @@ export function LandlordSheet({
   onSaved?: (id: string) => void;
 }) {
   const t = useTranslations("accounts.party.form");
-  const utils = trpc.useUtils();
   const editing = landlordId !== null && landlordId !== "new";
-  const landlord = trpc.accounts.landlord.get.useQuery(
-    { id: editing ? landlordId : "" },
-    { enabled: editing },
-  );
-  const create = trpc.accounts.landlord.create.useMutation();
-  const update = trpc.accounts.landlord.update.useMutation();
+  const landlord = useLandlord(editing ? landlordId : null);
+  const { create, update, refreshLandlords } = useLandlordActions();
 
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [tried, setTried] = useState(false);
@@ -481,7 +471,7 @@ export function LandlordSheet({
         ? await update.mutateAsync({ id: landlordId, details })
         : await create.mutateAsync(details);
       toast.success(t(editing ? "toast.saved" : "toast.added", { name: partyLabel(saved) }));
-      await utils.accounts.landlord.invalidate();
+      await refreshLandlords();
       onSaved?.(saved.id);
       onClose();
     } catch (err) {

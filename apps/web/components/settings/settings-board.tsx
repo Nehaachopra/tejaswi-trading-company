@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
 import { Switch } from "~/components/ui/switch";
-import { trpc } from "~/trpc/client";
+import { useSettingsBoard } from "~/providers/settings";
 
 // a financial year as shown: its hyphen doesn't break, so "2026-27" stays on one line
 const shown = (year: string) => year.replace("-", "‑");
@@ -16,25 +16,12 @@ const yearBefore = (year: string) => {
   return `${y}-${String((y + 1) % 100).padStart(2, "0")}`;
 };
 
-type Page = { financialYear: string; taxAudit: boolean; tds194q: boolean };
-
 // the website's settings: which TDS this financial year has, from last year's turnover (above ₹1 crore: rent,
 // transport, labour and brokerage; above ₹10 crore: suppliers too, section 194Q)
 export function SettingsBoard() {
   const t = useTranslations("settings");
-  const utils = trpc.useUtils();
-  const page = trpc.settings.page.useQuery();
-
   // a toggle flips at once and is put back if the save fails; the server answers with both (one may move the other)
-  const flip = (patch: Partial<Page>) => {
-    const before = utils.settings.page.getData();
-    if (before) utils.settings.page.setData(undefined, { ...before, ...patch });
-    return { before };
-  };
-  const undo = (_e: unknown, _v: unknown, ctx?: { before?: Page }) => ctx?.before && utils.settings.page.setData(undefined, ctx.before);
-  const keep = (saved: Page) => utils.settings.page.setData(undefined, saved);
-  const setAudit = trpc.settings.setTaxAudit.useMutation({ onMutate: ({ on }) => flip({ taxAudit: on, ...(on ? {} : { tds194q: false }) }), onError: undo, onSuccess: keep });
-  const setTds = trpc.settings.setTds194q.useMutation({ onMutate: ({ on }) => flip({ tds194q: on, ...(on ? { taxAudit: true } : {}) }), onError: undo, onSuccess: keep });
+  const { page, setAudit, setTds } = useSettingsBoard();
 
   return (
     <main className={`${PAGE} flex flex-col gap-4 pb-16`}>

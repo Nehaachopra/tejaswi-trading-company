@@ -10,18 +10,15 @@ import { Sheet } from "~/components/ui/sheet";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
 import { titleCase } from "~/lib/format";
-import { trpc } from "~/trpc/client";
 
-import { useCategoryCache } from "./category-cache";
+import { useCategoryActions, useCategoryCache } from "~/providers/categories";
 import { type CategoryError, categoryError, NAME_MAX, nameProblem } from "./category-errors";
 
 // one field: a problem with the name shows under it; anything else is a toast
 export function AddCategorySheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useTranslations("products.categories");
-  const utils = trpc.useUtils();
   const cache = useCategoryCache();
-  const create = trpc.inventory.category.create.useMutation();
-  const reactivate = trpc.inventory.category.setActive.useMutation();
+  const { create, setActive: reactivate } = useCategoryActions();
 
   const [name, setName] = useState("");
   const [error, setError] = useState<CategoryError | null>(null);
@@ -52,7 +49,7 @@ export function AddCategorySheet({ open, onClose }: { open: boolean; onClose: ()
       if (key !== "taken") return toast.error(t(`errors.${key}`));
 
       // taken: if it's by an inactive category (hidden from the list), say so and offer to bring it back
-      const all = await utils.inventory.category.list.fetch({ includeInactive: true });
+      const all = await cache.fetchAll();
       const match = all.find((c) => !c.isActive && c.name === name.trim().toLowerCase());
       setInactive(match ? { id: match.id, name: match.name } : null);
       setError(match ? "takenInactive" : "taken");

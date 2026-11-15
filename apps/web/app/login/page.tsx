@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { LanguageSwitch } from "~/components/auth/language-switch";
 import { LoginFlow } from "~/components/auth/login-flow";
-import { getSession } from "~/trpc/session";
+import { getSession } from "~/lib/session";
 
 export const metadata: Metadata = { title: "Log in · Tejaswi trading company" };
 

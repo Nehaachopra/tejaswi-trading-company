@@ -7,6 +7,31 @@ import { trpc } from "~/trpc/client";
 export type Category = RouterOutputs["inventory"]["category"]["list"][number];
 export type SubCategory = Category["subCategories"][number];
 
+// the categories with their sub-categories: active only, or with the inactive ones
+export function useCategories(includeInactive: boolean, enabled = true) {
+  return trpc.inventory.category.list.useQuery({ includeInactive }, { enabled });
+}
+
+// a category's saves: add, rename, make active or inactive, delete
+export function useCategoryActions() {
+  return {
+    create: trpc.inventory.category.create.useMutation(),
+    rename: trpc.inventory.category.rename.useMutation(),
+    setActive: trpc.inventory.category.setActive.useMutation(),
+    remove: trpc.inventory.category.delete.useMutation(),
+  };
+}
+
+// a sub-category's saves: the same four
+export function useSubCategoryActions() {
+  return {
+    create: trpc.inventory.subCategory.create.useMutation(),
+    rename: trpc.inventory.subCategory.rename.useMutation(),
+    setActive: trpc.inventory.subCategory.setActive.useMutation(),
+    remove: trpc.inventory.subCategory.delete.useMutation(),
+  };
+}
+
 // both lists the page may hold: active only, and with the inactive ones
 const VIEWS = [{ includeInactive: false }, { includeInactive: true }] as const;
 
@@ -56,6 +81,10 @@ export function useCategoryCache() {
   return {
     patch,
     sync,
+    // every category, inactive ones too, read from the server now (to find a same-named inactive one)
+    fetchAll: () => list.fetch({ includeInactive: true }),
+    // the lists are read again, and waited for
+    refresh: () => list.invalidate(),
     updateCategory,
     updateSub,
     addCategory: (category: Category) => patch((all) => [...all.filter((c) => c.id !== category.id), category]),

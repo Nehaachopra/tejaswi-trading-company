@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { AppFrame } from "~/components/shell/app-frame";
 import { LiveUpdates } from "~/components/shell/live-updates";
-import { getSession } from "~/trpc/session";
+import { getSession } from "~/lib/session";
 
 // the frame around every page except /login
 export default async function ShellLayout({ children }: { children: React.ReactNode }) {

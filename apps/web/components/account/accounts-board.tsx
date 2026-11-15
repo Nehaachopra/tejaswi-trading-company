@@ -9,7 +9,7 @@ import { useState } from "react";
 import { ADD_BUTTON, PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
-import { trpc } from "~/trpc/client";
+import { useAccountsOverview } from "~/providers/accounts";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { postDatedText } from "./balance";
@@ -46,7 +46,7 @@ const MASTER_PAGE: Record<string, string | undefined> = {
 // own ledgers under it
 export function AccountsBoard({ only }: { only?: Head["head"] }) {
   const t = useTranslations("accounts.overview");
-  const overview = trpc.accounts.overview.useQuery();
+  const overview = useAccountsOverview();
   const heads = (overview.data?.heads ?? []).filter((h) => !only || h.head === only);
   const soon = () => toast.info(t("comingSoon"));
   const nameOf = useLedgerName();

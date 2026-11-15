@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 
-import { getSession } from "~/trpc/session";
+import { getSession } from "~/lib/session";
 
 // parties and bank accounts are added and edited here, by the admin only (the shell has already made sure someone
 // is signed in)

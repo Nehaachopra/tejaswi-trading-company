@@ -7,7 +7,7 @@ import { useState } from "react";
 import { ADD_BUTTON, FILTER_BAR_UNDER_TABS, PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
-import { trpc } from "~/trpc/client";
+import { useGodownActions, useGodowns, useStockByGodown } from "~/providers/stock";
 
 import { chip } from "../../product/row-styles";
 import { StockTabs } from "../stock-tabs";
@@ -24,11 +24,10 @@ const outline = `flex items-center gap-1.5 ${chip(false)}`;
 export function GodownsBoard({ isAdmin }: { isAdmin: boolean }) {
   const t = useTranslations("stock.godowns");
   const tf = useTranslations("stock.form");
-  const utils = trpc.useUtils();
-  const stock = trpc.inventory.stock.byGodown.useQuery();
+  const stock = useStockByGodown();
   const [showInactive, setShowInactive] = useState(false);
-  const godowns = trpc.inventory.godown.list.useQuery({ includeInactive: showInactive });
-  const setActive = trpc.inventory.godown.setActive.useMutation();
+  const godowns = useGodowns(showInactive);
+  const { setActive, refreshGodowns } = useGodownActions();
 
   // the open sheets
   const [adding, setAdding] = useState(false);
@@ -47,8 +46,7 @@ export function GodownsBoard({ isAdmin }: { isAdmin: boolean }) {
     try {
       await setActive.mutateAsync({ id: godownId, isActive: makeActive });
       toast.success(t(makeActive ? "toast.reactivated" : "toast.deactivated", { name }));
-      void utils.inventory.godown.list.invalidate();
-      void utils.inventory.stock.byGodown.invalidate();
+      refreshGodowns();
     } catch (err) {
       const code = (err as { data?: { code?: string } })?.data?.code;
       const key = code === "PRECONDITION_FAILED" ? "hasProducts" : code === "CONFLICT" ? "counting" : code === undefined ? "network" : "failed";

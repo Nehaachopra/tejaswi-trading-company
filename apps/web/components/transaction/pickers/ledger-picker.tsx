@@ -18,7 +18,7 @@ import { fieldClass } from "~/components/ui/card-form";
 import { Spinner } from "~/components/ui/spinner";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useLedgerActions, usePickableLedgers } from "~/providers/accounts";
 import type { RouterInputs, RouterOutputs } from "@repo/trpc/client";
 
 import { useLedgerName } from "../../account/ledger-name";
@@ -90,10 +90,7 @@ export function LedgerPicker({
     const timer = setTimeout(() => setAsked(search.trim()), 250);
     return () => clearTimeout(timer);
   }, [search]);
-  const found = trpc.accounts.ledger.pickable.useQuery(
-    { purpose, receiptKind, paymentKind, search: asked },
-    { enabled: open, placeholderData: (previous) => previous },
-  );
+  const found = usePickableLedgers({ purpose, receiptKind, paymentKind, search: asked }, open, true);
   const shown = found.data ?? [];
 
   // a tap anywhere else closes it
@@ -329,10 +326,7 @@ export function LedgerSearch({
       : purpose === "payment" && paymentKind === "supplier"
         ? "credit"
         : null;
-  const found = trpc.accounts.ledger.pickable.useQuery(
-    { purpose, receiptKind, paymentKind, payee, search: asked },
-    { enabled: listing, placeholderData: (previous) => previous },
-  );
+  const found = usePickableLedgers({ purpose, receiptKind, paymentKind, payee, search: asked }, listing, true);
   // a tax with nothing owed can't be paid, so it isn't offered (staff see no balances, so they see them all)
   const shown = (found.data ?? []).filter(
     (l) => paymentKind !== "taxPaid" || !l.balance || l.balance.today.amount > 0,
@@ -533,8 +527,7 @@ export function HeadEdit({
   const t = useTranslations("transactions.picker");
   const tc = useTranslations("transactions.chat");
   const tf = useTranslations("accounts.party.form");
-  const utils = trpc.useUtils();
-  const update = trpc.accounts.ledger.update.useMutation();
+  const { update, refreshAccounts } = useLedgerActions();
   const [typed, setTyped] = useState(name);
   const [failed, setFailed] = useState(false);
 
@@ -543,7 +536,7 @@ export function HeadEdit({
     setFailed(false);
     try {
       const saved = await update.mutateAsync({ id: ledgerId, name: typed.trim() });
-      void utils.accounts.invalidate();
+      refreshAccounts();
       onSaved(saved.name);
     } catch {
       setFailed(true);

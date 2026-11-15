@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { titleCase } from "~/lib/format";
-import { trpc } from "~/trpc/client";
+import { usePickableLedgers } from "~/providers/accounts";
 
 import { partyLabel } from "../../account/party/party-kinds";
 import type { Pickable, ReceiptKind } from "./ledger-picker";
@@ -49,10 +49,7 @@ export function PartyPick({ party }: { ledger: Pickable; party: NonNullable<Pick
 // the parties already added with a phone (once all 10 digits are in)
 export function usePhoneMatches(phone: string, receiptKind: ReceiptKind) {
   const ready = phone.length === 10;
-  const found = trpc.accounts.ledger.pickable.useQuery(
-    { purpose: "receipt", receiptKind, search: phone },
-    { enabled: ready },
-  );
+  const found = usePickableLedgers({ purpose: "receipt", receiptKind, search: phone }, ready);
   return ready ? (found.data ?? []).filter((l) => l.party?.phone === phone) : [];
 }
 
@@ -65,10 +62,7 @@ export function useNameMatches(name: string, receiptKind: ReceiptKind) {
     return () => clearTimeout(timer);
   }, [name]);
   const ready = asked.length >= 3;
-  const found = trpc.accounts.ledger.pickable.useQuery(
-    { purpose: "receipt", receiptKind, search: asked },
-    { enabled: ready },
-  );
+  const found = usePickableLedgers({ purpose: "receipt", receiptKind, search: asked }, ready);
   return ready ? (found.data ?? []).filter((l) => l.party) : [];
 }
 

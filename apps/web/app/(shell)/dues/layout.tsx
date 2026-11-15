@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 
-import { getSession } from "~/trpc/session";
+import { getSession } from "~/lib/session";
 
 // dues are the admin's only, like every page with balances (the shell has already made sure someone is signed in)
 export default async function DuesLayout({ children }: { children: React.ReactNode }) {

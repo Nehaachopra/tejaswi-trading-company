@@ -1,10 +1,11 @@
 "use client";
 
-import { Pencil, SquarePen } from "lucide-react";
+import { Pencil, Plus, SquarePen } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type { RouterOutputs } from "@repo/trpc/client";
 
+import { addSquare } from "~/components/ui/page-styles";
 import { initials, packLabel, rupees, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
@@ -18,11 +19,20 @@ export const productTitle = (group: Pick<ProductGroup, "brand" | "name">) =>
   titleCase([group.brand, group.name].filter(Boolean).join(" "));
 
 // the photo for one pack size: only its own, never another pack size's; none until the admin adds one
-export const packImage = (group: ProductGroup, pack: ProductGroup["packs"][number]) => pack.imageUrl;
+export const packImage = (group: ProductGroup, pack: ProductGroup["packs"][number]) =>
+  pack.imageUrl;
 
 // a product photo, whole: a wide or tall one keeps its shape inside the tinted square (never cropped); until one is
 // uploaded, its brand's initials
-export function ProductImage({ group, imageUrl, className }: { group: Pick<ProductGroup, "brand">; imageUrl: string | null; className?: string }) {
+export function ProductImage({
+  group,
+  imageUrl,
+  className,
+}: {
+  group: Pick<ProductGroup, "brand">;
+  imageUrl: string | null;
+  className?: string;
+}) {
   return (
     <div
       className={cn(
@@ -51,7 +61,10 @@ export function TileTop({
   onChestnut = false,
   short = false,
   photoButton,
+  onAdd,
 }: {
+  // the + after the pack sizes (the product's card): opens Add product for this product
+  onAdd?: () => void;
   group: ProductGroup;
   pack: Pack;
   onPack: (productId: string) => void;
@@ -64,14 +77,34 @@ export function TileTop({
   return (
     <>
       {/* pack sizes, always on top */}
-      <PackChips packs={group.packs} selected={pack.productId} onSelect={onPack} label={t("packSizes")} onChestnut={onChestnut} />
+      <PackChips
+        packs={group.packs}
+        selected={pack.productId}
+        onSelect={onPack}
+        label={t("packSizes")}
+        onChestnut={onChestnut}
+        // the + that adds a pack size stays put at the end while the chips scroll
+        end={
+          onAdd && (
+            <button type="button" aria-label={t("addPack")} title={t("addPack")} onClick={onAdd} className={addSquare("size-8")}>
+              <Plus className="size-4" aria-hidden />
+            </button>
+          )
+        }
+      />
 
       {/* the name, and the sub-category so two brands' packs are told apart */}
       <div className="min-w-0">
-        <p className="truncate font-heading text-base font-bold leading-6" title={productTitle(group)}>
+        <p
+          className="truncate font-heading text-base font-bold leading-6"
+          title={productTitle(group)}
+        >
           {productTitle(group)}
         </p>
-        <p className="truncate text-xs opacity-70" title={`${titleCase(group.categoryName)} | ${titleCase(group.subCategoryName)}`}>
+        <p
+          className="truncate text-xs opacity-70"
+          title={`${titleCase(group.categoryName)} | ${titleCase(group.subCategoryName)}`}
+        >
           {titleCase(group.categoryName)} | {titleCase(group.subCategoryName)}
         </p>
       </div>
@@ -90,13 +123,65 @@ export function TileTop({
   );
 }
 
-// one product: its pack sizes, name, photo (its pen-in-a-box opens Details) and the selected pack's price with a
-// pencil beside it (opens the price card)
+// the card's top half: pack sizes on top, then the name and sub-category, then the photo; shared by the tile and
+// the zoomed price card (`short`: a shorter photo box, the photo kept whole inside it)
+export function TileTopForPrice({
+  group,
+  pack,
+  short = false,
+  photoButton,
+}: {
+  group: ProductGroup;
+  pack: Pack;
+  onPack: (productId: string) => void;
+  onChestnut?: boolean;
+  short?: boolean;
+  // a button floating on the photo's top-right corner
+  photoButton?: React.ReactNode;
+}) {
+  const t = useTranslations("products.items");
+  return (
+    <>
+      {/* the name, and the sub-category so two brands' packs are told apart */}
+      <div className="min-w-0">
+        <p
+          className="truncate font-heading text-base font-bold leading-6"
+          title={productTitle(group)}
+        >
+          {productTitle(group)}
+        </p>
+        <p
+          className="truncate text-xs opacity-70"
+          title={`${titleCase(group.categoryName)} | ${titleCase(group.subCategoryName)}`}
+        >
+          {titleCase(group.categoryName)} | {titleCase(group.subCategoryName)}
+        </p>
+      </div>
+
+      {/* the photo, with its button over the corner */}
+      <div className="relative">
+        <ProductImage
+          group={group}
+          imageUrl={packImage(group, pack)}
+          // short: the box's own height wins over the square, and the photo fills its height (kept whole)
+          className={cn("w-full", short && "h-[110px] grid-rows-[100%] aspect-auto!")}
+        />
+        {photoButton}
+      </div>
+    </>
+  );
+}
+
+// one product: its pack sizes (a + fixed at the end opens Add product for it), name, photo (its pen-in-a-box opens
+// Details) and the selected pack's price with a pencil beside it (opens the price card)
 export function ProductTile({
   group,
   onDetails,
   onPrice,
+  onAdd,
 }: {
+  // the + after its pack sizes
+  onAdd: () => void;
   group: ProductGroup;
   onDetails: (productId: string) => void;
   onPrice: (productId: string) => void;
@@ -121,6 +206,7 @@ export function ProductTile({
         pack={pack}
         onPack={setSelected}
         onChestnut={!active}
+        onAdd={onAdd}
         photoButton={
           <button
             type="button"
@@ -136,19 +222,20 @@ export function ProductTile({
       />
 
       {/* the price (GST included) and the pencil that opens the price card */}
-      <div className="flex items-center justify-between gap-1.5">
-        <span className="tabular truncate font-heading text-2xl font-bold leading-8 sm:leading-9">
+      <div className="flex items-center justify-center gap-2">
+        <div className="flex flex-1 justify-center bg-chestnut rounded-lg py-1 tabular truncate font-heading text-xl font-semibold text-ivory">
           {pack.priceAfterGst == null ? "–" : rupees(pack.priceAfterGst)}
-        </span>
+        </div>
+
         <button
           type="button"
           onClick={() => onPrice(pack.productId)}
           aria-haspopup="dialog"
           aria-label={`${t("editPrice")}: ${name}`}
           title={t("editPrice")}
-          className="grid size-9 shrink-0 place-items-center rounded-control hover:bg-current/8"
+          className="grid place-items-center rounded-control hover:bg-chestnut/8 p-2"
         >
-          <Pencil className="size-4" aria-hidden />
+          <Pencil className="size-5" aria-hidden />
         </button>
       </div>
     </li>

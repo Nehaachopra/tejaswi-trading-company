@@ -9,7 +9,7 @@ import { ActiveRow } from "~/components/ui/active-row";
 import { Sheet } from "~/components/ui/sheet";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
-import { trpc } from "~/trpc/client";
+import { useBank, useBankActions } from "~/providers/accounts";
 
 import {
   BankFields,
@@ -45,11 +45,9 @@ export function BankSheet({
   active?: { on: boolean; onFlip: (on: boolean) => void };
 }) {
   const t = useTranslations("accounts.bank.form");
-  const utils = trpc.useUtils();
   const editing = bankId !== null && bankId !== "new";
-  const bank = trpc.accounts.bank.get.useQuery({ id: editing ? bankId : "" }, { enabled: editing });
-  const create = trpc.accounts.bank.create.useMutation();
-  const update = trpc.accounts.bank.update.useMutation();
+  const bank = useBank(editing ? bankId : "", editing);
+  const { create, update, refreshAccounts } = useBankActions();
 
   const [draft, setDraft] = useState<BankDraft>(emptyDraft);
   const [tried, setTried] = useState(false);
@@ -76,7 +74,7 @@ export function BankSheet({
       toast.success(
         t(editing ? "toast.saved" : "toast.added", { name: `${saved.bankName} ••${saved.last4}` }),
       );
-      void utils.accounts.invalidate();
+      refreshAccounts();
       onClose();
     } catch (err) {
       setError(t(`errors.${errorKey(err)}`));

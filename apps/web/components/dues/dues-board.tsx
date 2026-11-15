@@ -12,7 +12,7 @@ import { Spinner } from "~/components/ui/spinner";
 import { rupees } from "~/lib/format";
 import { useLocalLetters } from "~/lib/use-local-letters";
 import { cn } from "~/lib/utils";
-import { trpc } from "~/trpc/client";
+import { useDues } from "~/providers/dues";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { DUE_KINDS, type DueKind } from "./due-kinds";
@@ -53,7 +53,7 @@ export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [town, setTown] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>("overdue");
-  const dues = trpc.transactions.due.list.useQuery({ kind }, { placeholderData: (previous) => previous });
+  const dues = useDues(kind);
 
   // a tab picked: it's kept in the link, so a reload or the way back lands on it; its filters start afresh
   function pick(k: DueKind) {

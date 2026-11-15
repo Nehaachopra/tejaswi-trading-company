@@ -8,7 +8,7 @@ import { FieldMessage } from "~/components/ui/field-message";
 import { Sheet } from "~/components/ui/sheet";
 import { Spinner } from "~/components/ui/spinner";
 import { toast } from "~/components/ui/toast";
-import { trpc } from "~/trpc/client";
+import { useGodown, useGodownActions } from "~/providers/stock";
 
 import { categoryError } from "../../product/categories/category-errors";
 import { draftFrom, draftInput, draftOk, emptyDraft, GodownFields, type GodownDraft } from "./godown-fields";
@@ -17,9 +17,8 @@ import { draftFrom, draftInput, draftOk, emptyDraft, GodownFields, type GodownDr
 export function EditGodownSheet({ godownId, onClose }: { godownId: string | null; onClose: () => void }) {
   const t = useTranslations("stock.form");
   const tg = useTranslations("stock.godowns");
-  const utils = trpc.useUtils();
-  const godown = trpc.inventory.godown.get.useQuery({ id: godownId ?? "" }, { enabled: !!godownId });
-  const update = trpc.inventory.godown.update.useMutation();
+  const godown = useGodown(godownId);
+  const { update, refreshGodown } = useGodownActions();
 
   const [draft, setDraft] = useState<GodownDraft>(emptyDraft);
   const [tried, setTried] = useState(false);
@@ -44,8 +43,7 @@ export function EditGodownSheet({ godownId, onClose }: { godownId: string | null
     try {
       const saved = await update.mutateAsync({ id: godownId, details: draftInput(draft) });
       toast.success(tg("toast.saved", { name: saved.godownName }));
-      void utils.inventory.godown.invalidate();
-      void utils.inventory.stock.byGodown.invalidate();
+      refreshGodown();
       onClose();
     } catch (err) {
       const key = categoryError(err);
