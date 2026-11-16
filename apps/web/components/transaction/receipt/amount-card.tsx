@@ -20,10 +20,10 @@ import { ReceivedInto } from "./received-into";
 import { input, saidAmount } from "./shared";
 import { useReceiptEntry } from "./state";
 
-// the Amount card, laid out as a payment's: on a phone one column; on a wider screen, on the left, every value a row
-// (its name on the left, its box on the right): the due, the months and interest, the amount, its breakup, and where it
-// came into; the due's pie on the right. Then the Received into cards (one per place, each with its QR and reference)
-// the card's full width
+// the Amount card, laid out as a payment's: the supporting details on top (the due, an advance of theirs with us, the
+// months), room under them; then one breakup, every value a row (its name on the left, its figure or box on the right):
+// the amount in its box, any TDS, the total; what it goes towards beside it on a wider screen. Then the Received into
+// cards (one per place, each with its QR and reference) the card's full width
 export function AmountCard() {
   const {
     t,
@@ -62,6 +62,15 @@ export function AmountCard() {
   const towardsDue = advance > 0 ? owes : settled;
   const hasDue = value > 0 && (dueShown !== null || advance > 0);
   const [dueOpen, setDueOpen] = useState(false);
+  // whether there's a supporting detail to sit above the breakup: a due, an advance of theirs, the months
+  const hasSupport = dueShown !== null || heldAdvance > 0 || interestCalc;
+  // a supporting detail that's only read: its name on the left, its figure on the right
+  const plainRow = (label: string, figure: number) => (
+    <div className="tabular flex items-baseline justify-between gap-3 text-sm">
+      <span className="min-w-0">{label}</span>
+      <span className="shrink-0 whitespace-nowrap text-base font-semibold">{rupees(figure)}</span>
+    </div>
+  );
   const dueGroup = (
     <FoldGroup title={t("towardsGroup")} figure={total} open={dueOpen} onOpen={setDueOpen}>
       <DueFlow
@@ -109,25 +118,20 @@ export function AmountCard() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* wider screens, two rows: on top the due and the amount (left); under them the Receipt's breakup (left) level
-          with what it goes towards (right) */}
+      {/* wider screens, two rows: on top the supporting details (left); under them the breakup (left) level with what
+          it goes towards (right) */}
       <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-12">
         <div className="flex min-w-0 flex-col gap-4 sm:contents">
-          <div className="flex min-w-0 flex-col gap-2.5 sm:col-start-1 sm:row-start-1">
-            {/* what's owed by the customer or on the loan given back, as soon as something is owed; room under it */}
-            {dueShown !== null && (
-              <div className="tabular mb-2 flex items-baseline justify-between gap-3 text-sm">
-                <span className="min-w-0">{t("due")}</span>
-                <span className="shrink-0 whitespace-nowrap text-base font-semibold">
-                  {rupees(dueShown)}
-                </span>
-              </div>
-            )}
-            {interestCalc ? (
-              <>
-                {/* interest on a loan we gave: the months, then what they come to (or a figure typed from a
-                    statement) */}
-                {row(
+          {/* the supporting details, on top with room under them */}
+          {hasSupport && (
+            <div className="mb-2 flex min-w-0 flex-col gap-2.5 sm:col-start-1 sm:row-start-1">
+              {/* what's owed by the customer or on the loan given back, as soon as something is owed */}
+              {dueShown !== null && plainRow(t("due"), dueShown)}
+              {/* an advance they already have with us, shown as the due is */}
+              {heldAdvance > 0 && plainRow(t("advancePart"), heldAdvance)}
+              {/* interest on a loan we gave: the months it's for */}
+              {interestCalc &&
+                row(
                   tpf("months"),
                   <NumberInput
                     id="months-field"
@@ -143,6 +147,18 @@ export function AmountCard() {
                   />,
                   "months-field",
                 )}
+            </div>
+          )}
+          {/* the breakup: the amount in its box (interest's worked out from the months, or typed from a statement),
+              then, where there's something to break down, the TDS they deducted (its switch in the row) and the total */}
+          <div
+            className={cn(
+              "flex min-w-0 flex-col gap-2.5 sm:col-start-1",
+              hasSupport ? "sm:row-start-2" : "sm:row-start-1",
+            )}
+          >
+            {interestCalc ? (
+              <>
                 {row(
                   <>
                     {tpf("interestDue")}
@@ -202,19 +218,10 @@ export function AmountCard() {
                 {tc("problems.loanLeft", { left: rupees(loan!.left) })}
               </FieldMessage>
             )}
-          </div>
-          <div className="flex min-w-0 flex-col gap-4 sm:col-start-1 sm:row-start-2">
             <div className="flex flex-col gap-2.5">
-              {/* the breakup once there's an amount and something to break down, in a tinted Receipt group: what came
-                in, the TDS they deducted (its switch in the row), the total; then the TDS's note once it's on */}
-              {value > 0 && totalAt > 1 && (
-                <div className="-mx-3 flex flex-col gap-1 rounded-control bg-chestnut/6 px-3 py-2.5">
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.08em] opacity-60">
-                    {t("receiptGroup")}
-                  </h3>
-                  <PlainRows rows={rows.slice(0, totalAt + 1)} />
-                </div>
-              )}
+              {/* the rest of the breakup once there's an amount and something to break down (the amount itself is the
+                box above); then the TDS's note once it's on */}
+              {value > 0 && totalAt > 1 && <PlainRows rows={rows.slice(1, totalAt + 1)} />}
               <Reveal follow show={tdsCan && tdsOnIt && value > 0} gap="0.625rem">
                 <Note className="text-chestnut/70">
                   {t(kind === "interestReceived" ? "tdsNote194A" : "tdsNote194Q")}
@@ -222,18 +229,19 @@ export function AmountCard() {
               </Reveal>
               {/* a phone: what it goes towards under the breakup (wider screens: on the right) */}
               {hasDue && <div className="sm:hidden">{dueGroup}</div>}
-              {/* an advance they already have with us, before anything's typed */}
-              <Reveal follow show={heldAdvance > 0 && advance === 0} gap="0.625rem">
-                <Note className="tabular text-chestnut/70">
-                  {t("heldAdvance", { amount: rupees(heldAdvance) })}
-                </Note>
-              </Reveal>
             </div>
           </div>
         </div>
         {/* wider screens: what it goes towards, level with the breakup */}
         {hasDue && (
-          <div className="hidden min-w-0 sm:col-start-2 sm:row-start-2 sm:block">{dueGroup}</div>
+          <div
+            className={cn(
+              "hidden min-w-0 sm:col-start-2 sm:block",
+              hasSupport ? "sm:row-start-2" : "sm:row-start-1",
+            )}
+          >
+            {dueGroup}
+          </div>
         )}
       </div>
       {/* where it came into: a card for each place (its QR and reference), the card's full width */}
