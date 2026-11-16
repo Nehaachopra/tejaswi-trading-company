@@ -33,7 +33,8 @@ type AddressType = (typeof ADDRESS_TYPES)[number];
 // lengths follow parties and party_addresses: name 150, phone 20, email 254, PAN 10, remarks 500; label 100,
 // lines 200, landmark 150, city, district and state 100, PIN 6, GSTIN 15; at most 10 addresses
 const MAX = { name: 150, shortName: 20, phone: 20, email: 254, remarks: 500, label: 100, line: 200, landmark: 150, place: 100 } as const;
-const MAX_ADDRESSES = 10;
+// one for billing (and shipping), one more to ship to; a party saved with more keeps them
+const MAX_ADDRESSES = 2;
 const SHORT_NAME = /^[A-Z0-9][A-Z0-9 &.-]{0,19}$/;
 
 
@@ -144,7 +145,8 @@ export const draftFrom = (p: Party): PartyDraft => ({
   paidBefore: p.paidBefore ? String(p.paidBefore.paid) : "",
   tdsBefore: p.paidBefore?.tds ? String(p.paidBefore.tds) : "",
   upiIds: p.upiIds.map((upiId) => ({ key: newKey(), upiId })),
-  addresses: p.addresses.map((a) => ({
+  // the default one first: it's the billing address, the rest are where it ships
+  addresses: [...p.addresses].sort((a, b) => Number(b.isDefault) - Number(a.isDefault)).map((a) => ({
     key: newKey(),
     id: a.id,
     label: a.label ?? "",
@@ -164,6 +166,14 @@ export const draftFrom = (p: Party): PartyDraft => ({
 
 // an address with nothing typed in it is simply left out
 export const blank = (a: AddressDraft) => [a.addressLine1, a.city, a.district, a.state, a.postalCode, a.gstin, a.label, a.addressLine2, a.landmark].every((v) => v.trim() === "");
+
+// the same place as another address: line 1, landmark, town, district, PIN and state, capitals aside (as a sale's
+// shipping address can't be its billing address again)
+const samePlace = (a: AddressDraft, b: AddressDraft) =>
+  (["addressLine1", "landmark", "city", "district", "postalCode"] as const).every((f) => a[f].trim().toLowerCase() === b[f].trim().toLowerCase()) && a.stateCode === b.stateCode;
+
+// an address that's already in the list above it (blank ones aside): not another address
+export const repeatsEarlier = (all: AddressDraft[], i: number) => !blank(all[i]!) && all.slice(0, i).some((b) => !blank(b) && samePlace(all[i]!, b));
 
 export function addressProblems(a: AddressDraft) {
   const gstin = a.gstin.trim();
@@ -188,7 +198,7 @@ export function draftProblems(d: PartyDraft, strict = false, phoneOptional = fal
       pan: d.pan.trim() !== "" && !/^[A-Z]{5}\d{4}[A-Z]$/.test(d.pan.trim()),
       upi: d.upiIds.some((u) => upiBad(d, u.key)),
     },
-    addresses: d.addresses.map((a, i) => (blank(a) && !(strict && i === 0) ? null : addressProblems(a))),
+    addresses: d.addresses.map((a, i) => (blank(a) && !(strict && i === 0) ? null : { ...addressProblems(a), same: repeatsEarlier(d.addresses, i) })),
   };
 }
 
@@ -251,7 +261,9 @@ export function draftInput(d: PartyDraft) {
       : null,
     upiIds: d.upiIds.map((u) => u.upiId.trim()).filter((u) => u !== ""),
     details: { name: d.name.trim(), shortName: d.shortName.trim() || null, phone: d.phone, email: d.email.trim(), pan: d.pan.trim(), remarks: d.remarks.trim(), transportDeclaration: d.transportDeclaration },
-    addresses: kept.map(addressInput),
+    // by its place in the form: the first is billed (and shipped to, when it's the only one) and is the default, the
+    // rest are shipping addresses
+    addresses: kept.map((a, i) => ({ ...addressInput(a), addressType: i > 0 ? ("shipping" as const) : kept.length > 1 ? ("billing" as const) : ("both" as const), isDefault: i === 0 })),
   };
 }
 
@@ -995,28 +1007,50 @@ export function PartyFields({
       {/* the addresses, each with its own PIN lookup */}
       {showAddresses && (
         <section ref={addressesRef} className="mt-8 flex flex-col gap-3">
-          <h3 className={SECTION_TITLE}>{t("addresses")}</h3>
-          {draft.addresses.map((a, i) => (
-            <AddressFields
-              key={a.key}
-              address={a}
-              index={i}
-              count={draft.addresses.length}
-              tried={tried}
-              required={strict && i === 0}
-              onChange={(patch) => setAddress(a.key, patch)}
-              onRestart={onAddressesOpen}
-              onRemove={() => removeAddress(a.key)}
-              onMakeDefault={() => onChange({ addresses: draft.addresses.map((x) => ({ ...x, isDefault: x.key === a.key })) })}
-            />
-          ))}
+          {/* as a sale's cash buyer: one address for billing and shipping (with its GSTIN); "Ship to a different address"
+              adds a second, where it ships, which can be removed and can't be the same place again */}
+          <div className="flex flex-col gap-6">
+            {draft.addresses.map((a, i) => (
+              <div key={a.key} className="flex flex-col gap-3">
+                <div className="flex min-h-9 items-center justify-between gap-3">
+                  <h3 className={SECTION_TITLE}>{t(i > 0 ? "shippingAddress" : draft.addresses.length > 1 ? "billingAddress" : "billShipAddress")}</h3>
+                  {i > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => removeAddress(a.key)}
+                      aria-label={t("removeShipping")}
+                      className="grid size-9 place-items-center rounded-control border border-chestnut/50 hover:border-chestnut"
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                    </button>
+                  )}
+                </div>
+                <AddressFields
+                  address={a}
+                  index={i}
+                  count={draft.addresses.length}
+                  tried={tried}
+                  required={strict && i === 0}
+                  // no name, use or default to pick: the first is billed, the rest are where it goes (and take no GSTIN;
+                  // one saved with a GSTIN keeps showing it)
+                  single={i > 0 && a.gstin === ""}
+                  noHeader
+                  onChange={(patch) => setAddress(a.key, patch)}
+                  onRestart={onAddressesOpen}
+                  onRemove={() => undefined}
+                  onMakeDefault={() => undefined}
+                />
+                {repeatsEarlier(draft.addresses, i) && <FieldMessage className="mt-0">{t("sameAddress")}</FieldMessage>}
+              </div>
+            ))}
+          </div>
           {!oneAddress && draft.addresses.length < MAX_ADDRESSES && (
             <button
               type="button"
               onClick={() => onChange({ addresses: [...draft.addresses, emptyAddress(draft.addresses.length === 0)] })}
-              className={cn(ADD_ON_IVORY, "px-5 sm:w-auto sm:self-center")}
+              className={cn(ADD_ON_IVORY, "px-5 sm:self-center")}
             >
-              <Plus className="size-4" aria-hidden /> {t("addAddress")}
+              <Plus className="size-4" aria-hidden /> {t("shipElsewhere")}
             </button>
           )}
           {stillNeeded.length > 0 && <FieldMessage className="mt-0">{t("stillNeeded", { fields: stillNeeded.join(", ") })}</FieldMessage>}

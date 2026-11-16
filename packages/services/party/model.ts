@@ -83,6 +83,15 @@ export const partyAddressInputModel = z
 
 export type PartyAddressInputModel = z.infer<typeof partyAddressInputModel>;
 
+// a party's addresses (up to 10): the same place twice (line 1, landmark, town, district, PIN and state, capitals
+// aside) is one address, so it's refused
+const placeKey = (a: PartyAddressInputModel) => [a.addressLine1, a.landmark, a.city, a.district, a.postalCode, a.stateCode].map((v) => (v ?? "").trim().toLowerCase()).join("|");
+export const partyAddressesInputModel = z
+  .array(partyAddressInputModel)
+  .max(10)
+  .refine((all) => new Set(all.map(placeKey)).size === all.length, "That address is in twice.")
+  .default([]);
+
 // the party itself; lengths follow parties: name 150, short name 20, phone 20, email 254, PAN 10. The short name
 // ("SRT" for Sri Ramswamy Traders) is kept in capitals and is what ledgers and lists show
 export const shortNameModel = z
@@ -164,7 +173,7 @@ export const createPartyInputModel = z.object({
   types: z.array(pickedRoleModel).max(5).default([]).transform((t) => [...new Set(t)]),
   // an employee's pay; sent with the employee type (left out, the saved one stays)
   employment: employmentInputModel.nullable().optional(),
-  addresses: z.array(partyAddressInputModel).max(10).default([]),
+  addresses: partyAddressesInputModel,
   paidBefore: partyPaidBeforeModel.optional(),
   // the UPI ID they're paid on (one for now; the table takes more); left out, the saved one stays as it is
   upiIds: z
