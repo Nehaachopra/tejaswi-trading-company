@@ -2,7 +2,7 @@
 
 import { Building2, House, IdCard, Landmark, Mail, Map, MapPin, MapPinned, MessageSquare, Pencil, Percent, Phone, Plus, QrCode, ReceiptText, Tag, Trash2, User, Wallet, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useLayoutEffect } from "react";
 
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
 import { fieldClass } from "~/components/ui/card-form";
@@ -317,6 +317,32 @@ export function Field({ label, icon: Icon, children, className, required = false
       {/* what's missing or wrong, once Save was tried */}
       {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
     </label>
+  );
+}
+
+// the full name's box: it grows to fit a long name, wrapping at the spaces (a word is never broken); Enter ends the
+// name, it doesn't start a line
+function NameBox({ value, onType, onDone, className, ...rest }: { value: string; onType: (name: string) => void; onDone: () => void; className?: string; autoFocus?: boolean; "aria-invalid"?: boolean }) {
+  const box = useRef<HTMLTextAreaElement>(null);
+  // as tall as what's typed
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return (
+    <textarea
+      ref={box}
+      rows={1}
+      value={value}
+      maxLength={MAX.name}
+      onChange={(e) => onType(noDigits(e.target.value.replace(/\s*[\r\n]+\s*/g, " ")))}
+      onBlur={onDone}
+      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), onDone())}
+      className={cn(className, "block resize-none overflow-hidden py-2.5 leading-6 [overflow-wrap:normal] [word-break:normal]")}
+      {...rest}
+    />
   );
 }
 
@@ -839,16 +865,11 @@ export function PartyFields({
                 if (name.trim()) setNameDone(true);
               }}
             >
-              <input
+              <NameBox
                 autoFocus
                 value={draft.name}
-                maxLength={MAX.name}
-                onChange={(e) => {
-                  const name = noDigits(e.target.value);
-                  onChange({ name });
-                }}
-                onBlur={() => draft.name.trim() && setNameDone(true)}
-                onKeyDown={(e) => e.key === "Enter" && draft.name.trim() && (e.preventDefault(), setNameDone(true))}
+                onType={(name) => onChange({ name })}
+                onDone={() => draft.name.trim() && setNameDone(true)}
                 aria-invalid={show("name") || undefined}
                 className={cn(input(show("name")), "pr-11")}
               />
@@ -918,15 +939,10 @@ export function PartyFields({
                 if (name.trim()) setNameDone(true);
               }}
             >
-              <input
+              <NameBox
                 value={draft.name}
-                maxLength={MAX.name}
-                onChange={(e) => {
-                  const name = noDigits(e.target.value);
-                  onChange({ name });
-                }}
-                onBlur={() => draft.name.trim() && setNameDone(true)}
-                onKeyDown={(e) => e.key === "Enter" && draft.name.trim() && (e.preventDefault(), setNameDone(true))}
+                onType={(name) => onChange({ name })}
+                onDone={() => draft.name.trim() && setNameDone(true)}
                 aria-invalid={show("name") || undefined}
                 className={cn(input(show("name")), "pr-11")}
               />

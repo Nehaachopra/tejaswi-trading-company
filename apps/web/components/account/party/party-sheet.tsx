@@ -53,11 +53,14 @@ export function PartyEdit({
   onSaved,
   onCancel,
   asksTypes = true,
+  rows = false,
 }: {
   partyId: string;
   onSaved: (party: PartyModel) => void;
   onCancel: () => void;
   asksTypes?: boolean;
+  // label left, box or dropdown right, as a payment's new supplier
+  rows?: boolean;
 }) {
   const t = useTranslations("accounts.party.form");
   const tc = useTranslations("transactions.chat");
@@ -112,6 +115,7 @@ export function PartyEdit({
         partyId={partyId}
         asksRemarks={false}
         asksPan={false}
+        rows={rows}
       />
       {tried && !draftOk(draft) && <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>}
       {error && <FieldMessage className="mt-0">{error}</FieldMessage>}

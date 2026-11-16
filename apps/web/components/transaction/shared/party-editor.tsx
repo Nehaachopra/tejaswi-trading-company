@@ -10,16 +10,20 @@ export function PartyEditor({
   setLedger,
   close,
   asksTypes = false,
+  rows = false,
 }: {
   ledger: Pickable;
   setLedger: (ledger: Pickable) => void;
   close: () => void;
   asksTypes?: boolean;
+  // label left, box or dropdown right, as a payment's new supplier
+  rows?: boolean;
 }) {
   return (
     <PartyEdit
       partyId={ledger.referenceId!}
       asksTypes={asksTypes}
+      rows={rows}
       onCancel={close}
       onSaved={(saved) => {
         close();

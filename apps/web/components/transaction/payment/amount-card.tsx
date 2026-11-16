@@ -125,8 +125,9 @@ export function AmountCard() {
   const billLabel = interestCalc ? t("interestDue") : t("billAmount");
   // reverse-charge GST on top (or still being worked out): the Total cost then differs from the bill
   const hasRcm = !!tax?.rcm || rcmOpen;
-  // whether there's a supporting detail to sit above the breakup: a due, rent's total a month, a PAN to give, months
-  const hasSupport = dueShown !== null || showPan || rentCalc || interestCalc;
+  // whether there's a supporting detail to sit above the breakup: a due, an advance, rent's total a month, a PAN to give,
+  // months
+  const hasSupport = dueShown !== null || heldAdvance > 0 || showPan || rentCalc || interestCalc;
   // the Total cost, folded to its figure until opened
   const [costOpen, setCostOpen] = useState(false);
   // what this payment goes towards: the due (as much as was owed), and the advance past it. Only where something was
@@ -219,6 +220,15 @@ export function AmountCard() {
                   <span className="min-w-0">{t("due")}</span>
                   <span className="shrink-0 whitespace-nowrap text-base font-semibold">
                     {rupees(dueShown)}
+                  </span>
+                </div>
+              )}
+              {/* an advance we already have with them, shown as the due is */}
+              {heldAdvance > 0 && (
+                <div className="tabular flex items-baseline justify-between gap-3 text-sm">
+                  <span className="min-w-0">{t("advancePart")}</span>
+                  <span className="shrink-0 whitespace-nowrap text-base font-semibold">
+                    {rupees(heldAdvance)}
                   </span>
                 </div>
               )}
@@ -396,12 +406,6 @@ export function AmountCard() {
                 </>
               )}
               {breakdownNotes}
-              {/* an advance we already have with them, before anything's typed */}
-              <Reveal follow show={heldAdvance > 0 && advance === 0} gap="0.625rem">
-                <Note className="tabular text-chestnut/70">
-                  {t("heldAdvance", { amount: rupees(heldAdvance) })}
-                </Note>
-              </Reveal>
             </div>
             {taxFailed && (
               <div className={underValue}>

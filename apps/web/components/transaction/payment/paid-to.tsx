@@ -126,6 +126,7 @@ export function LoanCards() {
           ) : (
             <PartyEdit
               asksTypes={false}
+              rows
               partyId={loan.partyId}
               onCancel={() => setEditingLoan(false)}
               onSaved={(saved) => {
@@ -260,6 +261,7 @@ export function ToPicker() {
       {/* what's picked, changed right here: a party's details, or the name of an expense head of our own */}
       {editingTo && to?.kind === "ledger" && to.ledger.party && (
         <PartyEditor
+          rows
           ledger={to.ledger}
           setLedger={(ledger) => setTo({ kind: "ledger", ledger })}
           close={() => setEditingTo(false)}
@@ -382,6 +384,7 @@ export function PayeePicker() {
       />
       {editingPayee && payee?.kind === "ledger" && payee.ledger.party && (
         <PartyEditor
+          rows
           ledger={payee.ledger}
           setLedger={(ledger) => setPayee({ kind: "ledger", ledger })}
           close={() => setEditingPayee(false)}
