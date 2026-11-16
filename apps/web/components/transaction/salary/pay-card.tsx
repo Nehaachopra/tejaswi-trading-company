@@ -67,6 +67,7 @@ export function PayCard() {
           {editing && choice?.kind === "ledger" && choice.ledger.party && (
             <PartyEditor
               asksTypes
+              rows
               ledger={choice.ledger}
               setLedger={(ledger) => setChoice({ kind: "ledger", ledger })}
               close={() => setEditing(false)}

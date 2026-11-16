@@ -215,6 +215,7 @@ export function SalaryTable() {
       {/* the employee's details changed right here; the table then shows the new pay */}
       {editingRow && (
         <PartyEdit
+          rows
           partyId={editingRow.employee.partyId}
           onCancel={() => setEditingId(null)}
           onSaved={() => {

@@ -46,7 +46,7 @@ export function CustomerCard() {
 
       {/* the picked one's details, changed right here */}
       {editingCustomer && picked?.party && (
-        <PartyEditor ledger={picked} setLedger={(ledger) => setCustomer({ kind: "ledger", ledger })} close={() => setEditingCustomer(false)} />
+        <PartyEditor rows ledger={picked} setLedger={(ledger) => setCustomer({ kind: "ledger", ledger })} close={() => setEditingCustomer(false)} />
       )}
       {/* one with no address: the goods need somewhere to go */}
       {picked?.party && !picked.party.city && !editingCustomer && <FieldMessage tone="warning" className="mt-0">{t("noAddress")}</FieldMessage>}

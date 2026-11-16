@@ -118,6 +118,7 @@ export function LoanCards() {
           ) : (
             <PartyEdit
               asksTypes={false}
+              rows
               partyId={loan.partyId}
               onCancel={() => setEditingFrom(false)}
               onSaved={(saved) => {
@@ -296,6 +297,7 @@ export function FromPicker() {
       {/* what's picked, changed right here: a party's details, or the name of a ledger of our own */}
       {editingFrom && from?.kind === "ledger" && from.ledger.party && (
         <PartyEditor
+          rows
           ledger={from.ledger}
           setLedger={(ledger) => setFrom({ kind: "ledger", ledger })}
           close={() => setEditingFrom(false)}

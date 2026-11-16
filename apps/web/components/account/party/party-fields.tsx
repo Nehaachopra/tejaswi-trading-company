@@ -1147,14 +1147,12 @@ export const upiKey = () => newKey();
 function EmploymentFields({ draft, onChange, tried }: { draft: PartyDraft; onChange: (patch: Partial<PartyDraft>) => void; tried: boolean }) {
   const t = useTranslations("accounts.party.form");
   const bad = employmentProblems(draft);
+  // as rows (label left, box right; two columns on a wider screen) inside a rows form
+  const rows = useContext(RowsContext);
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
   return (
-    <div className="flex flex-col gap-3">
-      <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold">
-        <span>
-          {t("joiningDate")}
-          <RequiredMark />
-        </span>
+    <div className={rows ? "grid grid-cols-1 items-start gap-x-6 gap-y-3 sm:grid-cols-2" : "flex flex-col gap-3"}>
+      <Field label={t("joiningDate")} required>
         <DateInput
           value={draft.joiningDate}
           max={today}
@@ -1163,12 +1161,8 @@ function EmploymentFields({ draft, onChange, tried }: { draft: PartyDraft; onCha
           aria-invalid={(tried && bad.joiningDate) || undefined}
           className={input(tried && bad.joiningDate)}
         />
-      </label>
-      <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold">
-        <span>
-          {t("monthlySalary")}
-          <RequiredMark />
-        </span>
+      </Field>
+      <Field label={t("monthlySalary")} required>
         <NumberInput
           value={draft.monthlySalary}
           onChange={(v) => onChange({ monthlySalary: v })}
@@ -1178,12 +1172,8 @@ function EmploymentFields({ draft, onChange, tried }: { draft: PartyDraft; onCha
           aria-invalid={(tried && bad.monthlySalary) || undefined}
           className={cn(input(tried && bad.monthlySalary), "tabular")}
         />
-      </label>
-      <label className="flex min-w-0 flex-col gap-2 text-xs font-semibold">
-        <span>
-          {t("payDay")}
-          <RequiredMark />
-        </span>
+      </Field>
+      <Field label={t("payDay")} required>
         <NumberInput
           value={draft.payDay}
           onChange={(v) => onChange({ payDay: v })}
@@ -1193,7 +1183,7 @@ function EmploymentFields({ draft, onChange, tried }: { draft: PartyDraft; onCha
           aria-invalid={(tried && bad.payDay) || undefined}
           className={cn(input(tried && bad.payDay), "tabular")}
         />
-      </label>
+      </Field>
     </div>
   );
 }
