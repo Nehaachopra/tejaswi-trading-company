@@ -30,7 +30,8 @@ import StockEngine, { type Tx } from "../stock/engine";
 import { productNameSnapshot } from "../stock/index";
 import TransactionService from "../transaction";
 import { settleLedger } from "../transaction/settle";
-import { type CreateSaleInputModel, createSaleInputModel, NAMED_BUYER_FROM, type SaleAddressInputModel, type SaleIdInputModel, type SaleInvoiceModel, type SaleSummaryModel, type SavedSaleModel } from "./model";
+import { tdsOn } from "../receipt/model";
+import { type CreateSaleInputModel, createSaleInputModel, NAMED_BUYER_FROM, SALE_TDS_RATE, type SaleAddressInputModel, type SaleIdInputModel, type SaleInvoiceModel, type SaleSummaryModel, type SavedSaleModel } from "./model";
 
 // the day a moment falls on in India, as YYYY-MM-DD
 const indiaDay = (at: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(at);
@@ -97,7 +98,10 @@ export default class SaleService {
     if (!party.isActive) throw new TRPCError({ code: "PRECONDITION_FAILED", message: `${party.name} is inactive.` });
     // their first sale makes them a customer (their ledger moves to Debtors)
     await this.parties.addRoleIn(tx, party.id, "customer");
-    return { ledgerId: ledger.id, party };
+    // what they owed before this sale, in paise (nothing when their account is in credit)
+    // and the advance they have with us (their account in credit)
+    const balance = toPaise(Number(ledger.balance));
+    return { ledgerId: ledger.id, party, owed: ledger.balanceType === "debit" ? balance : 0, held: ledger.balanceType === "credit" ? balance : 0 };
   }
 
   // each item's product, active and priced, with its GST %, cost and name as the sale keeps it
@@ -193,13 +197,40 @@ export default class SaleService {
       const sgst = intra ? gstAll - cgst : 0;
       const igst = intra ? 0 : gstAll;
 
-      // the money in: cash and each bank account's part, adding up to the total; or the customer owes it all
+      // the money in: cash and each bank account's part, adding up to the total; or the customer owes it all. A saved
+      // customer paying cash goes through their account: the bill is owed, then what came in (and any TDS they
+      // deducted) is taken off, so it may be part of the bill (the rest stays owed) or more: towards what they owe from
+      // before, and past that an advance on their account, as a receipt's
       const lines: PostingLine[] = [];
       const banks: { part: (typeof input.bankParts)[number]; ledgerId: string }[] = [];
+      // a saved customer's cash sale: what it settles of their account (what came in and the TDS), in paise
+      let settles = 0;
+      // and what of an advance of theirs is set off against this bill
+      let setOff = 0;
       if (input.kind === "cash") {
         const cash = toPaise(input.cashAmount);
         const bank = input.bankParts.reduce((a, b) => a + toPaise(b.amount), 0);
-        if (cash + bank !== total) throw new TRPCError({ code: "BAD_REQUEST", message: "Cash and bank must add up to the total." });
+        const received = cash + bank;
+        if (!customer) {
+          if (received !== total) throw new TRPCError({ code: "BAD_REQUEST", message: "Cash and bank must add up to the total." });
+        } else {
+          // the TDS on what came in; a paisa off the bill or all they owe from rounding is taken as exactly that
+          setOff = input.advanceSetOff ? Math.min(customer.held, total) : 0;
+          const most = total - setOff + customer.owed;
+          let tds = input.tdsDeducted ? toPaise(tdsOn(received / 100, SALE_TDS_RATE)) : 0;
+          if (input.tdsDeducted) for (const target of [total - setOff, most]) if (Math.abs(received + tds - target) <= 1) tds = target - received;
+          settles = received + tds;
+          // any part of what they owe, this bill included; nothing at all (and no advance set off) is a credit sale
+          if (received <= 0 && setOff === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "A cash sale takes some money now." });
+          if (tds > 0) {
+            // TDS is deducted against a PAN: theirs as saved, or given now and kept
+            if (!customer.party.pan && !input.customerPan) throw new TRPCError({ code: "BAD_REQUEST", message: "Give the customer's PAN." });
+            if (!customer.party.pan) await tx.update(partiesTable).set({ pan: input.customerPan }).where(eq(partiesTable.id, customer.party.id));
+            lines.push({ ledgerId: await this.accounts.ledgerId(tx, "tdsReceivable"), side: "debit", amount: tds / 100 });
+          }
+          lines.push({ ledgerId: customer.ledgerId, side: "debit", amount: total / 100 });
+          if (settles > 0) lines.push({ ledgerId: customer.ledgerId, side: "credit", amount: settles / 100 });
+        }
         if (cash > 0) lines.push({ ledgerId: await settleLedger(tx, this.accounts, "cash", null), side: "debit", amount: cash / 100 });
         for (const b of input.bankParts) {
           const ledgerId = await settleLedger(tx, this.accounts, "bank", b.bankDetailsId);
@@ -313,6 +344,21 @@ export default class SaleService {
             bankIfscSnapshot: acc.ifsc?.slice(0, 11) ?? null,
           });
         }
+      }
+
+      // a saved customer's cash sale: the bill is a due, and what it settled goes to their dues oldest first (this
+      // bill's last); anything past them stays on their account
+      if (customer && input.kind === "cash") {
+        await this.dues.createIn(tx, {
+          kind: "debtor",
+          party: { id: customer.party.id, name: customer.party.name, phone: customer.party.phone },
+          transactionId: t.id,
+          amount: total / 100,
+          dueOn: null,
+          terms: null,
+        });
+        // an advance set off settles this bill too (it's already on their account, so nothing more is posted for it)
+        await this.dues.settleOldestIn(tx, { kind: "debtor", partyId: customer.party.id, transactionId: t.id, amount: (settles + setOff) / 100 });
       }
 
       // a credit sale: the customer owes it, due after the credit period when there is one

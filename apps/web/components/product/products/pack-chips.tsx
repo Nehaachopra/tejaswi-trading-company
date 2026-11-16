@@ -44,7 +44,7 @@ export function PackChips({
   }, [row, selected]);
 
   return (
-    <div className="flex min-w-0 items-center gap-3">
+    <div className="flex min-w-0 items-center gap-3 justify-between">
       <div
       ref={row}
       role="group"

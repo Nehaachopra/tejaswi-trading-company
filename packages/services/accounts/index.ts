@@ -579,7 +579,7 @@ export default class AccountsService {
     const ids = ledgers.map((l) => l.referenceId).filter((id): id is string => id !== null);
     const rows = ids.length
       ? await db
-          .select({ id: partiesTable.id, name: partiesTable.name, shortName: partiesTable.shortName, phone: partiesTable.phone, types: partiesTable.types, city: partyAddressesTable.city })
+          .select({ id: partiesTable.id, name: partiesTable.name, shortName: partiesTable.shortName, phone: partiesTable.phone, types: partiesTable.types, pan: partiesTable.pan, city: partyAddressesTable.city })
           .from(partiesTable)
           .leftJoin(partyAddressesTable, and(eq(partyAddressesTable.partyId, partiesTable.id), eq(partyAddressesTable.isActive, true), eq(partyAddressesTable.isDefault, true)))
           .where(inArray(partiesTable.id, ids))
@@ -587,7 +587,7 @@ export default class AccountsService {
     const upis = ids.length
       ? await db.select({ partyId: partyUpiIdsTable.partyId, upiId: partyUpiIdsTable.upiId }).from(partyUpiIdsTable).where(inArray(partyUpiIdsTable.partyId, ids)).orderBy(asc(partyUpiIdsTable.createdAt))
       : [];
-    const byId = new Map(rows.map(({ id, ...p }) => [id, { ...p, types: rolesOf(p.types), upiIds: upis.filter((u) => u.partyId === id).map((u) => u.upiId) }]));
+    const byId = new Map(rows.map(({ id, pan, ...p }) => [id, { ...p, hasPan: !!pan, types: rolesOf(p.types), upiIds: upis.filter((u) => u.partyId === id).map((u) => u.upiId) }]));
     return ledgers.map((l) => ({ ...l, party: (l.referenceId && byId.get(l.referenceId)) || null }));
   }
 

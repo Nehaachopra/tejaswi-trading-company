@@ -1,8 +1,9 @@
 "use client";
 
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { dayInWords } from "~/components/ui/date-input";
 
 import { packLabel, rupees, titleCase } from "~/lib/format";
@@ -16,12 +17,13 @@ import { CustomerCard } from "./customer-card";
 import { DetailsCard, SaveBlock } from "./details-card";
 import { MoneyCard } from "./money-card";
 import { ProductsCard } from "./products-card";
+import { ReceivedCard } from "./received-card";
 import { type SaleStep, SaleEntryProvider, useSaleEntry, useSaleEntryState } from "./state";
 
 // /transaction/sale (from the transaction hub): a sale, laid out like a payment: one card at a time on the left with
 // Back and Next, and a summary on the right (a bar above the card on a phone) that goes back to any card. 1 Products:
-// the cart above every pack size that can be sold; 2 Amount: the charges and a cash discount; 3 Cash or credit (and
-// where the cash came into); 4 Customer; 5 Details: the day, remarks and Save. A save goes to the sale's success page. Discarding to open a menu
+// the cart above every pack size that can be sold; 2 Amount: the charges and a cash discount; 3 Cash or credit; 4
+// Customer; 5 Received (cash only): what came in and where; 6 Details: the day, vehicle, remarks and Save. A save goes to the sale's success page. Discarding to open a menu
 // starts the form again
 export function SaleForm({ isAdmin }: { isAdmin: boolean }) {
   const [round, setRound] = useState(0);
@@ -53,11 +55,18 @@ function SaleEntryView() {
     packOf,
     total,
     kind,
+    advance,
+    askingAdvance,
+    oldDue,
+    dueNow,
     gridPlaces,
     customer,
+    setCustomer,
     newParty,
     buyerName,
+    buyerNeeded,
     day,
+    vehicle,
     remarks,
     tried,
     complete,
@@ -74,6 +83,7 @@ function SaleEntryView() {
     next,
   } = useSaleEntry();
   const locale = useLocale();
+  const tr = useTranslations("transactions.receipt.form");
 
   if (loading)
     return (
@@ -109,19 +119,7 @@ function SaleEntryView() {
       }),
     },
     { key: "amount", step: "amount", heading: t("steps.amount"), value: complete.amount && index > 0 ? rupees(total) : null },
-    {
-      key: "money",
-      step: "money",
-      heading: t("steps.money"),
-      value:
-        kind === "credit"
-          ? t("kinds.credit")
-          : kind === "cash"
-            ? into.length === 0
-              ? t("kinds.cash")
-              : into.map((p) => ({ name: p.id === "cash" ? tc("cash") : `${p.name} ${p.sub ?? ""}`.trim(), amount: rupees(p.amount) }))
-            : null,
-    },
+    { key: "money", step: "money", heading: t("steps.money"), value: kind ? t(`kinds.${kind}`) : null },
     {
       key: "customer",
       step: "customer",
@@ -133,15 +131,28 @@ function SaleEntryView() {
             : customer.ledger.name
           : customer?.kind === "party" && newParty.name.trim()
             ? titleCase(newParty.name)
-            : kind === "cash" && buyerName.trim()
+            : buyerNeeded && buyerName.trim()
               ? titleCase(buyerName)
               : null,
     },
+    // credit, to someone who owes from before: what they'll owe; cash: where it came into, a line each
+    ...(kind === "credit"
+      ? oldDue > 0
+        ? [{ key: "received", step: "received" as const, heading: t("steps.due"), value: current === "received" || current === "details" ? rupees(dueNow) : null }]
+        : []
+      : [
+          {
+            key: "received",
+            step: "received" as const,
+            heading: t("steps.received"),
+            value: into.length === 0 ? null : into.map((p) => ({ name: p.id === "cash" ? tc("cash") : `${p.name} ${p.sub ?? ""}`.trim(), amount: rupees(p.amount) })),
+          },
+        ]),
     {
       key: "details",
       step: "details",
       heading: t("steps.details"),
-      value: current === "details" || remarks.trim() ? [dayInWords(day, locale), remarks.trim()].filter((v) => v !== "") : null,
+      value: current === "details" || remarks.trim() || vehicle ? [dayInWords(day, locale), vehicle, remarks.trim()].filter((v) => v !== "") : null,
     },
   ];
   const linesView = (
@@ -174,19 +185,45 @@ function SaleEntryView() {
     >
       {leaveDialog}
       {sameNameDialog}
+      {/* an advance in the amount: asked before going on */}
+      <ConfirmDialog
+        open={askingAdvance !== null}
+        tone="plain"
+        title={tr("advanceAsk.title")}
+        body={tr("advanceAsk.body", { amount: rupees(advance) })}
+        confirmLabel={tr("advanceAsk.yes")}
+        cancelLabel={tr("advanceAsk.no")}
+        busy={false}
+        onConfirm={() => askingAdvance?.(true)}
+        onCancel={() => askingAdvance?.(false)}
+      />
       <StepCard
         key={current}
         id={current}
-        name={t(`steps.${current}`)}
+        // a credit sale's card after the customer is its Due
+        name={t(current === "received" && kind === "credit" ? "steps.due" : `steps.${current}`)}
         // Products names its own parts further down
         hideName={current === "products"}
         onBack={index > 0 ? () => show(steps[index - 1]!) : null}
-        onChange={null}
+        // someone new being typed in: Change goes back to the search (as a receipt's)
+        onChange={current === "customer" && customer?.kind === "party" ? () => setCustomer(null) : null}
         missing={tried && !complete[current] ? missingOf(current) : null}
-        // Cash or credit waits for a pick (Credit moves on by itself); Details saves
-        end={current === "details" ? <SaveBlock /> : current === "money" && kind !== "cash" ? null : <NextButton onClick={next} />}
+        // Cash or credit waits for a pick and moves on by itself; Details saves
+        end={current === "details" ? <SaveBlock /> : current === "money" ? null : <NextButton onClick={() => void next()} />}
       >
-        {current === "products" ? <ProductsCard /> : current === "amount" ? <AmountCard /> : current === "money" ? <MoneyCard /> : current === "customer" ? <CustomerCard /> : <DetailsCard />}
+        {current === "products" ? (
+          <ProductsCard />
+        ) : current === "amount" ? (
+          <AmountCard />
+        ) : current === "money" ? (
+          <MoneyCard />
+        ) : current === "customer" ? (
+          <CustomerCard />
+        ) : current === "received" ? (
+          <ReceivedCard />
+        ) : (
+          <DetailsCard />
+        )}
       </StepCard>
     </EntryPage>
   );

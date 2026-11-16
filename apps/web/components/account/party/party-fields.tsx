@@ -325,8 +325,11 @@ export function AddressFields({
   onMakeDefault,
   onRestart,
   single = false,
+  noHeader = false,
 }: {
   single?: boolean;
+  // no name, use or default row, but its GSTIN stays (a sale's cash buyer: one billing address)
+  noHeader?: boolean;
   address: AddressDraft;
   index: number;
   count: number;
@@ -455,7 +458,7 @@ export function AddressFields({
     <fieldset className="flex flex-col gap-4 rounded-control border border-chestnut/20 p-3">
       {/* which address, default or not, remove */}
       <legend className="sr-only">{t("addressN", { n: index + 1 })}</legend>
-      {!single && (
+      {!single && !noHeader && (
       <div className="flex flex-wrap items-center gap-2">
         {/* its name, "Address 1" until it's given one, changed with the pen */}
         <div className="flex min-w-0 flex-1 basis-20 items-center gap-1">
@@ -596,7 +599,9 @@ export function AddressFields({
       </div>
 
       {/* GSTIN (its first two digits are the state's code) */}
+      {/* as rows it takes the left column, in line with the rows above */}
       {!single && (
+      <div className={cn(rows && "grid grid-cols-1 items-start gap-x-6 sm:grid-cols-2")}>
       <Field icon={ReceiptText} label={t("gstin")} className="mt-6 sm:w-56">
         <input
           value={address.gstin}
@@ -609,6 +614,7 @@ export function AddressFields({
         />
         {show("gstin") && <span className="text-xs text-danger">{t("gstinHint")}</span>}
       </Field>
+      </div>
       )}
     </fieldset>
   );
@@ -935,7 +941,9 @@ export function PartyFields({
         </div>
         </div>
 
+        {/* as rows it takes the left column, in line with the rows above */}
         {asksPan && (
+          <div className={cn(rows && "grid grid-cols-1 items-start gap-x-6 @md:grid-cols-2")}>
           <Field icon={IdCard} label={t("pan")} className="mt-6 sm:w-56">
             <input
               value={draft.pan}
@@ -947,6 +955,7 @@ export function PartyFields({
               className={cn(input(show("pan")), "tabular uppercase")}
             />
           </Field>
+          </div>
         )}
 
         {/* a small transporter (10 or fewer trucks) who gave their PAN and a declaration: no TDS on its transport */}

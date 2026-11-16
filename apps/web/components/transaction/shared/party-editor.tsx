@@ -33,6 +33,7 @@ export function PartyEditor({
             phone: saved.phone,
             city: home?.city ?? null,
             upiIds: saved.upiIds,
+            hasPan: !!saved.pan,
           },
         });
       }}

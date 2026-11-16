@@ -331,6 +331,8 @@ export const pickedPartyModel = z.object({
   types: z.array(z.enum(["customer", "supplier", "employee", "landlord", "lender", "agent"])),
   // what they're paid on, for a payment's UPI QR
   upiIds: z.array(z.string()),
+  // whether a PAN is saved (a sale asks for one when the customer deducted TDS and has none)
+  hasPan: z.boolean(),
 });
 
 export type PickedPartyModel = z.infer<typeof pickedPartyModel>;

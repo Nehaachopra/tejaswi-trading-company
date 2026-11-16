@@ -28,16 +28,22 @@ import type { Pack, ProductGroup } from "../../product/products/product-tile";
 import { productTitle } from "../../product/products/product-tile";
 import type { LedgerChoice } from "../pickers/ledger-picker";
 import { usePhoneMatches } from "../pickers/party-finder";
+import { tdsOn } from "../receipt/shared";
 import { refOkFor } from "../shared/bank-mode";
 import { moveCard, useCardHistory } from "../shared/card-steps";
 import { momentOf } from "../shared/form-basics";
 import type { QrItem } from "../shared/qr-spot";
 import type { GridPlace } from "../shared/split-grid";
 
-// the cards, in order: the cart, the amount (charges and a cash discount), cash or credit (and where cash came into),
-// who bought it, then the day, remarks and Save
-export type SaleStep = "products" | "amount" | "money" | "customer" | "details";
-const STEPS: SaleStep[] = ["products", "amount", "money", "customer", "details"];
+// the cards, in order: the cart, the amount (charges and a cash discount), cash or credit, who bought it, what was
+// received and where it came into (cash only), then the day, vehicle, remarks and Save
+export type SaleStep = "products" | "amount" | "money" | "customer" | "received" | "details";
+const ALL_STEPS: SaleStep[] = ["products", "amount", "money", "customer", "received", "details"];
+
+// the TDS a buyer takes from what it pays us, by law (section 194Q), as the server uses it
+export const SALE_TDS_RATE = 0.1;
+const PAN = /^[A-Z]{5}\d{4}[A-Z]$/;
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 // a cash sale's taxable value from which the buyer's name and phone are needed (GST rule 46), as the server checks it
 export const NAMED_BUYER_FROM = 50_000;
@@ -91,10 +97,18 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
   const [customer, setCustomer] = useState<LedgerChoice>(null);
   const [newParty, setNewParty] = useState<PartyDraft>(() => emptyParty());
   const [editingCustomer, setEditingCustomer] = useState(false);
-  // cash: the buyer's name and phone, and their addresses (our place of business first, until changed)
+  // cash: the buyer's name and phone, and their address (our place of business, until changed): one for billing and
+  // shipping, and a second when it ships somewhere else
   const [buyerName, setBuyerName] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [addresses, setAddresses] = useState<AddressDraft[]>(() => [emptyAddress(true)]);
+  // cash, to a saved customer: what they handed over (typed only when they owe from before), whether they deducted
+  // TDS, and their PAN when TDS is on and none is saved
+  const [receivedText, setReceivedText] = useState("");
+  const [tdsOnIt, setTdsOnIt] = useState(false);
+  const [pan, setPan] = useState("");
+  // cash, to a customer with an advance with us: whether it's set off against this bill
+  const [setOffOn, setSetOffOn] = useState(false);
   // the place of business fills the first address's town, district, state and PIN once it's in hand (only while
   // nothing's been typed in it); its line and landmark are left to type
   useEffect(() => {
@@ -114,8 +128,9 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
         : all,
     );
   }, [placeOfBusiness]);
-  // the day it's dated (today until changed) and its remarks
+  // the day it's dated (today until changed), the vehicle the goods leave in and its remarks
   const [day, setDay] = useState(() => indiaDay(new Date()));
+  const [vehicle, setVehicle] = useState("");
   const [remarks, setRemarks] = useState("");
   // made when the form opens: a second save with it (a retry after the connection dropped) gets the first one's result
   const [saveKey] = useState(() => crypto.randomUUID());
@@ -174,6 +189,62 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
   // the product card over the page: the pack size being added or changed
   const [cardFor, setCardFor] = useState<string | null>(null);
 
+  // cash: what's received. A walk-in pays the bill. A saved customer pays any part of what's due (this bill and what
+  // they owe from before): the old due first, then this bill, the rest staying owed; anything past it all is an
+  // advance with us, as on a receipt; they may have deducted TDS from it. Staff see no balances, so no old due or
+  // advance is worked out for them
+  const picked = customer?.kind === "ledger" ? customer.ledger : null;
+  const pickedId = picked?.id ?? null;
+  const tdsCan = kind === "cash" && !!picked?.party;
+  const tdsIs = tdsCan && tdsOnIt;
+  const owedBefore = picked?.balance?.today.side === "debit" ? picked.balance.today.amount : 0;
+  // what a saved customer owes from before, for cash and credit alike
+  const oldDue = picked?.party ? owedBefore : 0;
+  // an advance they already have with us (their account is in credit), and what of it is set off against this bill
+  // (as much as the bill takes), once they say so
+  const heldAdvance = tdsCan && picked?.balance?.today.side === "credit" ? picked.balance.today.amount : 0;
+  const setOff = setOffOn ? Math.min(heldAdvance, total) : 0;
+  const billLeft = round2(total - setOff);
+  const dueNow = round2(oldDue + billLeft);
+  // a saved customer's is typed: any part of what's due (the rest stays owed) or more; a walk-in pays the bill
+  const received = tdsCan ? (parseAmount(receivedText) ?? 0) : total;
+  // the TDS on it; a paisa off the bill or the whole due from rounding is taken as exactly that (as the server does)
+  let tdsAmount = tdsIs && received > 0 ? tdsOn(received, SALE_TDS_RATE) : 0;
+  if (tdsIs && received > 0) for (const target of [billLeft, dueNow]) if (Math.abs(round2(received + tdsAmount) - target) < 0.015) tdsAmount = round2(target - received);
+  const settles = round2(received + tdsAmount);
+  // of what it settles: the old due first, then this bill, then an advance (only when their balance is known); and
+  // what's still owed after
+  const towardsOld = Math.min(settles, oldDue);
+  const towardsBill = Math.min(round2(settles - towardsOld), billLeft);
+  const advance = tdsCan && picked?.balance && settles > dueNow ? round2(settles - dueNow) : 0;
+  const leftDue = Math.max(0, round2(dueNow - settles));
+  const panNeeded = tdsIs && !picked?.party?.hasPan;
+  const panOk = !panNeeded || PAN.test(pan);
+  // something came in, or the advance set off pays for it (all of it, or the rest stays owed)
+  const receivedOk = (received > 0 || setOff > 0) && panOk;
+  const typeReceived = setReceivedText;
+  const flipTds = setTdsOnIt;
+  // an advance in it: asked once before going on ("Did you receive ₹X as advance?"); asked again if the advance changes
+  const [advanceOk, setAdvanceOk] = useState<number | null>(null);
+  const [askingAdvance, setAskingAdvance] = useState<((go: boolean) => void) | null>(null);
+  function confirmAdvance() {
+    if (kind !== "cash" || advance <= 0 || advanceOk === advance) return Promise.resolve(true);
+    return new Promise<boolean>((answer) =>
+      setAskingAdvance(() => (go: boolean) => {
+        setAskingAdvance(null);
+        if (go) setAdvanceOk(advance);
+        answer(go);
+      }),
+    );
+  }
+  // someone else picked (or cash or credit changed): what was received starts again
+  useEffect(() => {
+    setReceivedText("");
+    setSetOffOn(false);
+    setTdsOnIt(false);
+    setPan("");
+  }, [pickedId, kind]);
+
   // cash: a card each for cash and every bank account, what came into it typed
   const gridPlaces: GridPlace[] = ["cash", ...(banks ?? []).map((b) => b.id)].map((id) => {
     const b = banks?.find((x) => x.id === id);
@@ -191,17 +262,17 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
   const gridAccs = gridPlaces.filter((p) => p.id !== "cash" && p.amount > 0);
   const refOf = (id: string, mode: BankMode | null) => (mode && refs[id]?.mode === mode ? refs[id]!.text : "");
   const upiIdsOf = (id: string) => banks?.find((b) => b.id === id)?.upiIds ?? [];
-  // the cards add up to what's to be received; every account says how it came in, with a reference that fits, and an
+  // the cards add up to what's received; every account says how it came in, with a reference that fits, and an
   // account by UPI has a UPI ID of ours
   const intoOk =
-    total > 0 &&
-    gridTotal === total &&
+    received > 0 &&
+    gridTotal === received &&
     gridAccs.every((p) => p.mode !== null && refOkFor(p.mode, refOf(p.id, p.mode)) && (p.mode !== "upi" || upiIdsOf(p.id).length > 0));
-  // the amount changed: what came in where starts again
+  // what's received changed: what came in where starts again
   useEffect(() => {
     setGridTexts({});
     setGridModes({});
-  }, [total]);
+  }, [received]);
   // a QR for each account by UPI with a UPI ID of ours, inside its card
   const qrItems: QrItem[] = gridAccs
     .filter((p) => p.mode === "upi" && upiIdsOf(p.id).length > 0)
@@ -216,10 +287,17 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
   // credit: a new customer's phone that someone already has shows them instead
   const matches = usePhoneMatches(newParty.phone, "customer");
   const matched = kind === "credit" && customer?.kind === "party" && matches.length > 0 ? matches[0]! : null;
-  // cash: the buyer's phone, a 10-digit mobile when given; every address typed in full
+  // cash: the buyer's name and phone (a 10-digit mobile) are asked only from ₹50,000 taxable value, and needed then;
+  // every address typed in full
   const phoneOk = buyerPhone === "" || /^[6-9]\d{9}$/.test(buyerPhone);
-  const addressesOk = addresses.every((a) => !Object.values(addressProblems(a)).some(Boolean));
-  const buyerOk = phoneOk && (!buyerNeeded || (buyerName.trim() !== "" && buyerPhone !== ""));
+  // a second address is where it ships: the same place as the first is not another address
+  const sameText = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+  const sameAddress =
+    addresses.length > 1 &&
+    (["addressLine1", "landmark", "city", "district", "postalCode"] as const).every((f) => sameText(addresses[0]![f], addresses[1]![f])) &&
+    addresses[0]!.stateCode === addresses[1]!.stateCode;
+  const addressesOk = !sameAddress && addresses.every((a) => !Object.values(addressProblems(a)).some(Boolean));
+  const buyerOk = !buyerNeeded || (phoneOk && buyerName.trim() !== "" && buyerPhone !== "");
 
   // when each card is filled in
   const linesOk =
@@ -232,14 +310,19 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
   const complete: Record<SaleStep, boolean> = {
     products: linesOk,
     amount: total > 0,
-    money: kind === "credit" || (kind === "cash" && intoOk),
+    money: kind !== null,
+    // nothing came in (the advance set off covers it): no account to place it in
+    received: kind === "credit" || (receivedOk && (received === 0 || intoOk)),
     customer:
       customer?.kind === "ledger" ||
       (customer?.kind === "party" && (kind === "credit" ? !matched && partyOk(newParty, true) : buyerOk && addressesOk)),
     details: day !== "",
   };
+  // a credit sale takes no money now: its card after the customer only shows what they'll owe (the old due, this
+  // bill and the two together), and only when they owe from before
+  const STEPS = ALL_STEPS.filter((s) => s !== "received" || kind !== "credit" || oldDue > 0);
   const [at, setAt] = useState<SaleStep>("products");
-  const current = at;
+  const current = STEPS.includes(at) ? at : "customer";
   const index = STEPS.indexOf(current);
   const firstOpen = STEPS.findIndex((s) => !complete[s]);
   const ready = firstOpen === -1;
@@ -271,11 +354,13 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
     setTried(true);
     setTimeout(() => document.querySelector<HTMLElement>('main section [aria-invalid="true"]')?.focus(), 50);
   }
-  function next() {
+  async function next() {
     if (!complete[current]) return guide();
+    // the amount leaves an advance: they say it's one before going on
+    if (current === "received" && !(await confirmAdvance())) return;
     show(STEPS[index + 1]!);
   }
-  // cash or credit picked: credit moves straight on to the customer; cash stays for where it came into
+  // cash or credit picked: either moves straight on to the customer (a chip-only card)
   function pickKind(next: "cash" | "credit") {
     if (next !== kind) {
       setKind(next);
@@ -283,7 +368,7 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
       setGridModes({});
       setCustomer(null);
     }
-    if (next === "credit") show("customer");
+    show("customer");
   }
 
   // what the card still needs, once Next or Save was tapped
@@ -295,19 +380,25 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
       : s === "amount"
         ? t("missing.amount")
         : s === "money"
-          ? kind === null
-            ? t("missing.kind")
-            : // cash: what's still to be placed, or (all placed) how an account got its part
-              gridTotal < total
-              ? t("missing.left", { amount: rupees(Math.round((total - gridTotal) * 100) / 100) })
-              : t("missing.into")
-          : s === "details"
-            ? t("missing.date")
-            : kind === "credit" || customer?.kind !== "party"
-            ? t("missing.customer")
-            : !buyerOk
-              ? t("missing.buyer")
-              : t("missing.address");
+          ? t("missing.kind")
+          : s === "received"
+            ? received === 0
+              ? t("missing.received")
+              : !panOk
+                  ? t("missing.pan")
+                  : // what's still to be placed, or (all placed) how an account got its part
+                    gridTotal < received
+                    ? t("missing.left", { amount: rupees(round2(received - gridTotal)) })
+                    : t("missing.into")
+            : s === "details"
+              ? t("missing.date")
+              : kind === "credit" || customer?.kind !== "party"
+                ? t("missing.customer")
+                : !buyerOk
+                  ? t("missing.buyer")
+                  : sameAddress
+                    ? t("sameAddress")
+                    : t("missing.address");
 
   // leaving with something entered asks first (not after a save, which goes on to its own page)
   const { dialog: leaveDialog } = useLeaveGuard(!saved && lines.length > 0, onDiscard);
@@ -333,6 +424,8 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
     }
     // someone new with the same name in the same town as one already added: asked first
     if (kind === "credit" && customer?.kind === "party" && !(await sameName.confirm(newParty))) return;
+    // an advance not yet said to be one (the amount changed after Next): asked here too
+    if (!(await confirmAdvance())) return;
     setSaving(true);
     setSaveError(null);
     const items = lines.map((l, i) => ({
@@ -343,16 +436,15 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
         .filter(([, v]) => (Number(v) || 0) > 0)
         .map(([godownId, v]) => ({ godownId, quantity: Number(v) })),
     }));
-    // a cash buyer's addresses: where it goes (the default among those for shipping) and where it's billed
-    const ships = addresses.filter((a) => a.addressType === "both" || a.addressType === "shipping");
-    const bills = addresses.filter((a) => a.addressType === "both" || a.addressType === "billing");
-    const shipAt = ships.find((a) => a.isDefault) ?? ships[0] ?? addresses.find((a) => a.isDefault) ?? addresses[0]!;
-    const billAt = bills.find((a) => a.isDefault) ?? bills[0] ?? null;
+    // a cash buyer's addresses: billed at the first, and sent to the second when there is one
+    const billAt = addresses[0]!;
+    const shipAt = addresses[1] ?? billAt;
     try {
       const sale = await saveSale({
         saveKey,
         dateTime: momentOf(day),
         remarks: remarks.trim() || null,
+        vehicleNumber: vehicle || null,
         lines: items,
         discount: offPaise / 100,
         transportCharges: paise(transport) / 100,
@@ -362,17 +454,21 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
         ...(kind === "cash"
           ? {
               cashAmount: gridPlaces[0]!.amount,
-              // a customer picked: billed and sent to their own address
+              // a customer picked: billed and sent to their own address; the TDS they deducted, and their PAN when
+              // it wasn't saved
               customerLedgerId: customer?.kind === "ledger" ? customer.ledger.id : null,
+              tdsDeducted: tdsIs,
+              advanceSetOff: setOff > 0,
+              customerPan: panNeeded ? pan : null,
               bankParts: gridAccs.map((p) => ({
                 bankDetailsId: p.id,
                 amount: p.amount,
                 mode: p.mode!,
                 referenceNumber: refOf(p.id, p.mode).trim() || null,
               })),
-              // someone new: their name, phone and addresses, kept on the sale
+              // someone new: their addresses, and from ₹50,000 their name and phone, kept on the sale
               ...(customer?.kind === "party"
-                ? { buyer: { name: buyerName.trim(), phone: buyerPhone }, shipTo: { address: typedAddress(shipAt) }, billToAddress: billAt ? typedAddress(billAt) : null }
+                ? { buyer: buyerNeeded ? { name: buyerName.trim(), phone: buyerPhone } : null, shipTo: { address: typedAddress(shipAt) }, billToAddress: typedAddress(billAt) }
                 : {}),
             }
           : {
@@ -462,8 +558,34 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
     phoneOk,
     addresses,
     setAddresses,
+    sameAddress,
+    oldDue,
+    dueNow,
+    received,
+    receivedText,
+    typeReceived,
+    heldAdvance,
+    setOffOn,
+    setSetOffOn,
+    setOff,
+    billLeft,
+    advance,
+    askingAdvance,
+    tdsCan,
+    tdsOnIt: tdsIs,
+    flipTds,
+    tdsAmount,
+    settles,
+    towardsOld,
+    towardsBill,
+    leftDue,
+    panNeeded,
+    pan,
+    setPan,
     day,
     setDay,
+    vehicle,
+    setVehicle,
     remarks,
     setRemarks,
     sameNameDialog: sameName.dialog,

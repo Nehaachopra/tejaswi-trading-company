@@ -86,8 +86,8 @@ export function TileTop({
         // the + that adds a pack size stays put at the end while the chips scroll
         end={
           onAdd && (
-            <button type="button" aria-label={t("addPack")} title={t("addPack")} onClick={onAdd} className={addSquare("size-8")}>
-              <Plus className="size-4" aria-hidden />
+            <button type="button" aria-label={t("addPack")} title={t("addPack")} onClick={onAdd} className={"p-2 rounded-control hover:bg-chestnut/8"}>
+              <Plus className="size-5" aria-hidden />
             </button>
           )
         }
@@ -214,7 +214,7 @@ export function ProductTile({
             aria-haspopup="dialog"
             aria-label={`${t("details")}: ${name}`}
             title={t("details")}
-            className="absolute right-1.5 top-1.5 grid size-[34px] place-items-center rounded-full bg-ivory text-chestnut shadow-[0_1px_2px_rgba(60,25,10,0.08),0_3px_10px_rgba(60,25,10,0.1)] hover:bg-white"
+            className="absolute right-1.5 top-1.5 grid size-[34px] place-items-center rounded-full bg-ivory text-chestnut shadow-[0_1px_2px_rgba(60,25,10,0.08),0_3px_10px_rgba(60,25,10,0.1)] hover:bg-chestnut/8"
           >
             <SquarePen className="size-4" aria-hidden />
           </button>
@@ -235,7 +235,7 @@ export function ProductTile({
           title={t("editPrice")}
           className="grid place-items-center rounded-control hover:bg-chestnut/8 p-2"
         >
-          <Pencil className="size-5" aria-hidden />
+          <Pencil className="size-4" aria-hidden />
         </button>
       </div>
     </li>

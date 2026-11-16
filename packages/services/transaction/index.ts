@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, db, desc, eq, gte, ilike, inArray, lt, lte, or, sql } from "@repo/database";
+import { and, asc, db, desc, eq, gte, ilike, inArray, lt, lte, ne, or, sql } from "@repo/database";
 import { dueSettlementsTable, duesTable, gstReturnFilingsTable, ledgerEntriesTable, ledgersTable, productGodownsTable, receiptsTable, saleProductsTable, salesTable, transactionsTable } from "@repo/database/schema";
 
 import LedgerEngine from "../accounts/engine";
@@ -144,14 +144,15 @@ export default class TransactionService {
         );
       if (owed.some((o) => Number(o.booked) > (o.side === "credit" ? Number(o.left) : 0))) return "rcmPaid";
     }
-    // a credit sale the customer has already paid towards (a receipt settled its due): that receipt is cancelled first
+    // a sale the customer has since paid towards (a receipt settled its due): that receipt is cancelled first. What a
+    // cash sale settled itself doesn't count
     if (t.type === "sale") {
       const paid = await q
         .select({ id: dueSettlementsTable.id })
         .from(dueSettlementsTable)
         .innerJoin(duesTable, eq(duesTable.id, dueSettlementsTable.dueId))
         .innerJoin(transactionsTable, eq(transactionsTable.id, dueSettlementsTable.transactionId))
-        .where(and(eq(duesTable.transactionId, t.id), eq(transactionsTable.status, "active")))
+        .where(and(eq(duesTable.transactionId, t.id), ne(dueSettlementsTable.transactionId, t.id), eq(transactionsTable.status, "active")))
         .limit(1);
       if (paid.length > 0) return "salePaid";
     }
@@ -199,6 +200,8 @@ export default class TransactionService {
       tx,
       lines.map((l) => ({ productId: l.productId, godownId: l.godownId!, delta: l.quantity })),
     );
+    // what it settled itself (its own bill, and older dues, which are owed again), then its due
+    await tx.delete(dueSettlementsTable).where(eq(dueSettlementsTable.transactionId, transactionId));
     await tx.delete(duesTable).where(eq(duesTable.transactionId, transactionId));
   }
 

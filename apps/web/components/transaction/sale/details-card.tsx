@@ -12,11 +12,28 @@ import { indiaDay } from "../../account/balance";
 import { earliestDay, input, REMARKS_MAX } from "../shared/form-basics";
 import { useSaleEntry } from "./state";
 
-// the Details card, as a payment's: the remarks (typed or spoken); the day and Save follow, last
+// length follows sales.vehicle_number
+const VEHICLE_MAX = 15;
+
+// the Details card, as a payment's: the vehicle the goods leave in (optional; capital letters and digits only) and the
+// remarks (typed or spoken); the day and Save follow, last
 export function DetailsCard() {
-  const { tc, remarks, setRemarks } = useSaleEntry();
+  const { t, tc, vehicle, setVehicle, remarks, setRemarks } = useSaleEntry();
   return (
     <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+      <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold sm:max-w-56">
+        {t("vehicle")}
+        <input
+          value={vehicle}
+          maxLength={VEHICLE_MAX}
+          autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder="KA01AB1234"
+          onChange={(e) => setVehicle(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, VEHICLE_MAX))}
+          className={cn(input(false), "tabular uppercase")}
+        />
+      </label>
       <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
         {tc("q.remarks")}
         <MicField onText={(said) => setRemarks((v) => (v.trim() ? `${v.trim()} ${said}` : said).slice(0, REMARKS_MAX))}>

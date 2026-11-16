@@ -57,9 +57,13 @@ export const shipToInputModel = z.union([z.object({ addressId: idModel }), z.obj
 // GST rule 46): ₹50,000
 export const NAMED_BUYER_FROM = 50_000;
 
+// the TDS a buyer takes from what it pays us, by law: 0.1% under section 194Q
+export const SALE_TDS_RATE = 0.1;
+
 // a sale: its items; the transport, packing and loading charges (GST included, taxed at the goods' rate) and a cash
 // discount off what's to be received (GST stays on the full value); then cash (received now, in cash and/or bank accounts adding up to
-// the total) or credit (the customer owes it all). A cash sale makes no customer: an optional name and phone, and where
+// the total; a saved customer may pay more, towards what they already owe, and may have deducted TDS) or credit (the
+// customer owes it all). A cash sale makes no customer: an optional name and phone, and where
 // it goes (our place of business unless changed). A credit sale is to a customer (picked, or added now) with their
 // bill-to address and where it goes; an optional credit period. Then the day, vehicle and remarks
 export const createSaleInputModel = z
@@ -78,6 +82,18 @@ export const createSaleInputModel = z
     // cash: the cash part, and each bank account's part with how it came in
     cashAmount: rupeesModel.default(0),
     bankParts: z.array(moreBankPartModel).max(5).default([]),
+    // cash, to a saved customer: they deducted TDS from what they paid (the law's rate, never typed), and their PAN
+    // when none is saved yet
+    tdsDeducted: z.boolean().default(false),
+    // cash, to a saved customer with an advance with us: it's set off against this bill (as much as the bill takes)
+    advanceSetOff: z.boolean().default(false),
+    customerPan: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z]{5}\d{4}[A-Z]$/, "A PAN is 5 letters, 4 digits and a letter.")
+      .nullable()
+      .default(null),
     // cash: who bought it, both optional
     buyer: z
       .object({
@@ -104,6 +120,7 @@ export const createSaleInputModel = z
       .trim()
       .toUpperCase()
       .max(15)
+      .regex(/^[A-Z0-9]*$/, "A vehicle number has only letters and digits.")
       .transform((v) => (v === "" ? null : v))
       .nullable()
       .default(null),
@@ -122,6 +139,10 @@ export const createSaleInputModel = z
     path: ["buyer"],
   })
   .refine((s) => s.kind === "cash" || (s.customerLedgerId === null) !== (s.newCustomer === null), { message: "Pick the customer, or add one.", path: ["customerLedgerId"] })
+  .refine((s) => (!s.tdsDeducted && !s.advanceSetOff && s.customerPan === null) || (s.kind === "cash" && s.customerLedgerId !== null), {
+    message: "TDS and an advance set off apply to a saved customer's cash sale only.",
+    path: ["tdsDeducted"],
+  })
   .refine((s) => s.kind === "credit" || s.customerLedgerId !== null || s.shipTo !== null, { message: "Type where it goes.", path: ["shipTo"] })
   .refine((s) => s.kind === "cash" || s.billToAddress === null, { message: "A credit sale bills the customer's address.", path: ["billToAddress"] })
   .refine((s) => s.kind === "cash" || (s.cashAmount === 0 && s.bankParts.length === 0 && s.buyer === null), { message: "A credit sale takes no money now.", path: ["cashAmount"] });

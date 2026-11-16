@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { fieldClass } from "~/components/ui/card-form";
@@ -16,9 +16,6 @@ import { PartyPick } from "../pickers/party-finder";
 import { chip, fieldRow } from "../shared/form-basics";
 import { PartyEditor } from "../shared/party-editor";
 import { useSaleEntry } from "./state";
-
-// a cash buyer's addresses, at most
-const MOST_ADDRESSES = 5;
 
 // the Customer card, as a receipt's Received from: a search over the customers, the picked one with Edit and Change
 // (the admin edits their details right here). + New party asks the details right here: on credit a new customer's, as
@@ -90,23 +87,21 @@ export function CustomerCard() {
   );
 }
 
-// for cash: the buyer's full name and phone side by side (one under the other on a phone), needed from ₹50,000 taxable
-// value and optional below it; then their addresses, each in its box as a party's (our place of business first, until
-// changed), with Add address under them
+// for cash: the buyer's full name and phone side by side (one under the other on a phone), asked and needed only from
+// ₹50,000 taxable value (below it, just the address); then their address (our place of business, until changed), used
+// for billing and shipping. "Ship to a different address" adds a second box for where it goes, which can be removed
+// and can't be the same place as the first
 function CashBuyer() {
-  const { t, buyerName, setBuyerName, buyerPhone, setBuyerPhone, phoneOk, buyerNeeded, addresses, setAddresses, tried, setTried } = useSaleEntry();
+  const { t, buyerName, setBuyerName, buyerPhone, setBuyerPhone, phoneOk, buyerNeeded, addresses, setAddresses, sameAddress, tried, setTried } = useSaleEntry();
   const tf = useTranslations("accounts.party.form");
   const nameBad = tried && buyerNeeded && buyerName.trim() === "";
   const phoneBad = /^[0-5]/.test(buyerPhone) || (tried && (!phoneOk || (buyerNeeded && buyerPhone === "")));
   const setAddress = (key: string, patch: Partial<(typeof addresses)[number]>) => setAddresses((all) => all.map((a) => (a.key === key ? { ...a, ...patch } : a)));
-  const removeAddress = (key: string) =>
-    setAddresses((all) => {
-      const left = all.filter((a) => a.key !== key);
-      return left.some((a) => a.isDefault) ? left : left.map((a, i) => ({ ...a, isDefault: i === 0 }));
-    });
+  const ships = addresses.length > 1;
   return (
     <div className="flex flex-col gap-6">
-      {/* personal details, under their heading */}
+      {/* personal details, under their heading: only when the sale needs them */}
+      {buyerNeeded && (
       <section className="flex flex-col gap-3">
         <h3 className={SECTION_TITLE}>{tf("personal")}</h3>
         <div className="grid grid-cols-1 items-start gap-x-6 gap-y-3 sm:grid-cols-2">
@@ -142,36 +137,48 @@ function CashBuyer() {
           </label>
         </div>
       </section>
+      )}
 
-      {/* the addresses, each in its box, then Add address */}
-      <section className="flex flex-col gap-3">
-        <h3 className={SECTION_TITLE}>{tf("addresses")}</h3>
-        <FieldRows>
-          {addresses.map((a, i) => (
+      {/* the address: one for billing and shipping (with its GSTIN); a second, where it ships, when asked for */}
+      <FieldRows>
+        {addresses.map((a, i) => (
+          <section key={a.key} className="flex flex-col gap-3">
+            <div className="flex min-h-9 items-center justify-between gap-3">
+              <h3 className={SECTION_TITLE}>{t(i === 1 ? "shippingAddress" : ships ? "billingAddress" : "billShipAddress")}</h3>
+              {i === 1 && (
+                <button
+                  type="button"
+                  onClick={() => setAddresses((all) => all.slice(0, 1))}
+                  aria-label={t("removeShipping")}
+                  className="grid size-9 place-items-center rounded-control border border-chestnut/50 hover:border-chestnut"
+                >
+                  <Trash2 className="size-4" aria-hidden />
+                </button>
+              )}
+            </div>
             <AddressFields
-              key={a.key}
               address={a}
               index={i}
               count={addresses.length}
               tried={tried}
               required
+              // no name, use or default to pick: the first is billed, the second is where it goes (and has no GSTIN)
+              single={i === 1}
+              noHeader
               onChange={(patch) => setAddress(a.key, patch)}
               onRestart={() => setTried(false)}
-              onRemove={() => removeAddress(a.key)}
-              onMakeDefault={() => setAddresses((all) => all.map((x) => ({ ...x, isDefault: x.key === a.key })))}
+              onRemove={() => undefined}
+              onMakeDefault={() => undefined}
             />
-          ))}
-        </FieldRows>
-        {addresses.length < MOST_ADDRESSES && (
-          <button
-            type="button"
-            onClick={() => setAddresses((all) => [...all, emptyAddress(false)])}
-            className={cn(ADD_ON_IVORY, "px-5 sm:w-auto sm:self-center")}
-          >
-            <Plus className="size-4" aria-hidden /> {tf("addAddress")}
-          </button>
-        )}
-      </section>
+            {i === 1 && sameAddress && <FieldMessage className="mt-0">{t("sameAddress")}</FieldMessage>}
+          </section>
+        ))}
+      </FieldRows>
+      {!ships && (
+        <button type="button" onClick={() => setAddresses((all) => [...all, emptyAddress(false)])} className={cn(ADD_ON_IVORY, "px-5 sm:self-center")}>
+          <Plus className="size-4" aria-hidden /> {t("shipElsewhere")}
+        </button>
+      )}
     </div>
   );
 }
