@@ -8,16 +8,23 @@ import { trpc } from "~/trpc/client";
 type CreateSaleIn = RouterInputs["transactions"]["sale"]["create"];
 
 // what the sale form needs from the server before anything is typed: the active products, their categories, what each
-// godown holds, our place of business (a cash sale goes there unless changed), the bank accounts, and the save. Made
-// once for the page; the form reads it with useSaleData(). Every read is tried again by itself before it counts as
-// failed; the save never is
-function useSaleDataState() {
+// godown holds, our place of business (a cash sale goes there unless changed), the bank accounts, and the save; and
+// for a dispatch on a sale order, that order. Made once for the page; the form reads it with useSaleData(). Every
+// read is tried again by itself before it counts as failed; the save never is
+function useSaleDataState(orderId: string | null) {
   const utils = trpc.useUtils();
   const products = trpc.inventory.product.list.useQuery({ includeInactive: false });
   const categories = trpc.inventory.category.list.useQuery({ includeInactive: false });
   const stock = trpc.inventory.stock.byGodown.useQuery();
   const place = trpc.transactions.sale.placeOfBusiness.useQuery();
   const banks = trpc.accounts.bank.pickable.useQuery();
+  const order = trpc.orders.sale.get.useQuery({ id: orderId ?? "" }, { enabled: orderId !== null });
+  // the order's customer as the Customer card picks one (their ledger, with what they owe), when it's for a customer
+  const orderPartyId = order.data?.status === "pending" ? order.data.customer.partyId : null;
+  const orderLedger = trpc.accounts.ledger.pickable.useQuery(
+    { purpose: "receipt", receiptKind: "customer", partyId: orderPartyId },
+    { enabled: !!orderPartyId },
+  );
   const create = trpc.transactions.sale.create.useMutation();
 
   // saves it; then what it changed is asked again (stock, balances, dues), and the saved sale is put in hand for its
@@ -29,11 +36,15 @@ function useSaleDataState() {
     void utils.accounts.invalidate();
     void utils.transactions.payment.sources.invalidate();
     void utils.transactions.due.invalidate();
+    void utils.orders.invalidate();
     return sale;
   }
 
-  const reads = [products, categories, stock, place, banks];
+  const reads = [products, categories, stock, place, banks, ...(orderId !== null ? [order] : []), ...(orderPartyId ? [orderLedger] : [])];
   return {
+    // only an order still waiting for goods: a completed or cancelled one makes it a sale of its own
+    order: orderId !== null && order.data?.status === "pending" ? order.data : null,
+    orderLedger: orderPartyId ? (orderLedger.data?.[0] ?? null) : null,
     products: products.data,
     categories: categories.data,
     stock: stock.data,
@@ -50,8 +61,8 @@ function useSaleDataState() {
 
 const SaleDataContext = createContext<ReturnType<typeof useSaleDataState> | null>(null);
 
-export function SaleDataProvider({ children }: { children: React.ReactNode }) {
-  const value = useSaleDataState();
+export function SaleDataProvider({ children, orderId = null }: { children: React.ReactNode; orderId?: string | null }) {
+  const value = useSaleDataState(orderId);
   return <SaleDataContext.Provider value={value}>{children}</SaleDataContext.Provider>;
 }
 

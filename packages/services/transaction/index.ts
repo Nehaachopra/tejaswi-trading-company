@@ -1,12 +1,13 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, db, desc, eq, gte, ilike, inArray, lt, lte, ne, or, sql } from "@repo/database";
-import { dueSettlementsTable, duesTable, gstReturnFilingsTable, ledgerEntriesTable, ledgersTable, productGodownsTable, receiptsTable, saleProductsTable, salesTable, transactionsTable } from "@repo/database/schema";
+import { dueSettlementsTable, duesTable, gstReturnFilingsTable, ledgerEntriesTable, ledgersTable, productGodownsTable, receiptsTable, saleOrderProductsTable, saleOrdersTable, saleProductsTable, salesTable, transactionsTable } from "@repo/database/schema";
 
 import LedgerEngine from "../accounts/engine";
 import type { ActorModel, PostingLine } from "../accounts/model";
 import { fromPaise } from "../accounts/money";
 import { LEDGERS } from "../accounts/structure";
 import { queueCancelled } from "../document/queue";
+import { saleOrderDelivered } from "../sale-order/delivered";
 import StockEngine, { type Tx } from "../stock/engine";
 import AssignedIdCounter, { type Prefix } from "./assigned-id";
 import SettingService from "../setting";
@@ -186,9 +187,11 @@ export default class TransactionService {
     return this.get({ id: input.id });
   }
 
-  // a sale cancelled: each godown gets back what left it (free stock again), and its due is dropped
+  // a sale cancelled: each godown gets back what left it (free stock again), and its due is dropped. An order's
+  // dispatch: what the order waits for again is held back for it again (the rest is free), and an order it had
+  // completed is pending again
   private async undoSale(tx: Tx, transactionId: string) {
-    const [sale] = await tx.select({ id: salesTable.id }).from(salesTable).where(eq(salesTable.transactionId, transactionId));
+    const [sale] = await tx.select({ id: salesTable.id, orderId: salesTable.orderId }).from(salesTable).where(eq(salesTable.transactionId, transactionId));
     if (!sale) return;
     const lines = await tx
       .select({ productId: saleProductsTable.productId, quantity: saleProductsTable.quantity, godownId: productGodownsTable.godownId })
@@ -196,9 +199,35 @@ export default class TransactionService {
       .leftJoin(productGodownsTable, eq(productGodownsTable.id, saleProductsTable.productGodownId))
       .where(eq(saleProductsTable.saleId, sale.id));
     if (lines.some((l) => !l.godownId)) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A godown this sale used is gone." });
+    // how many of each item go back under the order's hold: what it waits for after this, less what it waited for before
+    const holdAgain = new Map<string, number>();
+    if (sale.orderId) {
+      const [order] = await tx.select().from(saleOrdersTable).where(eq(saleOrdersTable.id, sale.orderId)).for("update");
+      if (order && order.status !== "cancelled") {
+        const ordered = await tx
+          .select({ productId: saleOrderProductsTable.productId, quantity: saleOrderProductsTable.quantityOrdered })
+          .from(saleOrderProductsTable)
+          .where(eq(saleOrderProductsTable.saleOrderId, order.id));
+        // this sale still counts here: it's cancelled just after
+        const went = await saleOrderDelivered(tx, order.id);
+        for (const o of ordered) {
+          const mine = lines.filter((l) => l.productId === o.productId).reduce((a, l) => a + l.quantity, 0);
+          const gone = went.get(o.productId) ?? 0;
+          holdAgain.set(o.productId, Math.max(0, o.quantity - (gone - mine)) - Math.max(0, o.quantity - gone));
+        }
+        if (order.status === "completed") await tx.update(saleOrdersTable).set({ status: "pending" }).where(eq(saleOrdersTable.id, order.id));
+      }
+    }
     await this.stock.apply(
       tx,
-      lines.map((l) => ({ productId: l.productId, godownId: l.godownId!, delta: l.quantity })),
+      lines.flatMap((l) => {
+        const toHold = Math.min(l.quantity, holdAgain.get(l.productId) ?? 0);
+        holdAgain.set(l.productId, (holdAgain.get(l.productId) ?? 0) - toHold);
+        return [
+          { productId: l.productId, godownId: l.godownId!, delta: toHold, reserved: true },
+          { productId: l.productId, godownId: l.godownId!, delta: l.quantity - toHold },
+        ];
+      }),
     );
     // what it settled itself (its own bill, and older dues, which are owed again), then its due
     await tx.delete(dueSettlementsTable).where(eq(dueSettlementsTable.transactionId, transactionId));

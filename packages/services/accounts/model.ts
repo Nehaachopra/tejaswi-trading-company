@@ -316,6 +316,8 @@ export const pickLedgersInputModel = z.object({
   // (or "employee": the salary form's search, the ledgers in Employees)
   payee: z.enum(["other", "employee"]).nullable().default(null),
   search: z.string().trim().max(60).default(""),
+  // one party's own ledger only (a sale order's customer, picked for its dispatch): the search is left aside
+  partyId: z.string().uuid().nullable().default(null),
 });
 
 export type PickLedgersInputModel = z.infer<typeof pickLedgersInputModel>;

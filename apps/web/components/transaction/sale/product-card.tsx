@@ -14,6 +14,9 @@ import { type Pack, type ProductGroup, ProductImage, productTitle } from "../../
 import { fieldRow } from "../shared/form-basics";
 import { type CartLine, lineFigures, placedOf, priceOf, useSaleEntry } from "./state";
 
+// a figure that's only read, at a row's right end
+const figure = "tabular flex min-h-11 items-center justify-end text-base font-bold";
+
 // a row that opens a panel: its name on the left, what it holds and › on the right
 const goRow = "flex min-h-12 w-full items-center justify-between gap-3 border-t border-chestnut/15 pt-2 text-left text-sm font-semibold";
 
@@ -31,12 +34,24 @@ export function ProductCard() {
   return <CardBody key={found.pack.productId} group={found.group} pack={found.pack} />;
 }
 
+type Side = "price" | "quantity" | "godowns";
+
 function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
-  const { t, lines, putLine, removeLine, setCardFor } = useSaleEntry();
+  const { t, lines, putLine, removeLine, setCardFor, freeOf, orderPrice, order } = useSaleEntry();
+  // a dispatch on a sale order: this pack's line on the order (how many were ordered, how many have gone out), while
+  // the order still waits for some of it
+  const onOrder = order?.lines.find((l) => l.productId === pack.productId) ?? null;
+  const ordered = onOrder && onOrder.quantity > onOrder.delivered ? onOrder : null;
   const saved = lines.find((l) => l.productId === pack.productId);
-  const [draft, setDraft] = useState<CartLine>(() => saved ?? { productId: pack.productId, newPrice: "", quantity: "", godowns: {} });
-  // which panel shows: the first, the price details or the godowns
-  const [pane, setPane] = useState<"main" | "price" | "godowns">("main");
+  // a pack its order still waits for starts from the price it was ordered at
+  // what the order still waits for of it
+  const orderedLeft = ordered ? Math.max(0, ordered.quantity - ordered.delivered) : 0;
+  // (and, from an order, from the quantity still to go on it, as much as there is to take)
+  const [draft, setDraft] = useState<CartLine>(
+    () => saved ?? { productId: pack.productId, newPrice: orderPrice(pack), quantity: orderedLeft > 0 ? String(Math.min(orderedLeft, freeOf(pack))) : "", godowns: {} },
+  );
+  // which panel shows: the first, the price details, the quantity (from an order) or the godowns
+  const [pane, setPane] = useState<Side | "main">("main");
   const close = () => setCardFor(null);
   const name = `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode)}`;
   const gst = pack.gstPercent ?? 0;
@@ -45,7 +60,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   // the figures: the price it sells at, its rate before GST, the quantity and what's placed in godowns
   const price = priceOf(draft, pack);
   const quantity = Number(draft.quantity) || 0;
-  const available = pack.unreservedQuantity;
+  const available = freeOf(pack);
   const placed = placedOf(draft);
   const { rate, total } = lineFigures(price, quantity, gst);
   // a new price below what a pack costs us can't be saved
@@ -97,13 +112,14 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   // on sliding, the cursor goes to the back arrow (or back to the row it came from)
   const back = useRef<HTMLButtonElement>(null);
   const priceRow = useRef<HTMLButtonElement>(null);
+  const quantityRow = useRef<HTMLButtonElement>(null);
   const godownRow = useRef<HTMLButtonElement>(null);
-  // which of the two the second panel holds
-  const [side, setSide] = useState<"price" | "godowns">("price");
-  const slide = (to: "main" | "price" | "godowns") => {
+  // which of them the second panel holds
+  const [side, setSide] = useState<Side>("price");
+  const slide = (to: Side | "main") => {
     if (to !== "main") setSide(to);
     setPane(to);
-    setTimeout(() => (to === "main" ? (side === "price" ? priceRow : godownRow) : back).current?.focus({ preventScroll: true, focusVisible: false } as FocusOptions), 320);
+    setTimeout(() => (to === "main" ? (side === "price" ? priceRow : side === "quantity" ? quantityRow : godownRow) : back).current?.focus({ preventScroll: true, focusVisible: false } as FocusOptions), 320);
   };
   // a quantity typed with packs still to dispatch: the Godowns arrow is highlighted, to say where to go next
   const toDispatch = quantity > 0 && placed !== quantity;
@@ -119,16 +135,17 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
           className="on-ivory flex w-[min(360px,100%)] min-w-0 animate-zoom-in flex-col gap-2 rounded-control bg-ivory p-4 text-chestnut shadow-[0_12px_40px_rgba(0,0,0,0.4)]"
         >
           {/* ✕ on top, no border */}
-          <div className="-mb-1.5 -mr-1.5 -mt-1.5 flex justify-end">
-            <button type="button" onClick={close} aria-label={t("close")} className="grid size-11 place-items-center rounded-control hover:bg-chestnut/8">
+          <div className="flex justify-between">
+            <span className="tabular inline-flex min-h-8 w-fit items-center rounded-control border border-chestnut bg-chestnut px-2.5 text-xs font-semibold text-ivory">
+            {packLabel(pack.packSize, pack.packSizeCode)}
+          </span>
+            <button type="button" onClick={close} aria-label={t("close")} className="grid p-2 place-items-center rounded-control hover:bg-chestnut/8">
               <X className="size-5" aria-hidden />
             </button>
           </div>
 
           {/* this pack size's chip, the name, category | sub-category, then the square photo in the middle */}
-          <span className="tabular inline-flex min-h-8 w-fit items-center rounded-control border border-chestnut bg-chestnut px-2.5 text-xs font-semibold text-ivory">
-            {packLabel(pack.packSize, pack.packSizeCode)}
-          </span>
+          
           <div className="min-w-0">
             <p className="break-words font-heading text-base font-bold leading-6">{productTitle(group)}</p>
             <p className="truncate text-xs opacity-70">
@@ -156,27 +173,41 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                     <ChevronRight className="size-5 shrink-0" aria-hidden />
                   </span>
                 </button>
-                {/* what's free to sell, and how many */}
-                <div className="flex flex-col gap-2 border-t border-chestnut/15 pt-2">
-                  <div className={fieldRow}>
-                    <span>{t("available")}</span>
-                    <span className="tabular flex min-h-11 items-center justify-end text-base font-bold">{available.toLocaleString("en-IN")}</span>
-                  </div>
-                  <div className={fieldRow}>
+                {/* from an order: Quantity as a row like the price's, the quantity and › on the right, opening to the
+                    ordered and available quantities and its box; otherwise what's free to sell, and how many */}
+                {ordered ? (
+                  <button ref={quantityRow} type="button" onClick={() => slide("quantity")} className={goRow} aria-label={t("quantity")}>
                     <span>
                       {t("quantity")}
                       <RequiredMark />
                     </span>
-                    <span className="flex justify-end">
-                      <QuantityBox
-                        value={draft.quantity}
-                        max={available}
-                        label={`${t("quantity")}: ${name}`}
-                        onChange={(v) => setDraft((d) => ({ ...d, quantity: v }))}
-                      />
+                    <span className="tabular flex min-w-0 items-center gap-1.5">
+                      <span className="shrink-0 text-base font-bold">{quantity > 0 ? quantity.toLocaleString("en-IN") : "–"}</span>
+                      <ChevronRight className="size-5 shrink-0" aria-hidden />
                     </span>
+                  </button>
+                ) : (
+                  <div className="flex flex-col gap-2 border-t border-chestnut/15 pt-2">
+                    <div className={fieldRow}>
+                      <span>{t("available")}</span>
+                      <span className="tabular flex min-h-11 items-center justify-end text-base font-bold">{available.toLocaleString("en-IN")}</span>
+                    </div>
+                    <div className={fieldRow}>
+                      <span>
+                        {t("quantity")}
+                        <RequiredMark />
+                      </span>
+                      <span className="flex justify-end">
+                        <QuantityBox
+                          value={draft.quantity}
+                          max={available}
+                          label={`${t("quantity")}: ${name}`}
+                          onChange={(v) => setDraft((d) => ({ ...d, quantity: v }))}
+                        />
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )}
                 {/* Godowns: its arrow filled and pulsing while packs are still to dispatch */}
                 <button ref={godownRow} type="button" onClick={() => slide("godowns")} className={goRow} aria-label={t("godowns")}>
                   <span>{t("godowns")}</span>
@@ -200,10 +231,38 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                   className="flex min-h-12 w-full items-center gap-1.5 border-t border-chestnut/15 pt-2 text-left text-sm font-semibold"
                 >
                   <ChevronLeft className="size-5 shrink-0" aria-hidden />
-                  {side === "price" ? t("priceDetails") : t("godowns")}
+                  {side === "price" ? t("priceDetails") : side === "quantity" ? t("quantity") : t("godowns")}
                 </button>
                 {side === "price" ? (
                   <PriceDetails list={list} gst={gst} newPrice={draft.newPrice} belowCost={belowCost} name={name} onNewPrice={(v) => setDraft((d) => ({ ...d, newPrice: v }))} />
+                ) : side === "quantity" && ordered ? (
+                  // the quantity, from an order: how many were ordered (and, once some have gone out, how many are
+                  // still to go), what's free to sell, and how many this sale sends
+                  <div className="flex flex-col gap-2">
+                    <div className={fieldRow}>
+                      <span>{t("ordered")}</span>
+                      <span className={figure}>{ordered.quantity.toLocaleString("en-IN")}</span>
+                    </div>
+                    {ordered.delivered > 0 && (
+                      <div className={fieldRow}>
+                        <span>{t("leftToPlace")}</span>
+                        <span className={figure}>{orderedLeft.toLocaleString("en-IN")}</span>
+                      </div>
+                    )}
+                    <div className={fieldRow}>
+                      <span>{t("available")}</span>
+                      <span className={figure}>{available.toLocaleString("en-IN")}</span>
+                    </div>
+                    <div className={fieldRow}>
+                      <span>
+                        {t("quantity")}
+                        <RequiredMark />
+                      </span>
+                      <span className="flex justify-end">
+                        <QuantityBox value={draft.quantity} max={available} label={`${t("quantity")}: ${name}`} onChange={(v) => setDraft((d) => ({ ...d, quantity: v }))} />
+                      </span>
+                    </div>
+                  </div>
                 ) : (
                   <GodownRows
                     productId={pack.productId}

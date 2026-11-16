@@ -22,7 +22,8 @@ export function PickedCard({
   children: React.ReactNode;
   aside?: React.ReactNode;
   onEdit?: () => void;
-  onChange: () => void;
+  // none: the pick is kept (a sale order's customer on its dispatch)
+  onChange?: () => void;
   oneLine?: boolean;
 }) {
   const t = useTranslations("transactions.picker");
@@ -34,16 +35,19 @@ export function PickedCard({
           {t("edit")}
         </button>
       )}
-      <button type="button" onClick={onChange} className={PICKED_ACTION}>
-        {t("change")}
-      </button>
+      {onChange && (
+        <button type="button" onClick={onChange} className={PICKED_ACTION}>
+          {t("change")}
+        </button>
+      )}
     </>
   );
+  const any = !!onEdit || !!onChange;
   if (oneLine)
     return (
       <div className={PICKED}>
         {children}
-        <span className="flex shrink-0 gap-1">{actions}</span>
+        {any && <span className="flex shrink-0 gap-1">{actions}</span>}
       </div>
     );
   return (
@@ -53,7 +57,7 @@ export function PickedCard({
         {children}
         {aside}
       </div>
-      <div className="flex justify-end gap-1 border-t border-ivory/20 pt-1.5">{actions}</div>
+      {any && <div className="flex justify-end gap-1 border-t border-ivory/20 pt-1.5">{actions}</div>}
     </div>
   );
 }

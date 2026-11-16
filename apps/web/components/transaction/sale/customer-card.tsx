@@ -22,7 +22,7 @@ import { useSaleEntry } from "./state";
 // a payment adds someone (the admin's; a phone someone already has shows them instead: use them, or change the phone);
 // for cash the buyer's name, phone and addresses, kept on the sale only
 export function CustomerCard() {
-  const { t, kind, isAdmin, customer, setCustomer, newParty, setNewParty, editingCustomer, setEditingCustomer, matched, tried, setTried } = useSaleEntry();
+  const { t, kind, isAdmin, customer, setCustomer, newParty, setNewParty, editingCustomer, setEditingCustomer, matched, tried, setTried, orderLocked } = useSaleEntry();
   const tc = useTranslations("transactions.chat");
   const tpf = useTranslations("transactions.payment.form");
   const picked = customer?.kind === "ledger" ? customer.ledger : null;
@@ -40,6 +40,8 @@ export function CustomerCard() {
         // a cash buyer is only kept on the sale, so anyone may type one; a new customer on credit is the admin's
         canAdd={isAdmin || kind === "cash"}
         addParty
+        // a dispatch on a customer's order goes to that customer
+        locked={orderLocked && customer?.kind === "ledger"}
         onEdit={isAdmin && picked?.party ? () => setEditingCustomer((on) => !on) : undefined}
         placeholder={tc("hints.from")}
       />

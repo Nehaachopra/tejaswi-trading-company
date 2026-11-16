@@ -538,6 +538,12 @@ export default class AccountsService {
           ? this.paymentKindWhere(input.paymentKind)
           : undefined;
 
+    // one party asked for: its own ledger, when it fits the kind
+    if (input.partyId) {
+      const own = await this.summariesWhere(and(eq(ledgersTable.isActive, true), eq(ledgersTable.referenceId, input.partyId), kindWhere));
+      return this.withParties(own.filter(allowed));
+    }
+
     // nothing typed: the ledgers used last for this purpose, newest first
     if (input.search === "") {
       const used =

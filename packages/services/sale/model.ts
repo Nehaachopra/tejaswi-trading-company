@@ -79,6 +79,9 @@ export const createSaleInputModel = z
     packingCharges: rupeesModel.default(0),
     loadingCharges: rupeesModel.default(0),
     kind: z.enum(["cash", "credit"]),
+    // a dispatch on a sale order: the sale is kept on the order, takes the stock the order held back, and completes
+    // the order once everything ordered has gone out
+    saleOrderId: idModel.nullable().default(null),
     // cash: the cash part, and each bank account's part with how it came in
     cashAmount: rupeesModel.default(0),
     bankParts: z.array(moreBankPartModel).max(5).default([]),

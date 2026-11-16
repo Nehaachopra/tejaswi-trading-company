@@ -11,6 +11,8 @@ import {
   productPricesTable,
   productsTable,
   salePurchaseCreditDetailsTable,
+  saleOrderProductsTable,
+  saleOrdersTable,
   saleProductsTable,
   salesTable,
   subCategoriesTable,
@@ -31,6 +33,7 @@ import { productNameSnapshot } from "../stock/index";
 import TransactionService from "../transaction";
 import { settleLedger } from "../transaction/settle";
 import { tdsOn } from "../receipt/model";
+import { saleOrderDelivered } from "../sale-order/delivered";
 import { type CreateSaleInputModel, createSaleInputModel, NAMED_BUYER_FROM, SALE_TDS_RATE, type SaleAddressInputModel, type SaleIdInputModel, type SaleInvoiceModel, type SaleSummaryModel, type SavedSaleModel } from "./model";
 
 // the day a moment falls on in India, as YYYY-MM-DD
@@ -250,10 +253,41 @@ export default class SaleService {
 
       const t = await this.transactions.create(tx, { type: "sale", dateTime: input.dateTime, amount: total / 100, remarks: input.remarks, lines }, actor);
 
-      // the stock leaves each godown (free stock: an order's dispatch takes from what it reserved instead)
+      // a dispatch on a sale order: the order (still pending, and its own customer's), how many of each item it still
+      // holds back, and whether this sale sends the last of it
+      const held = new Map<string, number>();
+      if (input.saleOrderId) {
+        const [order] = await tx.select().from(saleOrdersTable).where(eq(saleOrdersTable.id, input.saleOrderId)).for("update");
+        if (!order) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found." });
+        if (order.status !== "pending") throw new TRPCError({ code: "PRECONDITION_FAILED", message: `This order is ${order.status}.` });
+        if (order.partyId && customer && customer.party.id !== order.partyId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "This order is for another customer." });
+        }
+        const ordered = await tx
+          .select({ productId: saleOrderProductsTable.productId, quantity: saleOrderProductsTable.quantityOrdered })
+          .from(saleOrderProductsTable)
+          .where(eq(saleOrderProductsTable.saleOrderId, order.id));
+        const went = await saleOrderDelivered(tx, order.id);
+        for (const o of ordered) held.set(o.productId, Math.max(0, o.quantity - (went.get(o.productId) ?? 0)));
+        const now = new Map<string, number>();
+        for (const l of input.lines) now.set(l.productId, (now.get(l.productId) ?? 0) + l.quantity);
+        if (ordered.every((o) => (now.get(o.productId) ?? 0) >= (held.get(o.productId) ?? 0))) {
+          await tx.update(saleOrdersTable).set({ status: "completed" }).where(eq(saleOrdersTable.id, order.id));
+        }
+      }
+
+      // the stock leaves each godown: an order's dispatch takes what the order held back first (as much as it still
+      // holds of that item), anything else comes from free stock
       await this.stock.apply(
         tx,
-        parts.map((p) => ({ productId: p.line.productId, godownId: p.godownId, delta: -p.quantity })),
+        parts.flatMap((p) => {
+          const fromHeld = Math.min(p.quantity, held.get(p.line.productId) ?? 0);
+          held.set(p.line.productId, (held.get(p.line.productId) ?? 0) - fromHeld);
+          return [
+            { productId: p.line.productId, godownId: p.godownId, delta: -fromHeld, reserved: true },
+            { productId: p.line.productId, godownId: p.godownId, delta: -(p.quantity - fromHeld) },
+          ];
+        }),
       );
 
       // the sale as it reads: who, where, the figures
@@ -261,6 +295,7 @@ export default class SaleService {
       const [sale] = await tx
         .insert(salesTable)
         .values({
+          orderId: input.saleOrderId,
           transactionId: t.id,
           partyId: party?.id ?? null,
           partyNameSnapshot: (party?.name ?? input.buyer?.name ?? "").slice(0, 150),

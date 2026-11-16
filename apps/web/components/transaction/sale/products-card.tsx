@@ -17,9 +17,13 @@ import { useSaleEntry } from "./state";
 const heading = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
 
 // the Products card: on top, what's in the cart as a table; below, every other pack size that can be sold, filtered by
-// category, each tile with its price under the photo, where Add opens the product card
+// category, each tile with its price under the photo, where Add opens the product card. A dispatch on a sale order:
+// under the cart a From order part (the pack sizes the order still waits for, each with what's left to dispatch in
+// place of its price), then Show other products, which opens the rest below it
 export function ProductsCard() {
-  const { t, products, categories, lines, sellable } = useSaleEntry();
+  const { t, products, categories, lines, sellable, order, orderLeft } = useSaleEntry();
+  // the other products, opened from the button (always there on a sale of its own)
+  const [othersOpen, setOthersOpen] = useState(false);
 
   // the filters for the products below
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -35,9 +39,13 @@ export function ProductsCard() {
         (!categoryId || g.categoryId === categoryId) &&
         (!subCategoryId || g.subCategoryId === subCategoryId),
     )
-    .map((g) => ({ ...g, packs: g.packs.filter((p) => !taken.has(p.productId) && sellable(p)) }))
+    .map((g) => ({ ...g, packs: g.packs.filter((p) => !taken.has(p.productId) && sellable(p) && orderLeft(p.productId) === 0) }))
     .filter((g) => g.packs.length > 0);
   const anySellable = products.some((g) => g.packs.some(sellable));
+  // the order's pack sizes still waited for and not yet in the cart, by product
+  const fromOrder = products
+    .map((g) => ({ ...g, packs: g.packs.filter((p) => !taken.has(p.productId) && orderLeft(p.productId) > 0) }))
+    .filter((g) => g.packs.length > 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -53,6 +61,40 @@ export function ProductsCard() {
         )}
       </div>
 
+      {/* a dispatch on an order: what the order still waits for, then the button that opens the other products */}
+      {order && (
+        <>
+          <div className="border-t border-chestnut/15" aria-hidden />
+          <div className="flex flex-col gap-2">
+            {/* the heading, and which order on the right */}
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className={heading}>{t("fromOrder")}</h3>
+              <span className="tabular text-sm font-semibold">{order.orderId}</span>
+            </div>
+            {fromOrder.length === 0 ? (
+              <p className="py-6 text-center text-sm opacity-70">{t("allOrderedInCart")}</p>
+            ) : (
+              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+                {fromOrder.map((group) => (
+                  <SaleTile key={group.key} group={group} ordered />
+                ))}
+              </ul>
+            )}
+          </div>
+          {!othersOpen && (
+            <button
+              type="button"
+              onClick={() => setOthersOpen(true)}
+              className="flex min-h-11 w-full items-center justify-center rounded-control border border-chestnut/35 px-5 text-sm font-semibold hover:bg-chestnut/[0.06]"
+            >
+              {t("showOthers")}
+            </button>
+          )}
+        </>
+      )}
+
+      {(!order || othersOpen) && (
+        <>
       <div className="border-t border-chestnut/15" aria-hidden />
 
       {/* the products: their heading, the filters, then the tiles */}
@@ -153,6 +195,8 @@ export function ProductsCard() {
           ))}
         </ul>
       )}
+        </>
+      )}
 
       {/* the product card, over the page, for the pack size being added or changed */}
       <ProductCard />
@@ -161,27 +205,33 @@ export function ProductsCard() {
 }
 
 // a product with pack sizes to sell: its chips, name and photo; under the photo the picked pack size's price with GST
-// on chestnut, in the middle; then Add, which opens the product card for that pack size
-function SaleTile({ group }: { group: ProductGroup }) {
-  const { t, setCardFor } = useSaleEntry();
+// on chestnut, in the middle; then Add, which opens the product card for that pack size. `ordered` (a pack size its
+// order still waits for): what's left to dispatch in place of the price, and no Add while there's no stock to take
+function SaleTile({ group, ordered = false }: { group: ProductGroup; ordered?: boolean }) {
+  const { t, setCardFor, sellable, orderLeft } = useSaleEntry();
   const [picked, setPicked] = useState(group.packs[0]!.productId);
   const pack = group.packs.find((p) => p.productId === picked) ?? group.packs[0]!;
   return (
     <li className="flex min-w-0 flex-col gap-2 rounded-control border border-chestnut/15 p-2.5 sm:p-3.5">
       <TileTop group={group} pack={pack} onPack={setPicked} />
-      {/* its price with GST, on chestnut, in the middle */}
-      <div className="flex items-center justify-center gap-2">
-        <div className="flex flex-1 justify-center bg-chestnut rounded-lg py-1 tabular truncate font-heading text-xl font-semibold text-ivory">
-          {rupees(pack.priceAfterGst ?? 0)}
+      {ordered && <span className="mt-auto text-xs">{t("leftToPlace")}</span>}
+      {/* its price with GST (an ordered one: what's left to dispatch), on chestnut, in the middle */}
+      <div className="flex flex-col items-center justify-center gap-2">
+        <div className="flex w-full justify-center bg-chestnut rounded-lg py-1 tabular truncate font-heading text-xl font-semibold text-ivory">
+          {ordered ? orderLeft(pack.productId).toLocaleString("en-IN") : rupees(pack.priceAfterGst ?? 0)}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setCardFor(pack.productId)}
-          className="mt-auto flex min-h-9 px-2 items-center justify-center gap-1 rounded-control border border-chestnut/35 text-xs font-semibold hover:bg-chestnut/[0.06]"
-        >
-          <Plus className="size-4.5" aria-hidden /> {t("add")}
-        </button>
+        {sellable(pack) ? (
+          <button
+            type="button"
+            onClick={() => setCardFor(pack.productId)}
+            className="mt-auto flex p-2 items-center justify-center gap-2 w-full rounded-control border border-chestnut/35 text-xs font-semibold hover:bg-chestnut/[0.06]"
+          >
+            <Plus className="size-4.5" aria-hidden /> {t("add")}
+          </button>
+        ) : (
+          <span className="flex min-h-9 items-center text-xs font-semibold opacity-70">{t("noStock")}</span>
+        )}
       </div>
     </li>
   );

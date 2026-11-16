@@ -191,15 +191,15 @@ function RestTile({
       <TileTop group={group} pack={pack} onPack={setPicked} />
       {/* under the photo: open the line card for the pack size picked */}
       {kind === "sale" ? (
-        <div className="flex items-center justify-center gap-2">
-          <div className="flex flex-1 justify-center bg-chestnut rounded-lg py-1 tabular truncate font-heading text-xl font-semibold text-ivory">
+        <div className="flex flex-col items-center justify-center gap-2">
+          <div className="flex w-full justify-center bg-chestnut rounded-lg py-1 tabular truncate font-heading text-xl font-semibold text-ivory">
             {rupees(pack.priceAfterGst ?? 0)}
           </div>
 
           <button
         type="button"
         onClick={() => onAdd(pack.productId)}
-        className="mt-auto flex p-2 items-center justify-center gap-1 rounded-control border border-chestnut/35 text-xs font-semibold hover:bg-chestnut/[0.06]"
+        className="mt-auto flex w-full p-2 items-center justify-center gap-2 rounded-control border border-chestnut/35 text-xs font-semibold hover:bg-chestnut/[0.06]"
       >
         <Plus className="size-5" aria-hidden /> {addLabel}
       </button>

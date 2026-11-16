@@ -288,7 +288,10 @@ export function LedgerSearch({
   placeholder,
   besideNew,
   onEdit,
+  locked = false,
 }: {
+  // what's picked stays: no Change (a sale order's customer on its dispatch)
+  locked?: boolean;
   purpose: "receipt" | "payment";
   receiptKind: ReceiptKind | null;
   paymentKind?: PaymentKind | null;
@@ -396,10 +399,14 @@ export function LedgerSearch({
             ) : undefined
           }
           onEdit={onEdit}
-          onChange={() => {
-            onChange(null);
-            setBrowsing(true);
-          }}
+          onChange={
+            locked
+              ? undefined
+              : () => {
+                  onChange(null);
+                  setBrowsing(true);
+                }
+          }
         >
           {value.kind === "ledger" && value.ledger.party ? (
             <PartyPick ledger={value.ledger} party={value.ledger.party} />

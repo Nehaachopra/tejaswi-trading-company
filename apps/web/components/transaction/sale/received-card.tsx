@@ -45,13 +45,14 @@ function Figure({ label, amount, strong = false }: { label: string; amount: numb
   );
 }
 
-// the Received card (a cash sale's, after the customer), laid out as a receipt's Amount card. On the left: what's due
-// (a customer who owes from before: the old due, this bill and the two together; otherwise just the bill), the amount
-// received (a saved customer's is typed: any part of what's due, the rest staying owed, or more, the rest an advance;
-// a walk-in's is the bill), and for a saved customer
-// the Receipt group with an advance of theirs set off against the bill (a switch, only when they have one) and the TDS they deducted (its switch in the row; the PAN it's deducted against is asked once
-// it's on and none is saved). On the right, with an old due: what it goes towards, the old due first. Then the
-// account cards, the card's full width. A credit sale to someone who owes from before shows only the three due rows
+// the Received card (a cash sale's, after the customer), laid out as a payment's Amount card. On top the supporting
+// details: what's due (a customer who owes from before: the old due, this bill and the two together; otherwise just
+// the bill) and an advance they already have with us. Then one breakup: the amount received in its box (a saved
+// customer's is typed: any part of what's due, the rest staying owed, or more, the rest an advance; a walk-in's is the
+// bill), the TDS they deducted and their advance set off against the bill (a switch each; the PAN is asked once TDS is
+// on and none is saved), then the total. Beside it on a wider screen, with an old due: what it goes towards, the old
+// due first. Then the account cards, the card's full width. A credit sale to someone who owes from before shows only
+// the three due rows
 export function ReceivedCard() {
   const e = useSaleEntry();
   const { t, tc, kind, tried, total, oldDue, dueNow, received, tdsCan, tdsOnIt, panNeeded } = e;
@@ -142,23 +143,23 @@ export function ReceivedCard() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* wider screens, two rows: on top the supporting details (left); under them the breakup (left) level with what
+          it goes towards (right) */}
       <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-12">
-        <div className="flex min-w-0 flex-col gap-2.5">
-          {/* what's due: the old due and this bill making it up, or just the bill */}
-          {oldDue > 0 ? (
-            <div className="mb-2 flex flex-col gap-2">
-              <Figure label={t("oldDue")} amount={oldDue} />
-              <Figure label={t("thisBill")} amount={total} />
-              <Figure label={tr("due")} amount={dueNow} strong />
-            </div>
-          ) : (
-            <div className="mb-2 flex flex-col gap-2">
-              <Figure label={t("thisBill")} amount={total} />
-              {/* with the advance set off: what's left of it to pay */}
-              {e.setOff > 0 && <Figure label={tr("due")} amount={dueNow} strong />}
-            </div>
-          )}
-          {/* the amount received: a saved customer's is typed (or spoken), any part of what's due; a walk-in's is the bill */}
+        <div className="flex min-w-0 flex-col gap-4 sm:contents">
+          {/* the supporting details, on top with room under them: what's due (the old due and this bill making it up,
+              or just the bill; with the advance set off, what's left of it to pay), and an advance they already have
+              with us, shown as the due is */}
+          <div className="mb-2 flex min-w-0 flex-col gap-2.5 sm:col-start-1 sm:row-start-1">
+            {oldDue > 0 && <Figure label={t("oldDue")} amount={oldDue} />}
+            <Figure label={t("thisBill")} amount={total} />
+            {(oldDue > 0 || e.setOff > 0) && <Figure label={tr("due")} amount={dueNow} strong />}
+            {e.heldAdvance > 0 && <Figure label={tr("advancePart")} amount={e.heldAdvance} />}
+          </div>
+          {/* the breakup, as a payment's: the amount received in its box (a saved customer's is typed or spoken, any
+              part of what's due; a walk-in's is the bill), then the TDS they deducted and an advance set off (a switch
+              each), then the total */}
+          <div className="flex min-w-0 flex-col gap-2.5 sm:col-start-1 sm:row-start-2">
           {tdsCan ? (
             <Row
               htmlFor="received-field"
@@ -190,20 +191,10 @@ export function ReceivedCard() {
               </span>
             </Row>
           )}
+          {/* the rest of the breakup (the amount itself is the box above): the TDS, the advance set off, the total */}
+          {tdsCan && (filled || e.heldAdvance > 0) && <PlainRows rows={rows.slice(1)} />}
           {/* part of the bill, with nothing owed from before: what stays owed */}
           {tdsCan && filled && oldDue === 0 && e.leftDue > 0 && <Figure label={t("leftDue")} amount={e.leftDue} />}
-          {/* an advance they already have with us, until it's set off or more is added to it */}
-          <Reveal follow show={e.heldAdvance > 0 && e.advance === 0 && !e.setOffOn} gap="0.625rem">
-            <Note className="tabular text-chestnut/70">{tr("heldAdvance", { amount: rupees(e.heldAdvance) })}</Note>
-          </Reveal>
-
-          {/* a saved customer: the Receipt group, with the TDS they deducted; then the TDS's note and their PAN */}
-          {tdsCan && (filled || e.heldAdvance > 0) && (
-            <div className="-mx-3 mt-1.5 flex flex-col gap-1 rounded-control bg-chestnut/6 px-3 py-2.5">
-              <h3 className="text-xs font-semibold uppercase tracking-[0.08em] opacity-60">{tr("receiptGroup")}</h3>
-              <PlainRows rows={rows} />
-            </div>
-          )}
           <Reveal follow show={tdsCan && tdsOnIt && filled} gap="0.625rem">
             <Note className="text-chestnut/70">{tr("tdsNote194Q")}</Note>
           </Reveal>
@@ -236,8 +227,9 @@ export function ReceivedCard() {
           )}
           {/* a phone: what it goes towards under the breakup (wider screens: on the right) */}
           {hasTowards && <div className="mt-1.5 sm:hidden">{towards}</div>}
+          </div>
         </div>
-        {hasTowards && <div className="hidden min-w-0 sm:block">{towards}</div>}
+        {hasTowards && <div className="hidden min-w-0 sm:col-start-2 sm:row-start-2 sm:block">{towards}</div>}
       </div>
       {/* where it came into: a card for each place, once there's an amount */}
       {filled && (

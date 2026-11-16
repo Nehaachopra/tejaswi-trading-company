@@ -25,10 +25,10 @@ import { type SaleStep, SaleEntryProvider, useSaleEntry, useSaleEntryState } fro
 // the cart above every pack size that can be sold; 2 Amount: the charges and a cash discount; 3 Cash or credit; 4
 // Customer; 5 Received (cash only): what came in and where; 6 Details: the day, vehicle, remarks and Save. A save goes to the sale's success page. Discarding to open a menu
 // starts the form again
-export function SaleForm({ isAdmin }: { isAdmin: boolean }) {
+export function SaleForm({ isAdmin, orderId = null }: { isAdmin: boolean; orderId?: string | null }) {
   const [round, setRound] = useState(0);
   return (
-    <SaleDataProvider>
+    <SaleDataProvider orderId={orderId}>
       <SaleEntry key={round} isAdmin={isAdmin} onDiscard={() => setRound((r) => r + 1)} />
     </SaleDataProvider>
   );

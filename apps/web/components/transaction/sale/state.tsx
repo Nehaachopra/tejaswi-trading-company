@@ -78,7 +78,7 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
   const locale = useLocale();
   const router = useRouter();
   const sameName = useSameNameConfirm();
-  const { products, categories, stock, placeOfBusiness, banks, loading, loadFailed, retryLoad, saveSale, saving: creating, saved } = useSaleData();
+  const { products, categories, stock, placeOfBusiness, banks, order, orderLedger, loading, loadFailed, retryLoad, saveSale, saving: creating, saved } = useSaleData();
 
   // the answers
   const [lines, setLines] = useState<CartLine[]>([]);
@@ -153,8 +153,24 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
       for (const p of product.packs)
         if (p.quantity > 0) holds.set(p.productId, [...(holds.get(p.productId) ?? []), { godownId: g.godownId, name: g.godownName, held: p.quantity, counting: g.beingCounted }]);
   const godownsOf = (productId: string) => holds.get(productId) ?? [];
-  // a pack size can be sold once it has a price, a GST % and free stock
-  const sellable = (p: Pack) => p.priceAfterGst != null && p.gstPercent != null && p.unreservedQuantity > 0;
+  // a dispatch on a sale order: how many of a pack size the order still waits for (what it holds back from stock)
+  const orderLine = (productId: string) => order?.lines.find((l) => l.productId === productId) ?? null;
+  const orderLeft = (productId: string) => {
+    const l = orderLine(productId);
+    return l ? Math.max(0, l.quantity - l.delivered) : 0;
+  };
+  // what of a pack size this sale can take: the free stock, and what its order holds back for it
+  const freeOf = (p: Pack) => p.unreservedQuantity + orderLeft(p.productId);
+  // the price a pack was ordered at (with GST, less its share of the order's discounts), as a new price to start
+  // from; "" when it's the saved price, or the pack isn't waited for
+  const orderPrice = (p: Pack) => {
+    const l = orderLine(p.productId);
+    if (!l || l.quantity === 0 || orderLeft(p.productId) === 0) return "";
+    const each = round2(l.total / l.quantity);
+    return each === p.priceAfterGst ? "" : String(each);
+  };
+  // a pack size can be sold once it has a price, a GST % and stock it can take
+  const sellable = (p: Pack) => p.priceAfterGst != null && p.gstPercent != null && freeOf(p) > 0;
 
   // the cart, worked out
   const figures = lines.map((l) => {
@@ -305,7 +321,7 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
     lines.every((l) => {
       const p = packOf(l.productId)?.pack;
       const q = Number(l.quantity) || 0;
-      return !!p && q >= 1 && q <= p.unreservedQuantity && placedOf(l) === q;
+      return !!p && q >= 1 && q <= freeOf(p) && placedOf(l) === q;
     });
   const complete: Record<SaleStep, boolean> = {
     products: linesOk,
@@ -366,9 +382,30 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
       setKind(next);
       setGridTexts({});
       setGridModes({});
-      setCustomer(null);
+      setCustomer(orderCustomer(next));
     }
     show("customer");
+  }
+  // a dispatch on a sale order starts from who the order is for. A customer: picked already (and kept: the order is
+  // theirs). A name kept on the order: someone new with the name, phone and address from the order filled in, for cash
+  // as the buyer, on credit as a new customer (the admin's to add); any of it can be changed, or someone saved picked
+  const orderLocked = !!order?.customer.partyId && !!orderLedger;
+  function orderCustomer(next: "cash" | "credit"): LedgerChoice {
+    if (!order) return null;
+    if (order.customer.partyId) return orderLedger ? { kind: "ledger", ledger: orderLedger } : null;
+    if (next === "credit" && !isAdmin) return null;
+    const at = order.deliveryAddress;
+    const address: AddressDraft = at
+      ? { ...emptyAddress(true), addressLine1: at.addressLine1, landmark: at.landmark, city: at.city, district: at.district, state: at.state, stateCode: at.stateCode as StateCode, postalCode: at.postalCode }
+      : emptyAddress(true);
+    if (next === "cash") {
+      setBuyerName(order.customer.name);
+      setBuyerPhone(order.customer.phone ?? "");
+      if (at) setAddresses([address]);
+    } else {
+      setNewParty({ ...emptyParty(), name: order.customer.name, phone: order.customer.phone ?? "", addresses: [address] });
+    }
+    return { kind: "party" };
   }
 
   // what the card still needs, once Next or Save was tapped
@@ -442,6 +479,7 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
     try {
       const sale = await saveSale({
         saveKey,
+        saleOrderId: order?.id ?? null,
         dateTime: momentOf(day),
         remarks: remarks.trim() || null,
         vehicleNumber: vehicle || null,
@@ -512,6 +550,11 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
     nameOf,
     godownsOf,
     sellable,
+    order,
+    orderLocked,
+    orderLeft,
+    freeOf,
+    orderPrice,
     lines,
     figures,
     putLine,

@@ -20,6 +20,7 @@ import type { OrderLineInputModel } from "../purchase-order/model";
 import OrderEditService from "../order-edit";
 import SettingService from "../setting";
 import type { Tx } from "../stock/engine";
+import { saleOrderDelivered } from "./delivered";
 import AssignedIdCounter from "../transaction/assigned-id";
 import {
   type CreateSaleOrderInputModel,
@@ -57,8 +58,9 @@ export default class SaleOrderService {
   }
 
   // each item's product, locked in id order (so two saves never wait on each other): active, not deleted, with a GST %
-  // set, and enough of it free (not held for another order) for the quantity asked
-  private async productsIn(tx: Tx, lines: OrderLineInputModel[]) {
+  // set, and enough of it free (not held for another order) for the quantity asked (less what has already gone out
+  // on this order, `went`, which needs no stock any more)
+  private async productsIn(tx: Tx, lines: OrderLineInputModel[], went?: Map<string, number>) {
     const ids = [...lines.map((l) => l.productId)].sort();
     const rows = await tx
       .select({ id: productsTable.id, brand: productsTable.brand, isActive: productsTable.isActive, deletedAt: productsTable.deletedAt, free: productsTable.unreservedQuantity })
@@ -78,7 +80,7 @@ export default class SaleOrderService {
       if (!row.isActive) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "An item is inactive." });
       const rate = gstOf.get(l.productId);
       if (rate == null) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Set the GST % for every item first." });
-      if (l.quantity > row.free) throw new TRPCError({ code: "PRECONDITION_FAILED", message: `Only ${row.free} of an item are free to order.` });
+      if (l.quantity - (went?.get(l.productId) ?? 0) > row.free) throw new TRPCError({ code: "PRECONDITION_FAILED", message: `Only ${row.free} of an item are free to order.` });
       return Number(rate);
     });
   }
@@ -156,16 +158,8 @@ export default class SaleOrderService {
   }
 
   // how many of each item have gone out on the order, from its sales that still stand (a cancelled one doesn't count)
-  private async delivered(tx: Tx, orderId: string) {
-    const rows = await tx
-      .select({ productId: saleProductsTable.productId, quantity: saleProductsTable.quantity })
-      .from(saleProductsTable)
-      .innerJoin(salesTable, eq(salesTable.id, saleProductsTable.saleId))
-      .innerJoin(transactionsTable, eq(transactionsTable.id, salesTable.transactionId))
-      .where(and(eq(salesTable.orderId, orderId), eq(transactionsTable.status, "active")));
-    const out = new Map<string, number>();
-    for (const r of rows) out.set(r.productId, (out.get(r.productId) ?? 0) + r.quantity);
-    return out;
+  private delivered(tx: Tx, orderId: string) {
+    return saleOrderDelivered(tx, orderId);
   }
 
   // a pending order changed: its expected day, items, discount and remarks (the customer stays). What it held back is
@@ -195,8 +189,11 @@ export default class SaleOrderService {
         .where(eq(saleOrderProductsTable.saleOrderId, order.id));
       const touched = [...new Set([...old.map((l) => l.productId), ...input.lines.map((l) => l.productId)])].sort();
       await tx.select({ id: productsTable.id }).from(productsTable).where(inArray(productsTable.id, touched)).orderBy(asc(productsTable.id)).for("update");
-      await this.hold(tx, old, -1);
-      const rates = await this.productsIn(tx, input.lines);
+      // only what hasn't gone out yet is held: a dispatch took its part of the hold with it
+      const waiting = (lines: { productId: string; quantity: number }[]) =>
+        lines.map((l) => ({ productId: l.productId, quantity: Math.max(0, l.quantity - (went.get(l.productId) ?? 0)) }));
+      await this.hold(tx, waiting(old), -1);
+      const rates = await this.productsIn(tx, input.lines, went);
       const p = priceLines(
         input.lines.map((l, i) => ({ quantity: l.quantity, rate: l.rateBeforeGst, discount: l.discount, gstRate: rates[i]! })),
         input.orderDiscount,
@@ -226,7 +223,7 @@ export default class SaleOrderService {
           gstAmount: fromPaise(p.priced[i]!.gst),
         })),
       );
-      await this.hold(tx, input.lines, 1);
+      await this.hold(tx, waiting(input.lines), 1);
       // what changed, kept for its History
       await this.edits.record(
         tx,
@@ -251,7 +248,7 @@ export default class SaleOrderService {
     return this.get({ id: input.id });
   }
 
-  // a pending order called off: what it held back goes back to stock
+  // a pending order called off: what it still held back (what hasn't gone out) goes back to stock
   async cancel(input: SaleOrderIdInputModel): Promise<SaleOrderModel> {
     await db.transaction(async (tx) => {
       const [order] = await tx.select().from(saleOrdersTable).where(eq(saleOrdersTable.id, input.id)).for("update");
@@ -263,7 +260,12 @@ export default class SaleOrderService {
         .where(eq(saleOrderProductsTable.saleOrderId, order.id))
         .orderBy(asc(saleOrderProductsTable.productId));
       await tx.select({ id: productsTable.id }).from(productsTable).where(inArray(productsTable.id, lines.map((l) => l.productId))).orderBy(asc(productsTable.id)).for("update");
-      await this.hold(tx, lines, -1);
+      const went = await this.delivered(tx, order.id);
+      await this.hold(
+        tx,
+        lines.map((l) => ({ productId: l.productId, quantity: Math.max(0, l.quantity - (went.get(l.productId) ?? 0)) })),
+        -1,
+      );
       await tx.update(saleOrdersTable).set({ status: "cancelled" }).where(eq(saleOrdersTable.id, order.id));
     });
     return this.get(input);
@@ -409,6 +411,18 @@ export default class SaleOrderService {
         name: o.partyId ? (row.partyName ?? "") : (o.customerName ?? ""),
         phone: o.partyId ? (row.partyPhone ?? null) : o.customerPhone,
       },
+      deliveryAddress:
+        !o.partyId && o.customerCity && o.customerState && o.customerStateCode && o.customerPostalCode
+          ? {
+              addressLine1: o.customerAddressLine1 ?? "",
+              landmark: o.customerLandmark ?? "",
+              city: o.customerCity,
+              district: o.customerDistrict ?? "",
+              state: o.customerState,
+              stateCode: o.customerStateCode,
+              postalCode: o.customerPostalCode,
+            }
+          : null,
       itemCount: items.length,
       totalAmount: Number(o.totalAmount),
       lines: items,

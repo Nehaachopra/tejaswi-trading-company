@@ -142,6 +142,18 @@ export const saleOrderModel = z.object({
   expectedDeliveryDate: z.string().nullable(),
   status: orderStatusModel,
   customer: saleOrderCustomerModel,
+  // where to deliver, as kept on the order for a name (none for a customer: theirs is their own)
+  deliveryAddress: z
+    .object({
+      addressLine1: z.string(),
+      landmark: z.string(),
+      city: z.string(),
+      district: z.string(),
+      state: z.string(),
+      stateCode: z.string(),
+      postalCode: z.string(),
+    })
+    .nullable(),
   itemCount: z.number(),
   totalAmount: z.number(),
   lines: z.array(saleOrderLineModel),
