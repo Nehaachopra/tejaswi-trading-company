@@ -125,6 +125,8 @@ export function AmountCard() {
   const billLabel = interestCalc ? t("interestDue") : t("billAmount");
   // reverse-charge GST on top (or still being worked out): the Total cost then differs from the bill
   const hasRcm = !!tax?.rcm || rcmOpen;
+  // whether there's a supporting detail to sit above the breakup: a due, rent's total a month, a PAN to give, months
+  const hasSupport = dueShown !== null || showPan || rentCalc || interestCalc;
   // the Total cost, folded to its figure until opened
   const [costOpen, setCostOpen] = useState(false);
   // what this payment goes towards: the due (as much as was owed), and the advance past it. Only where something was
@@ -204,67 +206,83 @@ export function AmountCard() {
     // cost and the due on the right; then where it's paid from the full width. Every kind of payment the same: rent and interest
     // only add their months (and rent its godowns, above) and work their amount out
     <div className="flex flex-col gap-4">
-      {rentCalc && <div className="min-w-0 sm:w-[calc(50%-1.5rem)]">{rentBreakdown()}</div>}
-      {/* wider screens, two rows: on top the due, PAN, months and the bill (left); under them the Payment (left)
-          level with the Total cost and the due (right) */}
+      {/* wider screens, two rows: on top the supporting details (left); under them the breakup (left) level with the
+          Total cost and the due (right) */}
       <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-12">
         <div className="flex min-w-0 flex-col gap-4 sm:contents">
-          <div className="flex min-w-0 flex-col gap-2.5 sm:col-start-1 sm:row-start-1">
-            {/* what's owed on the supplier, loan, landlord or tax, as soon as something is owed; room under it */}
-            {dueShown !== null && (
-              <div className="tabular mb-2 flex items-baseline justify-between gap-3 text-sm">
-                <span className="min-w-0">{t("due")}</span>
-                <span className="shrink-0 whitespace-nowrap text-base font-semibold">
-                  {rupees(dueShown)}
-                </span>
-              </div>
+          {/* the supporting details, on top with room under them: the due, rent's total a month, their PAN, the months */}
+          {hasSupport && (
+            <div className="mb-2 flex min-w-0 flex-col gap-2.5 sm:col-start-1 sm:row-start-1">
+              {/* what's owed on the supplier, loan, landlord or tax, as soon as something is owed */}
+              {dueShown !== null && (
+                <div className="tabular flex items-baseline justify-between gap-3 text-sm">
+                  <span className="min-w-0">{t("due")}</span>
+                  <span className="shrink-0 whitespace-nowrap text-base font-semibold">
+                    {rupees(dueShown)}
+                  </span>
+                </div>
+              )}
+              {/* rent: each godown's rent a month, folded to their total */}
+              {rentCalc && rentBreakdown()}
+              {/* their PAN, where TDS applies and there's none on record */}
+              {panField()}
+              {/* rent and interest: how many months */}
+              {rentCalc &&
+                row(
+                  <>
+                    {t("months")}
+                    <RequiredMark />
+                  </>,
+                  <NumberInput
+                    id="months-field"
+                    value={rentMonths}
+                    onChange={(v) => setRentMonths(atLeastOne(v))}
+                    maxDigits={3}
+                    max={120}
+                    aria-invalid={(tried && Number(rentMonths) < 1) || undefined}
+                    className={cn(input(tried && Number(rentMonths) < 1), "tabular")}
+                  />,
+                  "months-field",
+                )}
+              {interestCalc &&
+                row(
+                  <>
+                    {t("months")}
+                    <RequiredMark />
+                  </>,
+                  <NumberInput
+                    id="months-field"
+                    value={interestTyped !== null ? "" : interestMonths}
+                    onChange={(v) => {
+                      setInterestTyped(null);
+                      setEditingInterest(false);
+                      setInterestMonths(atLeastOne(v));
+                    }}
+                    maxDigits={3}
+                    max={120}
+                    placeholder="--"
+                    aria-invalid={(tried && calcDue === 0 && interestTyped === null) || undefined}
+                    className={cn(
+                      input(tried && calcDue === 0 && interestTyped === null),
+                      "tabular",
+                    )}
+                  />,
+                  "months-field",
+                )}
+            </div>
+          )}
+          {/* the breakup, the same for every kind of payment: the bill (typed in its box; rent's and interest's worked
+              out), any TDS taken out of it, then To pay, what leaves cash or the bank, in the chestnut box */}
+          <div
+            className={cn(
+              "flex min-w-0 flex-col gap-2.5 sm:col-start-1",
+              hasSupport ? "sm:row-start-2" : "sm:row-start-1",
             )}
-            {/* their PAN, where TDS applies and there's none on record: first, set well apart from the amount below */}
-            {panField()}
-            {/* rent and interest: how many months */}
-            {rentCalc &&
-              row(
-                <>
-                  {t("months")}
-                  <RequiredMark />
-                </>,
-                <NumberInput
-                  id="months-field"
-                  value={rentMonths}
-                  onChange={(v) => setRentMonths(atLeastOne(v))}
-                  maxDigits={3}
-                  max={120}
-                  aria-invalid={(tried && Number(rentMonths) < 1) || undefined}
-                  className={cn(input(tried && Number(rentMonths) < 1), "tabular")}
-                />,
-                "months-field",
-              )}
-            {interestCalc &&
-              row(
-                <>
-                  {t("months")}
-                  <RequiredMark />
-                </>,
-                <NumberInput
-                  id="months-field"
-                  value={interestTyped !== null ? "" : interestMonths}
-                  onChange={(v) => {
-                    setInterestTyped(null);
-                    setEditingInterest(false);
-                    setInterestMonths(atLeastOne(v));
-                  }}
-                  maxDigits={3}
-                  max={120}
-                  placeholder="--"
-                  aria-invalid={(tried && calcDue === 0 && interestTyped === null) || undefined}
-                  className={cn(input(tried && calcDue === 0 && interestTyped === null), "tabular")}
-                />,
-                "months-field",
-              )}
-            {/* the amount: rent's worked out from the months, interest's worked out but can be typed over, any other
+          >
+            {/* the bill: rent's worked out from the months, interest's worked out but can be typed over, any other
                 typed (or spoken) */}
             {rentCalc
-              ? null
+              ? value > 0 && plainRow(billLabel, rupees(bill))
               : interestCalc
                 ? editingInterest || interestTyped !== null
                   ? row(
@@ -354,44 +372,25 @@ export function AmountCard() {
                 </button>
               </FieldMessage>
             )}
-            {/* the rest of the breakup once there's an amount: any TDS and reverse-charge GST, the total; then how the
-                TDS and GST were worked out */}
-          </div>
-          <div className="flex min-w-0 flex-col gap-4 sm:col-start-1 sm:row-start-2">
             <div className="flex flex-col gap-2.5">
-              {/* once there's a bill, two sums apart: the Payment (the bill, the TDS taken out of it, then To pay, what
-                leaves cash or the bank, in the chestnut box), then the Total cost (the bill and the reverse-charge GST we
-                pay on top), folded to its figure until opened */}
+              {/* once there's a bill: the TDS taken out of it, then To pay under a line, as under a sum; then the Total
+                cost (the bill and the reverse-charge GST we pay on top), folded to its figure until opened */}
               {value > 0 && (
                 <>
-                  <div className="-mx-3 flex flex-col gap-1 rounded-control bg-chestnut/6 px-3 py-2.5">
-                    {(tdsApplies || hasRcm) && (
-                      <h3 className="text-xs font-semibold uppercase tracking-[0.08em] opacity-60">
-                        {t("payGroup")}
-                      </h3>
-                    )}
-                    {(tdsApplies || hasRcm) && (
-                      <PlainRows
-                        rows={[
-                          { key: "bill", label: billLabel, amount: bill },
-                          ...typedRows.filter((r) => r.key === "tds"),
-                        ]}
-                      />
-                    )}
-                    <div
-                      className={cn(
-                        (tdsApplies || hasRcm) && "mt-1 border-t border-chestnut/30 pt-2",
-                      )}
-                    >
-                      {row(
-                        <span className="font-bold">{payRow.label}</span>,
-                        <span className="tabular flex min-h-12 items-center justify-end break-all rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
-                          {rupees(value)}
-                        </span>,
-                      )}
+                  {tdsApplies && (
+                    <div className="flex min-h-11 flex-col justify-center">
+                      <PlainRows rows={typedRows.filter((r) => r.key === "tds")} />
                     </div>
+                  )}
+                  <div className="border-t border-chestnut/30 pt-2.5">
+                    {row(
+                      <span className="font-bold">{payRow.label}</span>,
+                      <span className="tabular flex min-h-12 items-center justify-end break-all rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
+                        {rupees(value)}
+                      </span>,
+                    )}
                   </div>
-                  {/* a phone: the Total cost and the due under the Payment (wider screens: on the right) */}
+                  {/* a phone: the Total cost and the due under the breakup (wider screens: on the right) */}
                   {hasRcm && <div className="sm:hidden">{costGroup}</div>}
                   {hasDue && <div className="sm:hidden">{dueGroup}</div>}
                 </>
@@ -442,9 +441,14 @@ export function AmountCard() {
               )}
           </div>
         </div>
-        {/* wider screens, the right side of the second row: the Total cost and the due, level with the Payment */}
+        {/* wider screens, the right side of the second row: the Total cost and the due, level with the breakup */}
         {value > 0 && (hasRcm || hasDue) && (
-          <div className="hidden min-w-0 flex-col gap-4 sm:col-start-2 sm:row-start-2 sm:flex">
+          <div
+            className={cn(
+              "hidden min-w-0 flex-col gap-4 sm:col-start-2 sm:flex",
+              hasSupport ? "sm:row-start-2" : "sm:row-start-1",
+            )}
+          >
             {hasRcm && costGroup}
             {hasDue && dueGroup}
           </div>
@@ -523,10 +527,11 @@ export function AmountCard() {
       rentOpen || (tried && !rentOk) || rentRows.some((row) => Number(rentOf(row)) < 1);
     return (
       <>
-        {/* godown by godown, opened above the total rent a month, which comes last */}
-        <div className="flex min-w-0 flex-col rounded-control px-3 text-sm shadow-[0_0_5px_0] shadow-chestnut/25">
+        {/* godown by godown in its box, opened above the total rent a month, which comes last as a plain row like the
+            due's */}
+        <div className="flex min-w-0 flex-col gap-2.5 text-sm">
           {breakupOpen && (
-            <div className="flex min-w-0 flex-col border-b-2 border-chestnut/40">
+            <div className="flex min-w-0 flex-col rounded-control px-3 shadow-[0_0_5px_0] shadow-chestnut/25">
               <div className="flex justify-between gap-4 py-2 text-xs font-semibold">
                 <span>{t("godown")}</span>
                 <span>{t("rentPerMonth")}</span>
@@ -584,11 +589,13 @@ export function AmountCard() {
             type="button"
             aria-expanded={breakupOpen}
             onClick={() => setRentOpen(!breakupOpen)}
-            className="flex min-h-12 min-w-0 items-center justify-between gap-3 text-left font-semibold"
+            className="flex min-h-11 min-w-0 items-center justify-between gap-3 text-left"
           >
             <span>{t("totalRentPerMonth")}</span>
             <span className="flex min-w-0 items-center gap-2">
-              <span className="tabular min-w-0 break-all text-right">{rupees(monthlyRent)}</span>
+              <span className="tabular min-w-0 break-all text-right text-base font-semibold">
+                {rupees(monthlyRent)}
+              </span>
               <ChevronDown
                 className={cn("size-4 shrink-0 transition-transform", breakupOpen && "rotate-180")}
                 aria-hidden
@@ -610,7 +617,7 @@ export function AmountCard() {
     return (
       // a row like the amount's: PAN on the left, level with its box; on the right the box with what's typed at its
       // right end and Save beside it
-      <div className="mb-4 flex min-w-0 items-start justify-between gap-3">
+      <div className="flex min-w-0 items-start justify-between gap-3">
         <label htmlFor="pan-field" className="flex min-h-11 min-w-0 items-center text-sm">
           PAN
         </label>
