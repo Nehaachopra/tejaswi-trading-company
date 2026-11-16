@@ -54,6 +54,7 @@ export function PartyEdit({
   onCancel,
   asksTypes = true,
   rows = false,
+  photo = !rows,
 }: {
   partyId: string;
   onSaved: (party: PartyModel) => void;
@@ -61,6 +62,8 @@ export function PartyEdit({
   asksTypes?: boolean;
   // label left, box or dropdown right, as a payment's new supplier
   rows?: boolean;
+  // the profile picture beside the personal details (Entities)
+  photo?: boolean;
 }) {
   const t = useTranslations("accounts.party.form");
   const tc = useTranslations("transactions.chat");
@@ -116,6 +119,7 @@ export function PartyEdit({
         asksRemarks={false}
         asksPan={false}
         rows={rows}
+        photo={photo}
       />
       {tried && !draftOk(draft) && <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>}
       {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
@@ -268,6 +272,8 @@ export function PartySheet({
                 transporter={draft.types.length === 0}
                 asksPaid={asksPaid}
                 asksTds={asksTds}
+                rows
+                photo
               />
             </div>
             <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">

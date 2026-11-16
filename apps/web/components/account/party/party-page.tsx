@@ -107,7 +107,7 @@ export function PartyPage({ partyId, type }: { partyId: string; type: PartyType 
               >
                 {editing ? (
                   <div className="p-4">
-                    <PartyEdit partyId={p.id} onCancel={() => setEditing(false)} onSaved={() => setEditing(false)} />
+                    <PartyEdit rows photo partyId={p.id} onCancel={() => setEditing(false)} onSaved={() => setEditing(false)} />
                   </div>
                 ) : (
                   <>

@@ -493,7 +493,8 @@ export function AddressFields({
   }, [address.city]);
 
   return (
-    <fieldset className="flex flex-col gap-4 rounded-control border border-chestnut/20 p-3">
+    // as rows its fields go two columns by its own width, not the screen's (a narrow sheet on a wide screen stays one)
+    <fieldset className="@container flex flex-col gap-4 rounded-control border border-chestnut/20 p-3">
       {/* which address, default or not, remove */}
       <legend className="sr-only">{t("addressN", { n: index + 1 })}</legend>
       {!single && !noHeader && (
@@ -549,7 +550,7 @@ export function AddressFields({
       )}
 
       {/* the city beside its PIN, each filling the other and the state and district below; then those two */}
-      <div className={cn("grid items-start gap-x-6 gap-y-3", rows ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2")}>
+      <div className={cn("grid items-start gap-x-6 gap-y-3", rows ? "grid-cols-1 @md:grid-cols-2" : "grid-cols-2")}>
         <Field icon={Building2} label={t("city")} required={must} error={show("city") && t("required")}>
           <MicField onText={(said) => setCity(noDigits(address.city.trim() ? `${address.city.trim()} ${said}` : said).slice(0, MAX.place))}>
           <input value={address.city} maxLength={MAX.place} onChange={(e) => setCity(noDigits(e.target.value))} aria-invalid={show("city") || undefined} className={cn(input(show("city")), "pr-11")} />
@@ -574,7 +575,7 @@ export function AddressFields({
           {lookup.state === "missing" && <span className="text-xs text-chestnut/70">{t("pinNotFound")}</span>}
         </Field>
       </div>
-      <div className={cn("grid items-start gap-x-6 gap-y-3", rows ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-2")}>
+      <div className={cn("grid items-start gap-x-6 gap-y-3", rows ? "grid-cols-1 @md:grid-cols-2" : "grid-cols-2")}>
         <Field icon={Map} label={t("state")} required={must} error={show("state") && t("required")}>
           <PickMenu
             label={t("state")}
@@ -623,7 +624,7 @@ export function AddressFields({
       </div>
 
       {/* the address itself */}
-      <div className={cn("grid gap-x-6 gap-y-3", rows ? "grid-cols-1 items-start sm:grid-cols-2" : "grid-cols-2 items-end")}>
+      <div className={cn("grid gap-x-6 gap-y-3", rows ? "grid-cols-1 items-start @md:grid-cols-2" : "grid-cols-2 items-end")}>
         <Field icon={House} label={t("line1")}>
           <MicField onText={(said) => onChange({ addressLine1: (address.addressLine1.trim() ? `${address.addressLine1.trim()} ${said}` : said).slice(0, MAX.line) })}>
             <input value={address.addressLine1} maxLength={MAX.line} onChange={(e) => onChange({ addressLine1: e.target.value })} className={cn(input(false), "pr-11")} />
@@ -639,7 +640,7 @@ export function AddressFields({
       {/* GSTIN (its first two digits are the state's code) */}
       {/* as rows it takes the left column, in line with the rows above */}
       {!single && (
-      <div className={cn(rows && "grid grid-cols-1 items-start gap-x-6 sm:grid-cols-2")}>
+      <div className={cn(rows && "grid grid-cols-1 items-start gap-x-6 @md:grid-cols-2")}>
       <Field icon={ReceiptText} label={t("gstin")} className="mt-6 sm:w-56">
         <input
           value={address.gstin}
@@ -684,6 +685,7 @@ export function PartyFields({
   asksEmail = true,
   oneAddress = false,
   rows = false,
+  photo = !rows,
 }: {
   draft: PartyDraft;
   onChange: (patch: Partial<PartyDraft>) => void;
@@ -721,6 +723,8 @@ export function PartyFields({
   oneAddress?: boolean;
   // label left, box right, two columns on a wider screen (a payment's or an order's new supplier)
   rows?: boolean;
+  // the profile picture beside the personal details (Entities; a transaction's rows form leaves it out)
+  photo?: boolean;
 }) {
   const t = useTranslations("accounts.party.form");
   const bad = draftProblems(draft, strict, phoneOptional).party;
@@ -833,7 +837,7 @@ export function PartyFields({
       {/* what they are to us: any of customer, supplier, employee, lender and agent (none for anyone else), as an
           accordion that folds to the picks */}
       {asksTypes && (
-        <section className="flex flex-col gap-3">
+        <section className="@container flex flex-col gap-3">
           <h3 className={SECTION_TITLE}>{t("typesTitle")}</h3>
           <MultiAccordion
             label={t("typesTitle")}
@@ -851,7 +855,7 @@ export function PartyFields({
       <section className="@container flex flex-col gap-3">
         <h3 className={SECTION_TITLE}>{t("personal")}</h3>
         <div className="flex flex-col gap-4 @md:flex-row @md:items-start @md:gap-8">
-        {!rows && <ProfilePhoto />}
+        {photo && <ProfilePhoto />}
         <div className="flex min-w-0 flex-1 flex-col gap-3">
         {rows ? (
           <>
@@ -1005,7 +1009,7 @@ export function PartyFields({
         {/* paid this year outside this app, which counts towards TDS limits */}
         {asksPaid && (
           <div className="flex flex-col gap-1.5">
-            <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+            <div className={cn("grid grid-cols-1 gap-x-6 gap-y-3", rows ? "items-start @md:grid-cols-2" : "sm:grid-cols-2")}>
               <Field icon={Wallet} label={t("paidBefore")}>
                 <NumberInput value={draft.paidBefore} decimals={2} onChange={(paidBefore) => onChange({ paidBefore })} className={cn(input(false), "tabular")} />
               </Field>
@@ -1151,7 +1155,7 @@ function EmploymentFields({ draft, onChange, tried }: { draft: PartyDraft; onCha
   const rows = useContext(RowsContext);
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
   return (
-    <div className={rows ? "grid grid-cols-1 items-start gap-x-6 gap-y-3 sm:grid-cols-2" : "flex flex-col gap-3"}>
+    <div className={rows ? "grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2" : "flex flex-col gap-3"}>
       <Field label={t("joiningDate")} required>
         <DateInput
           value={draft.joiningDate}
