@@ -4,23 +4,27 @@ import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
-import { SlotAmount } from "~/components/ui/slot-amount";
+import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
-import { packLabel, rupees } from "~/lib/format";
+import { packLabel, rupees, titleCase } from "~/lib/format";
 import { asField, packPriceFromRate, parseAmount, rateFromPackPrice } from "~/lib/price";
 import { cn } from "~/lib/utils";
 import { useProductActions } from "~/providers/products";
 
+import { FiguresTable, MoneyBox } from "../../transaction/shared/figures-table";
 import { categoryError } from "../categories/category-errors";
-import { PriceChart } from "./price-chart";
-import { RatePriceFields } from "./rate-price-fields";
-import { type ProductGroup, TileTopForPrice } from "./product-tile";
 import { PackChips } from "./pack-chips";
+import { PriceChart } from "./price-chart";
+import { type ProductGroup, ProductImage, productTitle } from "./product-tile";
 
-// one product's card zoomed in over the dimmed page, to change one pack size's price: the rate per unit or the price
-// with GST (each fills in the other), the cost and the profit that price earns, the last 5 prices, and Save price.
-// The ✕, a tap on the dim area or Escape closes it unsaved
+// a read-only figure in a row's right column
+const figure = "tabular flex min-h-11 items-center justify-end text-base font-bold";
+
+// one product's card zoomed in over the dimmed page, to change one pack size's price. On top the pack size chips and
+// ✕, the name and the square photo (as on a sale's card), the last 5 prices, then four rows: Rate per unit and
+// Price + GST (each fills in the other), the cost a pack, and the profit or loss that price makes (green or red).
+// Save price; a price below cost asks first. The ✕, a tap on the dim area or Escape closes it unsaved
 export function PriceCard({
   group,
   packId,
@@ -36,7 +40,7 @@ export function PriceCard({
   const { updatePrice, refreshList, refreshPrices } = useProductActions();
   const pack = group.packs.find((p) => p.productId === packId) ?? group.packs[0]!;
   const gst = pack.gstPercent ?? 0;
-  const unit = t(`form.units.${pack.packSizeCode}`);
+  const rateLabel = t("ratePer", { unit: t(`form.units.${pack.packSizeCode}`) });
 
   // the draft: the price with GST and the rate per unit, filled in from the saved price on open and on another pack
   const [price, setPrice] = useState("");
@@ -47,18 +51,20 @@ export function PriceCard({
     setRate(saved == null ? "" : asField(rateFromPackPrice(saved, pack.packSize, gst)));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when another pack size is shown
   }, [pack.productId]);
+  // asking before saving a price below cost
+  const [askLoss, setAskLoss] = useState(false);
 
-  // the page behind doesn't scroll, and Escape closes
+  // the page behind doesn't scroll, and Escape closes (not while the below-cost question is open)
   useEffect(() => {
     const { overflow } = document.body.style;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !askLoss && onClose();
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = overflow;
       window.removeEventListener("keydown", onKey);
     };
-  }, [onClose]);
+  }, [onClose, askLoss]);
 
   // either field fills in the other: price = rate × pack size + GST
   const typePrice = (v: string) => {
@@ -72,12 +78,13 @@ export function PriceCard({
     setPrice(r == null ? "" : asField(packPriceFromRate(r, pack.packSize, gst)));
   };
 
-  // the profit on the typed price: its before-GST part against the average cost
+  // the profit on the typed price: its before-GST part against the average cost a pack, in rupees and as a share
   const typed = parseAmount(price);
   const cost = pack.weightedAverageCost;
   const before = typed == null ? null : typed / (1 + gst / 100);
-  const profitPct = before != null && cost ? ((before - cost) / cost) * 100 : null;
-  const loss = profitPct != null && profitPct < 0;
+  const profit = before != null && cost != null ? Math.round((before - cost) * 100) / 100 : null;
+  const profitPct = profit != null && cost ? (profit / cost) * 100 : null;
+  const loss = profit != null && profit < 0;
   const canSave =
     typed != null && typed > 0 && typed !== pack.priceAfterGst && !updatePrice.isPending;
 
@@ -98,8 +105,10 @@ export function PriceCard({
       );
       refreshList();
       refreshPrices(pack.productId);
+      setAskLoss(false);
       onClose();
     } catch (err) {
+      setAskLoss(false);
       toast.error(t(`errors.${categoryError(err)}`));
     }
   }
@@ -116,9 +125,8 @@ export function PriceCard({
         aria-label={`${t("editPrice")}: ${packLabel(pack.packSize, pack.packSizeCode)}`}
         className="on-ivory flex w-[min(300px,100%)] animate-zoom-in flex-col gap-2 rounded-control bg-ivory p-4 text-chestnut shadow-[0_12px_40px_rgba(0,0,0,0.4)]"
       >
-        {/* ✕ on top, no border */}
+        {/* pack sizes, always on top, and ✕ */}
         <div className="flex justify-between">
-          {/* pack sizes, always on top */}
           <PackChips
             packs={group.packs}
             selected={pack.productId}
@@ -136,58 +144,58 @@ export function PriceCard({
           </button>
         </div>
 
-        {/* the card as on the page, its photo shorter */}
-        <TileTopForPrice group={group} pack={pack} onPack={onPack} short />
-
-        {/* cost and profit: two big numbers, a line between; the profit's digits spin as it changes */}
-        <div className="grid grid-cols-2 text-center">
-          <div className="grid justify-items-center">
-            <b className="tabular font-heading text-2xl font-extrabold leading-[1.15]">
-              {cost == null ? "–" : rupees(cost)}
-            </b>
-            <span className="text-[11px] text-chestnut/60">{t("cost")}</span>
-          </div>
-          <div className="grid justify-items-center border-l border-chestnut/12">
-            <b
-              className={cn(
-                "font-heading text-2xl font-extrabold leading-[1.15]",
-                profitPct != null && (loss ? "text-danger" : "text-success"),
-              )}
-            >
-              {profitPct == null ? (
-                "–"
-              ) : (
-                <SlotAmount
-                  text={`${Math.abs(profitPct).toFixed(1)}%`}
-                  className="leading-[1.15]"
-                />
-              )}
-            </b>
-            <span className="text-[11px] text-chestnut/60">
-              {loss ? t("loss") : t("profitEarnable")}
-            </span>
-          </div>
+        {/* the name, category | sub-category, then the square photo in the middle (as on a sale's card) */}
+        <div className="min-w-0">
+          <p className="wrap-break-word font-heading text-base font-bold leading-6">{productTitle(group)}</p>
+          <p className="truncate text-xs opacity-70">
+            {titleCase(group.categoryName)} | {titleCase(group.subCategoryName)}
+          </p>
         </div>
+        <ProductImage group={group} imageUrl={pack.imageUrl} className="size-40 self-center" />
 
         {/* the last 5 saved prices */}
         <PriceChart productId={pack.productId} />
 
-        <div className="flex flex-col gap-3 mt-3.5">
-          {/* rate per unit, then the price with GST (chestnut), each a row: label left, box right */}
-          <RatePriceFields
-            unit={unit}
-            rate={rate}
-            price={price}
-            onRate={typeRate}
-            onPrice={typePrice}
-            autoFocus
-            rows
+        <div className="mt-2 flex flex-col gap-3">
+          {/* the four rows: label left, box or figure right */}
+          <FiguresTable
+            rows={[
+              {
+                key: "rate",
+                label: rateLabel,
+                input: <MoneyBox value={rate} maxDigits={6} label={rateLabel} onChange={typeRate} autoFocus />,
+              },
+              {
+                key: "price",
+                label: t("priceGst"),
+                input: <MoneyBox value={price} maxDigits={7} label={t("priceGst")} onChange={typePrice} />,
+              },
+              // the average cost a pack, as it is
+              {
+                key: "cost",
+                label: t("cost"),
+                input: <span className={figure}>{cost == null ? "–" : rupees(cost)}</span>,
+              },
+              // what the price makes a pack over that cost, green, or under it, red, and as a share of the cost
+              {
+                key: "profit",
+                label: loss ? t("loss") : t("profit"),
+                input: (
+                  <span className={cn(figure, "flex-col items-end justify-center leading-tight", profit != null && (loss ? "text-danger" : "text-success"))}>
+                    {profit == null ? "–" : rupees(Math.abs(profit))}
+                    {profitPct != null && (
+                      <span className="text-xs font-semibold">{Math.abs(profitPct).toFixed(1)}%</span>
+                    )}
+                  </span>
+                ),
+              },
+            ]}
           />
 
-          {/* Save price */}
+          {/* Save price: below cost, it asks first */}
           <button
             type="button"
-            onClick={() => void save()}
+            onClick={() => (loss ? setAskLoss(true) : void save())}
             disabled={!canSave}
             aria-busy={updatePrice.isPending}
             className="flex min-h-12 w-full items-center justify-center gap-2 rounded-control bg-chestnut font-heading text-lg font-bold text-ivory transition-opacity disabled:not-aria-busy:opacity-40 aria-busy:opacity-80"
@@ -197,6 +205,21 @@ export function PriceCard({
           </button>
         </div>
       </section>
+
+      {/* a price below cost: asked once more before it's saved */}
+      <ConfirmDialog
+        open={askLoss}
+        title={t("belowCostTitle")}
+        body={t("belowCostBody", {
+          price: typed == null ? "–" : rupees(typed),
+          cost: cost == null ? "–" : rupees(cost),
+        })}
+        confirmLabel={t("saveAnyway")}
+        cancelLabel={t("cancel")}
+        busy={updatePrice.isPending}
+        onConfirm={() => void save()}
+        onCancel={() => setAskLoss(false)}
+      />
     </div>
   );
 }

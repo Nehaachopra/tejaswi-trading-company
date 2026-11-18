@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -122,6 +122,17 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
     setPane(to);
     setTimeout(() => (to === "main" ? godownRow : back).current?.focus({ preventScroll: true, focusVisible: false } as FocusOptions), 320);
   };
+  // from an order: whether the stock rows under Ordered show
+  const [stockOpen, setStockOpen] = useState(false);
+  // how many this sale sends: − and + around the number
+  const quantityBox = (
+    <QuantityBox
+      value={draft.quantity}
+      max={available}
+      label={`${t("quantity")}: ${name}`}
+      onChange={(v) => setDraft((d) => ({ ...d, quantity: v }))}
+    />
+  );
   // a quantity typed with packs still to dispatch: the Godowns arrow is highlighted, to say where to go next
   const toDispatch = quantity > 0 && placed !== quantity;
 
@@ -203,33 +214,54 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                         />
                       ),
                     },
-                    // what's free to sell, and how many (from an order: how many it ordered, and still waits for, under)
-                    {
-                      key: "quantity",
-                      label: t("quantity"),
-                      current: available.toLocaleString("en-IN"),
-                      top: true,
-                      input: (
-                        <span className="flex w-full min-w-0 flex-col gap-1">
-                          <QuantityBox
-                            value={draft.quantity}
-                            max={available}
-                            label={`${t("quantity")}: ${name}`}
-                            onChange={(v) => setDraft((d) => ({ ...d, quantity: v }))}
-                          />
-                          {ordered && (
-                            <span className="tabular text-xs opacity-70">
-                              {t("ordered")} {ordered.quantity.toLocaleString("en-IN")}
-                              {ordered.delivered > 0 && (
-                                <span className="block">
-                                  {t("leftToPlace")} {orderedLeft.toLocaleString("en-IN")}
-                                </span>
-                              )}
-                            </span>
-                          )}
-                        </span>
-                      ),
-                    },
+                    // from an order: Ordered, how many it ordered beside the box (it starts at what's still to go);
+                    // its ⌄ shows what's free to sell (and, once some have gone out, how many it still waits for)
+                    ...(ordered
+                      ? [
+                          {
+                            key: "ordered",
+                            label: (
+                              <button
+                                type="button"
+                                onClick={() => setStockOpen((o) => !o)}
+                                aria-expanded={stockOpen}
+                                className="flex items-center gap-1 text-left"
+                              >
+                                {t("ordered")}
+                                <ChevronDown
+                                  className={cn("size-4 shrink-0 transition-transform", stockOpen && "rotate-180")}
+                                  aria-hidden
+                                />
+                              </button>
+                            ),
+                            current: ordered.quantity.toLocaleString("en-IN"),
+                            input: quantityBox,
+                          },
+                          ...(stockOpen
+                            ? [
+                                ...(ordered.delivered > 0
+                                  ? [
+                                      {
+                                        key: "left",
+                                        label: t("leftToPlace"),
+                                        current: orderedLeft.toLocaleString("en-IN"),
+                                        input: <span />,
+                                      },
+                                    ]
+                                  : []),
+                                { key: "available", label: t("quantity"), current: available.toLocaleString("en-IN"), input: <span /> },
+                              ]
+                            : []),
+                        ]
+                      : [
+                          // what's free to sell, and how many
+                          {
+                            key: "quantity",
+                            label: t("quantity"),
+                            current: available.toLocaleString("en-IN"),
+                            input: quantityBox,
+                          },
+                        ]),
                   ]}
                 />
               </div>

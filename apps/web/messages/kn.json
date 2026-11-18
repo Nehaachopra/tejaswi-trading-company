@@ -366,7 +366,12 @@
       "loss": "ನಷ್ಟ",
       "available": "ಲಭ್ಯ",
       "quantity": "ಪ್ರಮಾಣ",
-      "quantityDetails": "ಪ್ರಮಾಣದ ವಿವರಗಳು"
+      "quantityDetails": "ಪ್ರಮಾಣದ ವಿವರಗಳು",
+      "priceGst": "ಬೆಲೆ + GST",
+      "profit": "ಲಾಭ",
+      "belowCostTitle": "ವೆಚ್ಚಕ್ಕಿಂತ ಕಡಿಮೆಗೆ ಮಾರುವುದೇ?",
+      "belowCostBody": "{price} ಒಂದು ಪ್ಯಾಕ್‌ನ ವೆಚ್ಚಕ್ಕಿಂತ ({cost}) ಕಡಿಮೆ. ಆದರೂ ಈ ಬೆಲೆ ಉಳಿಸುವುದೇ?",
+      "saveAnyway": "ಆದರೂ ಉಳಿಸಿ"
     }
   },
   "settings": {

@@ -24,15 +24,15 @@ export type FigureRow = {
 
 // the order line's figures as a table: Basis | Current | New, one row each (rate per unit, price + GST, quantity …);
 // without a Current heading (a purchase), only Basis | New. Basis wraps, Current shrinks and cuts before it pushes,
-// New keeps its fixed width
+// New keeps its fixed width. Without headings (the price card), just the rows: label left, figure or box right
 export function FiguresTable({
   headings,
   rows,
 }: {
-  headings: { basis: string; current?: string; new: string };
+  headings?: { basis: string; current?: string; new: string };
   rows: FigureRow[];
 }) {
-  const withCurrent = headings.current != null;
+  const withCurrent = headings?.current != null;
   return (
     <div
       className={cn(
@@ -43,12 +43,16 @@ export function FiguresTable({
       )}
     >
       {/* the headings */}
-      <span className="text-xs opacity-70">{headings.basis}</span>
-      {withCurrent && <span className="text-right text-xs opacity-70">{headings.current}</span>}
-      <span className="text-right text-xs opacity-70">
-        {headings.new}
-        <RequiredMark />
-      </span>
+      {headings && (
+        <>
+          <span className="text-xs opacity-70">{headings.basis}</span>
+          {withCurrent && <span className="text-right text-xs opacity-70">{headings.current}</span>}
+          <span className="text-right text-xs opacity-70">
+            {headings.new}
+            <RequiredMark />
+          </span>
+        </>
+      )}
 
       {/* the rows */}
       {rows.map((row) => (

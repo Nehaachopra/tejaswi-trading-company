@@ -366,7 +366,12 @@
       "loss": "Loss",
       "available": "Available",
       "quantity": "Quantity",
-      "quantityDetails": "Quantity details"
+      "quantityDetails": "Quantity details",
+      "priceGst": "Price + GST",
+      "profit": "Profit",
+      "belowCostTitle": "Sell below cost?",
+      "belowCostBody": "{price} is below what a pack costs ({cost}). Save this price anyway?",
+      "saveAnyway": "Save anyway"
     }
   },
   "settings": {

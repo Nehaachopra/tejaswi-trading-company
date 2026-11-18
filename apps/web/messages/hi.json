@@ -366,7 +366,12 @@
       "loss": "घाटा",
       "available": "उपलब्ध",
       "quantity": "मात्रा",
-      "quantityDetails": "मात्रा विवरण"
+      "quantityDetails": "मात्रा विवरण",
+      "priceGst": "दाम + GST",
+      "profit": "मुनाफ़ा",
+      "belowCostTitle": "लागत से कम पर बेचें?",
+      "belowCostBody": "{price} एक पैक की लागत ({cost}) से कम है। फिर भी यह दाम सेव करें?",
+      "saveAnyway": "फिर भी सेव करें"
     }
   },
   "settings": {
