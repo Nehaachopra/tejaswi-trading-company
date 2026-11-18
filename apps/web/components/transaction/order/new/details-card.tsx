@@ -9,15 +9,14 @@ import { Spinner } from "~/components/ui/icons/spinner";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
-import { input } from "../../shared/form-basics";
+import { fieldRow, input } from "../../shared/form-basics";
 import { useOrderEntry } from "./state";
 
 // remarks are kept up to 1000 characters on the order
 const REMARKS_MAX = 1000;
-const field = "flex flex-col gap-2.5 text-xs font-semibold";
 
 // the order's date (the day it's made, shown, never changed), when it's expected (optional, that day or later) and
-// remarks, side by side on a wider screen
+// remarks, each a row (label left, box right), two side by side on a wider screen
 export function DetailsCard() {
   const { t, orderDate, expected, setExpected, remarks, setRemarks } = useOrderEntry();
   const locale = useLocale();
@@ -25,14 +24,14 @@ export function DetailsCard() {
   return (
     <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
       {/* the order's date: today, as plain text */}
-      <div className={field}>
+      <div className={fieldRow}>
         <span>{t("orderDate")}</span>
-        <span className="flex min-h-11 items-center text-base font-normal">
+        <span className="flex min-h-11 items-center text-base">
           {dayInWords(orderDate, locale)}
         </span>
       </div>
-      <label className={field}>
-        {t("expected")}
+      <label className={fieldRow}>
+        <span>{t("expected")}</span>
         <DateInput
           value={expected}
           min={orderDate || undefined}
@@ -43,8 +42,8 @@ export function DetailsCard() {
           className={input(expectedBad)}
         />
       </label>
-      <label className={cn(field, "sm:col-span-2")}>
-        {t("remarks")}
+      <label className={fieldRow}>
+        <span>{t("remarks")}</span>
         <MicField
           onText={(said) =>
             setRemarks((v) => (v.trim() ? `${v.trim()} ${said}` : said).slice(0, REMARKS_MAX))

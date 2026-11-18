@@ -2013,7 +2013,6 @@
       "thisBill": "This bill",
       "amountReceived": "Amount received",
       "setOff": "Set off from advance",
-      "leftDue": "Left due",
       "pan": "PAN",
       "panBad": "A PAN is 5 letters, 4 digits and a letter.",
       "billShipAddress": "Billing and shipping address",
@@ -2095,7 +2094,9 @@
       },
       "basis": "Basis",
       "current": "Current",
-      "new": "New"
+      "new": "New",
+      "leftDue": "Due left",
+      "advanceLeft": "Advance left"
     }
   },
   "dues": {

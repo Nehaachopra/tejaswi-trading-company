@@ -9,8 +9,9 @@ import { useLiveChanges } from "~/providers/session";
 const inScope = (key: readonly unknown[], scope: string) => Array.isArray(key[0]) && key[0][0] === scope;
 
 // a change that moves stock (an order holds or frees it, a sale or purchase takes or adds it) also refreshes the
-// products and stock, so an open order or sale shows what's free now
-const alsoRefresh: Record<string, string[]> = { orders: ["inventory"], transactions: ["inventory"] };
+// products and stock, so an open order or sale shows what's free now; a sale or purchase may also dispatch or receive
+// an order (and complete it), so it refreshes the orders too
+const alsoRefresh: Record<string, string[]> = { orders: ["inventory"], transactions: ["inventory", "orders"] };
 
 // keeps every signed-in page live: when someone else (or another tab) changes something, the queries for
 // that part of the app refetch. Only the ones on screen fetch now; the rest refetch when next shown.
