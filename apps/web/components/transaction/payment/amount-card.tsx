@@ -280,7 +280,7 @@ export function AmountCard() {
               billInput,
               "amount-field",
             )}
-            {/* what Repay goes towards: the due and any advance past it */}
+            {/* what Repay goes towards: the due and any advance past it (no share of the due paid) */}
             {hasDue && dueOpen && (
               <div className="rounded-control bg-chestnut/[0.04] px-3 py-2">
                 <DueFlow
@@ -291,7 +291,7 @@ export function AmountCard() {
                   advanceLabel={t("advancePart")}
                   advance={advance}
                   paidLabel={t("paidShare")}
-                  owedBefore={owedBefore}
+                  owedBefore={0}
                 />
               </div>
             )}
