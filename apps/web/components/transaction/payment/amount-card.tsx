@@ -93,6 +93,7 @@ export function AmountCard() {
     settlesTotal,
     weOwe,
     heldAdvance,
+    toSupplier,
     advance,
     cap,
     taxFailed,
@@ -128,6 +129,13 @@ export function AmountCard() {
   // whether there's a supporting detail to sit above the breakup: a due, an advance, rent's total a month, a PAN to give,
   // months
   const hasSupport = dueShown !== null || heldAdvance > 0 || showPan || rentCalc || interestCalc;
+  // a supplier's, as a sale's or receipt's: what's left once this payment is counted, closing the breakup: what we
+  // still owe them, or (nothing owed) the advance with them, ours from before and any paid over
+  const supplierDueLeft = Math.max(0, Math.round((weOwe - settlesTotal) * 100) / 100);
+  const supplierAdvanceLeft = Math.round((heldAdvance + advance) * 100) / 100;
+  const onAdvance = supplierDueLeft === 0 && supplierAdvanceLeft > 0;
+  // a part's heading inside the card (a supplier's Due and Payment), as the card's own name reads
+  const partHeading = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
   // the Total cost, folded to its figure until opened
   const [costOpen, setCostOpen] = useState(false);
   // what this payment goes towards: the due (as much as was owed), and the advance past it. Only where something was
@@ -173,6 +181,39 @@ export function AmountCard() {
   const underValue = "ml-auto w-[60%]";
   // the amount's box: large and bold, chestnut once filled
   const amountBox = "min-h-12 pl-11 font-heading text-xl font-bold tabular";
+  // the bill's box, typed or spoken (a supplier's Repay; any other payment's amount)
+  const billInput = (
+    <MicField onText={(said) => saidAmount(said, typeAmount)}>
+      {rupeeMark}
+      <NumberInput
+        id="amount-field"
+        value={billText}
+        onChange={(v) => {
+          setCapNote(null);
+          keyedAmount.current = v;
+          typeAmount(v);
+        }}
+        onCapped={(most) =>
+          setCapNote(
+            // labour with nobody named, cut at its limit: the warning links to naming them instead
+            skipped && most === LABOUR_SKIP_MAX
+              ? { key: "labour", text: "" }
+              : { key: "amount", text: t("capOnly", { amount: rupees(most) }) },
+          )
+        }
+        decimals={2}
+        maxDigits={13}
+        max={cap}
+        placeholder="0"
+        aria-invalid={amountOver || tooMuch || (tried && value === 0) || undefined}
+        className={cn(
+          input(amountOver || tooMuch || (tried && value === 0)),
+          amountBox,
+          "pr-12",
+        )}
+      />
+    </MicField>
+  );
   // the Total cost: its heading and figure with ▾, opening to the bill and the reverse-charge GST on top
   // the Total cost: the bill and the reverse-charge GST on top
   const costGroup = (
@@ -202,6 +243,117 @@ export function AmountCard() {
       />
     </FoldGroup>
   );
+  // a supplier's, in two parts, the payment under the due. The due: what we owe
+  // them (or the advance we have with them), Repay (typed or spoken) and what's left once it's repaid, a due or an
+  // advance. The payment: what's repaid, the TDS taken out of it, then To pay, what leaves cash or the bank
+  if (toSupplier)
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-6 sm:max-w-[calc(50%-1.5rem)]">
+          {/* the due part */}
+          <section className="flex min-w-0 flex-col gap-2.5">
+            <h3 className={partHeading}>{t("duePart")}</h3>
+            {heldAdvance > 0
+              ? plainRow(t("advancePart"), rupees(heldAdvance))
+              : plainRow(t("due"), rupees(dueShown ?? 0))}
+            {row(
+              // Repay, its star and its ⌄ on one line, centred on each other
+              <span className="flex items-center">
+                {t("repay")}
+                <RequiredMark />
+                {/* its ⌄ shows what it goes towards, under it */}
+                {hasDue && (
+                  <button
+                    type="button"
+                    onClick={(ev) => {
+                      ev.preventDefault();
+                      setDueOpen((o) => !o);
+                    }}
+                    aria-expanded={dueOpen}
+                    aria-label={t("towardsGroup")}
+                    className="p-2 rounded-control hover:bg-chestnut/8"
+                  >
+                    <ChevronDown className={cn("size-4 transition-transform", dueOpen && "rotate-180")} aria-hidden />
+                  </button>
+                )}
+              </span>,
+              billInput,
+              "amount-field",
+            )}
+            {/* what Repay goes towards: the due and any advance past it */}
+            {hasDue && dueOpen && (
+              <div className="rounded-control bg-chestnut/[0.04] px-3 py-2">
+                <DueFlow
+                  wholeLabel={t("payGroup")}
+                  whole={settlesTotal}
+                  dueLabel={t("due")}
+                  due={settledOf}
+                  advanceLabel={t("advancePart")}
+                  advance={advance}
+                  paidLabel={t("paidShare")}
+                  owedBefore={owedBefore}
+                />
+              </div>
+            )}
+            <CapWarning at="amount" className={underValue} />
+            {tooMuch && mostHeld !== null && (
+              <FieldMessage className={cn("mt-0", underValue)}>
+                {t("tooMuch", { amount: rupees(mostHeld) })}
+              </FieldMessage>
+            )}
+            {amountOver && !tooMuch && (
+              <FieldMessage className={cn("mt-0", underValue)}>{overMessage()}</FieldMessage>
+            )}
+            {fitsFailed && (
+              <div className={underValue}>
+                <FailNote text={t("fitsFailed")} retry={retryFits} />
+              </div>
+            )}
+            <PlainRows
+              rows={[
+                {
+                  key: "left",
+                  label: onAdvance ? t("advanceLeft") : t("leftDue"),
+                  amount: onAdvance ? supplierAdvanceLeft : supplierDueLeft,
+                  tone: "total",
+                },
+              ]}
+            />
+          </section>
+
+          {/* the payment part */}
+          <section className="flex min-w-0 flex-col gap-2.5">
+            <h3 className={partHeading}>{t("paymentPart")}</h3>
+            {/* their PAN, where TDS applies and there's none on record */}
+            {panField()}
+            <PlainRows
+              rows={[
+                { key: "repaid", label: t("repaid"), amount: bill },
+                ...typedRows.filter((r) => r.key === "tds"),
+              ]}
+            />
+            {/* To pay, what leaves cash or the bank, in the chestnut box, under a line as under a sum */}
+            <div className="border-t border-chestnut/30 pt-2.5">
+              {row(
+                <span className="font-bold">{t("toPay")}</span>,
+                <span className="tabular flex min-h-12 items-center justify-end break-all rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
+                  {rupees(value)}
+                </span>,
+              )}
+            </div>
+            {breakdownNotes}
+            {taxFailed && (
+              <div className={underValue}>
+                <FailNote text={t("taxFailed")} retry={retryTax} />
+              </div>
+            )}
+          </section>
+        </div>
+        {/* where it's paid from: a card for each place, the card's full width */}
+        <PaidFrom />
+      </div>
+    );
+
   return (
     // on a phone one column; on a wider screen the due, the amount (TDS, PAN) and its breakup on the left, the Total
     // cost and the due on the right; then where it's paid from the full width. Every kind of payment the same: rent and interest
@@ -332,36 +484,7 @@ export function AmountCard() {
                       {tdsPossible ? t("billAmount") : tc("q.amount")}
                       <RequiredMark />
                     </>,
-                    <MicField onText={(said) => saidAmount(said, typeAmount)}>
-                      {rupeeMark}
-                      <NumberInput
-                        id="amount-field"
-                        value={billText}
-                        onChange={(v) => {
-                          setCapNote(null);
-                          keyedAmount.current = v;
-                          typeAmount(v);
-                        }}
-                        onCapped={(most) =>
-                          setCapNote(
-                            // labour with nobody named, cut at its limit: the warning links to naming them instead
-                            skipped && most === LABOUR_SKIP_MAX
-                              ? { key: "labour", text: "" }
-                              : { key: "amount", text: t("capOnly", { amount: rupees(most) }) },
-                          )
-                        }
-                        decimals={2}
-                        maxDigits={13}
-                        max={cap}
-                        placeholder="0"
-                        aria-invalid={amountOver || tooMuch || (tried && value === 0) || undefined}
-                        className={cn(
-                          input(amountOver || tooMuch || (tried && value === 0)),
-                          amountBox,
-                          "pr-12",
-                        )}
-                      />
-                    </MicField>,
+                    billInput,
                     "amount-field",
                   )}
             <CapWarning at="amount" className={underValue} />
@@ -400,6 +523,7 @@ export function AmountCard() {
                       </span>,
                     )}
                   </div>
+
                   {/* a phone: the Total cost and the due under the breakup (wider screens: on the right) */}
                   {hasRcm && <div className="sm:hidden">{costGroup}</div>}
                   {hasDue && <div className="sm:hidden">{dueGroup}</div>}

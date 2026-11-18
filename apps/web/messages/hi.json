@@ -1715,7 +1715,13 @@
         "refCashHint": "बिल या वाउचर नंबर",
         "editUpi": "बदलें",
         "qrCode": "QR कोड",
-        "saveUpi": "सेव करें"
+        "saveUpi": "सेव करें",
+        "leftDue": "बाकी बकाया",
+        "advanceLeft": "बचा एडवांस",
+        "duePart": "बकाया",
+        "paymentPart": "भुगतान",
+        "repay": "चुकाएं",
+        "repaid": "चुकाया"
       }
     },
     "tdsTypes": {

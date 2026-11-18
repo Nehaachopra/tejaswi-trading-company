@@ -855,8 +855,15 @@ export function usePaymentEntryState({
           ? LABOUR_SKIP_MAX
           : undefined;
   // never more than the money there is: cash and the banks together (a new amount starts Paid from again, so the
-  // place picked before doesn't limit it). Unknown to staff (the save checks)
-  const moneyCap = tdsApplies ? null : pairMost;
+  // place picked before doesn't limit it). With TDS, what's typed is the amount repaid and only what's left after the
+  // TDS leaves cash or the bank, so it may go as high as that leaves exactly what's held. Unknown to staff (the save
+  // checks)
+  const moneyCap =
+    pairMost === null
+      ? null
+      : tdsApplies && tdsRate > 0
+        ? Math.floor((pairMost * 100 * 100) / (100 - tdsRate)) / 100
+        : pairMost;
   const cap = [ruleCap, moneyCap ?? undefined]
     .filter((c): c is number => c !== undefined)
     .reduce<number | undefined>((m, c) => (m === undefined ? c : Math.min(m, c)), undefined);

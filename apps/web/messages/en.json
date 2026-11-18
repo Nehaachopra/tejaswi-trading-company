@@ -1715,7 +1715,13 @@
         "refCashHint": "Bill or voucher no.",
         "editUpi": "Edit",
         "qrCode": "QR code",
-        "saveUpi": "Save"
+        "saveUpi": "Save",
+        "leftDue": "Due left",
+        "advanceLeft": "Advance left",
+        "duePart": "Due",
+        "paymentPart": "Payment",
+        "repay": "Repay",
+        "repaid": "Repaid"
       }
     },
     "tdsTypes": {

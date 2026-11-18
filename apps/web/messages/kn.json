@@ -1715,7 +1715,13 @@
         "refCashHint": "ಬಿಲ್ ಅಥವಾ ವೋಚರ್ ಸಂಖ್ಯೆ",
         "editUpi": "ಬದಲಿಸಿ",
         "qrCode": "QR ಕೋಡ್",
-        "saveUpi": "ಉಳಿಸಿ"
+        "saveUpi": "ಉಳಿಸಿ",
+        "leftDue": "ಉಳಿದ ಬಾಕಿ",
+        "advanceLeft": "ಉಳಿದ ಮುಂಗಡ",
+        "duePart": "ಬಾಕಿ",
+        "paymentPart": "ಪಾವತಿ",
+        "repay": "ಮರುಪಾವತಿ",
+        "repaid": "ಮರುಪಾವತಿಸಿದ್ದು"
       }
     },
     "tdsTypes": {
