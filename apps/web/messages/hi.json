@@ -1278,7 +1278,9 @@
         "saving": "सेव हो रहा है…",
         "buyer": "खरीदार",
         "scrapPrice": "GST से पहले कीमत",
-        "scrapGst": "GST {rate}%"
+        "scrapGst": "GST {rate}%",
+        "dueLeft": "बाकी बकाया",
+        "advanceLeft": "बचा एडवांस"
       }
     },
     "voucher": {

@@ -1023,6 +1023,7 @@ export function useReceiptEntryState({
     owes,
     heldAdvance,
     advance,
+    fromCustomer,
     canBank,
     cashValue,
     bankValue,

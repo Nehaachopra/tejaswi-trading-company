@@ -51,6 +51,7 @@ export function AmountCard() {
     setInterestTyped,
     interestWorked,
     interestDue,
+    fromCustomer,
   } = useReceiptEntry();
   const rows = useAmountRows();
   const totalAt = rows.findIndex((r) => r.tone === "total");
@@ -221,7 +222,7 @@ export function AmountCard() {
             <div className="flex flex-col gap-2.5">
               {/* the rest of the breakup once there's an amount and something to break down (the amount itself is the
                 box above); then the TDS's note once it's on */}
-              {value > 0 && totalAt > 1 && <PlainRows rows={rows.slice(1, totalAt + 1)} />}
+              {(value > 0 || fromCustomer) && totalAt > 1 && <PlainRows rows={rows.slice(1, totalAt + 1)} />}
               <Reveal follow show={tdsCan && tdsOnIt && value > 0} gap="0.625rem">
                 <Note className="text-chestnut/70">
                   {t(kind === "interestReceived" ? "tdsNote194A" : "tdsNote194Q")}
@@ -266,6 +267,8 @@ function useAmountRows(): AmountRow[] {
     total,
     owes,
     advance,
+    heldAdvance,
+    fromCustomer,
     scrapGst,
   } = useReceiptEntry();
   // a scrap sale: the price before GST and the GST taken out of it, then what came in
@@ -295,9 +298,26 @@ function useAmountRows(): AmountRow[] {
           },
         ]
       : []),
-    { key: "total", label: tpf("total"), amount: total, tone: "total" as const },
-    ...(advance > 0 && owes > 0 ? [{ key: "due", label: t("due"), amount: owes }] : []),
-    ...(advance > 0
+    // a customer's, as a sale's: in place of the total, what's left once it's counted: the due they still owe, or
+    // (nothing owed) the advance with us, theirs from before and any paid over
+    ...(fromCustomer
+      ? (() => {
+          const dueLeft = Math.max(0, Math.round((owes - total) * 100) / 100);
+          const advanceLeft = Math.round((heldAdvance + advance) * 100) / 100;
+          const onAdvance = dueLeft === 0 && advanceLeft > 0;
+          return [
+            {
+              key: "left",
+              label: onAdvance ? t("advanceLeft") : t("dueLeft"),
+              amount: onAdvance ? advanceLeft : dueLeft,
+              tone: "total" as const,
+            },
+          ];
+        })()
+      : []),
+    ...(fromCustomer ? [] : [{ key: "total", label: tpf("total"), amount: total, tone: "total" as const }]),
+    ...(!fromCustomer && advance > 0 && owes > 0 ? [{ key: "due", label: t("due"), amount: owes }] : []),
+    ...(!fromCustomer && advance > 0
       ? [
           {
             key: "advance",

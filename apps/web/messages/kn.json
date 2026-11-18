@@ -1278,7 +1278,9 @@
         "saving": "ಉಳಿಸಲಾಗುತ್ತಿದೆ…",
         "buyer": "ಖರೀದಿಸಿದವರು",
         "scrapPrice": "GST ಮೊದಲು ಬೆಲೆ",
-        "scrapGst": "GST {rate}%"
+        "scrapGst": "GST {rate}%",
+        "dueLeft": "ಉಳಿದ ಬಾಕಿ",
+        "advanceLeft": "ಉಳಿದ ಮುಂಗಡ"
       }
     },
     "voucher": {

@@ -1278,7 +1278,9 @@
         "saving": "Saving…",
         "buyer": "Bought by",
         "scrapPrice": "Price before GST",
-        "scrapGst": "GST {rate}%"
+        "scrapGst": "GST {rate}%",
+        "dueLeft": "Due left",
+        "advanceLeft": "Advance left"
       }
     },
     "voucher": {
