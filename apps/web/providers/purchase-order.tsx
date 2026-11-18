@@ -32,10 +32,12 @@ function usePurchaseOrderDataState({ isAdmin }: { isAdmin: boolean }) {
     return order;
   }
 
-  // a sale order: saved, then put in hand for its own page; the products are asked again (what's free has changed)
+  // a sale order: saved, then put in hand for its own page; the list and the products are asked again (what's free
+  // has changed)
   async function saveSaleOrder(input: CreateSaleIn) {
     const order = await createSale.mutateAsync(input);
     utils.orders.sale.get.setData({ id: order.id }, order);
+    void utils.orders.sale.list.invalidate();
     void utils.inventory.product.list.invalidate();
     return order;
   }

@@ -22,7 +22,7 @@ import { useSaleEntry } from "./state";
 // a payment adds someone (the admin's; a phone someone already has shows them instead: use them, or change the phone);
 // for cash the buyer's name, phone and addresses, kept on the sale only
 export function CustomerCard() {
-  const { t, kind, isAdmin, customer, setCustomer, newParty, setNewParty, editingCustomer, setEditingCustomer, matched, tried, setTried, orderLocked } = useSaleEntry();
+  const { t, kind, isAdmin, customer, setCustomer, newParty, setNewParty, editingCustomer, setEditingCustomer, matched, tried, setTried, orderLocked, orderBuyer } = useSaleEntry();
   const tc = useTranslations("transactions.chat");
   const tpf = useTranslations("transactions.payment.form");
   const picked = customer?.kind === "ledger" ? customer.ledger : null;
@@ -40,8 +40,8 @@ export function CustomerCard() {
         // a cash buyer is only kept on the sale, so anyone may type one; a new customer on credit is the admin's
         canAdd={isAdmin || kind === "cash"}
         addParty
-        // a dispatch on a customer's order goes to that customer
-        locked={orderLocked && customer?.kind === "ledger"}
+        // a dispatch on an order goes to who it's for: its customer, or (kept by name) the one of ours with its phone
+        locked={(orderLocked || orderBuyer) && customer?.kind === "ledger"}
         onEdit={isAdmin && picked?.party ? () => setEditingCustomer((on) => !on) : undefined}
         placeholder={tc("hints.from")}
       />
@@ -68,6 +68,9 @@ export function CustomerCard() {
             onAddressesOpen={() => setTried(false)}
             onlyPhone={!!matched}
             rows
+            // the phone on top (one of ours with it shows them instead), then the name and short name; no email
+            phoneFirst
+            asksEmail={false}
           />
           {matched?.party && (
             <div className="flex flex-col gap-3 rounded-control border border-chestnut/40 bg-chestnut/4 p-3">
@@ -90,11 +93,14 @@ export function CustomerCard() {
 }
 
 // for cash: the buyer's full name and phone side by side (one under the other on a phone), asked and needed only from
-// ₹50,000 taxable value (below it, just the address); then their address (our place of business, until changed), used
+// ₹50,000 taxable value (below it, just the address), while an order's buyer has the order's name and phone shown
+// (never typed, and not added as a party) whatever the amount; then their address (our place of business, until changed), used
 // for billing and shipping. "Ship to a different address" adds a second box for where it goes, which can be removed
 // and can't be the same place as the first
 function CashBuyer() {
-  const { t, buyerName, setBuyerName, buyerPhone, setBuyerPhone, phoneOk, buyerNeeded, addresses, setAddresses, sameAddress, tried, setTried } = useSaleEntry();
+  const { t, buyerName, setBuyerName, buyerPhone, setBuyerPhone, phoneOk, buyerNeeded, addresses, setAddresses, sameAddress, tried, setTried, orderBuyer, order } = useSaleEntry();
+  // an order's buyer with a phone on the order: shown, not typed (an older order without one asks it)
+  const fixedPhone = orderBuyer && !!order?.customer.phone;
   const tf = useTranslations("accounts.party.form");
   const nameBad = tried && buyerNeeded && buyerName.trim() === "";
   const phoneBad = /^[0-5]/.test(buyerPhone) || (tried && (!phoneOk || (buyerNeeded && buyerPhone === "")));
@@ -102,40 +108,50 @@ function CashBuyer() {
   const ships = addresses.length > 1;
   return (
     <div className="flex flex-col gap-6">
-      {/* personal details, under their heading: only when the sale needs them */}
-      {buyerNeeded && (
+      {/* personal details, under their heading: when the sale needs them, or an order's buyer (shown as on the order) */}
+      {(buyerNeeded || orderBuyer) && (
       <section className="flex flex-col gap-3">
         <h3 className={SECTION_TITLE}>{tf("personal")}</h3>
         <div className="grid grid-cols-1 items-start gap-x-6 gap-y-3 sm:grid-cols-2">
           <label className={fieldRow}>
             <span>
               {tf("name")}
-              {buyerNeeded && <RequiredMark />}
+              {buyerNeeded && !orderBuyer && <RequiredMark />}
             </span>
-            <input
-              value={buyerName}
-              maxLength={150}
-              onChange={(e) => setBuyerName(noDigits(e.target.value))}
-              aria-invalid={nameBad || undefined}
-              className={cn(fieldClass(nameBad), "min-h-11 min-w-0 px-3 text-base")}
-            />
+            {orderBuyer ? (
+              // an order's buyer: the name is the order's, only shown
+              <span className="flex min-h-11 items-center break-words text-base font-semibold">{buyerName}</span>
+            ) : (
+              <input
+                value={buyerName}
+                maxLength={150}
+                onChange={(e) => setBuyerName(noDigits(e.target.value))}
+                aria-invalid={nameBad || undefined}
+                className={cn(fieldClass(nameBad), "min-h-11 min-w-0 px-3 text-base")}
+              />
+            )}
           </label>
           <label className={fieldRow}>
             <span>
               {t("phone")}
-              {buyerNeeded && <RequiredMark />}
+              {buyerNeeded && !fixedPhone && <RequiredMark />}
             </span>
-            <span className={cn("flex min-h-11 min-w-0 items-center gap-2 px-3", fieldClass(phoneBad))}>
-              <span className="text-chestnut/70">+91</span>
-              <input
-                value={buyerPhone}
-                inputMode="tel"
-                aria-invalid={phoneBad || undefined}
-                onChange={(e) => setBuyerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                className="tabular min-w-0 flex-1 bg-transparent text-base outline-none"
-              />
-            </span>
-            {phoneBad && <FieldMessage className="mt-0">{t("phoneBad")}</FieldMessage>}
+            {fixedPhone ? (
+              // an order's buyer: the phone is the order's, only shown
+              <span className="tabular flex min-h-11 items-center text-base font-semibold">+91 {buyerPhone}</span>
+            ) : (
+              <span className={cn("flex min-h-11 min-w-0 items-center gap-2 px-3", fieldClass(phoneBad))}>
+                <span className="text-chestnut/70">+91</span>
+                <input
+                  value={buyerPhone}
+                  inputMode="tel"
+                  aria-invalid={phoneBad || undefined}
+                  onChange={(e) => setBuyerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  className="tabular min-w-0 flex-1 bg-transparent text-base outline-none"
+                />
+              </span>
+            )}
+            {!fixedPhone && phoneBad && <FieldMessage className="mt-0">{t("phoneBad")}</FieldMessage>}
           </label>
         </div>
       </section>

@@ -2395,7 +2395,7 @@
     },
     "customer": {
       "name": "Full name",
-      "phone": "Phone (optional)"
+      "phone": "Phone"
     },
     "newPriceGst": "New price + GST",
     "newRatePerUnit": "New rate / {unit}",

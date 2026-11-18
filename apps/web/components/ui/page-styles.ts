@@ -41,9 +41,12 @@ export const addSquare = (size: "size-8" | "size-11") =>
   `grid ${size} shrink-0 place-items-center rounded-control border border-chestnut bg-ivory text-chestnut transition-colors hover:bg-chestnut/[0.06] aria-busy:opacity-80`;
 
 // picking from a search on an ivory card (a ledger, a party, a landlord, a loan): the search box, its list of matches
-// (two columns on a wide screen), each match, + New as the list's last row, and what's picked with its Change
+// (two columns on a wide screen), each match, + New as the list's last row, and what's picked with its Change. The
+// list scrolls inside itself on every screen (about half a phone's height), so the search stays above it and + New
+// stays in view at its foot
 export const PICK_SEARCH = "relative flex min-h-12 items-center gap-2 px-3";
-export const PICK_LIST = "flex flex-col overflow-x-hidden sm:max-h-80 sm:overflow-y-auto";
+export const PICK_LIST =
+  "flex max-h-[50dvh] flex-col overflow-x-hidden overflow-y-auto overscroll-contain sm:max-h-80";
 export const PICK_TWO_COLUMNS = "sm:grid sm:grid-cols-2 sm:content-start sm:gap-x-6";
 export const PICK_ROW =
   "flex min-h-12 w-full shrink-0 items-center gap-2 border-b border-chestnut/20 px-1 py-2.5 text-left transition-colors last:border-b-0 hover:bg-chestnut/[0.05]";

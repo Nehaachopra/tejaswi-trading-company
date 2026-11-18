@@ -263,6 +263,18 @@ export default class SaleService {
         if (order.partyId && customer && customer.party.id !== order.partyId) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "This order is for another customer." });
         }
+        // an order kept by name: on credit the customer (added now, their name and phone as corrected, or one of ours
+        // with that phone) becomes the order's own, so its later dispatches go to them; a cash buyer keeps the order's
+        // name
+        if (!order.partyId) {
+          const same = (a: string | null | undefined, b: string | null | undefined) =>
+            (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
+          if (customer) {
+            await tx.update(saleOrdersTable).set({ partyId: customer.party.id, customerName: null }).where(eq(saleOrdersTable.id, order.id));
+          } else if (input.buyer?.name && !same(input.buyer.name, order.customerName)) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "This order is for another customer." });
+          }
+        }
         const ordered = await tx
           .select({ productId: saleOrderProductsTable.productId, quantity: saleOrderProductsTable.quantityOrdered })
           .from(saleOrderProductsTable)

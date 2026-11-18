@@ -184,7 +184,7 @@ export function useOrderEntryState({
         (sale
           ? !customerMatch &&
             newCustomer.name.trim() !== "" &&
-            (newCustomer.phone === "" || /^[6-9]\d{9}$/.test(newCustomer.phone)) &&
+            /^[6-9]\d{9}$/.test(newCustomer.phone) &&
             !Object.values(addressProblems(newCustomer.address)).some(Boolean)
           : !supplierMatch && draftOk(newSupplier, true, true))),
     details: orderDate !== "" && (expected === "" || expected >= orderDate),

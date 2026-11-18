@@ -2395,7 +2395,7 @@
     },
     "customer": {
       "name": "पूरा नाम",
-      "phone": "फ़ोन (वैकल्पिक)"
+      "phone": "फ़ोन"
     },
     "newPriceGst": "नई कीमत + GST",
     "newRatePerUnit": "नई दर / {unit}",

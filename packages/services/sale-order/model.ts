@@ -19,8 +19,8 @@ const mobileModel = z.string().trim().regex(/^[6-9]\d{9}$/, "A 10-digit mobile n
 // a party address's fields, as rules for a customer's delivery address on the order
 const a = partyAddressInputModel.shape;
 
-// someone not yet a customer: kept by name (no digits), an optional phone and where to deliver on the order itself; they
-// become a customer only if the sale turns out to be on credit
+// someone not yet a customer: kept by name (no digits), a mobile number (so one already ours is found by it, not added
+// twice) and where to deliver on the order itself; they become a customer only if the sale turns out to be on credit
 export const orderCustomerInputModel = z.object({
   // as a party's address: the line and landmark optional; the town, district, state and PIN not
   address: z.object({
@@ -33,13 +33,7 @@ export const orderCustomerInputModel = z.object({
     postalCode: a.postalCode,
   }),
   name: z.string().trim().min(1).max(150).regex(/^\D*$/, "A name has no numbers."),
-  phone: z
-    .string()
-    .trim()
-    .refine((v) => v === "" || /^[6-9]\d{9}$/.test(v), "A 10-digit mobile number.")
-    .transform((v) => (v === "" ? null : v))
-    .nullable()
-    .default(null),
+  phone: z.string().trim().regex(/^[6-9]\d{9}$/, "A 10-digit mobile number."),
 });
 
 // a new sale order: a customer picked, or a name (and phone) given (one of the two), an optional expected delivery (on or

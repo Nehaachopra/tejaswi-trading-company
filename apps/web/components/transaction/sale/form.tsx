@@ -62,6 +62,7 @@ function SaleEntryView() {
     gridPlaces,
     customer,
     setCustomer,
+    orderBuyer,
     newParty,
     buyerName,
     buyerNeeded,
@@ -205,8 +206,9 @@ function SaleEntryView() {
         // Products names its own parts further down
         hideName={current === "products"}
         onBack={index > 0 ? () => show(steps[index - 1]!) : null}
-        // someone new being typed in: Change goes back to the search (as a receipt's)
-        onChange={current === "customer" && customer?.kind === "party" ? () => setCustomer(null) : null}
+        // someone new being typed in: Change goes back to the search (as a receipt's); not for an order's buyer, who
+        // stays the order's
+        onChange={current === "customer" && customer?.kind === "party" && !orderBuyer ? () => setCustomer(null) : null}
         missing={tried && !complete[current] ? missingOf(current) : null}
         // Cash or credit waits for a pick and moves on by itself; Details saves
         end={current === "details" ? <SaveBlock /> : current === "money" ? null : <NextButton onClick={() => void next()} />}

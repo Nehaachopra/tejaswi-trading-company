@@ -951,6 +951,8 @@ export function PartyFields({
   oneAddress = false,
   rows = false,
   photo = !rows,
+  fixedName = false,
+  phoneFirst = false,
 }: {
   draft: PartyDraft;
   onChange: (patch: Partial<PartyDraft>) => void;
@@ -990,6 +992,10 @@ export function PartyFields({
   rows?: boolean;
   // the profile picture beside the personal details (Entities; a transaction's rows form leaves it out)
   photo?: boolean;
+  // the name is set and only shown (a sale order's buyer on its dispatch); rows only
+  fixedName?: boolean;
+  // rows: the phone alone on top, then the name and short name side by side (a sale's new customer on credit)
+  phoneFirst?: boolean;
 }) {
   const t = useTranslations("accounts.party.form");
   const bad = draftProblems(draft, strict, phoneOptional).party;
@@ -1102,7 +1108,7 @@ export function PartyFields({
       <span className={cn("flex min-h-11 items-center gap-2 px-3", fieldClass(phoneBad))}>
         <span className="text-chestnut/70">+91</span>
         <input
-          autoFocus={!rows}
+          autoFocus={!rows || phoneFirst}
           aria-invalid={phoneBad || undefined}
           value={draft.phone}
           inputMode="tel"
@@ -1120,6 +1126,51 @@ export function PartyFields({
       </span>
     </Field>
   );
+
+  // the full name (only shown when it's set elsewhere; the cursor starts here unless the phone comes first)
+  const nameField = fixedName ? (
+    <Field icon={User} label={t("name")}>
+      <span className="flex min-h-11 items-center break-words text-base font-semibold">{draft.name}</span>
+    </Field>
+  ) : (
+    <Field icon={User} label={t("name")} required error={show("name") && t("required")}>
+      <MicField
+        onText={(said) => {
+          const name = noDigits(draft.name.trim() ? `${draft.name.trim()} ${said}` : said).slice(0, MAX.name);
+          onChange({ name });
+          if (name.trim()) setNameDone(true);
+        }}
+      >
+        <NameBox
+          autoFocus={!phoneFirst}
+          value={draft.name}
+          onType={(name) => onChange({ name })}
+          onDone={() => draft.name.trim() && setNameDone(true)}
+          aria-invalid={show("name") || undefined}
+          className={cn(input(show("name")), "pr-11")}
+        />
+      </MicField>
+    </Field>
+  );
+  // the short name ledgers and lists show (optional; without it they show the full name)
+  const shortNameField = asksShortName ? (
+    <Field icon={Tag} label={t("shortName")} error={draft.shortNameTaken && t("shortNameTaken")}>
+      <input
+        value={draft.shortName}
+        maxLength={MAX.shortName}
+        autoCapitalize="characters"
+        onChange={(e) =>
+          onChange({
+            shortName: e.target.value.toUpperCase().replace(/[^A-Z0-9 &.-]/g, ""),
+            shortNameTaken: false,
+          })
+        }
+        placeholder="SRT"
+        aria-invalid={show("shortName") || draft.shortNameTaken || undefined}
+        className={cn(input(show("shortName") || draft.shortNameTaken), "uppercase")}
+      />
+    </Field>
+  ) : null;
 
   if (onlyPhone) {
     return (
@@ -1160,35 +1211,25 @@ export function PartyFields({
           <div className="flex flex-col gap-4 @md:flex-row @md:items-start @md:gap-8">
             {photo && <ProfilePhoto />}
             <div className="flex min-w-0 flex-1 flex-col gap-3">
-              {rows ? (
+              {rows && phoneFirst ? (
+                <>
+                  {/* as rows, the phone first: in the left column on top (the right one empty), then the name and short name side
+                      by side */}
+                  <div className="relative grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2">
+                    {asksPhone && phone}
+                    {belowPhone && <div className="col-span-full">{belowPhone}</div>}
+                  </div>
+                  <div className="relative grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2">
+                    {nameField}
+                    {shortNameField}
+                    {belowName && <div className="col-span-full">{belowName}</div>}
+                  </div>
+                </>
+              ) : rows ? (
                 <>
                   {/* as rows: the name first with the phone beside it (under it on a phone), then the email and short name */}
                   <div className="relative grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2">
-                    <Field
-                      icon={User}
-                      label={t("name")}
-                      required
-                      error={show("name") && t("required")}
-                    >
-                      <MicField
-                        onText={(said) => {
-                          const name = noDigits(
-                            draft.name.trim() ? `${draft.name.trim()} ${said}` : said,
-                          ).slice(0, MAX.name);
-                          onChange({ name });
-                          if (name.trim()) setNameDone(true);
-                        }}
-                      >
-                        <NameBox
-                          autoFocus
-                          value={draft.name}
-                          onType={(name) => onChange({ name })}
-                          onDone={() => draft.name.trim() && setNameDone(true)}
-                          aria-invalid={show("name") || undefined}
-                          className={cn(input(show("name")), "pr-11")}
-                        />
-                      </MicField>
-                    </Field>
+                    {nameField}
                     {asksPhone && phone}
                     {belowPhone && <div className="col-span-full">{belowPhone}</div>}
                   </div>
@@ -1207,34 +1248,7 @@ export function PartyFields({
                           />
                         </Field>
                       )}
-                      {/* the short name ledgers and lists show (optional; without it they show the full name) */}
-                      {asksShortName && (
-                        <Field
-                          icon={Tag}
-                          label={t("shortName")}
-                          error={draft.shortNameTaken && t("shortNameTaken")}
-                        >
-                          <input
-                            value={draft.shortName}
-                            maxLength={MAX.shortName}
-                            autoCapitalize="characters"
-                            onChange={(e) =>
-                              onChange({
-                                shortName: e.target.value
-                                  .toUpperCase()
-                                  .replace(/[^A-Z0-9 &.-]/g, ""),
-                                shortNameTaken: false,
-                              })
-                            }
-                            placeholder="SRT"
-                            aria-invalid={show("shortName") || draft.shortNameTaken || undefined}
-                            className={cn(
-                              input(show("shortName") || draft.shortNameTaken),
-                              "uppercase",
-                            )}
-                          />
-                        </Field>
-                      )}
+                      {shortNameField}
                       {belowName && <div className="col-span-full">{belowName}</div>}
                     </div>
                   )}

@@ -388,8 +388,10 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
   }
   // a dispatch on a sale order starts from who the order is for. A customer: picked already (and kept: the order is
   // theirs). A name kept on the order: someone new with the name, phone and address from the order filled in, for cash
-  // as the buyer, on credit as a new customer (the admin's to add); any of it can be changed, or someone saved picked
+  // as the buyer, on credit as a new customer (the admin's to add); the name stays the order's, the rest can be
+  // changed, and one of ours with that phone can be used instead (the same person)
   const orderLocked = !!order?.customer.partyId && !!orderLedger;
+  const orderBuyer = !!order && !order.customer.partyId;
   function orderCustomer(next: "cash" | "credit"): LedgerChoice {
     if (!order) return null;
     if (order.customer.partyId) return orderLedger ? { kind: "ledger", ledger: orderLedger } : null;
@@ -506,7 +508,7 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
               })),
               // someone new: their addresses, and from ₹50,000 their name and phone, kept on the sale
               ...(customer?.kind === "party"
-                ? { buyer: buyerNeeded ? { name: buyerName.trim(), phone: buyerPhone } : null, shipTo: { address: typedAddress(shipAt) }, billToAddress: typedAddress(billAt) }
+                ? { buyer: buyerNeeded || orderBuyer ? { name: buyerName.trim(), phone: buyerPhone } : null, shipTo: { address: typedAddress(shipAt) }, billToAddress: typedAddress(billAt) }
                 : {}),
             }
           : {
@@ -552,6 +554,7 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
     sellable,
     order,
     orderLocked,
+    orderBuyer,
     orderLeft,
     freeOf,
     orderPrice,

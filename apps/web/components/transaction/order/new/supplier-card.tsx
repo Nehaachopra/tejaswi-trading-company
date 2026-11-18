@@ -95,8 +95,8 @@ export function SupplierCard() {
   );
 }
 
-// a sale's customer: a search over the customers, picking one moves on; + New party asks a name and an optional phone
-// (side by side on a wider screen), then where to deliver once the name is in (the address as a payment asks it), all
+// a sale's customer: a search over the customers, picking one moves on; + New party asks the phone first, then the
+// name under it, then where to deliver once the name is in (the address as a payment asks it), all
 // as rows and kept on the order. They become a customer, with a ledger, only if the sale turns out to be on credit
 function CustomerCard() {
   const { t, supplierPick, setSupplierPick, newCustomer, setNewCustomer, customerMatch, tried, show } = useOrderEntry();
@@ -105,7 +105,8 @@ function CustomerCard() {
   const tf = useTranslations("accounts.party.form");
   const tpick = useTranslations("transactions.picker");
   const nameBad = tried && newCustomer.name.trim() === "";
-  const phoneBad = /^[0-5]/.test(newCustomer.phone) || (tried && newCustomer.phone !== "" && newCustomer.phone.length < 10);
+  // the phone is needed: one of ours with it is found by it, not added again
+  const phoneBad = /^[0-5]/.test(newCustomer.phone) || (tried && newCustomer.phone.length < 10);
   return (
     <div className="flex flex-col gap-4">
       <LedgerSearch
@@ -134,26 +135,18 @@ function CustomerCard() {
       {supplierPick?.kind === "party" && (
         <section className="flex flex-col gap-3">
         <h3 className={SECTION_TITLE}>{tf("personal")}</h3>
-        <div className="grid grid-cols-1 items-start gap-x-6 gap-y-3 sm:grid-cols-2">
+        {/* the phone first (one of ours with it shows them instead), then the name, each in the left column (the right one
+            empty on a wider screen) */}
+        <div className="grid grid-cols-1 items-start gap-x-6 gap-y-3 sm:grid-cols-2 sm:*:col-start-1">
           <label className={fieldRow}>
             <span>
-              {t("customer.name")}
+              {t("customer.phone")}
               <RequiredMark />
             </span>
-            <input
-              autoFocus
-              value={newCustomer.name}
-              maxLength={150}
-              onChange={(e) => setNewCustomer((c) => ({ ...c, name: noDigits(e.target.value) }))}
-              aria-invalid={nameBad || undefined}
-              className={cn(fieldClass(nameBad), "min-h-11 px-3 text-base")}
-            />
-          </label>
-          <label className={fieldRow}>
-            <span>{t("customer.phone")}</span>
             <span className={cn("flex min-h-11 items-center gap-2 px-3", fieldClass(phoneBad))}>
               <span className="text-chestnut/70">+91</span>
               <input
+                autoFocus
                 value={newCustomer.phone}
                 inputMode="tel"
                 aria-invalid={phoneBad || undefined}
@@ -162,6 +155,19 @@ function CustomerCard() {
               />
             </span>
             {phoneBad && <span className="text-xs text-danger">{t("done.mobileBad")}</span>}
+          </label>
+          <label className={fieldRow}>
+            <span>
+              {t("customer.name")}
+              <RequiredMark />
+            </span>
+            <input
+              value={newCustomer.name}
+              maxLength={150}
+              onChange={(e) => setNewCustomer((c) => ({ ...c, name: noDigits(e.target.value) }))}
+              aria-invalid={nameBad || undefined}
+              className={cn(fieldClass(nameBad), "min-h-11 px-3 text-base")}
+            />
           </label>
         </div>
         </section>
