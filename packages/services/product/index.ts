@@ -14,6 +14,7 @@ import {
   saleOrdersTable,
   subCategoriesTable,
   transactionsTable,
+  deletedProductsTable,
 } from "@repo/database/schema";
 
 import {
@@ -61,7 +62,9 @@ function isUniqueViolation(error: unknown) {
 
 // a row another table still points to (stock, orders, purchases, sales, stock counts restrict deletes)
 function isStillReferenced(error: unknown) {
-  return pgCode(error) === "23503";
+  // 23503 for a plain foreign key, 23001 for one set to RESTRICT
+  const code = pgCode(error);
+  return code === "23503" || code === "23001";
 }
 
 // the financial year runs April to March
@@ -115,6 +118,7 @@ export default class ProductService {
         asc(productsTable.name),
         asc(productsTable.packSizeCode),
         asc(productsTable.packSize),
+        asc(productsTable.packCount),
       );
 
     // every pack size is its own product row; a card groups them by sub-category, brand, name and unit
@@ -139,6 +143,7 @@ export default class ProductService {
         productId: p.id,
         packSizeCode: p.packSizeCode,
         packSize: p.packSize,
+        packCount: p.packCount,
         hsn8Digit: p.hsn8Digit,
         quantity: p.quantity,
         reservedQuantity: p.reservedQuantity,
@@ -187,14 +192,21 @@ export default class ProductService {
           name: input.name ?? null,
           packSizeCode: pack.packSizeCode,
           packSize: pack.packSize,
+          packCount: pack.packCount,
           hsn4Digit: input.hsn4Digit,
           hsn8Digit: input.hsn8Digit,
           imageUrl: input.imageUrl,
         })
         .returning({ id: productsTable.id });
 
+      // from a purchase order with no selling price yet: only its GST %, and nothing logged until a price is set
+      if (pack.priceAfterGst === undefined) {
+        await tx.insert(productPricesTable).values({ productId: product!.id, gstPercent: String(pack.gstPercent), fromPurchase: true });
+        ids.push(product!.id);
+        continue;
+      }
       const price = splitPrice(pack.priceAfterGst, pack.gstPercent);
-      await tx.insert(productPricesTable).values({ productId: product!.id, ...price });
+      await tx.insert(productPricesTable).values({ productId: product!.id, ...price, fromPurchase: input.fromPurchase });
       await tx.insert(productPriceHistoryTable).values({
         productId: product!.id,
         ...price,
@@ -299,6 +311,7 @@ export default class ProductService {
           .update(productsTable)
           .set({
             packSize: pack.packSize,
+            packCount: pack.packCount,
             isActive: pack.isActive,
             hsn8Digit: input.hsn?.length === 8 ? input.hsn : null,
           })
@@ -324,7 +337,15 @@ export default class ProductService {
           .from(productPricesTable)
           .where(eq(productPricesTable.productId, pack.productId));
         if (!current) throw new TRPCError({ code: "BAD_REQUEST", message: "Set the price for this pack size first." });
-        if (Number(current.gstPercent) !== pack.gstPercent) {
+        // no selling price yet (added from a purchase order): only the GST % changes
+        if (current.priceAfterGst == null) {
+          if (Number(current.gstPercent) !== pack.gstPercent) {
+            await tx
+              .update(productPricesTable)
+              .set({ gstPercent: String(pack.gstPercent), updatedAt: new Date() })
+              .where(eq(productPricesTable.productId, pack.productId));
+          }
+        } else if (Number(current.gstPercent) !== pack.gstPercent) {
           const price = splitPrice(Number(current.priceAfterGst), pack.gstPercent);
           await tx
             .update(productPricesTable)
@@ -371,7 +392,13 @@ export default class ProductService {
   async delete(input: DeleteProductsInputModel) {
     await db.transaction(async (tx) => {
       const products = await tx
-        .select({ id: productsTable.id, quantity: productsTable.quantity, reserved: productsTable.reservedQuantity })
+        .select({
+          id: productsTable.id,
+          quantity: productsTable.quantity,
+          reserved: productsTable.reservedQuantity,
+          subCategoryId: productsTable.subCategoryId,
+          categoryId: productsTable.categoryId,
+        })
         .from(productsTable)
         .where(and(inArray(productsTable.id, input.productIds), isNull(productsTable.deletedAt)))
         .for("update");
@@ -397,24 +424,80 @@ export default class ProductService {
         throw new TRPCError({ code: "PRECONDITION_FAILED", message: "An open order still has this pack size. Complete or cancel it first." });
       }
 
-      // never used: remove it for good (a savepoint, so a refusal leaves the rest of this save working)
+      // moved, not kept: each row goes to deleted_products (same id, its category and sub-category as names), and its
+      // current price goes. What names it (old orders, purchases, sales, stock moves and counts, price and cost
+      // history, its godown rows) keeps pointing to that id, now found in deleted_products
+      const rows = await tx
+        .select({ p: productsTable, categoryName: categoriesTable.name, subCategoryName: subCategoriesTable.name })
+        .from(productsTable)
+        .innerJoin(categoriesTable, eq(categoriesTable.id, productsTable.categoryId))
+        .innerJoin(subCategoriesTable, eq(subCategoriesTable.id, productsTable.subCategoryId))
+        .where(inArray(productsTable.id, input.productIds));
+      await tx.insert(deletedProductsTable).values(
+        rows.map(({ p, categoryName, subCategoryName }) => ({
+          id: p.id,
+          categoryId: p.categoryId,
+          categoryName,
+          subCategoryId: p.subCategoryId,
+          subCategoryName,
+          brand: p.brand,
+          name: p.name,
+          packSizeCode: p.packSizeCode,
+          packSize: p.packSize,
+          packCount: p.packCount,
+          hsn4Digit: p.hsn4Digit,
+          hsn8Digit: p.hsn8Digit,
+          imageUrl: p.imageUrl,
+          quantitySold: p.quantitySold,
+          weightedAverageCost: p.weightedAverageCost,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+        })),
+      );
+      await tx.delete(productPricesTable).where(inArray(productPricesTable.productId, input.productIds));
+      await tx.delete(productsTable).where(inArray(productsTable.id, input.productIds));
+
+      // its sub-category and category no longer listed once no other product (active or not) is in them
+      await this.dropUnused(tx, products);
+    });
+    return { success: true as const };
+  }
+
+  // a sub-category, then a category, that no product uses any more: deleted, or, while a deleted pack size kept for
+  // old records still names it, made inactive, so neither shows in any list. One that still has a product stays
+  private async dropUnused(tx: Tx, gone: { subCategoryId: string; categoryId: string }[]) {
+    const unused = async (column: typeof productsTable.subCategoryId | typeof productsTable.categoryId, id: string) => {
+      const [left] = await tx
+        .select({ id: productsTable.id })
+        .from(productsTable)
+        .where(and(eq(column, id), isNull(productsTable.deletedAt)))
+        .limit(1);
+      return !left;
+    };
+
+    for (const subId of new Set(gone.map((g) => g.subCategoryId))) {
+      if (!(await unused(productsTable.subCategoryId, subId))) continue;
+      try {
+        await tx.transaction((sp) => sp.delete(subCategoriesTable).where(eq(subCategoriesTable.id, subId)));
+      } catch (error) {
+        if (!isStillReferenced(error)) throw error;
+        await tx.update(subCategoriesTable).set({ isActive: false }).where(eq(subCategoriesTable.id, subId));
+      }
+    }
+
+    for (const categoryId of new Set(gone.map((g) => g.categoryId))) {
+      if (!(await unused(productsTable.categoryId, categoryId))) continue;
+      // its other sub-categories, empty too, go with it
       try {
         await tx.transaction(async (sp) => {
-          await sp.delete(productPricesTable).where(inArray(productPricesTable.productId, input.productIds));
-          await sp.delete(productPriceHistoryTable).where(inArray(productPriceHistoryTable.productId, input.productIds));
-          await sp.delete(productCostHistoryTable).where(inArray(productCostHistoryTable.productId, input.productIds));
-          await sp.delete(productsTable).where(inArray(productsTable.id, input.productIds));
+          await sp.delete(subCategoriesTable).where(eq(subCategoriesTable.categoryId, categoryId));
+          await sp.delete(categoriesTable).where(eq(categoriesTable.id, categoryId));
         });
       } catch (error) {
         if (!isStillReferenced(error)) throw error;
-        // named on old records: keep the row for them, gone from everywhere else
-        await tx
-          .update(productsTable)
-          .set({ deletedAt: new Date(), isActive: false })
-          .where(inArray(productsTable.id, input.productIds));
+        await tx.update(categoriesTable).set({ isActive: false }).where(eq(categoriesTable.id, categoryId));
       }
-    });
-    return { success: true as const };
+    }
   }
 
   async priceHistory(rawInput: PriceHistoryInputModel): Promise<PriceHistoryModel> {

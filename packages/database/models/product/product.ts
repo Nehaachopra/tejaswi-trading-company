@@ -40,6 +40,9 @@ export const productsTable = pgTable(
 
     packSize: integer("pack_size").notNull(),
 
+    // how many of that size make one pack: 25 kg is 1, a box of ten 1 ltr bottles is 10 (1 ltr × 10)
+    packCount: integer("pack_count").notNull().default(1),
+
     hsn4Digit: varchar("hsn_4_digit", {
       length: 4,
     }),
@@ -76,11 +79,12 @@ export const productsTable = pgTable(
     index("products_sub_category_id_idx").on(table.subCategoryId),
     // a deleted pack size doesn't count, so the same one can be added again
     uniqueIndex("products_identity_unique")
-      .on(table.subCategoryId, table.brand, sql`coalesce(${table.name}, '')`, table.packSizeCode, table.packSize)
+      .on(table.subCategoryId, table.brand, sql`coalesce(${table.name}, '')`, table.packSizeCode, table.packSize, table.packCount)
       .where(sql`${table.deletedAt} IS NULL`),
     check("products_brand_lowercase", sql`${table.brand} = lower(${table.brand})`),
     check("products_name_lowercase", sql`${table.name} = lower(${table.name})`),
     check("products_unit_quantity_positive", sql`${table.packSize} > 0`),
+    check("products_pack_count_positive", sql`${table.packCount} > 0`),
 
     check("products_quantity_non_negative", sql`${table.quantity} >= 0`),
 

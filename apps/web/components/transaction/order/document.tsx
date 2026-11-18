@@ -10,6 +10,7 @@ import { amountInWords } from "~/lib/amount-words";
 import { packLabel, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
+import { Breakup, DocHead, LAST_COL, Remarks } from "../done/document-parts";
 import { band, cell, dated, Detail, money } from "../done/voucher";
 import {
   type OrderDoc,
@@ -83,7 +84,7 @@ export function OrderDocument({
     const gstPerPack = Math.round(l.rateBeforeGst * l.gstRate) / 100;
     return {
       key: l.productId,
-      name: `${titleCase(l.title)} ${packLabel(l.packSize, l.packSizeCode)}`,
+      name: `${titleCase(l.title)} ${packLabel(l.packSize, l.packSizeCode, l.packCount)}`,
       before: l.rateBeforeGst,
       rate: l.gstRate,
       gst: gstPerPack,
@@ -146,12 +147,13 @@ export function OrderDocument({
 
       {/* the order itself */}
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
-        <p className="pb-2 text-center font-heading text-2xl font-bold">
-          {t(kind === "sale" ? "titleSale" : "title")}
-        </p>
+        <DocHead
+          title={t(kind === "sale" ? "titleSale" : "title")}
+          jurisdiction={t("jurisdiction", { place: c.jurisdiction })}
+        />
 
         <div className="border border-chestnut/40">
-          {/* our details, and the order's */}
+          {/* our details, and the order's with the remarks under them */}
           <div className="grid sm:grid-cols-[1fr_1.5fr]">
             <div className="flex flex-col border-b border-chestnut/40 sm:border-r">
               <p className={band}>{c.name}</p>
@@ -169,11 +171,9 @@ export function OrderDocument({
                 <span>GSTIN : {c.gstin}</span>
                 <span>FSSAI No : {c.fssai}</span>
               </div>
-              <p className={cn(cell, "mt-auto border-t font-semibold")}>
-                {t("jurisdiction", { place: c.jurisdiction })}
-              </p>
             </div>
-            <div className="grid grid-cols-[auto_1fr] content-start border-b border-chestnut/40 [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_1fr_auto_1fr] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
+            <div className="flex min-w-0 flex-col border-b border-chestnut/40">
+            <div className="grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_1fr_auto_1fr] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
               <Detail label={t("number")} value={<span className="font-bold">{o.orderId}</span>} />
               <Detail label={t("dated")} value={dated(`${o.orderDate}T12:00:00+05:30`)} />
               <Detail
@@ -184,36 +184,31 @@ export function OrderDocument({
               />
               <Detail label={t("orderedBy")} value={titleCase(o.orderedByName)} />
             </div>
+            <Remarks label={t("remarks")} text={o.remarks} />
+            </div>
           </div>
 
-          {/* who it's to, with the remarks beside it */}
-          <div className="grid border-b border-chestnut/40 sm:grid-cols-[1fr_1.5fr]">
-            <div className="flex flex-col border-b border-chestnut/40 sm:border-b-0 sm:border-r">
-              <p className={band}>
-                {t("to")}: {s.shortName ?? titleCase(d.toName)}
-              </p>
-              <div className={cn(cell, "flex flex-col gap-0.5")}>
-                {s.shortName && <span className="font-medium">{titleCase(d.toName)}</span>}
-                {a && (
-                  <>
-                    <span className="flex items-start gap-1.5">
-                      <Flag className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-                      {[a.line1, a.line2, a.landmark, `${a.city} - ${a.postalCode}`]
-                        .filter(Boolean)
-                        .map((part) => titleCase(part!))
-                        .join(", ")}
-                    </span>
-                    <span>
-                      {t("state")}: {a.state} {t("code")}: {a.stateCode}
-                    </span>
-                  </>
-                )}
-                {a?.gstin && <span>GSTIN : {a.gstin}</span>}
-              </div>
-            </div>
-            <div className={cn(cell, "flex flex-col gap-1")}>
-              <span className="font-semibold">{t("remarks")}:</span>
-              <span>{o.remarks ?? "—"}</span>
+          {/* who it's to, the full width, by their full name */}
+          <div className="flex min-w-0 flex-col border-b border-chestnut/40">
+            <p className={cn(band, "break-words")}>
+              {t("to")}: {titleCase(d.toName)}
+            </p>
+            <div className={cn(cell, "flex flex-col gap-0.5 break-words")}>
+              {a && (
+                <>
+                  <span className="flex items-start gap-1.5">
+                    <Flag className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                    {[a.line1, a.line2, a.landmark, `${a.city} - ${a.postalCode}`]
+                      .filter(Boolean)
+                      .map((part) => titleCase(part!))
+                      .join(", ")}
+                  </span>
+                  <span>
+                    {t("state")}: {a.state} {t("code")}: {a.stateCode}
+                  </span>
+                </>
+              )}
+              {a?.gstin && <span>GSTIN : {a.gstin}</span>}
             </div>
           </div>
 
@@ -234,7 +229,7 @@ export function OrderDocument({
                   <th className={cn(cell, "border-r text-right font-semibold")}>{t("gst")}</th>
                   <th className={cn(cell, "border-r text-right font-semibold")}>{t("afterGst")}</th>
                   <th className={cn(cell, "border-r text-right font-semibold")}>{t("qty")}</th>
-                  <th className={cn(cell, "text-right font-semibold")}>{t("total")}</th>
+                  <th className={cn(cell, LAST_COL, "text-right font-semibold")}>{t("total")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -272,32 +267,22 @@ export function OrderDocument({
             </table>
           </div>
 
-          {/* the breakup: the total, the discount off it, and the amount (chestnut); column lines only, no row lines */}
-          <div className="tabular grid border-t border-chestnut/40 sm:justify-end">
-            {[
-              { key: "total", label: t("total"), value: `₹${money(withGst)}` },
-              { key: "discount", label: t("lessDiscount"), value: `− ₹${money(o.orderDiscount)}` },
-              {
-                key: "amount",
-                label: t("amount"),
-                value: `₹${money(o.totalAmount)}`,
-                strong: true,
-              },
-            ].map((r) => (
-              <p
-                key={r.key}
-                className={cn(
-                  "grid grid-cols-[1fr_9rem] text-right sm:grid-cols-[10rem_9rem] sm:border-l sm:border-chestnut/40",
-                  r.strong &&
-                    "bg-chestnut font-heading text-base font-bold text-ivory print:bg-[#3b1f14]",
-                )}
-              >
-                <span className={cn(cell, "border-r", r.strong && "border-ivory/35")}>
-                  {r.label}
-                </span>
-                <span className={cn(cell, "font-semibold")}>{r.value}</span>
-              </p>
-            ))}
+          {/* the breakup at the right, its figures under the table's Total: Total and the discount off it (when there's
+              one), then the amount in chestnut */}
+          <div className="grid border-t border-chestnut/40 sm:grid-cols-[1fr_auto]">
+            <span aria-hidden className="hidden sm:block" />
+            <Breakup
+              rows={
+                o.orderDiscount > 0
+                  ? [
+                      { key: "total", label: t("total"), value: `₹${money(withGst)}` },
+                      { key: "discount", label: t("lessDiscount"), value: `− ₹${money(o.orderDiscount)}` },
+                    ]
+                  : []
+              }
+              label={t("amount")}
+              amount={`₹${money(o.totalAmount)}`}
+            />
           </div>
 
           {/* the amount in words */}

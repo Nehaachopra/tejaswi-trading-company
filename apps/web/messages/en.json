@@ -170,7 +170,7 @@
         "gone": "This category no longer exists. Refresh the page.",
         "network": "Can't reach the server. Check your connection.",
         "failed": "Something went wrong. Try again.",
-        "notEmpty": "Only an empty category can be deleted. Deactivate it instead.",
+        "notEmpty": "Only a category without products can be deleted. Deactivate it instead.",
         "takenInactive": "{name} already exists but is inactive."
       },
       "delete": "Delete",
@@ -358,7 +358,9 @@
         "newSubCategoryName": "New sub-category",
         "add": "Add",
         "packUnit": "Pack unit",
-        "replacePhoto": "Replace photo"
+        "replacePhoto": "Replace photo",
+        "similar": "Similar products are already listed. Check this isn't one of them:",
+        "packCount": "How many in a pack"
       },
       "rateLabel": "Rate / {unit}",
       "ratePer": "Rate / {unit}",
@@ -2486,6 +2488,7 @@
       "gst": "GST",
       "total": "Total",
       "edited": "Edited by {name}"
-    }
+    },
+    "newProduct": "New product"
   }
 }

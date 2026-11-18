@@ -124,6 +124,7 @@ export function ProductSheet({
           productId: pack!.productId,
           packSizeCode: draft.packSizeCode,
           packSize: Number(draft.packSize),
+          packCount: Number(draft.packCount),
           gstPercent: Number(draft.gst),
           isActive: draft.isActive,
         },
@@ -133,7 +134,7 @@ export function ProductSheet({
       if (pack!.priceAfterGst != null && price !== pack!.priceAfterGst) await newPrice();
       // made inactive: off the cards at once
       if (!draft.isActive && pack!.isActive) dropPack(pack!.productId, false);
-      toast.success(t("form.toast.saved", { name: `${titleCase(draft.brand.trim())} ${packLabel(Number(draft.packSize), draft.packSizeCode)}` }));
+      toast.success(t("form.toast.saved", { name: `${titleCase(draft.brand.trim())} ${packLabel(Number(draft.packSize), draft.packSizeCode, Number(draft.packCount))}` }));
       refreshProducts();
       refreshPrices(pack!.productId);
       setAsking(false);
@@ -149,7 +150,7 @@ export function ProductSheet({
 
   // only a pack size with no quantity left (none in stock, none reserved) can be deleted
   const canDelete = pack.quantity === 0 && pack.reservedQuantity === 0;
-  const name: string =`${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode)}`;
+  const name: string =`${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}`;
 
   // delete, once confirmed: off the cards and the sheet closed at once; back with a red toast if the server refuses
   // (an open order still has it, or stock arrived meanwhile)
@@ -192,7 +193,7 @@ export function ProductSheet({
   return (
     <Sheet
       open
-      title={`${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode)}`}
+      title={`${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}`}
       closeLabel={t("close")}
       onClose={onClose}
       bareHeader
@@ -285,7 +286,7 @@ export function ProductSheet({
       {/* the confirmation before deleting */}
       <ConfirmDialog
         open={confirming}
-        title={t("deleteTitle", { name: productTitle(group), pack: packLabel(pack.packSize, pack.packSizeCode) })}
+        title={t("deleteTitle", { name: productTitle(group), pack: packLabel(pack.packSize, pack.packSizeCode, pack.packCount) })}
         body={t("deleteBody")}
         confirmLabel={t("delete")}
         cancelLabel={t("cancel")}
@@ -300,7 +301,7 @@ export function ProductSheet({
         open={asking}
         tone="plain"
         title={t("form.newProduct.title")}
-        body={t("form.newProduct.bodyEdit", { pack: packLabel(pack.packSize, pack.packSizeCode), name: productTitle(group) })}
+        body={t("form.newProduct.bodyEdit", { pack: packLabel(pack.packSize, pack.packSizeCode, pack.packCount), name: productTitle(group) })}
         confirmLabel={t("form.newProduct.yes")}
         cancelLabel={t("form.newProduct.no")}
         busy={busy && saving === "one"}

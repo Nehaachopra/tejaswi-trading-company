@@ -154,14 +154,14 @@ function PackButton({ group, pack }: { group: ProductGroup; pack: Pack }) {
     <button
       type="button"
       aria-haspopup="dialog"
-      aria-label={`${t("change")}: ${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode)}`}
+      aria-label={`${t("change")}: ${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}`}
       onClick={(e) => {
         e.stopPropagation();
         setCardFor(pack.productId);
       }}
       className="inline-flex min-h-7 shrink-0 items-center rounded-control bg-chestnut px-2.5 text-xs font-semibold text-ivory"
     >
-      {packLabel(pack.packSize, pack.packSizeCode)}
+      {packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}
     </button>
   );
 }
@@ -172,7 +172,7 @@ function BinButton({ group, pack }: { group: ProductGroup; pack: Pack }) {
   return (
     <button
       type="button"
-      aria-label={`${t("remove")}: ${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode)}`}
+      aria-label={`${t("remove")}: ${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}`}
       title={t("remove")}
       onClick={(e) => {
         e.stopPropagation();

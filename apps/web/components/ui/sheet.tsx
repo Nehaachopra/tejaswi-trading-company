@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { useEffect, useId } from "react";
+import { createPortal } from "react-dom";
 
 import { cn } from "~/lib/utils";
 
@@ -57,7 +58,9 @@ export function Sheet({
 
   if (!open) return null;
 
-  return (
+  // drawn straight into the page's body, so a card it's opened from (one that moves or animates) can't hold it in
+  // place of the screen: it always covers the whole window, header included
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-stretch sm:justify-end">
       {/* the scrim: a tap on it closes only a dismissible sheet, so a half-filled form is never lost */}
       <div aria-hidden onClick={dismissible ? onClose : undefined} className="absolute inset-0 bg-black/50" />
@@ -102,6 +105,7 @@ export function Sheet({
         </header>
         <div className="flex min-h-0 flex-1 flex-col">{children}</div>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }

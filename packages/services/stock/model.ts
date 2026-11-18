@@ -9,6 +9,7 @@ export const godownPackModel = z.object({
   productId: idModel,
   packSizeCode: packSizeCodeModel,
   packSize: z.number().int(),
+  packCount: z.number().int(),
   quantity: z.number().int(),
   imageUrl: z.string().nullable(),
 });

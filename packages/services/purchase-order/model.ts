@@ -88,6 +88,7 @@ export const purchaseOrderLineModel = z.object({
   productId: idModel,
   title: z.string(),
   packSize: z.number(),
+  packCount: z.number(),
   packSizeCode: z.enum(["KGS", "LTR", "BOX", "PCS"]),
   quantity: z.number(),
   received: z.number(),

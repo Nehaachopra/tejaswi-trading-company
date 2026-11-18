@@ -1,4 +1,5 @@
 "use client";
+import { unitsIn } from "~/lib/price";
 
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -50,7 +51,11 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
     if (saved) return saved;
     const start = { ...emptyLine(pack.productId), quantity: "0" };
     return sale && pack.priceAfterGst != null
-      ? settleLine({ ...start, priceGst: String(pack.priceAfterGst), from: "priceGst" }, pack.packSize, pack.gstPercent)
+      ? settleLine(
+          { ...start, priceGst: String(pack.priceAfterGst), from: "priceGst" },
+          unitsIn(pack),
+          pack.gstPercent,
+        )
       : start;
   });
   // a sale: how many are free to order (not held for another order; what this order holds now counts as free for it);
@@ -65,7 +70,7 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   // more than that was typed: cut to it, and it says so (until the quantity is changed again)
   const [over, setOver] = useState(false);
   const close = () => setCardFor(null);
-  const name = `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode)}`;
+  const name = `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}`;
   const rateLabel = t(sale ? "ratePer" : "costPer", { unit: units(pack.packSizeCode) });
 
   // the page behind doesn't scroll, and Escape closes
@@ -82,8 +87,8 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
 
   // one of the three typed: the other two follow
   const setFigure = (field: PriceField, v: string) =>
-    setDraft((d) => settleLine({ ...d, [field]: v, from: field }, pack.packSize, pack.gstPercent));
-  const { total } = lineFigures(draft, pack.packSize, pack.gstPercent);
+    setDraft((d) => settleLine({ ...d, [field]: v, from: field }, unitsIn(pack), pack.gstPercent));
+  const { total } = lineFigures(draft, unitsIn(pack), pack.gstPercent);
   const ok =
     (Number(draft[draft.from]) || 0) > 0 &&
     (Number(draft.quantity) || 0) >= least &&
@@ -155,7 +160,7 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
         {/* pack quantity and ✕ on top*/}
         <div className="flex justify-between">
           <span className="tabular inline-flex min-h-8 w-fit items-center rounded-control border border-chestnut bg-chestnut px-2.5 text-xs font-semibold text-ivory">
-            {packLabel(pack.packSize, pack.packSizeCode)}
+            {packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}
           </span>
           <button
             type="button"
@@ -179,11 +184,7 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
             {titleCase(group.categoryName)} | {titleCase(group.subCategoryName)}
           </p>
         </div>
-        <ProductImage
-          group={group}
-          imageUrl={pack.imageUrl}
-          className="size-40 self-center"
-        />
+        <ProductImage group={group} imageUrl={pack.imageUrl} className="size-40 self-center" />
 
         {/* a purchase: what this pack size cost on its last purchases */}
         {!sale && <CostChart productId={pack.productId} />}
@@ -200,7 +201,7 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
               {
                 key: "rate",
                 label: rateLabel,
-                current: listPrice == null ? "–" : rupees(round2(listPrice / pack.packSize)),
+                current: listPrice == null ? "–" : rupees(round2(listPrice / unitsIn(pack))),
                 input: rateBox,
               },
               {

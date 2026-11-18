@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
-import { asField } from "~/lib/price";
+import { asField, unitsIn } from "~/lib/price";
 import { PurchaseOrderDataProvider } from "~/providers/purchase-order";
 
 import { EntryNote } from "../../shared/entry-frame";
@@ -51,7 +51,7 @@ function seedOf(kind: OrderKind, d: OrderDoc): OrderEditSeed {
     id: o.id,
     orderDate: o.orderDate,
     lines: o.lines.map((l) =>
-      settleLine({ ...emptyLine(l.productId), price: asField(l.rateBeforeGst), from: "price", quantity: String(l.quantity) }, l.packSize, l.gstRate),
+      settleLine({ ...emptyLine(l.productId), price: asField(l.rateBeforeGst), from: "price", quantity: String(l.quantity) }, unitsIn(l), l.gstRate),
     ),
     moved: Object.fromEntries(o.lines.map((l) => [l.productId, l.moved])),
     held: Object.fromEntries(o.lines.map((l) => [l.productId, l.quantity])),

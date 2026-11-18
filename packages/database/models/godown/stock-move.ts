@@ -5,7 +5,6 @@ import { sql } from "drizzle-orm";
 
 import { timestamps } from "../../utils/common/column-type";
 import { usersTable } from "../auth/user";
-import { productsTable } from "../product/product";
 import { godownsTable } from "./godown";
 
 // stock moved from one godown to another: same business and GSTIN, so no GST and no
@@ -15,9 +14,10 @@ export const stockMovesTable = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
+    // no link to products: a deleted pack size moves to deleted_products, and this keeps pointing to it there
+
     productId: uuid("product_id")
-      .notNull()
-      .references(() => productsTable.id, { onDelete: "restrict" }),
+      .notNull(),
 
     productNameSnapshot: varchar("product_name_snapshot", { length: 200 }).notNull(),
 

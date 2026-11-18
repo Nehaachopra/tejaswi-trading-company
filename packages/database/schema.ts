@@ -26,6 +26,7 @@ export * from "./models/party/party-address";
 export * from "./models/party/party-paid-before";
 export * from "./models/party/party-upi-id";
 export * from "./models/product/category";
+export * from "./models/product/deleted-product";
 export * from "./models/product/product";
 export * from "./models/product/product-cost-history";
 export * from "./models/product/product-price";

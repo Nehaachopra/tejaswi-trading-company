@@ -4,7 +4,6 @@ import { sql } from "drizzle-orm";
 import { check, index, pgEnum, pgTable, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 
 import { usersTable } from "../auth/user";
-import { productsTable } from "../product/product";
 import { purchaseOrdersTable } from "./purchase/purchase-order";
 import { saleOrdersTable } from "./sale/sale-order";
 
@@ -42,7 +41,9 @@ export const orderEditsTable = pgTable(
 
     field: orderEditFieldEnum("field").notNull(),
 
-    productId: uuid("product_id").references(() => productsTable.id, { onDelete: "no action" }),
+    // no link to products: a deleted pack size moves to deleted_products, and this keeps pointing to it there
+
+    productId: uuid("product_id"),
 
     fromValue: varchar("from_value", { length: 1000 }),
 

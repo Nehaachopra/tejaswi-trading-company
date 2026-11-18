@@ -10,6 +10,7 @@ import { cn } from "~/lib/utils";
 
 import { type ProductGroup, TileTop } from "../../../product/products/product-tile";
 import { LineCard } from "./line-card";
+import { NewProductCard } from "./new-product-card";
 import { OrderTable } from "./order-table";
 import { useOrderEntry } from "./state";
 
@@ -26,6 +27,8 @@ export function ProductsCard() {
   const [subCategoryId, setSubCategoryId] = useState<string | null>(null);
   const category = categories.find((c) => c.id === categoryId);
   const subs = category?.subCategories ?? [];
+  // a purchase order's new product card is open (from the card itself or + New product above)
+  const [adding, setAdding] = useState(false);
 
   // the products not yet (fully) on the order, each with only its pack sizes still off it
   const taken = new Set(lines.map((l) => l.productId));
@@ -35,11 +38,13 @@ export function ProductsCard() {
         (!categoryId || g.categoryId === categoryId) &&
         (!subCategoryId || g.subCategoryId === subCategoryId),
     )
-    // a sale offers only pack sizes with stock free to order (not held for another order)
     .map((g) => ({
       ...g,
       packs: g.packs.filter(
-        (p) => !taken.has(p.productId) && (kind !== "sale" || p.unreservedQuantity > 0),
+        // a sale offers only pack sizes with a selling price and stock free to order (not held for another order)
+        (p) =>
+          !taken.has(p.productId) &&
+          (kind !== "sale" || (p.unreservedQuantity > 0 && p.priceAfterGst != null)),
       ),
     }))
     .filter((g) => g.packs.length > 0);
@@ -60,8 +65,24 @@ export function ProductsCard() {
 
       <div className="border-t border-chestnut/15" aria-hidden />
 
-      {/* the products: their heading, the filters, then every other pack size */}
-      <h3 className={cn(heading, "-mb-2")}>{t("steps.products")}</h3>
+      {/* the products: their heading with a purchase order's + New product beside it (on a phone too, so not full
+          width), the filters, then every other pack size */}
+      <div className="-mb-2 flex items-center justify-between gap-2">
+        <h3 className={heading}>{t("steps.products")}</h3>
+        {kind === "purchase" && (
+          // as quiet as the filter buttons under it (their outline, ink and size), so the filters stay first
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className={cn(
+              FILTER_TRIGGER,
+              "flex min-h-10 shrink-0 items-center justify-center rounded-control border border-chestnut/60 text-chestnut transition-colors hover:border-chestnut",
+            )}
+          >
+            <Plus className="size-4 shrink-0" aria-hidden /> {t("newProduct")}
+          </button>
+        )}
+      </div>
       <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none]">
         <Menu
           label={t("category")}
@@ -147,12 +168,15 @@ export function ProductsCard() {
         </Menu>
       </div>
 
-      {rest.length === 0 ? (
+      {rest.length === 0 && (
         <p className="py-6 text-center text-sm opacity-70">
           {products.length === 0 ? t("noProducts") : t("allOnOrder")}
         </p>
-      ) : (
-        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+      )}
+      {/* the products; a purchase order's last card adds a new product (shown even when none is left to list) */}
+      {(rest.length > 0 || kind === "purchase") && (
+        // every row as tall as the tallest, so the + New product card is a product card's height even alone on its row
+        <ul className="grid auto-rows-fr grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
           {rest.map((group) => (
             <RestTile
               key={group.key}
@@ -162,11 +186,20 @@ export function ProductsCard() {
               kind={kind}
             />
           ))}
+          {kind === "purchase" && (
+            <NewProductCard
+              open={adding}
+              onOpen={() => setAdding(true)}
+              onClose={() => setAdding(false)}
+              onCreated={setCardFor}
+            />
+          )}
         </ul>
       )}
 
       {/* the line card, over the page, for the pack size being added or changed */}
       <LineCard />
+
     </div>
   );
 }

@@ -4,7 +4,6 @@ import { sql } from "drizzle-orm";
 import { integer, pgTable, uuid, text, check, index, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { money, percent, timestamps } from "../../../utils/common/column-type";
-import { productsTable } from "../../product/product";
 import { saleOrdersTable } from "./sale-order";
 
 export const saleOrderProductsTable = pgTable(
@@ -18,11 +17,10 @@ export const saleOrderProductsTable = pgTable(
         onDelete: "restrict",
       }),
 
+    // no link to products: a deleted pack size moves to deleted_products, and this keeps pointing to it there
+
     productId: uuid("product_id")
-      .notNull()
-      .references(() => productsTable.id, {
-        onDelete: "restrict",
-      }),
+      .notNull(),
 
     quantityOrdered: integer("quantity_ordered").notNull(),
 

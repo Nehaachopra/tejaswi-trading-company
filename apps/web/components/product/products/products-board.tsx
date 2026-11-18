@@ -60,7 +60,7 @@ export function ProductsBoard() {
         g.name,
         g.categoryName,
         g.subCategoryName,
-        ...g.packs.map((p) => packLabel(p.packSize, p.packSizeCode)),
+        ...g.packs.map((p) => packLabel(p.packSize, p.packSizeCode, p.packCount)),
       ]
         .filter(Boolean)
         .join(" ")

@@ -32,7 +32,13 @@ export const productNameSnapshot = (p: {
   name: string | null;
   packSize: number;
   packSizeCode: keyof typeof UNIT;
-}) => [p.categoryName, p.subCategoryName, p.brand, p.name, `${p.packSize} ${UNIT[p.packSizeCode]}`].filter(Boolean).join(" ").slice(0, 200);
+  // how many of that size make one pack: "1 ltr × 10"; nothing added for 1
+  packCount?: number;
+}) =>
+  [p.categoryName, p.subCategoryName, p.brand, p.name, `${p.packSize} ${UNIT[p.packSizeCode]}${(p.packCount ?? 1) > 1 ? ` × ${p.packCount}` : ""}`]
+    .filter(Boolean)
+    .join(" ")
+    .slice(0, 200);
 
 // what's in each godown, one pack size across godowns, and moving stock between godowns;
 // every change goes through the stock engine
@@ -83,7 +89,7 @@ export default class StockService {
         card.products.push(group);
       }
       group.imageUrl ??= p.imageUrl;
-      group.packs.push({ productId: p.id, packSizeCode: p.packSizeCode, packSize: p.packSize, quantity, imageUrl: p.imageUrl });
+      group.packs.push({ productId: p.id, packSizeCode: p.packSizeCode, packSize: p.packSize, packCount: p.packCount, quantity, imageUrl: p.imageUrl });
       card.productCount++;
     }
     return [...cards.values()];
@@ -116,6 +122,7 @@ export default class StockService {
     const [product] = await db
       .select({
         packSize: productsTable.packSize,
+        packCount: productsTable.packCount,
         packSizeCode: productsTable.packSizeCode,
         brand: productsTable.brand,
         name: productsTable.name,

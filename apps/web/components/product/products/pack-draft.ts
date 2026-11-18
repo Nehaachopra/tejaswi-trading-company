@@ -9,6 +9,8 @@ export type PackDraft = {
   key: number;
   packSizeCode: Code;
   packSize: string;
+  // how many of that size make one pack (1 ltr × 10); "1" to start
+  packCount: string;
   gstPercent: string;
   rate: string;
   priceAfterGst: string;
@@ -19,6 +21,7 @@ export const emptyPack = (key: number, packSizeCode: Code = "KGS"): PackDraft =>
   key,
   packSizeCode,
   packSize: "",
+  packCount: "1",
   gstPercent: "",
   rate: "",
   priceAfterGst: "",
@@ -32,7 +35,8 @@ export const money = (v: string) => /^\d+(\.\d{1,2})?$/.test(v.trim());
 
 // after any change, work out whichever of rate and price wasn't typed last
 export function settle(p: PackDraft): PackDraft {
-  const size = wholeAbove0(p.packSize) ? Number(p.packSize) : null;
+  // the units in one pack: its size × the count
+  const size = wholeAbove0(p.packSize) && wholeAbove0(p.packCount) ? Number(p.packSize) * Number(p.packCount) : null;
   const gst = parseAmount(p.gstPercent);
   if (size == null || gst == null || gst > 100) return p;
   if (p.from === "rate") {
@@ -43,11 +47,11 @@ export function settle(p: PackDraft): PackDraft {
   return price == null ? p : { ...p, rate: asField(rateFromPackPrice(price, size, gst)) };
 }
 
-export const packKey = (code: string, size: string | number) => `${code}:${Number(size)}`;
+export const packKey = (code: string, size: string | number, count: string | number = 1) => `${code}:${Number(size)}:${Number(count)}`;
 
 // what's wrong with one pack size
 export const packProblems = (p: PackDraft) => ({
-  size: !wholeAbove0(p.packSize),
+  size: !wholeAbove0(p.packSize) || !wholeAbove0(p.packCount),
   gst: !percent(p.gstPercent),
   price: !money(p.priceAfterGst),
 });
@@ -58,6 +62,7 @@ export const packInput = (packs: PackDraft[]) =>
   packs.map((p) => ({
     packSizeCode: p.packSizeCode,
     packSize: Number(p.packSize),
+    packCount: Number(p.packCount),
     gstPercent: Number(p.gstPercent),
     priceAfterGst: Number(p.priceAfterGst),
   }));

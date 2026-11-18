@@ -27,6 +27,7 @@ export function RatePriceFields({
   rows = false,
   placeholders,
   className,
+  optional = false,
 }: {
   unit: string;
   rate: string;
@@ -38,6 +39,8 @@ export function RatePriceFields({
   rows?: boolean;
   placeholders?: { rate: string; price: string };
   className?: string;
+  // the price may be left empty (a product added from a purchase order): no star
+  optional?: boolean;
 }) {
   const t = useTranslations("products.items");
   const label = rows ? fieldRow : fieldLabel;
@@ -62,7 +65,7 @@ export function RatePriceFields({
       <label className="flex flex-col gap-2 flex-2">
         <span className="truncate text-sm">
           {t("priceWithGst")}
-          <RequiredMark />
+          {!optional && <RequiredMark />}
         </span>
         <span
           className={cn(

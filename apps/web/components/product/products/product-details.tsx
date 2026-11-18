@@ -1,12 +1,13 @@
 "use client";
 
+import { PackCountInput } from "./pack-count-input";
 import { useTranslations } from "next-intl";
 
 import { fieldClass } from "~/components/ui/card-form";
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { titleCase } from "~/lib/format";
-import { asField, packPriceFromRate, parseAmount, rateFromPackPrice } from "~/lib/price";
+import { asField, packPriceFromRate, parseAmount, rateFromPackPrice, unitsIn } from "~/lib/price";
 import { cn } from "~/lib/utils";
 
 import { fieldRow, pickRow } from "../../transaction/shared/form-basics";
@@ -27,6 +28,8 @@ export type DetailsDraft = {
   name: string;
   packSizeCode: Code;
   packSize: string;
+  // how many of that size make one pack (1 ltr × 10)
+  packCount: string;
   hsn: string;
   gst: string;
   // the rate per unit (before GST) and the price with GST: either one fills in the other
@@ -44,9 +47,10 @@ export const draftFrom = (group: ProductGroup, pack: Pack): DetailsDraft => ({
   name: group.name ? titleCase(group.name) : "",
   packSizeCode: pack.packSizeCode,
   packSize: String(pack.packSize),
+  packCount: String(pack.packCount),
   hsn: pack.hsn8Digit ?? group.hsn4Digit ?? "",
   gst: pack.gstPercent == null ? "" : String(pack.gstPercent),
-  rate: pack.priceAfterGst == null ? "" : asField(rateFromPackPrice(pack.priceAfterGst, pack.packSize, pack.gstPercent ?? 0)),
+  rate: pack.priceAfterGst == null ? "" : asField(rateFromPackPrice(pack.priceAfterGst, unitsIn(pack), pack.gstPercent ?? 0)),
   price: pack.priceAfterGst == null ? "" : asField(pack.priceAfterGst),
   imageUrl: pack.imageUrl,
   isActive: pack.isActive,
@@ -56,7 +60,9 @@ export const draftFrom = (group: ProductGroup, pack: Pack): DetailsDraft => ({
 // the price and works the rate out again
 export function settleDraft(d: DetailsDraft, patch: Partial<DetailsDraft>): DetailsDraft {
   const next = { ...d, ...patch };
-  const size = /^[1-9]\d{0,4}$/.test(next.packSize) ? Number(next.packSize) : null;
+  // the units in one pack: its size × the count
+  const size =
+    /^[1-9]\d{0,4}$/.test(next.packSize) && /^[1-9]\d{0,3}$/.test(next.packCount) ? Number(next.packSize) * Number(next.packCount) : null;
   const gst = parseAmount(next.gst);
   if (size == null || gst == null || gst > 100) return next;
   if ("rate" in patch) {
@@ -73,7 +79,7 @@ export function draftProblems(d: DetailsDraft) {
   return {
     subCategoryId: !d.subCategoryId,
     brand: d.brand.trim() === "" || d.brand.trim().length > NAME_MAX,
-    packSize: !/^[1-9]\d{0,4}$/.test(d.packSize),
+    packSize: !/^[1-9]\d{0,4}$/.test(d.packSize) || !/^[1-9]\d{0,3}$/.test(d.packCount),
     hsn: d.hsn !== "" && !/^(\d{4}|\d{8})$/.test(d.hsn),
     gst: !/^\d+(\.\d{1,2})?$/.test(d.gst) || gst > 100,
     price: !((parseAmount(d.price) ?? 0) > 0),
@@ -162,6 +168,8 @@ export function ProductDetails({
           />
           {/* the unit is set when the product is made and never changes: plain text, a little apart */}
           <span className="ml-2 grid min-h-11 shrink-0 place-items-center text-base">{t(`form.units.${draft.packSizeCode}`)}</span>
+          {/* × how many of that size make one pack */}
+          <PackCountInput value={draft.packCount} onChange={(packCount) => onChange({ packCount })} invalid={show("packSize")} />
         </div>
       </div>
 

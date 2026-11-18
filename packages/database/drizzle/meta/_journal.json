@@ -316,6 +316,27 @@
       "when": 1794972272692,
       "tag": "0044_awesome_dragon_man",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1795017870854,
+      "tag": "0045_marvelous_power_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1795022492862,
+      "tag": "0046_right_wild_pack",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1795024738133,
+      "tag": "0047_dizzy_flatman",
+      "breakpoints": true
     }
   ]
 }

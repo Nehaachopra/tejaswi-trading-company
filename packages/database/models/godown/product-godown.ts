@@ -5,7 +5,6 @@ import { integer, pgTable, uuid } from "drizzle-orm/pg-core";
 import { timestamps } from "../../utils/common/column-type";
 
 import { godownsTable } from "./godown";
-import { productsTable } from "../product/product";
 import { index } from "drizzle-orm/pg-core";
 import { check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -22,11 +21,10 @@ export const productGodownsTable = pgTable(
         onDelete: "restrict"
       }),
 
+    // no link to products: a deleted pack size moves to deleted_products, and this keeps pointing to it there
+
     productId: uuid("product_id")
-      .notNull()
-      .references(() => productsTable.id, {
-        onDelete: "restrict"
-      }),
+      .notNull(),
 
     // whole packs of this pack size held in this godown
     quantity: integer("quantity").default(0).notNull(),

@@ -196,7 +196,7 @@ export function AddGodownSheet({ open, onClose }: { open: boolean; onClose: () =
                     {/* one row per pack size: its label and the quantity box */}
                     <ul className="flex flex-col gap-1.5">
                       {group.packs.map((pack) => {
-                        const label = packLabel(pack.packSize, pack.packSizeCode);
+                        const label = packLabel(pack.packSize, pack.packSizeCode, pack.packCount);
                         return (
                           <li
                             key={pack.productId}

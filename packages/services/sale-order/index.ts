@@ -10,7 +10,9 @@ import {
   saleProductsTable,
   salesTable,
   transactionsTable,
+  deletedProductsTable,
 } from "@repo/database/schema";
+import { anyProduct } from "../product/any-product";
 
 import type { ActorModel } from "../accounts/model";
 import { fromPaise, toPaise } from "../accounts/money";
@@ -69,17 +71,20 @@ export default class SaleOrderService {
       .orderBy(asc(productsTable.id))
       .for("update");
     const gst = await tx
-      .select({ productId: productPricesTable.productId, gst: productPricesTable.gstPercent })
+      .select({ productId: productPricesTable.productId, gst: productPricesTable.gstPercent, price: productPricesTable.priceAfterGst })
       .from(productPricesTable)
       .where(inArray(productPricesTable.productId, ids));
     const byId = new Map(rows.map((r) => [r.id, r]));
     const gstOf = new Map(gst.map((g) => [g.productId, g.gst]));
+    const priced = new Set(gst.filter((g) => g.price != null).map((g) => g.productId));
     return lines.map((l) => {
       const row = byId.get(l.productId);
       if (!row || row.deletedAt) throw new TRPCError({ code: "NOT_FOUND", message: "Product not found." });
       if (!row.isActive) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "An item is inactive." });
       const rate = gstOf.get(l.productId);
       if (rate == null) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Set the GST % for every item first." });
+      // added from a purchase order and not priced yet: it can't be sold until it is
+      if (!priced.has(l.productId)) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Set the selling price for every item first." });
       if (l.quantity - (went?.get(l.productId) ?? 0) > row.free) throw new TRPCError({ code: "PRECONDITION_FAILED", message: `Only ${row.free} of an item are free to order.` });
       return Number(rate);
     });
@@ -363,9 +368,11 @@ export default class SaleOrderService {
     if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Order not found." });
     const { o } = row;
     const lines = await db
-      .select({ l: saleOrderProductsTable, brand: productsTable.brand, name: productsTable.name, packSize: productsTable.packSize, packSizeCode: productsTable.packSizeCode })
+      // each line's pack size, listed or deleted
+      .select({ l: saleOrderProductsTable, brand: anyProduct.brand, name: anyProduct.name, packSize: anyProduct.packSize, packCount: anyProduct.packCount, packSizeCode: anyProduct.packSizeCode })
       .from(saleOrderProductsTable)
-      .innerJoin(productsTable, eq(productsTable.id, saleOrderProductsTable.productId))
+      .leftJoin(productsTable, eq(productsTable.id, saleOrderProductsTable.productId))
+      .leftJoin(deletedProductsTable, eq(deletedProductsTable.id, saleOrderProductsTable.productId))
       .where(eq(saleOrderProductsTable.saleOrderId, o.id))
       .orderBy(saleOrderProductsTable.createdAt, saleOrderProductsTable.id);
     // the sales made from it that still stand (each one dispatch), and what each carried
@@ -386,10 +393,11 @@ export default class SaleOrderService {
       lines.map(({ l }) => ({ quantity: l.quantityOrdered, rate: Number(l.rateBeforeGst), discount: Number(l.discountAmount), gstRate: Number(l.gstRate) })),
       Number(o.discountAmount),
     );
-    const items = lines.map(({ l, brand, name, packSize, packSizeCode }, i) => ({
+    const items = lines.map(({ l, brand, name, packSize, packCount, packSizeCode }, i) => ({
       productId: l.productId,
       title: [brand, name].filter(Boolean).join(" "),
       packSize,
+      packCount,
       packSizeCode,
       quantity: l.quantityOrdered,
       rateBeforeGst: Number(l.rateBeforeGst),

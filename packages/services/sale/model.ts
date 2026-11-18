@@ -201,6 +201,7 @@ export const saleInvoiceModel = z.object({
       category: z.string(),
       title: z.string(),
       packSize: z.number(),
+      packCount: z.number(),
       packSizeCode: z.enum(["KGS", "LTR", "BOX", "PCS"]),
       hsn: z.string().nullable(),
       quantity: z.number().int(),

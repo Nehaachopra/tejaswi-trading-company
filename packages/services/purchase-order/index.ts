@@ -10,7 +10,9 @@ import {
   purchaseProductsTable,
   purchasesTable,
   transactionsTable,
+  deletedProductsTable,
 } from "@repo/database/schema";
+import { anyProduct } from "../product/any-product";
 
 import type { ActorModel } from "../accounts/model";
 import { fromPaise, toPaise } from "../accounts/money";
@@ -345,9 +347,11 @@ export default class PurchaseOrderService {
 
     const [lines, came, deliveries, [address], company] = await Promise.all([
       db
-        .select({ l: purchaseOrderProductsTable, brand: productsTable.brand, name: productsTable.name, packSize: productsTable.packSize, packSizeCode: productsTable.packSizeCode })
+        // each line's pack size, listed or deleted
+        .select({ l: purchaseOrderProductsTable, brand: anyProduct.brand, name: anyProduct.name, packSize: anyProduct.packSize, packCount: anyProduct.packCount, packSizeCode: anyProduct.packSizeCode })
         .from(purchaseOrderProductsTable)
-        .innerJoin(productsTable, eq(productsTable.id, purchaseOrderProductsTable.productId))
+        .leftJoin(productsTable, eq(productsTable.id, purchaseOrderProductsTable.productId))
+        .leftJoin(deletedProductsTable, eq(deletedProductsTable.id, purchaseOrderProductsTable.productId))
         .where(eq(purchaseOrderProductsTable.purchaseOrderId, o.id))
         .orderBy(purchaseOrderProductsTable.createdAt, purchaseOrderProductsTable.id),
       this.received(db, [o.id]),
@@ -382,10 +386,11 @@ export default class PurchaseOrderService {
     const sameState = !address || address.stateCode === company.stateCode;
     const cgst = sameState ? Math.floor(toPaise(gst) / 2) / 100 : 0;
 
-    const items = lines.map(({ l, brand, name, packSize, packSizeCode }, i) => ({
+    const items = lines.map(({ l, brand, name, packSize, packCount, packSizeCode }, i) => ({
       productId: l.productId,
       title: [brand, name].filter(Boolean).join(" "),
       packSize,
+      packCount,
       packSizeCode,
       quantity: l.quantityOrdered,
       received: arrived?.get(l.productId) ?? 0,

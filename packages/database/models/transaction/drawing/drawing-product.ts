@@ -6,7 +6,6 @@ import { money, timestamps } from "../../../utils/common/column-type";
 
 import { drawingsTable } from "./drawing";
 import { productGodownsTable } from "../../godown/product-godown";
-import { productsTable } from "../../product/product";
 import { sql } from "drizzle-orm";
 import { check } from "drizzle-orm/pg-core";
 import { uniqueIndex } from "drizzle-orm/pg-core";
@@ -18,11 +17,10 @@ export const drawingProductsTable = pgTable("drawing_products", {
     onDelete: "restrict"
   }),
 
+  // no link to products: a deleted pack size moves to deleted_products, and this keeps pointing to it there
+
   productId: uuid("product_id")
-    .notNull()
-    .references(() => productsTable.id, {
-      onDelete: "restrict"
-    }),
+    .notNull(),
 
   // category + sub-category + brand + pack quantity, as it read when drawn
   productNameSnapshot: varchar("product_name_snapshot", { length: 200 }).notNull(),

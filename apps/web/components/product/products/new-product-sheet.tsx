@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { TriangleAlert, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
@@ -14,7 +14,7 @@ import { toast } from "~/components/ui/toast";
 import { packLabel, titleCase } from "~/lib/format";
 import { parseAmount } from "~/lib/price";
 import { cn } from "~/lib/utils";
-import { useProductActions } from "~/providers/products";
+import { useProductActions, useProducts } from "~/providers/products";
 
 import { PickMenu } from "../../stock/pick-menu";
 import { PlainRows } from "../../transaction/shared/amount-table";
@@ -22,10 +22,12 @@ import { fieldRow, pickRow } from "../../transaction/shared/form-basics";
 import { categoryError } from "../categories/category-errors";
 import { CategoryFields } from "./category-fields";
 import { GstPicker } from "./gst-picker";
-import { CODES, emptyPack, packInput, packKey, packOk, packProblems, type PackDraft, settle, wholeAbove0 } from "./pack-draft";
+import { CODES, emptyPack, packInput, packKey, packProblems, type PackDraft, settle, wholeAbove0 } from "./pack-draft";
+import { PackCountInput } from "./pack-count-input";
 import { PhotoPicker } from "./photo-picker";
 import { brandChars } from "./product-details";
 import { type ProductGroup, productTitle } from "./product-tile";
+import { similarProducts } from "./similar";
 import { RatePriceFields } from "./rate-price-fields";
 
 // a part's heading, as in Edit details; the line and room above the second part
@@ -47,9 +49,15 @@ export function NewProductSheet({
   open,
   onClose,
   from,
+  fromPurchase = false,
+  onCreated,
 }: {
   open: boolean;
   onClose: () => void;
+  // opened from a purchase order: the selling price may be left empty for later
+  fromPurchase?: boolean;
+  // told the new pack size once it's saved (a purchase order then puts it on the order)
+  onCreated?: (productId: string) => void;
   from?: {
     categoryId: string;
     subCategoryId: string;
@@ -60,6 +68,8 @@ export function NewProductSheet({
 }) {
   const t = useTranslations("products.items");
   const { create, refreshProducts } = useProductActions();
+  // every product, inactive too, to warn when the one being typed looks like one already listed
+  const all = useProducts({ includeInactive: true }, open);
 
   // the product
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -103,15 +113,21 @@ export function NewProductSheet({
     hsn: hsn !== "" && !/^(\d{4}|\d{8})$/.test(hsn),
   };
   const detailsOk = !Object.values(bad).some(Boolean);
-  const wrong = packProblems(pack);
+  // from a purchase order an empty selling price is fine
+  const problems = packProblems(pack);
+  const wrong = fromPurchase && pack.priceAfterGst.trim() === "" ? { ...problems, price: false } : problems;
+  const packFine = !Object.values(wrong).some(Boolean);
   // while the details are still the product it was opened from, a pack size that product already has is a duplicate
   const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
   const sameProduct = !!from && categoryId === from.categoryId && subCategoryId === from.subCategoryId && same(brand, from.brand) && same(name, from.name ?? "");
   const duplicate =
-    sameProduct && wholeAbove0(pack.packSize) && from.packs.some((p) => packKey(p.packSizeCode, p.packSize) === packKey(pack.packSizeCode, pack.packSize));
+    sameProduct && wholeAbove0(pack.packSize) && from.packs.some((p) => packKey(p.packSizeCode, p.packSize, p.packCount) === packKey(pack.packSizeCode, pack.packSize, pack.packCount));
 
   // change the pack size; rate and price fill each other in
   const update = (patch: Partial<PackDraft>) => setPack((p) => settle({ ...p, ...patch }));
+
+  // products already listed that look like this one (not while it's still the product it was opened from)
+  const similar = sameProduct ? [] : similarProducts(all.data ?? [], { brand, name, categoryId });
 
   // opened from a product, and the category, sub-category or brand is no longer that product's
   const moved = !!from && (categoryId !== from.categoryId || subCategoryId !== from.subCategoryId || !same(brand, from.brand));
@@ -122,7 +138,7 @@ export function NewProductSheet({
     e.preventDefault();
     setTried(true);
     setServerError(null);
-    if (!detailsOk || !packOk(pack) || duplicate || uploading) return;
+    if (!detailsOk || !packFine || duplicate || uploading) return;
     if (moved) return setAsking(true);
     void save();
   }
@@ -138,7 +154,9 @@ export function NewProductSheet({
   // save the product with its pack size
   async function save() {
     try {
+      const [packIn] = packInput([pack]);
       const created = await create.mutateAsync({
+        fromPurchase,
         categoryId: categoryId!,
         subCategoryId: subCategoryId!,
         brand,
@@ -147,11 +165,17 @@ export function NewProductSheet({
         hsn4Digit: hsn ? hsn.slice(0, 4) : undefined,
         hsn8Digit: hsn.length === 8 ? hsn : undefined,
         imageUrl: imageUrl ?? undefined,
-        packs: packInput([pack]),
+        // no selling price typed (from a purchase order): left for later
+        packs: [{ ...packIn!, priceAfterGst: pack.priceAfterGst.trim() === "" ? undefined : packIn!.priceAfterGst }],
       });
       setAsking(false);
       toast.success(t("form.toast.added", { name: productTitle(created) }));
       refreshProducts();
+      // the pack size just made: the one with this size and unit
+      const made = created.packs.find(
+        (p) => p.packSizeCode === pack.packSizeCode && p.packSize === Number(pack.packSize) && p.packCount === Number(pack.packCount),
+      );
+      if (made) onCreated?.(made.productId);
       onClose();
     } catch (err) {
       setAsking(false);
@@ -227,6 +251,33 @@ export function NewProductSheet({
             <input value={name} maxLength={50} onChange={(e) => setName(brandChars(e.target.value))} className={input(tried && bad.name)} />
           </label>
 
+          {/* products already listed that look like this one: a warning, so the same product isn't added twice (it
+              doesn't stop the save) */}
+          {similar.length > 0 && (
+            <div role="status" className="flex flex-col gap-1.5 rounded-control bg-amber-500/10 px-3 py-2.5 text-sm text-amber-800">
+              <p className="flex items-start gap-2 font-semibold">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+                {t("form.similar")}
+              </p>
+              <ul className="flex flex-col gap-1 pl-6">
+                {similar.map((g) => (
+                  <li key={g.key} className="flex flex-wrap items-baseline justify-between gap-x-3">
+                    <span className="font-medium">{productTitle(g)}</span>
+                    {/* its sub-category, then its pack sizes as chips */}
+                    <span className="flex flex-wrap items-center gap-1.5 text-xs">
+                      <span className="opacity-80">{titleCase(g.subCategoryName)}</span>
+                      {g.packs.map((p) => (
+                        <span key={p.productId} className="rounded-full border border-amber-800/30 px-1.5 py-px">
+                          {packLabel(p.packSize, p.packSizeCode, p.packCount)}
+                        </span>
+                      ))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {/* pack size: the size, and beside it its unit */}
           <div className={fieldRow}>
             <span>
@@ -259,6 +310,8 @@ export function NewProductSheet({
                   />
                 </div>
               )}
+              {/* × how many of that size make one pack */}
+              <PackCountInput value={pack.packCount} onChange={(packCount) => update({ packCount })} invalid={(tried && wrong.size) || duplicate} />
             </div>
           </div>
 
@@ -292,6 +345,7 @@ export function NewProductSheet({
             onRate={(rate) => update({ rate, from: "rate" })}
             onPrice={(priceAfterGst) => update({ priceAfterGst, from: "price" })}
             priceInvalid={tried && wrong.price}
+            optional={fromPurchase}
             rows
             placeholders={{ rate: "55.24", price: "1,450" }}
           />
@@ -301,9 +355,9 @@ export function NewProductSheet({
         {/* what to fix, and Add product, stay at the bottom */}
         <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
           {duplicate && (
-            <FieldMessage className="mt-0">{t("form.errors.duplicate", { packs: packLabel(Number(pack.packSize), pack.packSizeCode) })}</FieldMessage>
+            <FieldMessage className="mt-0">{t("form.errors.duplicate", { packs: packLabel(Number(pack.packSize), pack.packSizeCode, Number(pack.packCount)) })}</FieldMessage>
           )}
-          {tried && (!detailsOk || !packOk(pack)) && <FieldMessage className="mt-0">{t("form.errors.fill")}</FieldMessage>}
+          {tried && (!detailsOk || !packFine) && <FieldMessage className="mt-0">{t("form.errors.fill")}</FieldMessage>}
           {serverError && <FieldMessage className="mt-0">{serverError}</FieldMessage>}
           <SubmitButton busy={create.isPending} disabled={uploading}>
             {t("form.addTitle")}

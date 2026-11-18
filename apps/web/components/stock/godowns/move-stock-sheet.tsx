@@ -91,7 +91,7 @@ export function MoveStockSheet({ start, cards, onClose }: { start: MoveStart | n
         remarks,
       });
       toast.success(
-        tg("toast.moved", { quantity: qty.toLocaleString("en-IN"), pack: `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode)}`, to: to!.godownName }),
+        tg("toast.moved", { quantity: qty.toLocaleString("en-IN"), pack: `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}`, to: to!.godownName }),
       );
       refreshMoved();
       onClose();
@@ -108,7 +108,7 @@ export function MoveStockSheet({ start, cards, onClose }: { start: MoveStart | n
   const rows =
     group && pack
       ? [
-          { label: t("pack"), value: packLabel(pack.packSize, pack.packSizeCode) },
+          { label: t("pack"), value: packLabel(pack.packSize, pack.packSizeCode, pack.packCount) },
           { label: t("brand"), value: productTitle(group) },
           { label: t("category"), value: titleCase(group.categoryName) },
           { label: t("subCategory"), value: titleCase(group.subCategoryName) },

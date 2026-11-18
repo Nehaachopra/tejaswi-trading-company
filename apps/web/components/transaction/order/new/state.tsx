@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { createContext, useContext, useState } from "react";
 
 import { packLabel } from "~/lib/format";
-import { asField, parseAmount } from "~/lib/price";
+import { asField, parseAmount, unitsIn } from "~/lib/price";
 import { useLeaveGuard } from "~/lib/use-leave-guard";
 import { usePurchaseOrderData } from "~/providers/purchase-order";
 
@@ -129,13 +129,13 @@ export function useOrderEntryState({
   const packOf = (id: string) => packs.get(id) ?? null;
   const nameOf = (id: string) => {
     const p = packOf(id);
-    return p ? `${productTitle(p.group)} ${packLabel(p.pack.packSize, p.pack.packSizeCode)}` : "";
+    return p ? `${productTitle(p.group)} ${packLabel(p.pack.packSize, p.pack.packSizeCode, p.pack.packCount)}` : "";
   };
 
   // the items, worked out
   const figures = lines.map((l) => {
     const p = packOf(l.productId)?.pack;
-    return lineFigures(l, p?.packSize ?? 1, p?.gstPercent ?? null);
+    return lineFigures(l, p ? unitsIn(p) : 1, p?.gstPercent ?? null);
   });
   // the items' value before GST and the GST on it; then the discount comes off that total (never more than the value
   // before GST), as the server works it out

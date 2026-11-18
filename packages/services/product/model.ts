@@ -13,6 +13,8 @@ export const packSizeModel = z.object({
   productId: z.string().uuid(),
   packSizeCode: packSizeCodeModel,
   packSize: z.number().int(),
+  // how many of that size make one pack (1 ltr × 10); 1 for most
+  packCount: z.number().int(),
   hsn8Digit: z.string().nullable(),
   quantity: z.number().int(),
   reservedQuantity: z.number().int(),
@@ -65,7 +67,9 @@ export type ListProductsInputModel = z.infer<typeof listProductsInputModel>;
 // a product photo: one uploaded to this app's own /uploads for now, or a full https link (a CDN later)
 export const imageUrlModel = z.string().max(500).regex(/^(https:\/\/|\/uploads\/)/, "Not an image link.");
 
+// added from a purchase order (fromPurchase): the selling price may be left for later; the GST % is always given
 export const createProductInputModel = z.object({
+  fromPurchase: z.boolean().default(false),
   categoryId: z.string().uuid(),
   subCategoryId: z.string().uuid(),
   brand: nameModel,
@@ -78,15 +82,19 @@ export const createProductInputModel = z.object({
       z.object({
         packSizeCode: packSizeCodeModel,
         packSize: z.number().int().positive(),
+        packCount: z.number().int().positive().max(9999).default(1),
         gstPercent: gstPercentModel,
-        priceAfterGst: rupeesModel,
+        priceAfterGst: rupeesModel.optional(),
       }),
     )
     .min(1)
     .refine(
-      (packs) => new Set(packs.map((p) => `${p.packSizeCode}:${p.packSize}`)).size === packs.length,
+      (packs) => new Set(packs.map((p) => `${p.packSizeCode}:${p.packSize}:${p.packCount}`)).size === packs.length,
       "Each pack size can be listed once.",
     ),
+}).refine((p) => p.fromPurchase || p.packs.every((pack) => pack.priceAfterGst !== undefined), {
+  message: "Give the selling price.",
+  path: ["packs"],
 });
 
 export type CreateProductInputModel = z.input<typeof createProductInputModel>;
@@ -156,6 +164,7 @@ export const updateDetailsInputModel = z.object({
     productId: z.string().uuid(),
     packSizeCode: packSizeCodeModel,
     packSize: z.number().int().positive().max(99999),
+    packCount: z.number().int().positive().max(9999),
     // a new GST % keeps the price with GST and works the rest out again
     gstPercent: gstPercentModel,
     isActive: z.boolean(),

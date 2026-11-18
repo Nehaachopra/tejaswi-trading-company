@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, count, db, eq } from "@repo/database";
+import { and, asc, count, db, eq, sql } from "@repo/database";
 import { categoriesTable, productsTable, subCategoriesTable } from "@repo/database/schema";
 
 import type {
@@ -23,13 +23,15 @@ function isUniqueViolation(error: unknown) {
 
 // a row another table still points to (the foreign keys restrict deletes)
 function isStillReferenced(error: unknown) {
-  return pgCode(error) === "23503";
+  // 23503 for a plain foreign key, 23001 for one set to RESTRICT
+  const code = pgCode(error);
+  return code === "23503" || code === "23001";
 }
 
 const notEmpty = () =>
   new TRPCError({
     code: "PRECONDITION_FAILED",
-    message: "Only an empty category can be deleted. It still has sub-categories or products; deactivate it instead.",
+    message: "Only a category without products can be deleted; deactivate it instead.",
   });
 
 const taken = (message: string) => new TRPCError({ code: "CONFLICT", message });
@@ -99,8 +101,16 @@ export default class CategoryService {
       const [row] = await db.insert(categoriesTable).values({ name: input.name }).returning();
       return row!;
     } catch (error) {
-      if (isUniqueViolation(error)) throw taken("A category with this name already exists.");
-      throw error;
+      if (!isUniqueViolation(error)) throw error;
+      // the name is an inactive category's (one left hidden when its last product was deleted): switched back on
+      // and given back, as if just added; an active one with the name is refused
+      const [inactive] = await db
+        .update(categoriesTable)
+        .set({ isActive: true })
+        .where(and(sql`lower(${categoriesTable.name}) = lower(${input.name})`, eq(categoriesTable.isActive, false)))
+        .returning();
+      if (inactive) return inactive;
+      throw taken("A category with this name already exists.");
     }
   }
 
@@ -138,15 +148,19 @@ export default class CategoryService {
 
   // safe delete: refused while any sub-category or product (active or not) belongs to it;
   // the foreign keys refuse it too, should one be added between the check and the delete
+  // a category with no product goes, its empty sub-categories with it; one that still has a product (active or not)
+  // is refused, and the foreign keys refuse it too. Deleted products are in deleted_products and don't count
   async deleteCategory(input: DeleteCategoryInputModel) {
     await this.category(input.id);
 
-    const [subs] = await db.select({ n: count() }).from(subCategoriesTable).where(eq(subCategoriesTable.categoryId, input.id));
     const [products] = await db.select({ n: count() }).from(productsTable).where(eq(productsTable.categoryId, input.id));
-    if ((subs?.n ?? 0) > 0 || (products?.n ?? 0) > 0) throw notEmpty();
+    if ((products?.n ?? 0) > 0) throw notEmpty();
 
     try {
-      await db.delete(categoriesTable).where(eq(categoriesTable.id, input.id));
+      await db.transaction(async (tx) => {
+        await tx.delete(subCategoriesTable).where(eq(subCategoriesTable.categoryId, input.id));
+        await tx.delete(categoriesTable).where(eq(categoriesTable.id, input.id));
+      });
     } catch (error) {
       if (isStillReferenced(error)) throw notEmpty();
       throw error;
@@ -166,8 +180,21 @@ export default class CategoryService {
         .returning();
       return row!;
     } catch (error) {
-      if (isUniqueViolation(error)) throw taken("This category already has a sub-category with this name.");
-      throw error;
+      if (!isUniqueViolation(error)) throw error;
+      // an inactive sub-category of this category with the name: switched back on and given back, as for categories
+      const [inactive] = await db
+        .update(subCategoriesTable)
+        .set({ isActive: true })
+        .where(
+          and(
+            eq(subCategoriesTable.categoryId, input.categoryId),
+            sql`lower(${subCategoriesTable.name}) = lower(${input.name})`,
+            eq(subCategoriesTable.isActive, false),
+          ),
+        )
+        .returning();
+      if (inactive) return inactive;
+      throw taken("This category already has a sub-category with this name.");
     }
   }
 

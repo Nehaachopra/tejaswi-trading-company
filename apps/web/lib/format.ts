@@ -14,7 +14,9 @@ export const rupees = (amount: number) =>
 
 // a pack size as people say it: 25 kg, 5 ltr, 1 box, 12 pcs
 const UNIT = { KGS: "kg", LTR: "ltr", BOX: "box", PCS: "pcs" } as const;
-export const packLabel = (packSize: number, packSizeCode: keyof typeof UNIT) => `${packSize} ${UNIT[packSizeCode]}`;
+// a pack size as read: "25 kg", or with more than one of that size in a pack, "1 ltr × 10" (never "× 1")
+export const packLabel = (packSize: number, packSizeCode: keyof typeof UNIT, packCount = 1) =>
+  `${packSize} ${UNIT[packSizeCode]}${packCount > 1 ? ` × ${packCount}` : ""}`;
 
 // the first letters of up to two words: "india gate" → "IG"
 export const initials = (name: string) =>

@@ -6,7 +6,6 @@ import { sql } from "drizzle-orm";
 import { money } from "../../utils/common/column-type";
 
 import { transactionsTable } from "../transaction/transaction";
-import { productsTable } from "./product";
 
 // each change to a pack size's weighted average cost (landed cost, before GST), and the
 // transaction that caused it; the cost line on the price history graph
@@ -15,9 +14,10 @@ export const productCostHistoryTable = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
+    // no link to products: a deleted pack size moves to deleted_products, and this keeps pointing to it there
+
     productId: uuid("product_id")
-      .notNull()
-      .references(() => productsTable.id, { onDelete: "restrict" }),
+      .notNull(),
 
     weightedAverageCost: money("weighted_average_cost").notNull(),
 

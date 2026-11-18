@@ -104,7 +104,7 @@ export function OrderPage({
   const itemName = (productId: string) => {
     const found = packs.get(productId);
     return found
-      ? `${productTitle(found.group)} ${packLabel(found.pack.packSize, found.pack.packSizeCode)}`
+      ? `${productTitle(found.group)} ${packLabel(found.pack.packSize, found.pack.packSizeCode, found.pack.packCount)}`
       : "";
   };
   // History's events after the order was placed, newest first: a cancel, each sale or purchase, each edit

@@ -122,7 +122,7 @@ function OrderEntryView() {
         if (!found) return [];
         return [
           {
-            name: `${productTitle(found.group)} ${packLabel(found.pack.packSize, found.pack.packSizeCode)}`,
+            name: `${productTitle(found.group)} ${packLabel(found.pack.packSize, found.pack.packSizeCode, found.pack.packCount)}`,
             amount: Number(l.quantity || 0).toLocaleString("en-IN"),
             image: <ProductImage group={found.group} imageUrl={found.pack.imageUrl} className="size-8 rounded-md text-xs" />,
           },

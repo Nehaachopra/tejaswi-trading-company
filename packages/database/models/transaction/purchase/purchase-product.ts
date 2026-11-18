@@ -11,7 +11,6 @@ import {
 
 import { money, timestamps } from "../../../utils/common/column-type";import { purchasesTable } from "./purchase";
 import { productGodownsTable } from "../../godown/product-godown";
-import { productsTable } from "../../product/product";
 
 export const purchaseProductsTable = pgTable(
   "purchase_products",
@@ -22,9 +21,10 @@ export const purchaseProductsTable = pgTable(
       .notNull()
       .references(() => purchasesTable.id, { onDelete: "restrict" }),
 
+    // no link to products: a deleted pack size moves to deleted_products, and this keeps pointing to it there
+
     productId: uuid("product_id")
-      .notNull()
-      .references(() => productsTable.id, { onDelete: "restrict" }),
+      .notNull(),
 
     // category + sub-category + brand + pack quantity, as it read when bought
     productNameSnapshot: varchar("product_name_snapshot", { length: 200 }).notNull(),

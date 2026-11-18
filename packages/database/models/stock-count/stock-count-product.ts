@@ -4,7 +4,6 @@ import { pgEnum, pgTable, timestamp, varchar, uuid, unique } from "drizzle-orm/p
 
 import { timestamps } from "../../utils/common/column-type";
 
-import { productsTable } from "../product/product";
 import { integer } from "drizzle-orm/pg-core";
 import { stockCountsTable } from "./stock-count";
 import { godownsTable } from "../godown/godown";
@@ -36,11 +35,10 @@ export const stockCountProductsTable = pgTable(
 
     godownName: varchar("godown_name", { length: 20 }).notNull(),
 
+    // no link to products: a deleted pack size moves to deleted_products, and this keeps pointing to it there
+
     productId: uuid("product_id")
-      .notNull()
-      .references(() => productsTable.id, {
-        onDelete: "restrict",
-      }),
+      .notNull(),
 
     systemQuantity: integer("system_quantity").notNull(),
 

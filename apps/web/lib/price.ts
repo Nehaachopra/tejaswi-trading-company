@@ -16,5 +16,9 @@ export function rateFromPackPrice(price: number, packSize: number, gstPercent: n
   return round2(price / (1 + gstPercent / 100) / packSize);
 }
 
+// how many kg (or litres, boxes, pieces) one pack holds: its size × how many of that size are in it (1 ltr × 10 →
+// 10). Every rate per unit is worked on this
+export const unitsIn = (p: { packSize: number; packCount?: number }) => p.packSize * (p.packCount ?? 1);
+
 // as typed into a field: no trailing ".00"
 export const asField = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2));

@@ -7,7 +7,7 @@ import { packLabel } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 // `name` stands in for the size, e.g. a pack size still being typed
-type Pack = { productId: string; packSize: number; packSizeCode: "KGS" | "LTR" | "BOX" | "PCS"; isActive: boolean; name?: string };
+type Pack = { productId: string; packSize: number; packCount?: number; packSizeCode: "KGS" | "LTR" | "BOX" | "PCS"; isActive: boolean; name?: string };
 
 // one chip per pack size, on one line that scrolls sideways (no scrollbar; swipe, or the mouse wheel);
 // the selected one is filled with the surface's ink (chestnut on ivory, ivory on the chestnut page for an
@@ -65,7 +65,7 @@ export function PackChips({
             !pack.isActive && "border-dashed opacity-60",
           )}
         >
-          {pack.name ?? packLabel(pack.packSize, pack.packSizeCode)}
+          {pack.name ?? packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}
         </button>
       ))}
       

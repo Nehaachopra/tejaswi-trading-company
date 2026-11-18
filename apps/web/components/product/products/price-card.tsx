@@ -8,7 +8,7 @@ import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { packLabel, rupees, titleCase } from "~/lib/format";
-import { asField, packPriceFromRate, parseAmount, rateFromPackPrice } from "~/lib/price";
+import { asField, packPriceFromRate, parseAmount, rateFromPackPrice, unitsIn } from "~/lib/price";
 import { cn } from "~/lib/utils";
 import { useProductActions } from "~/providers/products";
 
@@ -48,7 +48,7 @@ export function PriceCard({
   useEffect(() => {
     const saved = pack.priceAfterGst;
     setPrice(saved == null ? "" : asField(saved));
-    setRate(saved == null ? "" : asField(rateFromPackPrice(saved, pack.packSize, gst)));
+    setRate(saved == null ? "" : asField(rateFromPackPrice(saved, unitsIn(pack), gst)));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when another pack size is shown
   }, [pack.productId]);
   // asking before saving a price below cost
@@ -70,12 +70,12 @@ export function PriceCard({
   const typePrice = (v: string) => {
     setPrice(v);
     const p = parseAmount(v);
-    setRate(p == null ? "" : asField(rateFromPackPrice(p, pack.packSize, gst)));
+    setRate(p == null ? "" : asField(rateFromPackPrice(p, unitsIn(pack), gst)));
   };
   const typeRate = (v: string) => {
     setRate(v);
     const r = parseAmount(v);
-    setPrice(r == null ? "" : asField(packPriceFromRate(r, pack.packSize, gst)));
+    setPrice(r == null ? "" : asField(packPriceFromRate(r, unitsIn(pack), gst)));
   };
 
   // the profit on the typed price: its before-GST part against the average cost a pack, in rupees and as a share
@@ -99,7 +99,7 @@ export function PriceCard({
       });
       toast.success(
         t("toast.priceSaved", {
-          pack: packLabel(pack.packSize, pack.packSizeCode),
+          pack: packLabel(pack.packSize, pack.packSizeCode, pack.packCount),
           price: rupees(typed!),
         }),
       );
@@ -122,7 +122,7 @@ export function PriceCard({
       <section
         role="dialog"
         aria-modal="true"
-        aria-label={`${t("editPrice")}: ${packLabel(pack.packSize, pack.packSizeCode)}`}
+        aria-label={`${t("editPrice")}: ${packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}`}
         className="on-ivory flex w-[min(300px,100%)] animate-zoom-in flex-col gap-2 rounded-control bg-ivory p-4 text-chestnut shadow-[0_12px_40px_rgba(0,0,0,0.4)]"
       >
         {/* pack sizes, always on top, and ✕ */}

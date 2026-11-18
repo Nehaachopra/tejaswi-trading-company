@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 
 import { NumberInput } from "~/components/ui/number-input";
 import { packLabel, rupees, titleCase } from "~/lib/format";
-import { asField, parseAmount } from "~/lib/price";
+import { asField, parseAmount, unitsIn } from "~/lib/price";
 import { cn } from "~/lib/utils";
 
 import { type Pack, type ProductGroup, ProductImage, productTitle } from "../../product/products/product-tile";
@@ -57,7 +57,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   // the rate as typed, until the price is typed instead (then it follows the price)
   const [rateText, setRateText] = useState<string | null>(null);
   const close = () => setCardFor(null);
-  const name = `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode)}`;
+  const name = `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}`;
   const gst = pack.gstPercent ?? 0;
   const list = pack.priceAfterGst ?? 0;
 
@@ -71,7 +71,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   const belowCost = pack.weightedAverageCost != null && rate < Math.round(pack.weightedAverageCost * 100);
   const rateLabel = t("ratePer", { unit: units(pack.packSizeCode) });
   const typedPrice = parseAmount(draft.newPrice);
-  const rateValue = rateText ?? (typedPrice === null ? "" : asField(round2(typedPrice / pack.packSize)));
+  const rateValue = rateText ?? (typedPrice === null ? "" : asField(round2(typedPrice / unitsIn(pack))));
   const ok = price > 0 && quantity >= 1 && quantity <= available && placed === quantity && !belowCost;
   // what still holds Add back, said just above it
   const hint = belowCost
@@ -149,7 +149,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
           {/* ✕ and pack chip on top, no border */}
           <div className="flex justify-between">
             <span className="tabular inline-flex min-h-8 w-fit items-center rounded-control border border-chestnut bg-chestnut px-2.5 text-xs font-semibold text-ivory">
-            {packLabel(pack.packSize, pack.packSizeCode)}
+            {packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}
           </span>
             <button type="button" onClick={close} aria-label={t("close")} className="grid p-2 place-items-center rounded-control hover:bg-chestnut/8">
               <X className="size-5" aria-hidden />
@@ -183,7 +183,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                     {
                       key: "rate",
                       label: rateLabel,
-                      current: rupees(round2(list / pack.packSize)),
+                      current: rupees(round2(list / unitsIn(pack))),
                       input: (
                         <MoneyBox
                           value={rateValue}
@@ -192,7 +192,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                           onChange={(v) => {
                             setRateText(v);
                             const r = parseAmount(v);
-                            setDraft((d) => ({ ...d, newPrice: r === null ? "" : asField(round2(r * pack.packSize)) }));
+                            setDraft((d) => ({ ...d, newPrice: r === null ? "" : asField(round2(r * unitsIn(pack))) }));
                           }}
                         />
                       ),

@@ -191,7 +191,7 @@ export function ProductTile({
   const pack = group.packs.find((p) => p.productId === selected) ?? group.packs[0]!;
   // the whole product is inactive when every pack size is
   const active = group.packs.some((p) => p.isActive);
-  const name = `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode)}`;
+  const name = `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}`;
 
   return (
     // active: ivory; inactive: no fill, an ivory border and ivory ink (like an inactive category)

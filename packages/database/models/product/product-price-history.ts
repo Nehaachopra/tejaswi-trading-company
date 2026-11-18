@@ -6,7 +6,6 @@ import { sql } from "drizzle-orm";
 import { money, percent } from "../../utils/common/column-type";
 
 import { usersTable } from "../auth/user";
-import { productsTable } from "./product";
 
 // every price a pack size has had, newest last; product_prices holds only the current one.
 // Each edit adds a row: it is the edit log (who, when, old → new) and a step on the graph
@@ -15,9 +14,10 @@ export const productPriceHistoryTable = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
+    // no link to products: a deleted pack size moves to deleted_products, and this keeps pointing to it there
+
     productId: uuid("product_id")
-      .notNull()
-      .references(() => productsTable.id, { onDelete: "restrict" }),
+      .notNull(),
 
     priceBeforeGst: money("price_before_gst").notNull(),
 

@@ -283,7 +283,7 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                     {/* the category on top, then the brand and pack size */}
                     <td className={cn(cell, "border-r")}>
                       <span className="block text-xs opacity-70">{titleCase(l.category)}</span>
-                      {titleCase(l.title)} {packLabel(l.packSize, l.packSizeCode)}
+                      {titleCase(l.title)} {packLabel(l.packSize, l.packSizeCode, l.packCount)}
                     </td>
                     <td className={cn(cell, "border-r")}>{l.hsn ?? ""}</td>
                     <td className={cn(cell, "border-r text-right")}>{l.quantity}</td>

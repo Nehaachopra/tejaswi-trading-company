@@ -144,7 +144,7 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
   const packOf = (id: string) => packs.get(id) ?? null;
   const nameOf = (id: string) => {
     const p = packOf(id);
-    return p ? `${productTitle(p.group)} ${packLabel(p.pack.packSize, p.pack.packSizeCode)}` : "";
+    return p ? `${productTitle(p.group)} ${packLabel(p.pack.packSize, p.pack.packSizeCode, p.pack.packCount)}` : "";
   };
   // the godowns holding each pack size, from what each godown holds
   const holds = new Map<string, GodownHold[]>();

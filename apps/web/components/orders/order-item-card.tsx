@@ -55,7 +55,7 @@ export function OrderItemCard({
       ) : (
         <>
           <span className="inline-flex min-h-8 w-fit items-center rounded-control bg-chestnut px-2.5 text-xs font-semibold text-ivory">
-            {packLabel(line.packSize, line.packSizeCode)}
+            {packLabel(line.packSize, line.packSizeCode, line.packCount)}
           </span>
           <p className="truncate font-heading text-base font-bold leading-6">{titleCase(line.title)}</p>
         </>

@@ -18,7 +18,9 @@ import {
   subCategoriesTable,
   transactionBankDetailsTable,
   transactionsTable,
+  deletedProductsTable,
 } from "@repo/database/schema";
+import { anyProduct } from "../product/any-product";
 
 import AccountsService from "../accounts";
 import type { ActorModel, PostingLine } from "../accounts/model";
@@ -129,6 +131,8 @@ export default class SaleService {
       if (!r || r.p.deletedAt) throw new TRPCError({ code: "NOT_FOUND", message: "Product not found." });
       if (!r.p.isActive) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "An item is inactive." });
       if (r.gst == null) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Set the GST % for every item first." });
+      // added from a purchase order and not priced yet: it can't be sold until it is
+      if (r.listRate == null) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Set the selling price for every item first." });
       // never below what a pack costs us
       if (r.p.weightedAverageCost != null && toPaise(l.rateBeforeGst) < toPaise(Number(r.p.weightedAverageCost))) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "An item's price is below what it costs." });
@@ -440,10 +444,16 @@ export default class SaleService {
     if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Sale not found." });
     const { s, t } = row;
     const parts = await db
-      .select({ sp: saleProductsTable, p: productsTable, categoryName: categoriesTable.name })
+      // each line's pack size, listed or deleted, with its category's name
+      .select({
+        sp: saleProductsTable,
+        p: { brand: anyProduct.brand, name: anyProduct.name, packSize: anyProduct.packSize, packCount: anyProduct.packCount, packSizeCode: anyProduct.packSizeCode, hsn4Digit: anyProduct.hsn4Digit, hsn8Digit: anyProduct.hsn8Digit },
+        categoryName: anyProduct.categoryName,
+      })
       .from(saleProductsTable)
-      .innerJoin(productsTable, eq(productsTable.id, saleProductsTable.productId))
-      .innerJoin(categoriesTable, eq(categoriesTable.id, productsTable.categoryId))
+      .leftJoin(productsTable, eq(productsTable.id, saleProductsTable.productId))
+      .leftJoin(deletedProductsTable, eq(deletedProductsTable.id, saleProductsTable.productId))
+      .leftJoin(categoriesTable, eq(categoriesTable.id, productsTable.categoryId))
       .where(eq(saleProductsTable.saleId, s.id))
       .orderBy(asc(saleProductsTable.createdAt), asc(saleProductsTable.id));
     // a pack size once, in the order it was added
@@ -461,6 +471,7 @@ export default class SaleService {
       category: l.categoryName,
       title: [l.p.brand, l.p.name].filter(Boolean).join(" "),
       packSize: l.p.packSize,
+      packCount: l.p.packCount,
       packSizeCode: l.p.packSizeCode,
       hsn: l.p.hsn8Digit ?? l.p.hsn4Digit ?? null,
       quantity: l.quantity,

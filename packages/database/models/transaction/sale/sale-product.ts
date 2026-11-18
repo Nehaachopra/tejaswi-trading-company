@@ -10,7 +10,6 @@ import {
 } from "drizzle-orm/pg-core";
 
 import { money, timestamps } from "../../../utils/common/column-type";
-import { productsTable } from "../../product/product";
 import { salesTable } from "./sale";
 import { productGodownsTable } from "../../godown/product-godown";
 
@@ -23,9 +22,10 @@ export const saleProductsTable = pgTable(
       .notNull()
       .references(() => salesTable.id, { onDelete: "restrict" }),
 
+    // no link to products: a deleted pack size moves to deleted_products, and this keeps pointing to it there
+
     productId: uuid("product_id")
-      .notNull()
-      .references(() => productsTable.id, { onDelete: "restrict" }),
+      .notNull(),
 
     // category + sub-category + brand + pack quantity, as it read when sold
     productNameSnapshot: varchar("product_name_snapshot", { length: 200 }).notNull(),
