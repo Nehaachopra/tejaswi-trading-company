@@ -9,20 +9,21 @@ import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 import { indiaDay } from "../../account/balance";
-import { earliestDay, input, REMARKS_MAX } from "../shared/form-basics";
+import { earliestDay, fieldRow, input, REMARKS_MAX } from "../shared/form-basics";
 import { useSaleEntry } from "./state";
 
 // length follows sales.vehicle_number
 const VEHICLE_MAX = 15;
 
 // the Details card, as a payment's: the vehicle the goods leave in (optional; capital letters and digits only) and the
-// remarks (typed or spoken); the day and Save follow, last
+// remarks (typed or spoken), each a row: label left, box right (side by side on a wider screen); the day and Save
+// follow, last
 export function DetailsCard() {
   const { t, tc, vehicle, setVehicle, remarks, setRemarks } = useSaleEntry();
   return (
     <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-      <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold sm:max-w-56">
-        {t("vehicle")}
+      <label className={fieldRow}>
+        <span>{t("vehicle")}</span>
         <input
           value={vehicle}
           maxLength={VEHICLE_MAX}
@@ -41,8 +42,8 @@ export function DetailsCard() {
           className={cn(input(false), "tabular uppercase")}
         />
       </label>
-      <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
-        {tc("q.remarks")}
+      <label className={fieldRow}>
+        <span>{tc("q.remarks")}</span>
         <MicField
           onText={(said) =>
             setRemarks((v) => (v.trim() ? `${v.trim()} ${said}` : said).slice(0, REMARKS_MAX))
@@ -61,13 +62,13 @@ export function DetailsCard() {
   );
 }
 
-// the day (today until changed; staff a week back at most), then Save with the total on it, and why a save failed
+// the day as a row (today until changed; staff a week back at most), level with the left column above, then Save with the total on it, and why a save failed
 export function SaveBlock() {
   const { t, tc, isAdmin, day, setDay, tried, total, saving, save, saveError } = useSaleEntry();
   const today = indiaDay(new Date());
   return (
     <>
-      <label className="mb-3 flex flex-col gap-2.5 text-xs font-semibold sm:max-w-72">
+      <label className={cn(fieldRow, "mb-3 sm:w-[calc(50%-0.75rem)]")}>
         <span>
           {tc("q.date")}
           <RequiredMark />

@@ -72,12 +72,17 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
     const ch = d.charges.find((x) => x.key === key);
     return ch ? Math.round((ch.taxable + ch.gst) * 100) / 100 : 0;
   };
-  // under the table, as the sale's Amount card: the discount off, each charge on, then the amount
+  // under the table, as the sale's Amount card: the discount off and each charge on (only those above zero), then the
+  // amount
   const breakup = [
-    { key: "discount", label: ts("discount"), value: `− ₹${money(d.discount)}` },
-    { key: "transport", label: ts("transport"), value: `+ ₹${money(chargeOf("transport"))}` },
-    { key: "packing", label: ts("packing"), value: `+ ₹${money(chargeOf("packing"))}` },
-    { key: "loading", label: ts("loadingCharges"), value: `+ ₹${money(chargeOf("loading"))}` },
+    ...(d.discount > 0 ? [{ key: "discount", label: ts("discount"), value: `− ₹${money(d.discount)}` }] : []),
+    ...(["transport", "packing", "loading"] as const)
+      .filter((key) => chargeOf(key) > 0)
+      .map((key) => ({
+        key,
+        label: ts(key === "loading" ? "loadingCharges" : key),
+        value: `+ ₹${money(chargeOf(key))}`,
+      })),
     { key: "amount", label: t("amount"), value: `₹${money(d.total)}`, strong: true },
   ];
 
