@@ -1337,7 +1337,11 @@
         "cheque": "Cheque"
       },
       "taxInvoiceTitle": "Tax Invoice",
-      "gstRow": "{tax} @ {rate}%"
+      "gstRow": "{tax} @ {rate}%",
+      "source": "Source",
+      "total": "Total",
+      "lessTds": "Less TDS deducted {rate}%",
+      "amountIn": "Amount received"
     },
     "loan": {
       "rate": "Interest % a year",
@@ -1559,7 +1563,8 @@
           "refund": "Refund paid",
           "taxPaid": "Tax paid",
           "advance": "Advance paid"
-        }
+        },
+        "lessRcm": "Less RCM GST {rate}% (paid by us)"
       },
       "form": {
         "steps": {
@@ -2101,7 +2106,10 @@
         "receiver": "Receiver's signature",
         "signatory": "Authorised Signatory",
         "price": "Price",
-        "discount": "Discount"
+        "discount": "Discount",
+        "terms": "Terms and conditions",
+        "term1": "Goods once sold will not be taken back or exchanged.",
+        "term2": "Check the goods on delivery. Complaints about shortage or damage will be accepted within 24 hours of delivery."
       },
       "basis": "Basis",
       "current": "Current",

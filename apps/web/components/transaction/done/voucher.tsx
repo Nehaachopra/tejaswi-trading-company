@@ -12,6 +12,7 @@ import { amountInWords } from "~/lib/amount-words";
 import { useBankName } from "~/lib/bank-names";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
+import { Breakup, type BreakupRow, DocHead, LAST_COL, Remarks } from "./document-parts";
 import {
   usePaymentShareKey,
   useReceiptShareKey,
@@ -87,9 +88,6 @@ export const dated = (d: Date | string) =>
 export const money = (n: number) =>
   n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// a figure in the strip that adds up to Total
-export const total = "tabular font-heading text-base font-bold sm:text-lg";
-
 // the voucher's lines and boxes
 export const cell = "border-chestnut/40 px-2 py-1.5";
 export const band =
@@ -105,70 +103,83 @@ export function Detail({ label, value }: { label: string; value: React.ReactNode
   );
 }
 
-// where the money was received: our bank account (its bank, A/c and IFSC), or cash; a payment from both shows the
-// cash part first, then the bank with its part
-function ReceivedIn({ r, label, className }: { r: Voucher; label: string; className?: string }) {
+// where the money went out from or came into: a row per place (cash, each bank account) with its mode, account and
+// amount, and a Total row once there's more than one
+function Sources({ r, label }: { r: Voucher; label: string }) {
   // bank names in the language picked
   const bankName = useBankName();
   const t = useTranslations("transactions.voucher");
-  const both = r.settledIn === "cashAndBank";
   const more = r.moreBankParts ?? [];
-  // each account's part shows when there's cash too, or more than one account
-  const withAmounts = both || more.length > 0;
-  const firstAmount = (r.bankAmount ?? 0) - more.reduce((sum, m) => sum + m.amount, 0);
+  const moreSum = more.reduce((sum, m) => sum + m.amount, 0);
+  const cashPart =
+    r.settledIn === "cash" ? r.amount : r.settledIn === "cashAndBank" ? (r.cashAmount ?? 0) : 0;
+  const bankAll = r.bankAmount ?? (r.settledIn === "bank" ? r.amount : 0);
+  const found: { key: string; name: string; mode: string; account: string; amount: number }[] = [
+    ...(r.settledIn !== "bank"
+      ? [{ key: "cash", name: t("cash"), mode: "—", account: "—", amount: cashPart }]
+      : []),
+    ...(r.bank
+      ? [
+          {
+            key: "bank",
+            name: bankName(r.bank.name),
+            mode: r.bankMode ? t(`modes.${r.bankMode}`) : "—",
+            account: `•••• ${r.bank.last4}`,
+            amount: Math.round((bankAll - moreSum) * 100) / 100,
+          },
+        ]
+      : []),
+    ...more.map((m) => ({
+      key: m.bankDetailsId,
+      name: bankName(m.name),
+      mode: t(`modes.${m.mode}`),
+      account: `•••• ${m.last4}`,
+      amount: m.amount,
+    })),
+  ];
+  // a bank payment with no account kept (older entries): one Bank row with the whole
+  const rows =
+    found.length > 0
+      ? found
+      : [{ key: "bank", name: t("bank"), mode: "—", account: "—", amount: r.amount }];
+  const th = cn(cell, "border-b border-r font-semibold last:border-r-0");
+  const td = cn(cell, "border-r last:border-r-0");
   return (
-    <div className={cn("grid grid-cols-[auto_1fr] content-start border-chestnut/40", className)}>
-      {both && (
-        <>
-          <span className={cn(cell, "border-b border-r font-medium")}>{label}</span>
-          <span className={cn(cell, "border-b tabular")}>
-            {t("cash")} ₹ {money(r.cashAmount ?? 0)}
-          </span>
-        </>
-      )}
-      {r.bank ? (
-        <>
-          <span className={cn(cell, "border-b border-r font-medium")}>
-            {both ? t("bank") : label}
-          </span>
-          <span className={cn(cell, "border-b")}>
-            {bankName(r.bank.name)}
-            {withAmounts && <span className="tabular"> ₹ {money(firstAmount)}</span>}
-          </span>
-          <span className={cn(cell, "border-b border-r font-medium")}>{t("account")}</span>
-          <span className={cn(cell, "border-b tabular")}>•••• {r.bank.last4}</span>
-          <span className={cn(cell, "border-r font-medium", more.length > 0 && "border-b")}>
-            {t("ifsc")}
-          </span>
-          <span className={cn(cell, "tabular", more.length > 0 && "border-b")}>
-            {r.bank.ifsc ?? "—"}
-          </span>
-          {/* each more account, the same way */}
-          {more.map((m, i) => {
-            const last = i === more.length - 1;
-            return (
-              <Fragment key={m.bankDetailsId}>
-                <span className={cn(cell, "border-b border-r font-medium")}>{t("bank")}</span>
-                <span className={cn(cell, "border-b")}>
-                  {bankName(m.name)}
-                  <span className="tabular"> ₹ {money(m.amount)}</span>
-                </span>
-                <span className={cn(cell, "border-b border-r font-medium")}>{t("account")}</span>
-                <span className={cn(cell, "border-b tabular")}>•••• {m.last4}</span>
-                <span className={cn(cell, "border-r font-medium", !last && "border-b")}>
-                  {t("ifsc")}
-                </span>
-                <span className={cn(cell, "tabular", !last && "border-b")}>{m.ifsc ?? "—"}</span>
-              </Fragment>
-            );
-          })}
-        </>
-      ) : (
-        <>
-          <span className={cn(cell, "border-r font-medium")}>{label}</span>
-          <span className={cell}>{t("cash")}</span>
-        </>
-      )}
+    <div className="flex min-w-0 flex-col">
+      <p className={band}>{label}</p>
+      <div className="overflow-x-auto">
+        <table className="tabular w-full border-collapse text-left">
+          <thead>
+            <tr>
+              <th className={th}>{t("source")}</th>
+              <th className={th}>{t("mode")}</th>
+              <th className={th}>{t("account")}</th>
+              <th className={cn(th, "text-right")}>{t("amount")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={row.key} className={cn(i < rows.length - 1 && "border-b border-chestnut/40")}>
+                <td className={td}>{row.name}</td>
+                <td className={td}>{row.mode}</td>
+                <td className={cn(td, "whitespace-nowrap")}>{row.account}</td>
+                <td className={cn(td, "text-right")}>{money(row.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+          {/* more than one place: what they add up to */}
+          {rows.length > 1 && (
+            <tfoot>
+              <tr className="border-t border-chestnut/40 font-bold">
+                <td colSpan={3} className={td}>
+                  {t("total")}
+                </td>
+                <td className={cn(td, "text-right")}>{money(r.amount)}</td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
     </div>
   );
 }
@@ -191,23 +202,24 @@ function useParticulars() {
       // a scrap sale: the dust at its price before GST (the GST has its own rows under the lines)
       if (r.kind === "otherIncome" && r.gst) return [[t("scrap"), r.gst.taxable]];
       if (r.kind === "otherIncome") return [[titleCase(r.counterName), r.amount]];
-      // more than they owed: the due part (less the TDS, which has its own line) and the advance, a line each
+      // more than they owed: the due (with the TDS they took) and the advance, a line each; together the breakup's Total
       if (r.split) {
-        const due = Math.max(0, Math.round((r.split.due - (r.tdsAmount ?? 0)) * 100) / 100);
-        const advance = Math.round((r.amount - due) * 100) / 100;
+        const handed = Math.max(0, Math.round((r.split.due - (r.tdsAmount ?? 0)) * 100) / 100);
+        const advance = Math.round((r.amount - handed) * 100) / 100;
         return [
-          ...(due > 0 ? [[t("customer"), due] as [string, number]] : []),
+          ...(r.split.due > 0 ? [[t("customer"), r.split.due] as [string, number]] : []),
           [t("advance"), advance],
         ];
       }
       return [[t(r.kind as never), r.amount]];
     }
-    // more than we owed: the due part (less the TDS) and the advance paid, a line each
+    // more than we owed: the due (with the TDS taken out of it) and the advance paid, a line each; together the
+    // breakup's Total
     if (r.kind === "supplier" && r.split) {
-      const due = Math.max(0, Math.round((r.split.due - (r.tdsAmount ?? 0)) * 100) / 100);
-      const advance = Math.round((r.amount - due) * 100) / 100;
+      const handed = Math.max(0, Math.round((r.split.due - (r.tdsAmount ?? 0)) * 100) / 100);
+      const advance = Math.round((r.amount - handed) * 100) / 100;
       return [
-        ...(due > 0 ? [[tp("supplier"), due] as [string, number]] : []),
+        ...(r.split.due > 0 ? [[tp("supplier"), r.split.due] as [string, number]] : []),
         [tp("advance"), advance],
       ];
     }
@@ -309,68 +321,78 @@ export function ReceiptVoucher({
 
   const r = isPayment ? fromPayment(receipt.data as Payment) : fromReceipt(receipt.data as Receipt);
   const p = r.party;
-  // what it comes to with TDS and reverse-charge GST, as on the payment form
-  const settled = Math.round((r.amount + (r.tdsAmount ?? 0) + (r.rcm?.gst ?? 0)) * 100) / 100;
-  const fromName = p ? (p.shortName ?? titleCase(p.name.toLowerCase())) : titleCase(r.counterName);
-  const lines = particulars(r);
-  // a payment as the template lays it out: its value before tax, what came off or went on, and each tax
+  // who it was paid to or received from: their full name, never the short name
+  const fromName = p ? titleCase(p.name.toLowerCase()) : titleCase(r.counterName);
   const tds = r.tdsAmount ?? 0;
-  const value = r.rcm?.taxable ?? r.bill?.taxable ?? Math.round((r.amount + tds) * 100) / 100;
-  const taxed = isPayment && (tds > 0 || !!r.rcm);
-  const worked = taxed || !!r.bill;
-  // taxable value only where there's GST
-  const valueWord = r.rcm || r.bill || r.gst ? ownWords("taxableValue") : t("amount");
-  // a scrap sale's GST rows: CGST + SGST within our state, IGST outside it
-  const saleGst: [string, number, number][] = r.gst
-    ? r.gst.igst > 0
-      ? [["IGST", r.gst.rate, r.gst.igst]]
-      : [
-          ["CGST", r.gst.rate / 2, r.gst.cgst],
-          ["SGST", r.gst.rate / 2, r.gst.sgst],
-        ]
-    : [];
-  // the code beside each line: a service's SAC (reverse charge) or the scrap's HSN
-  const code = r.rcm
-    ? { head: "SAC", value: r.rcm.sac }
+  const round = (n: number) => Math.round(n * 100) / 100;
+  // what it comes to before anything is taken off: the bill with its GST (reverse charge, a supplier's bill, the
+  // scrap's), or what was handed over with the TDS; the table adds up to it and the breakup starts from it
+  const gross = r.rcm
+    ? round(r.rcm.taxable + r.rcm.gst)
+    : r.bill
+      ? round(r.bill.taxable + r.bill.gst)
+      : r.gst
+        ? round(r.gst.taxable + r.gst.cgst + r.gst.sgst + r.gst.igst)
+        : round(r.amount + tds);
+  // the lines; a single one shows the whole
+  const found = particulars(r);
+  const lines: [string, number][] = found.length === 1 ? [[found[0]![0], gross]] : found;
+  // with GST (reverse charge, or the scrap's): its code, taxable value, rate and each tax get columns, as the invoice's
+  const half = r.rcm ? round(r.rcm.gst / 2) : 0;
+  const gstCols = r.rcm
+    ? {
+        code: "SAC",
+        value: r.rcm.sac,
+        taxable: r.rcm.taxable,
+        rate: r.rcm.rate,
+        taxes: (r.rcm.otherState
+          ? [["IGST", r.rcm.gst]]
+          : [
+              ["CGST", half],
+              ["SGST", round(r.rcm.gst - half)],
+            ]) as [string, number][],
+      }
     : r.gst
-      ? { head: "HSN", value: r.gst.hsn }
+      ? {
+          code: "HSN",
+          value: r.gst.hsn,
+          taxable: r.gst.taxable,
+          rate: r.gst.rate,
+          taxes: (r.gst.igst > 0
+            ? [["IGST", r.gst.igst]]
+            : [
+                ["CGST", r.gst.cgst],
+                ["SGST", r.gst.sgst],
+              ]) as [string, number][],
+        }
       : null;
-  const half = r.rcm ? Math.round((r.rcm.gst / 2) * 100) / 100 : 0;
-  // the TDS row's base: what its rate is on, the period's whole once past a limit
-  const tdsOn = r.tdsRate ? Math.round((tds / r.tdsRate) * 10000) / 100 : 0;
-  const taxRows: [string, string, number, number, number, string][] = [
-    ...(tds > 0
-      ? ([["TDS", "", r.tdsRate ?? 0, tdsOn, tds, ownWords("toIncomeTax")]] as [
-          string,
-          string,
-          number,
-          number,
-          number,
-          string,
-        ][])
-      : []),
+  // the breakup: Total, then what came off it (reverse-charge GST paid by us, the TDS), when anything did
+  const off: BreakupRow[] = [
     ...(r.rcm
-      ? r.rcm.otherState
-        ? ([
-            [
-              "IGST",
-              ownWords("reverseCharge"),
-              r.rcm.rate,
-              r.rcm.taxable,
-              r.rcm.gst,
-              ownWords("toGst"),
-            ],
-          ] as [string, string, number, number, number, string][])
-        : (["CGST", "SGST"].map((tax) => [
-            tax,
-            ownWords("reverseCharge"),
-            r.rcm!.rate / 2,
-            r.rcm!.taxable,
-            half,
-            ownWords("toGst"),
-          ]) as [string, string, number, number, number, string][])
+      ? [
+          {
+            key: "rcm",
+            label: ownWords("lessRcm", { rate: String(r.rcm.rate) }),
+            value: `− ₹${money(r.rcm.gst)}`,
+          },
+        ]
+      : []),
+    ...(tds > 0
+      ? [
+          {
+            key: "tds",
+            label: isPayment
+              ? ownWords("lessTds", { rate: String(r.tdsRate ?? 0) })
+              : base("lessTds", { rate: String(r.tdsRate ?? 0) }),
+            value: `− ₹${money(tds)}`,
+          },
+        ]
       : []),
   ];
+  const breakup: BreakupRow[] =
+    off.length > 0 ? [{ key: "total", label: base("total"), value: `₹${money(gross)}` }, ...off] : [];
+  // a column head in the particulars
+  const th = cn(cell, "border-r font-semibold");
 
   return (
     <main className="mx-auto max-w-4xl px-4 pb-28 pt-6 sm:px-6">
@@ -425,24 +447,26 @@ export function ReceiptVoucher({
         </div>
       </div>
 
-      {/* the voucher itself */}
+      {/* the voucher itself: the same frame as the sale invoice; only the table's columns and the breakup differ */}
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
-        <p className="pb-2 text-center font-heading text-2xl font-bold">
-          {r.rcm ? ownWords("selfInvoiceTitle") : r.gst ? t("taxInvoiceTitle") : t("title")}
-        </p>
+        <DocHead
+          title={r.rcm ? ownWords("selfInvoiceTitle") : r.gst ? t("taxInvoiceTitle") : t("title")}
+          jurisdiction={t("jurisdiction", { place: r.company.jurisdiction })}
+        />
 
         <div className="border border-chestnut/40">
-          {/* our details, and the voucher's */}
+          {/* our details, and the voucher's with the remarks under them */}
           <div className="grid sm:grid-cols-[1fr_1.5fr]">
-            <div className="flex flex-col border-b border-chestnut/40 sm:border-r">
+            <div className="flex min-w-0 flex-col border-b border-chestnut/40 sm:border-r">
               <p className={band}>{r.company.name}</p>
-              <div className={cn(cell, "flex flex-col gap-0.5")}>
+              <div className={cn(cell, "flex flex-col gap-0.5 break-words")}>
                 <span>{r.company.address}</span>
                 <span className="flex items-center gap-1.5">
-                  <Phone className="size-3.5" aria-hidden /> {r.company.phone}
+                  <Phone className="size-3.5 shrink-0" aria-hidden /> {r.company.phone}
                 </span>
-                <span className="flex items-center gap-1.5">
-                  <Mail className="size-3.5" aria-hidden /> {r.company.email}
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <Mail className="size-3.5 shrink-0" aria-hidden />{" "}
+                  <span className="min-w-0 break-all">{r.company.email}</span>
                 </span>
                 <span>
                   {t("state")}: {r.company.state} {t("code")}: {r.company.stateCode}
@@ -450,336 +474,175 @@ export function ReceiptVoucher({
                 <span>GSTIN : {r.company.gstin}</span>
                 <span>FSSAI No : {r.company.fssai}</span>
               </div>
-              <p className={cn(cell, "mt-auto border-t font-semibold")}>
-                {t("jurisdiction", { place: r.company.jurisdiction })}
-              </p>
             </div>
-            <div className="grid grid-cols-[auto_1fr] content-start border-b border-chestnut/40 [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_1fr_auto_1fr] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
-              <Detail
-                label={t("number")}
-                value={<span className="font-bold">{r.assignedId}</span>}
-              />
-              <Detail label={t("dated")} value={dated(r.dateTime)} />
-              <Detail label={t("for")} value={tk(r.kind as never)} />
-              <Detail
-                label={t("mode")}
-                value={((bankWord) =>
-                  r.settledIn === "cash"
-                    ? t("cash")
-                    : r.settledIn === "bank"
-                      ? bankWord
-                      : `${t("cash")} + ${bankWord}`)(
-                  r.bankMode ? t(`modes.${r.bankMode}`) : t("bank"),
-                )}
-              />
-              {/* a receipt's reference: the bank's, or else the cash part's bill or voucher number (payments take none) */}
-              {!isPayment && (
-                <>
-                  <Detail
-                    label={t("reference")}
-                    value={r.referenceNumber ?? r.cashReferenceNumber}
-                  />
-                  <Detail
-                    label={t("dated")}
-                    value={(r.referenceNumber ?? r.cashReferenceNumber) ? dated(r.dateTime) : null}
-                  />
-                </>
-              )}
-              {/* each more account: how it paid (and on a receipt, its reference) */}
-              {(r.moreBankParts ?? []).map((m) => (
-                <Fragment key={m.bankDetailsId}>
-                  <Detail label={t("mode")} value={t(`modes.${m.mode}`)} />
-                  {!isPayment && <Detail label={t("reference")} value={m.referenceNumber} />}
-                </Fragment>
-              ))}
-              {/* reverse charge: this is also our self-invoice */}
-              {r.rcm && (
-                <>
-                  <Detail label={ownWords("selfInvoiceNo")} value={r.assignedId} />
-                  <Detail label="RCM" value={ownWords("yes")} />
-                  <Detail
-                    label={ownWords("placeOfSupply")}
-                    value={`${r.company.state} (${r.company.stateCode})`}
-                  />
-                  <Detail label="SAC" value={r.rcm.sac} />
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* who it came from, with the remarks beside it */}
-          <div className="grid border-b border-chestnut/40 sm:grid-cols-[1fr_1.5fr]">
-            <div className="flex flex-col border-b border-chestnut/40 sm:border-b-0 sm:border-r">
-              <p className={band}>
-                {t("from")}: {fromName}
-              </p>
-              <div className={cn(cell, "flex flex-col gap-0.5")}>
-                {p?.shortName && <span className="font-medium">{p.name}</span>}
-                {r.rcm && !p?.address?.gstin && (
-                  <span>
-                    {r.rcm.supplierGstin
-                      ? `GSTIN : ${r.rcm.supplierGstin}`
-                      : ownWords("unregistered")}
-                  </span>
-                )}
-                {p?.address && (
+            <div className="flex min-w-0 flex-col border-b border-chestnut/40">
+              <div className="grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_1fr_auto_1fr] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
+                <Detail
+                  label={t("number")}
+                  value={<span className="font-bold">{r.assignedId}</span>}
+                />
+                <Detail label={t("dated")} value={dated(r.dateTime)} />
+                <Detail label={t("for")} value={tk(r.kind as never)} />
+                <Detail
+                  label={t("mode")}
+                  value={((bankWord) =>
+                    r.settledIn === "cash"
+                      ? t("cash")
+                      : r.settledIn === "bank"
+                        ? bankWord
+                        : `${t("cash")} + ${bankWord}`)(
+                    r.bankMode ? t(`modes.${r.bankMode}`) : t("bank"),
+                  )}
+                />
+                {/* a receipt's reference: the bank's, or else the cash part's bill or voucher number (payments take none) */}
+                {!isPayment && (
                   <>
-                    <span className="flex items-start gap-1.5">
-                      <Flag className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-                      {[
-                        p.address.line1,
-                        p.address.line2,
-                        `${p.address.city} - ${p.address.postalCode}`,
-                      ]
-                        .filter(Boolean)
-                        .map((part) => titleCase(part!))
-                        .join(", ")}
-                    </span>
-                    <span>
-                      {t("state")}: {p.address.state} {t("code")}: {p.address.stateCode}
-                    </span>
+                    <Detail
+                      label={t("reference")}
+                      value={r.referenceNumber ?? r.cashReferenceNumber}
+                    />
+                    <Detail
+                      label={t("dated")}
+                      value={(r.referenceNumber ?? r.cashReferenceNumber) ? dated(r.dateTime) : null}
+                    />
                   </>
                 )}
-                {r.tdsPan && <span>PAN : {r.tdsPan}</span>}
-                {(p?.address?.gstin || r.partyPhone) && (
-                  <span className="flex flex-wrap gap-x-4">
-                    {p?.address?.gstin && <span>GSTIN : {p.address.gstin}</span>}
-                    {r.partyPhone && (
-                      <span className="flex items-center gap-1.5">
-                        <Phone className="size-3.5" aria-hidden /> +91 {r.partyPhone}
-                      </span>
-                    )}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className={cn(cell, "flex flex-col gap-1")}>
-              <span className="font-semibold">{t("remarks")}:</span>
-              <span>{r.remarks ?? "—"}</span>
-            </div>
-          </div>
-
-          {/* on phones: where it was received, right after the remarks */}
-          <ReceivedIn r={r} label={t("receivedIn")} className="border-b sm:hidden" />
-
-          {/* the particulars */}
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-chestnut/40 text-left">
-                <th className={cn(cell, "w-12 border-r font-semibold")}>{t("sl")}</th>
-                <th className={cn(cell, "border-r font-semibold")}>{t("particularsHead")}</th>
-                {code && <th className={cn(cell, "w-20 border-r font-semibold")}>{code.head}</th>}
-                <th className={cn(cell, "w-40 text-right font-semibold")}>
-                  {worked || r.gst ? valueWord : t("amount")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {lines.map(([words, amount], i) => (
-                <tr key={i} className="align-top">
-                  <td className={cn(cell, "border-r")}>{i + 1}</td>
-                  <td className={cn(cell, "border-r")}>{words}</td>
-                  {code && <td className={cn(cell, "tabular border-r")}>{code.value}</td>}
-                  <td className={cn(cell, "tabular text-right")}>
-                    {money(isPayment && worked ? value : amount)}
-                  </td>
-                </tr>
-              ))}
-              {!isPayment && r.tdsAmount !== null && (
-                <tr className="align-top">
-                  <td className={cn(cell, "border-r")}>{lines.length + 1}</td>
-                  <td className={cn(cell, "border-r")}>{t("tdsLine", { rate: r.tdsRate ?? 0 })}</td>
-                  <td className={cn(cell, "tabular text-right")}>{money(r.tdsAmount)}</td>
-                </tr>
-              )}
-              {/* room below the lines, as on the invoice */}
-              <tr aria-hidden>
-                <td className="h-16 border-r border-chestnut/40" />
-                <td className="border-r border-chestnut/40" />
-                {code && <td className="border-r border-chestnut/40" />}
-                <td />
-              </tr>
-            </tbody>
-          </table>
-
-          {/* where it was received (on phones it sits after the remarks instead), and the totals */}
-          <div className="grid border-t border-chestnut/40 sm:grid-cols-[1fr_1.5fr]">
-            <ReceivedIn r={r} label={t("receivedIn")} className="hidden sm:grid sm:border-r" />
-            <div className="grid grid-cols-[1fr_9rem] content-start">
-              {/* a payment: its value, what came off it, and what was paid */}
-              {isPayment && (tds > 0 || r.bill) && (
-                <>
-                  <span className={cn(cell, "border-b border-r text-right")}>{valueWord}</span>
-                  <span className={cn(cell, "border-b tabular text-right")}>{money(value)}</span>
-                </>
-              )}
-              {r.bill && (
-                <>
-                  <span className={cn(cell, "border-b border-r text-right")}>
-                    {ownWords("billRow", { rate: r.bill.rate })}
-                  </span>
-                  <span className={cn(cell, "border-b tabular text-right")}>
-                    {money(r.bill.gst)}
-                  </span>
-                </>
-              )}
-              {isPayment && tds > 0 && (
-                <>
-                  <span className={cn(cell, "border-b border-r text-right")}>
-                    {ownWords("lessTds", { rate: r.tdsRate ?? 0 })}
-                  </span>
-                  <span className={cn(cell, "border-b tabular text-right")}>({money(tds)})</span>
-                </>
-              )}
-              {/* a scrap sale: its value before GST and each GST, then what was received */}
-              {r.gst && (
-                <>
-                  <span className={cn(cell, "border-b border-r text-right")}>{valueWord}</span>
-                  <span className={cn(cell, "border-b tabular text-right")}>
-                    {money(r.gst.taxable)}
-                  </span>
-                  {saleGst.map(([tax, rate, amount]) => (
-                    <Fragment key={tax}>
-                      <span className={cn(cell, "border-b border-r text-right")}>
-                        {t("gstRow", { tax, rate: String(rate) })}
-                      </span>
-                      <span className={cn(cell, "border-b tabular text-right")}>
-                        {money(amount)}
-                      </span>
+                {/* each more account's reference, on a receipt */}
+                {!isPayment &&
+                  (r.moreBankParts ?? []).map((m) => (
+                    <Fragment key={m.bankDetailsId}>
+                      <Detail label={t("reference")} value={m.referenceNumber} />
+                      <Detail label={t("dated")} value={m.referenceNumber ? dated(r.dateTime) : null} />
                     </Fragment>
                   ))}
+                {/* reverse charge: this is also our self-invoice */}
+                {r.rcm && (
+                  <>
+                    <Detail label={ownWords("selfInvoiceNo")} value={r.assignedId} />
+                    <Detail label="RCM" value={ownWords("yes")} />
+                    <Detail
+                      label={ownWords("placeOfSupply")}
+                      value={`${r.company.state} (${r.company.stateCode})`}
+                    />
+                    <Detail label="SAC" value={r.rcm.sac} />
+                  </>
+                )}
+              </div>
+              <Remarks label={t("remarks")} text={r.remarks} />
+            </div>
+          </div>
+
+          {/* who it was paid to or received from, the full width */}
+          <div className="flex min-w-0 flex-col border-b border-chestnut/40">
+            <p className={cn(band, "break-words")}>
+              {t("from")}: {fromName}
+            </p>
+            <div className={cn(cell, "flex flex-col gap-0.5 break-words")}>
+              {r.rcm && !p?.address?.gstin && (
+                <span>
+                  {r.rcm.supplierGstin ? `GSTIN : ${r.rcm.supplierGstin}` : ownWords("unregistered")}
+                </span>
+              )}
+              {p?.address && (
+                <>
+                  <span className="flex items-start gap-1.5">
+                    <Flag className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                    {[p.address.line1, p.address.line2, `${p.address.city} - ${p.address.postalCode}`]
+                      .filter(Boolean)
+                      .map((part) => titleCase(part!))
+                      .join(", ")}
+                  </span>
+                  <span>
+                    {t("state")}: {p.address.state} {t("code")}: {p.address.stateCode}
+                  </span>
                 </>
               )}
-              <span
-                className={cn(cell, "border-r text-right font-semibold", !isPayment && "border-b")}
-              >
-                {t("amountReceived")}
-              </span>
-              <span
-                className={cn(cell, "tabular text-right font-semibold", !isPayment && "border-b")}
-              >
-                {money(r.amount)}
-              </span>
-              {/* a receipt: the TDS the customer took, and what it settled */}
-              {!isPayment && r.tdsAmount !== null && (
-                <>
-                  <span className={cn(cell, "border-b border-r text-right font-semibold")}>
-                    {t("tdsDeducted")}
-                  </span>
-                  <span className={cn(cell, "border-b tabular text-right")}>
-                    {money(r.tdsAmount)}
-                  </span>
-                  <span className={cn(cell, "border-r text-right font-semibold")}>
-                    {t("totalSettled")}
-                  </span>
-                  <span className={cn(cell, "tabular text-right font-bold")}>{money(settled)}</span>
-                </>
+              {r.tdsPan && <span>PAN : {r.tdsPan}</span>}
+              {(p?.address?.gstin || r.partyPhone) && (
+                <span className="flex flex-wrap gap-x-4">
+                  {p?.address?.gstin && <span>GSTIN : {p.address.gstin}</span>}
+                  {r.partyPhone && (
+                    <span className="flex items-center gap-1.5">
+                      <Phone className="size-3.5" aria-hidden /> +91 {r.partyPhone}
+                    </span>
+                  )}
+                </span>
               )}
             </div>
           </div>
 
-          {/* each tax: its basis, rate, what it's on, and where it goes */}
-          {taxed && (
-            <div className="border-t border-chestnut/40">
-              <p className={cn(cell, "border-b bg-chestnut/[0.06] font-semibold")}>
-                {ownWords("taxBreakdown")}
-              </p>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[34rem] border-collapse">
-                  <thead>
-                    <tr className="border-b border-chestnut/40 text-left">
-                      <th className={cn(cell, "border-r font-semibold")}>{ownWords("tax")}</th>
-                      <th className={cn(cell, "border-r font-semibold")}>{ownWords("basis")}</th>
-                      <th className={cn(cell, "border-r text-right font-semibold")}>
-                        {ownWords("rate")}
-                      </th>
-                      <th className={cn(cell, "border-r text-right font-semibold")}>
-                        {ownWords("on")}
-                      </th>
-                      <th className={cn(cell, "border-r text-right font-semibold")}>
-                        {t("amount")}
-                      </th>
-                      <th className={cn(cell, "font-semibold")}>{ownWords("goesTo")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {taxRows.map(([tax, basis, rate, on, amount, goes]) => (
-                      <tr key={tax} className="align-top">
-                        <td className={cn(cell, "border-r")}>{tax}</td>
-                        <td className={cn(cell, "border-r")}>{basis}</td>
-                        <td className={cn(cell, "tabular border-r text-right")}>{rate}%</td>
-                        <td className={cn(cell, "tabular border-r text-right")}>{money(on)}</td>
-                        <td className={cn(cell, "tabular border-r text-right")}>{money(amount)}</td>
-                        <td className={cell}>{goes}</td>
-                      </tr>
-                    ))}
-                    <tr className="border-t border-chestnut/40 font-bold">
-                      <td colSpan={4} className={cn(cell, "border-r")}>
-                        {ownWords("taxToDeposit")}
-                      </td>
-                      <td className={cn(cell, "tabular border-r text-right")}>
-                        {money(tds + (r.rcm?.gst ?? 0))}
-                      </td>
-                      <td />
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {/* what it all comes to: on a phone the parts share a row and Total takes the full width below them */}
-              <div className="flex flex-col border-t border-chestnut/40 sm:flex-row">
-                <div className="flex min-w-0 border-b border-chestnut/40 sm:contents">
-                  <p
-                    className={cn(
-                      cell,
-                      "flex min-w-0 flex-1 flex-col border-r last:border-r-0 sm:last:border-r",
+          {/* the particulars: with GST, its code, taxable value, rate and each tax get columns; the last column is the
+              whole, and the breakup's figures sit under it */}
+          <div className="overflow-x-auto">
+            <table className={cn("tabular w-full border-collapse", gstCols && "min-w-[40rem]")}>
+              <thead>
+                <tr className="border-b border-chestnut/40 text-left">
+                  <th className={cn(th, "w-12")}>{t("sl")}</th>
+                  <th className={th}>{t("particularsHead")}</th>
+                  {gstCols && (
+                    <>
+                      <th className={th}>{gstCols.code}</th>
+                      <th className={cn(th, "text-right")}>{ownWords("taxableValue")}</th>
+                      <th className={cn(th, "text-right")}>GST %</th>
+                      {gstCols.taxes.map(([tax]) => (
+                        <th key={tax} className={cn(th, "text-right")}>
+                          {tax}
+                        </th>
+                      ))}
+                    </>
+                  )}
+                  <th className={cn(cell, LAST_COL, "text-right font-semibold")}>
+                    {gstCols ? base("total") : t("amount")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {lines.map(([words, amount], i) => (
+                  <tr key={i} className="align-top">
+                    <td className={cn(cell, "border-r")}>{i + 1}</td>
+                    <td className={cn(cell, "border-r")}>{words}</td>
+                    {gstCols && (
+                      <>
+                        <td className={cn(cell, "border-r")}>{gstCols.value}</td>
+                        <td className={cn(cell, "border-r text-right")}>{money(gstCols.taxable)}</td>
+                        <td className={cn(cell, "border-r text-right")}>{gstCols.rate}%</td>
+                        {gstCols.taxes.map(([tax, amt]) => (
+                          <td key={tax} className={cn(cell, "border-r text-right")}>
+                            {money(amt)}
+                          </td>
+                        ))}
+                      </>
                     )}
-                  >
-                    <span className="text-xs">
-                      {ownWords(r.rcm?.service === "rent" ? "paidToLandlord" : "amountPaid")}
-                    </span>
-                    <span className={total}>₹{money(r.amount)}</span>
-                  </p>
-                  {tds > 0 && (
-                    <p
-                      className={cn(
-                        cell,
-                        "flex min-w-0 flex-1 flex-col border-r last:border-r-0 sm:last:border-r",
-                      )}
-                    >
-                      <span className="text-xs">TDS {r.tdsRate}%</span>
-                      <span className={total}>₹{money(tds)}</span>
-                    </p>
-                  )}
-                  {r.rcm && (
-                    <p
-                      className={cn(
-                        cell,
-                        "flex min-w-0 flex-1 flex-col border-r last:border-r-0 sm:last:border-r",
-                      )}
-                    >
-                      <span className="text-xs">RCM GST {r.rcm.rate}%</span>
-                      <span className={total}>₹{money(r.rcm.gst)}</span>
-                    </p>
-                  )}
-                </div>
-                <p
-                  className={cn(
-                    cell,
-                    "flex min-w-0 flex-1 flex-col bg-chestnut text-ivory print:bg-[#3b1f14]",
-                  )}
-                >
-                  <span className="text-xs">{ownWords("total")}</span>
-                  <span className={total}>₹{money(settled)}</span>
-                </p>
-              </div>
-            </div>
-          )}
+                    <td className={cn(cell, "text-right")}>{money(amount)}</td>
+                  </tr>
+                ))}
+                {/* room below the lines, as on the invoice */}
+                <tr aria-hidden>
+                  {Array.from({ length: gstCols ? 5 + gstCols.taxes.length : 2 }, (_, i) => (
+                    <td key={i} className="h-14 border-r border-chestnut/40" />
+                  ))}
+                  <td />
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-          {/* the amount in words */}
+          {/* where it was paid from or received in, beside the breakup (above it on a phone) */}
+          <div className="grid border-t border-chestnut/40 sm:grid-cols-[1fr_auto]">
+            <div className="min-w-0 border-b border-chestnut/40 sm:border-b-0 sm:border-r">
+              <Sources r={r} label={t("receivedIn")} />
+            </div>
+            <Breakup
+              rows={breakup}
+              label={isPayment ? ownWords("amountPaid") : base("amountIn")}
+              amount={`₹${money(r.amount)}`}
+            />
+          </div>
+
+          {/* the amount in words: the chestnut figure */}
           <div className="grid border-t border-chestnut/40 sm:grid-cols-[12rem_1fr]">
             <span className={cn(cell, "font-semibold sm:border-r")}>{t("inWords")}</span>
-            <span className={cell}>{amountInWords(isPayment ? settled : r.amount)}</span>
+            <span className={cell}>{amountInWords(r.amount)}</span>
           </div>
 
           {/* the GST on the supplier's bill */}

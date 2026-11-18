@@ -12,6 +12,7 @@ import { packLabel, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { useSaleInvoice, useSaleShareKey } from "~/providers/sale";
 
+import { Breakup, DocHead, LAST_COL, Remarks } from "../done/document-parts";
 import { band, cell, dated, Detail, money } from "../done/voucher";
 
 type Invoice = RouterOutputs["transactions"]["sale"]["invoice"];
@@ -55,7 +56,8 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
 
   const d = doc.data!;
   const c = d.company;
-  const buyer = d.buyer.name.trim() ? (d.buyer.shortName ?? titleCase(d.buyer.name)) : t("walkIn");
+  // who it's billed to: their full name, never the short name (as the vouchers)
+  const buyer = d.buyer.name.trim() ? titleCase(d.buyer.name) : t("walkIn");
   const intra = d.supplyType === "intra";
   // half of a line's GST to each of CGST and SGST (the odd paisa to SGST)
   const halves = (gst: number) => {
@@ -72,9 +74,9 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
     const ch = d.charges.find((x) => x.key === key);
     return ch ? Math.round((ch.taxable + ch.gst) * 100) / 100 : 0;
   };
-  // under the table, as the sale's Amount card: the discount off and each charge on (only those above zero), then the
-  // amount
-  const breakup = [
+  // under the table, as the sale's Amount card: the discount off and each charge on (only those above zero); the amount
+  // closes it
+  const offOrOn = [
     ...(d.discount > 0 ? [{ key: "discount", label: ts("discount"), value: `− ₹${money(d.discount)}` }] : []),
     ...(["transport", "packing", "loading"] as const)
       .filter((key) => chargeOf(key) > 0)
@@ -83,8 +85,12 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
         label: ts(key === "loading" ? "loadingCharges" : key),
         value: `+ ₹${money(chargeOf(key))}`,
       })),
-    { key: "amount", label: t("amount"), value: `₹${money(d.total)}`, strong: true },
   ];
+  // Total first (the items with their GST), when something comes off or goes on
+  const breakup =
+    offOrOn.length > 0
+      ? [{ key: "total", label: t("total"), value: `₹${money(itemsTotal)}` }, ...offOrOn]
+      : [];
 
   // WhatsApp opened on the customer's chat with a message ready to send: the invoice number, the amount and the link
   // that opens the invoice without a login
@@ -140,7 +146,7 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
 
       {/* the invoice itself */}
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
-        <p className="pb-2 text-center font-heading text-2xl font-bold">{t("title")}</p>
+        <DocHead title={t("title")} jurisdiction={t("jurisdiction", { place: c.jurisdiction })} />
         {/* a cancelled sale says so across the top */}
         {d.status === "cancelled" && (
           <p className="mb-2 rounded-control border border-danger px-3 py-1.5 text-center font-semibold text-danger">
@@ -168,11 +174,10 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                 <span>GSTIN : {c.gstin}</span>
                 <span>FSSAI No : {c.fssai}</span>
               </div>
-              <p className={cn(cell, "mt-auto border-t font-semibold")}>
-                {t("jurisdiction", { place: c.jurisdiction })}
-              </p>
             </div>
-            <div className="grid grid-cols-[auto_1fr] content-start border-b border-chestnut/40 [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_1fr_auto_1fr] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
+            {/* the details, then our terms and the remarks under their last row */}
+            <div className="flex min-w-0 flex-col border-b border-chestnut/40">
+            <div className="grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_1fr_auto_1fr] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
               <Detail
                 label={t("number")}
                 value={<span className="font-bold">{d.assignedId}</span>}
@@ -189,6 +194,15 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                 value={d.createdByName ? titleCase(d.createdByName) : null}
               />
             </div>
+            <div className={cn(cell, "border-b break-words")}>
+              <span className="font-semibold">{t("terms")}:</span>
+              <ol className="mt-0.5 list-decimal pl-4 text-xs">
+                <li>{t("term1")}</li>
+                <li>{t("term2")}</li>
+              </ol>
+            </div>
+            <Remarks label={t("remarks")} text={d.remarks} />
+            </div>
           </div>
 
           {/* who it's billed to, and where it goes */}
@@ -198,9 +212,6 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                 {t("billTo")}: {buyer}
               </p>
               <div className={cn(cell, "flex flex-col gap-0.5 break-words")}>
-                {d.buyer.shortName && (
-                  <span className="font-medium">{titleCase(d.buyer.name)}</span>
-                )}
                 {(d.billTo ?? d.shipTo).city && (
                   <>
                     <span className="flex items-start gap-1.5">
@@ -262,7 +273,7 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                   ) : (
                     <th className={cn(cell, "border-r text-right font-semibold")}>IGST</th>
                   )}
-                  <th className={cn(cell, "text-right font-semibold")}>{t("total")}</th>
+                  <th className={cn(cell, LAST_COL, "text-right font-semibold")}>{t("total")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -336,34 +347,10 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
             </table>
           </div>
 
-          {/* the breakup, with the remarks beside it (under it on a phone); the amount in chestnut */}
+          {/* the breakup at the right, its figures under the table's Total */}
           <div className="grid border-t border-chestnut/40 sm:grid-cols-[1fr_auto]">
-            <div
-              className={cn(
-                cell,
-                "flex min-w-0 flex-col gap-1 break-words border-b border-chestnut/40 sm:border-b-0",
-              )}
-            >
-              <span className="font-semibold">{t("remarks")}:</span>
-              <span>{d.remarks ?? "—"}</span>
-            </div>
-            <div className="tabular grid content-start">
-              {breakup.map((r) => (
-                <p
-                  key={r.key}
-                  className={cn(
-                    "grid grid-cols-[1fr_9rem] text-right sm:grid-cols-[10rem_9rem] sm:border-l sm:border-chestnut/40",
-                    r.strong &&
-                      "bg-chestnut font-heading text-base font-bold text-ivory print:bg-[#3b1f14]",
-                  )}
-                >
-                  <span className={cn(cell, "border-r", r.strong && "border-ivory/35")}>
-                    {r.label}
-                  </span>
-                  <span className={cn(cell, "font-semibold")}>{r.value}</span>
-                </p>
-              ))}
-            </div>
+            <span aria-hidden className="hidden sm:block" />
+            <Breakup rows={breakup} label={t("amount")} amount={`₹${money(d.total)}`} />
           </div>
 
           {/* the amount in words */}
