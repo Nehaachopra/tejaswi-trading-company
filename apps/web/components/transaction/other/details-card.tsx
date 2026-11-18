@@ -4,7 +4,7 @@ import { DateInput } from "~/components/ui/date-input";
 import { FieldMessage } from "~/components/ui/field-message";
 import { MicField } from "~/components/ui/mic-button";
 import { RequiredMark } from "~/components/ui/required-mark";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
@@ -22,7 +22,11 @@ export function DetailsCard() {
         {t("why")}
         <RequiredMark />
       </span>
-      <MicField onText={(said) => setRemarks((v) => (v.trim() ? `${v.trim()} ${said}` : said).slice(0, REMARKS_MAX))}>
+      <MicField
+        onText={(said) =>
+          setRemarks((v) => (v.trim() ? `${v.trim()} ${said}` : said).slice(0, REMARKS_MAX))
+        }
+      >
         <input
           value={remarks}
           maxLength={REMARKS_MAX}

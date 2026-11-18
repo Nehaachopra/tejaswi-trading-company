@@ -7,14 +7,25 @@ import { useState } from "react";
 import { fieldClass } from "~/components/ui/card-form";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { FieldMessage } from "~/components/ui/field-message";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 import { type SubCategory, useCategoryCache, useSubCategoryActions } from "~/providers/categories";
-import { type CategoryError, categoryError, NAME_MAX, nameProblem } from "../categories/category-errors";
-import { actionBox, iconButton, rowBodyInline, rowShellOnIvory, segmentInline } from "../row-styles";
+import {
+  type CategoryError,
+  categoryError,
+  NAME_MAX,
+  nameProblem,
+} from "../categories/category-errors";
+import {
+  actionBox,
+  iconButton,
+  rowBodyInline,
+  rowShellOnIvory,
+  segmentInline,
+} from "../row-styles";
 
 // one sub-category inside its category's sheet: name and product count, then Rename, Deactivate and Delete
 export function SubCategoryRow({ sub }: { sub: SubCategory }) {
@@ -117,14 +128,27 @@ export function SubCategoryRow({ sub }: { sub: SubCategory }) {
               aria-invalid={error ? true : undefined}
               className={`min-h-11 min-w-0 flex-1 px-3 text-base ${fieldClass(!!error)}`}
             />
-            <button type="submit" aria-label={t("save")} disabled={rename.isPending} aria-busy={rename.isPending} className={iconButton}>
+            <button
+              type="submit"
+              aria-label={t("save")}
+              disabled={rename.isPending}
+              aria-busy={rename.isPending}
+              className={iconButton}
+            >
               {rename.isPending ? <Spinner /> : <Check className="size-5" aria-hidden />}
             </button>
-            <button type="button" aria-label={t("cancel")} onClick={() => setEditing(false)} className={iconButton}>
+            <button
+              type="button"
+              aria-label={t("cancel")}
+              onClick={() => setEditing(false)}
+              className={iconButton}
+            >
               <X className="size-5" aria-hidden />
             </button>
           </div>
-          {error && <FieldMessage>{t(`errors.${error}`, { name: titleCase(name.trim()) })}</FieldMessage>}
+          {error && (
+            <FieldMessage>{t(`errors.${error}`, { name: titleCase(name.trim()) })}</FieldMessage>
+          )}
         </form>
       ) : (
         <div className={rowBodyInline}>
@@ -132,20 +156,42 @@ export function SubCategoryRow({ sub }: { sub: SubCategory }) {
           <div className="min-w-0 flex-1 py-1">
             <span className="flex items-center gap-2">
               <span className="truncate font-heading text-lg font-bold leading-6">{display}</span>
-              {!sub.isActive && <span className="shrink-0 rounded-control border border-current/60 px-1.5 text-xs leading-5">{t("inactive")}</span>}
+              {!sub.isActive && (
+                <span className="shrink-0 rounded-control border border-current/60 px-1.5 text-xs leading-5">
+                  {t("inactive")}
+                </span>
+              )}
             </span>
-            <span className="tabular block truncate text-xs opacity-80">{t("productCount", { products: sub.activeProducts })}</span>
+            <span className="tabular block truncate text-xs opacity-80">
+              {t("productCount", { products: sub.activeProducts })}
+            </span>
           </div>
 
           {/* actions in one outlined box: Rename (active only), Deactivate / Reactivate, Delete (asks first) */}
           <div className={actionBox}>
-            <button type="button" aria-label={t("rename")} onClick={startEditing} disabled={!sub.isActive} className={segmentInline}>
+            <button
+              type="button"
+              aria-label={t("rename")}
+              onClick={startEditing}
+              disabled={!sub.isActive}
+              className={segmentInline}
+            >
               <Pencil className="size-4" aria-hidden />
             </button>
-            <button type="button" aria-label={sub.isActive ? t("deactivate") : t("reactivate")} onClick={toggleActive} className={segmentInline}>
+            <button
+              type="button"
+              aria-label={sub.isActive ? t("deactivate") : t("reactivate")}
+              onClick={toggleActive}
+              className={segmentInline}
+            >
               <Power className="size-4" aria-hidden />
             </button>
-            <button type="button" aria-label={t("delete")} onClick={() => setConfirming(true)} className={cn(segmentInline, "text-danger")}>
+            <button
+              type="button"
+              aria-label={t("delete")}
+              onClick={() => setConfirming(true)}
+              className={cn(segmentInline, "text-danger")}
+            >
               <Trash2 className="size-4" aria-hidden />
             </button>
           </div>

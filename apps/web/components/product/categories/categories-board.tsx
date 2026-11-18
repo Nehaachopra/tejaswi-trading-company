@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 
 import { ADD_BUTTON, FILTER_BAR_UNDER_TABS, PAGE } from "~/components/ui/page-styles";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { useCategories } from "~/providers/categories";
 
 import { ProductTabs } from "../product-tabs";
@@ -36,11 +36,7 @@ export function CategoriesBoard() {
       <ProductTabs />
 
       {/* Add category */}
-      <button
-        type="button"
-        onClick={() => setAdding(true)}
-        className={`mt-6 ${ADD_BUTTON}`}
-      >
+      <button type="button" onClick={() => setAdding(true)} className={`mt-6 ${ADD_BUTTON}`}>
         <Plus className="size-5" aria-hidden /> {t("add")}
       </button>
 
@@ -70,7 +66,11 @@ export function CategoriesBoard() {
       ) : (
         <ul className="mt-4 grid gap-2 lg:grid-cols-3 lg:gap-3 xl:grid-cols-4">
           {list.data.map((category) => (
-            <CategoryRow key={category.id} category={category} onOpen={() => setOpenId(category.id)} />
+            <CategoryRow
+              key={category.id}
+              category={category}
+              onOpen={() => setOpenId(category.id)}
+            />
           ))}
         </ul>
       )}

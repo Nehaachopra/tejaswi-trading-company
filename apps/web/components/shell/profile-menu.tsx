@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { Menu, MenuItem } from "~/components/ui/menu";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { useLogout } from "~/providers/session";
 
@@ -50,8 +50,13 @@ export function ProfileMenu({ name, role }: { name: string; role: Role }) {
 
           {/* log out: stays open with a spinner until the session has ended */}
           <div className="border-t border-chestnut/15 pt-1.5">
-            <MenuItem onClick={() => logout.mutate()} disabled={logout.isPending} aria-busy={logout.isPending}>
-              {logout.isPending ? <Spinner /> : <LogOut className="size-4" aria-hidden />} {t("logout")}
+            <MenuItem
+              onClick={() => logout.mutate()}
+              disabled={logout.isPending}
+              aria-busy={logout.isPending}
+            >
+              {logout.isPending ? <Spinner /> : <LogOut className="size-4" aria-hidden />}{" "}
+              {t("logout")}
             </MenuItem>
           </div>
         </>

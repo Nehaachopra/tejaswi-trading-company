@@ -12,7 +12,7 @@ import {
   PAGE,
 } from "~/components/ui/page-styles";
 import { ClearButton } from "~/components/ui/clear-button";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
 import { useBankName } from "~/lib/bank-names";

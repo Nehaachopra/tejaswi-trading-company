@@ -4,7 +4,7 @@ import { DateInput } from "~/components/ui/date-input";
 import { FieldMessage } from "~/components/ui/field-message";
 import { MicField } from "~/components/ui/mic-button";
 import { RequiredMark } from "~/components/ui/required-mark";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
@@ -30,13 +30,24 @@ export function DetailsCard() {
           autoCorrect="off"
           spellCheck={false}
           placeholder="KA01AB1234"
-          onChange={(e) => setVehicle(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, VEHICLE_MAX))}
+          onChange={(e) =>
+            setVehicle(
+              e.target.value
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "")
+                .slice(0, VEHICLE_MAX),
+            )
+          }
           className={cn(input(false), "tabular uppercase")}
         />
       </label>
       <label className="flex min-w-0 flex-col gap-2.5 text-xs font-semibold">
         {tc("q.remarks")}
-        <MicField onText={(said) => setRemarks((v) => (v.trim() ? `${v.trim()} ${said}` : said).slice(0, REMARKS_MAX))}>
+        <MicField
+          onText={(said) =>
+            setRemarks((v) => (v.trim() ? `${v.trim()} ${said}` : said).slice(0, REMARKS_MAX))
+          }
+        >
           <input
             value={remarks}
             maxLength={REMARKS_MAX}
@@ -66,7 +77,9 @@ export function SaveBlock() {
           min={earliestDay(isAdmin)}
           max={today}
           // a day typed outside what the picker offers is left as it was
-          onChange={(d) => setDay(d !== "" && (d > today || d < (earliestDay(isAdmin) ?? "")) ? day : d)}
+          onChange={(d) =>
+            setDay(d !== "" && (d > today || d < (earliestDay(isAdmin) ?? "")) ? day : d)
+          }
           calendarLabel={tc("q.date")}
           aria-invalid={(tried && day === "") || undefined}
           className={input(day === "")}

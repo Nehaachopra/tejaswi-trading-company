@@ -15,6 +15,11 @@ export function usePriceHistory(productId: string) {
   return trpc.inventory.product.priceHistory.useQuery({ productId, range: "recent" });
 }
 
+// one pack size's last purchase costs, for a purchase order's cost chart
+export function useCostHistory(productId: string) {
+  return trpc.inventory.product.costHistory.useQuery({ productId });
+}
+
 // a product's saves (add, details, price, delete) and what is read again after them
 export function useProductActions() {
   const utils = trpc.useUtils();

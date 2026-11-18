@@ -8,13 +8,19 @@ import { useState } from "react";
 import { fieldClass } from "~/components/ui/card-form";
 import { CopyButton } from "~/components/ui/copy-button";
 import { PAGE } from "~/components/ui/page-styles";
-import { Spinner } from "~/components/ui/spinner";
-import { WhatsAppIcon } from "~/components/ui/whatsapp-icon";
+import { Spinner } from "~/components/ui/icons/spinner";
+import { WhatsAppIcon } from "~/components/ui/icons/whatsapp-icon";
 import { rupees, titleCase } from "~/lib/format";
 import { phoneStartsBad } from "~/lib/number-words";
 import { cn } from "~/lib/utils";
 import { toast } from "~/components/ui/toast";
-import { type OrderKind, orderPath, useOrderDoc, useOrderShareKey, useSaveOrderPhone } from "./doc-data";
+import {
+  type OrderKind,
+  orderPath,
+  useOrderDoc,
+  useOrderShareKey,
+  useSaveOrderPhone,
+} from "./doc-data";
 import { orderWhatsAppLink } from "./document";
 
 // a row of the box under the number: the label on the left, the value on the right
@@ -83,7 +89,9 @@ export function OrderDone({ kind, id }: { kind: OrderKind; id: string }) {
           {/* what it is: a row each in one box */}
           <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
             <p className={row}>
-              <span className="text-sm font-semibold">{t(sale ? "done.customer" : "done.supplier")}</span>
+              <span className="text-sm font-semibold">
+                {t(sale ? "done.customer" : "done.supplier")}
+              </span>
               <span className="min-w-0 truncate font-semibold">{titleCase(d.toName)}</span>
             </p>
             <p className={cn(row, "border-t border-chestnut/15")}>
@@ -122,7 +130,16 @@ export function OrderDone({ kind, id }: { kind: OrderKind; id: string }) {
             onClick={() => {
               if (!d.to.phone && !asking) return setAsking(true);
               // WhatsApp first (a window opened after waiting is blocked), then the number kept on the supplier
-              window.open(orderWhatsAppLink(d, link.data!.key, (v) => t(sale ? "doc.whatsAppMessageSale" : "doc.whatsAppMessage", v), d.to.phone ?? phone), "_blank", "noopener");
+              window.open(
+                orderWhatsAppLink(
+                  d,
+                  link.data!.key,
+                  (v) => t(sale ? "doc.whatsAppMessageSale" : "doc.whatsAppMessage", v),
+                  d.to.phone ?? phone,
+                ),
+                "_blank",
+                "noopener",
+              );
               if (!d.to.phone) {
                 savePhone.mutate(
                   { id, phone },

@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { PAGE } from "~/components/ui/page-styles";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { useParty } from "~/providers/accounts";
 import type { RouterOutputs } from "@repo/trpc/client";
 
@@ -22,8 +22,15 @@ function PartyDetails({ party: p }: { party: RouterOutputs["accounts"]["party"][
   const rows = [
     { label: t("details.name"), value: p.name },
     // what it is to us, every type it has
-    { label: t("details.type"), value: p.types.length ? p.types.map((r) => tf(`types.${r}`)).join(", ") : tf("types.none") },
-    { label: t("details.phone"), value: p.phone ? `${p.countryCode} ${p.phone}` : "—", number: true },
+    {
+      label: t("details.type"),
+      value: p.types.length ? p.types.map((r) => tf(`types.${r}`)).join(", ") : tf("types.none"),
+    },
+    {
+      label: t("details.phone"),
+      value: p.phone ? `${p.countryCode} ${p.phone}` : "—",
+      number: true,
+    },
     { label: t("details.email"), value: p.email ?? "—" },
     { label: t("details.pan"), value: p.pan ?? "—", number: true },
   ];
@@ -41,13 +48,23 @@ function PartyDetails({ party: p }: { party: RouterOutputs["accounts"]["party"][
               <li key={a.id} className="rounded-control border border-chestnut/20 p-3 text-sm">
                 <p className="mb-1 flex items-center gap-2 text-xs text-chestnut/70">
                   <span className="truncate">{a.label ?? tf(`uses.${a.addressType}`)}</span>
-                  {a.isDefault && <span className="shrink-0 rounded-control bg-chestnut px-1.5 py-0.5 text-[0.7rem] font-medium text-ivory">{tf("isDefault")}</span>}
+                  {a.isDefault && (
+                    <span className="shrink-0 rounded-control bg-chestnut px-1.5 py-0.5 text-[0.7rem] font-medium text-ivory">
+                      {tf("isDefault")}
+                    </span>
+                  )}
                 </p>
-                <p className="break-words">{[a.addressLine1, a.addressLine2, a.landmark].filter(Boolean).join(", ")}</p>
+                <p className="break-words">
+                  {[a.addressLine1, a.addressLine2, a.landmark].filter(Boolean).join(", ")}
+                </p>
                 <p className="break-words">
                   {a.city}, {a.district}, {a.state} {a.postalCode}
                 </p>
-                {a.gstin && <p className="tabular mt-2 inline-flex rounded-control bg-chestnut px-2 py-0.5 text-xs font-semibold tracking-wide text-ivory">GSTIN {a.gstin}</p>}
+                {a.gstin && (
+                  <p className="tabular mt-2 inline-flex rounded-control bg-chestnut px-2 py-0.5 text-xs font-semibold tracking-wide text-ivory">
+                    GSTIN {a.gstin}
+                  </p>
+                )}
               </li>
             ))}
         </ul>
@@ -70,7 +87,10 @@ export function PartyPage({ partyId, type }: { partyId: string; type: PartyType 
   return (
     <main className={`${PAGE} pb-16`}>
       {/* back to its list */}
-      <Link href={kind.path} className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
+      <Link
+        href={kind.path}
+        className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory"
+      >
         <ArrowLeft className="size-4" aria-hidden /> {t(`titles.${list}`)}
       </Link>
 
@@ -80,18 +100,30 @@ export function PartyPage({ partyId, type }: { partyId: string; type: PartyType 
         </p>
       ) : party.isError ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
-          <CircleAlert className="size-4" aria-hidden /> {party.error.data?.code === "NOT_FOUND" ? t("errors.gone") : t("loadError")}
+          <CircleAlert className="size-4" aria-hidden />{" "}
+          {party.error.data?.code === "NOT_FOUND" ? t("errors.gone") : t("loadError")}
         </p>
       ) : (
         (() => {
           const p = party.data;
           // how it deals with us; a supplier's settling time is how long we take to pay it
           const insights = [
-            { label: t("insights.transactions"), value: p.insights.transactions.toLocaleString("en-IN") },
-            { label: t("insights.pendingOrders"), value: p.insights.pendingOrders.toLocaleString("en-IN") },
             {
-              label: t(kindOf(p.types) === "supplier" ? "insights.paymentTime" : "insights.collectionTime"),
-              value: p.insights.averageDays === null ? "—" : t("insights.days", { count: p.insights.averageDays }),
+              label: t("insights.transactions"),
+              value: p.insights.transactions.toLocaleString("en-IN"),
+            },
+            {
+              label: t("insights.pendingOrders"),
+              value: p.insights.pendingOrders.toLocaleString("en-IN"),
+            },
+            {
+              label: t(
+                kindOf(p.types) === "supplier" ? "insights.paymentTime" : "insights.collectionTime",
+              ),
+              value:
+                p.insights.averageDays === null
+                  ? "—"
+                  : t("insights.days", { count: p.insights.averageDays }),
             },
             { label: t("insights.perMonth"), value: p.insights.perMonth.toLocaleString("en-IN") },
           ];
@@ -103,11 +135,23 @@ export function PartyPage({ partyId, type }: { partyId: string; type: PartyType 
               <DetailsCard
                 title={partyLabel(p)}
                 openLabel={t("showDetails")}
-                tags={!p.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
+                tags={
+                  !p.isActive && (
+                    <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">
+                      {t("inactive")}
+                    </span>
+                  )
+                }
               >
                 {editing ? (
                   <div className="p-4">
-                    <PartyEdit rows photo partyId={p.id} onCancel={() => setEditing(false)} onSaved={() => setEditing(false)} />
+                    <PartyEdit
+                      rows
+                      photo
+                      partyId={p.id}
+                      onCancel={() => setEditing(false)}
+                      onSaved={() => setEditing(false)}
+                    />
                   </div>
                 ) : (
                   <>
@@ -120,7 +164,10 @@ export function PartyPage({ partyId, type }: { partyId: string; type: PartyType 
               {/* insights: how it deals with us, always in view under the details */}
               <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {insights.map((i) => (
-                  <div key={i.label} className="on-ivory rounded-control bg-ivory p-3 text-chestnut">
+                  <div
+                    key={i.label}
+                    className="on-ivory rounded-control bg-ivory p-3 text-chestnut"
+                  >
                     <dt className="text-xs text-chestnut/70">{i.label}</dt>
                     <dd className="tabular mt-1 font-heading text-2xl font-bold">{i.value}</dd>
                   </div>
@@ -128,8 +175,12 @@ export function PartyPage({ partyId, type }: { partyId: string; type: PartyType 
               </dl>
 
               {/* its ledger */}
-              <LedgerStatement ledgerId={p.ledgerId} name={partyLabel(p)} head={kind.head} balance={p.balance} />
-
+              <LedgerStatement
+                ledgerId={p.ledgerId}
+                name={partyLabel(p)}
+                head={kind.head}
+                balance={p.balance}
+              />
             </div>
           );
         })()

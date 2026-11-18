@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { PAGE } from "~/components/ui/page-styles";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { titleCase } from "~/lib/format";
 import { useLedgerGroup } from "~/providers/accounts";
 

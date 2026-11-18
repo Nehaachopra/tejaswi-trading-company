@@ -6,8 +6,8 @@ import { ArrowLeft, CircleAlert, Download, Flag, Mail, Phone } from "lucide-reac
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { Spinner } from "~/components/ui/spinner";
-import { WhatsAppIcon } from "~/components/ui/whatsapp-icon";
+import { Spinner } from "~/components/ui/icons/spinner";
+import { WhatsAppIcon } from "~/components/ui/icons/whatsapp-icon";
 import { amountInWords } from "~/lib/amount-words";
 import { useBankName } from "~/lib/bank-names";
 import { titleCase } from "~/lib/format";
@@ -330,7 +330,11 @@ export function ReceiptVoucher({
         ]
     : [];
   // the code beside each line: a service's SAC (reverse charge) or the scrap's HSN
-  const code = r.rcm ? { head: "SAC", value: r.rcm.sac } : r.gst ? { head: "HSN", value: r.gst.hsn } : null;
+  const code = r.rcm
+    ? { head: "SAC", value: r.rcm.sac }
+    : r.gst
+      ? { head: "HSN", value: r.gst.hsn }
+      : null;
   const half = r.rcm ? Math.round((r.rcm.gst / 2) * 100) / 100 : 0;
   // the TDS row's base: what its rate is on, the period's whole once past a limit
   const tdsOn = r.tdsRate ? Math.round((tds / r.tdsRate) * 10000) / 100 : 0;
@@ -639,7 +643,9 @@ export function ReceiptVoucher({
                       <span className={cn(cell, "border-b border-r text-right")}>
                         {t("gstRow", { tax, rate: String(rate) })}
                       </span>
-                      <span className={cn(cell, "border-b tabular text-right")}>{money(amount)}</span>
+                      <span className={cn(cell, "border-b tabular text-right")}>
+                        {money(amount)}
+                      </span>
                     </Fragment>
                   ))}
                 </>

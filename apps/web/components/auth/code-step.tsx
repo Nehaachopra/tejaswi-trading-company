@@ -6,7 +6,7 @@ import { useEffect, useRef } from "react";
 
 import { fieldClass, SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 
 import { CODE_LENGTH, useLogin } from "./login-provider";
 
@@ -15,7 +15,19 @@ const formatPhone = (digits: string) => `+91 ${digits.slice(0, 5)} ${digits.slic
 // six boxes that take typing, paste and SMS autofill, and verify as soon as they're full
 export function CodeStep() {
   const t = useTranslations("login");
-  const { phone, code, setCode, error, clearError, resendIn, sending, verifying, sendCode, verify, backToPhone } = useLogin();
+  const {
+    phone,
+    code,
+    setCode,
+    error,
+    clearError,
+    resendIn,
+    sending,
+    verifying,
+    sendCode,
+    verify,
+    backToPhone,
+  } = useLogin();
   const boxes = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -27,7 +39,10 @@ export function CodeStep() {
   }
 
   function typeDigits(from: number, raw: string) {
-    const digits = raw.replace(/\D/g, "").slice(0, CODE_LENGTH - from).split("");
+    const digits = raw
+      .replace(/\D/g, "")
+      .slice(0, CODE_LENGTH - from)
+      .split("");
     if (digits.length === 0) return;
     const nextCode = [...code];
     digits.forEach((d, i) => (nextCode[from + i] = d));
@@ -53,7 +68,9 @@ export function CodeStep() {
           <ArrowLeft className="size-4" aria-hidden /> {t("change")}
         </button>
         <h1 className="font-heading text-3xl font-bold">{t("otpTitle")}</h1>
-        <p className="tabular mt-1 text-sm text-chestnut/80">{t("otpSubtitle", { phone: formatPhone(phone) })}</p>
+        <p className="tabular mt-1 text-sm text-chestnut/80">
+          {t("otpSubtitle", { phone: formatPhone(phone) })}
+        </p>
       </div>
 
       <fieldset>

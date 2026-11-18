@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { PAGE } from "~/components/ui/page-styles";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { useBankName } from "~/lib/bank-names";
 import { titleCase } from "~/lib/format";
 import { useBank } from "~/providers/accounts";
@@ -29,7 +29,10 @@ export function BankPage({ bankId }: { bankId: string }) {
   return (
     <main className={`${PAGE} pb-16`}>
       {/* back to the list */}
-      <Link href="/account/bank" className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
+      <Link
+        href="/account/bank"
+        className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory"
+      >
         <ArrowLeft className="size-4" aria-hidden /> {t("back")}
       </Link>
 
@@ -39,7 +42,8 @@ export function BankPage({ bankId }: { bankId: string }) {
         </p>
       ) : bank.isError ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
-          <CircleAlert className="size-4" aria-hidden /> {bank.error.data?.code === "NOT_FOUND" ? t("errors.gone") : t("loadError")}
+          <CircleAlert className="size-4" aria-hidden />{" "}
+          {bank.error.data?.code === "NOT_FOUND" ? t("errors.gone") : t("loadError")}
         </p>
       ) : (
         (() => {
@@ -52,7 +56,12 @@ export function BankPage({ bankId }: { bankId: string }) {
             { label: t("details.type"), value: t(`form.types.${b.accountType}`) },
             { label: t("details.holder"), value: titleCase(b.accountHolderName) },
             // each UPI ID with the app it's in
-            { label: t("details.upi"), value: b.upiIds.length ? b.upiIds.map((u) => `${u.upiId} (${tf(`providers.${u.provider}`)})`).join(", ") : "—" },
+            {
+              label: t("details.upi"),
+              value: b.upiIds.length
+                ? b.upiIds.map((u) => `${u.upiId} (${tf(`providers.${u.provider}`)})`).join(", ")
+                : "—",
+            },
           ];
 
           return (
@@ -61,7 +70,13 @@ export function BankPage({ bankId }: { bankId: string }) {
               <DetailsCard
                 title={name}
                 openLabel={t("showDetails")}
-                tags={!b.isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
+                tags={
+                  !b.isActive && (
+                    <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">
+                      {t("inactive")}
+                    </span>
+                  )
+                }
               >
                 <DetailRows rows={rows} />
                 <DetailsEdit label={t("edit")} onClick={() => setEditing(true)} />
@@ -70,7 +85,6 @@ export function BankPage({ bankId }: { bankId: string }) {
 
               {/* its ledger, titled with the account's name (the header above carries the bank and ••last 4) */}
               <LedgerStatement ledgerId={b.ledgerId} name={name} head="asset" balance={b.balance} />
-
             </div>
           );
         })()

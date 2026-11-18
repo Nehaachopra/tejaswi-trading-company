@@ -126,6 +126,18 @@ export const priceHistoryModel = z.object({
 
 export type PriceHistoryModel = z.infer<typeof priceHistoryModel>;
 
+// one pack size's last 5 purchases, for the purchase order's cost chart
+export const costHistoryInputModel = z.object({ productId: z.string().uuid() });
+
+export type CostHistoryInputModel = z.input<typeof costHistoryInputModel>;
+
+export const costHistoryModel = z.object({
+  // oldest first: the purchase's invoice date and what one pack cost with GST (after its discount)
+  costs: z.array(z.object({ at: z.string(), costAfterGst: z.number() })),
+});
+
+export type CostHistoryModel = z.infer<typeof costHistoryModel>;
+
 // a product is all the pack sizes of one brand (and name) in one sub-category; these change all of them,
 // or just the pack sizes listed
 const productIdsModel = z.array(z.string().uuid()).min(1);

@@ -8,7 +8,7 @@ import { fieldClass, SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { NumberInput } from "~/components/ui/number-input";
 import { Sheet } from "~/components/ui/sheet";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { packLabel, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
@@ -86,14 +86,18 @@ export function AddGodownSheet({ open, onClose }: { open: boolean; onClose: () =
         setStep("details");
         return setError(t("errors.taken"));
       }
-      setError(t(`errors.${key === "invalidName" ? "check" : key === "hasProducts" ? "inactive" : key}`));
+      setError(
+        t(`errors.${key === "invalidName" ? "check" : key === "hasProducts" ? "inactive" : key}`),
+      );
     }
   }
 
   // the products for the picked category and sub-category
   const subs = categories.data?.find((c) => c.id === categoryId)?.subCategories ?? [];
   const shown = (products.data ?? []).filter(
-    (g) => (!categoryId || g.categoryId === categoryId) && (!subCategoryId || g.subCategoryId === subCategoryId),
+    (g) =>
+      (!categoryId || g.categoryId === categoryId) &&
+      (!subCategoryId || g.subCategoryId === subCategoryId),
   );
   const category = categories.data?.find((c) => c.id === categoryId);
   const sub = subs.find((s) => s.id === subCategoryId);
@@ -104,13 +108,19 @@ export function AddGodownSheet({ open, onClose }: { open: boolean; onClose: () =
         // step 1: the details
         <form onSubmit={next} noValidate className="flex min-h-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
-            <GodownFields draft={draft} onChange={(patch) => {
+            <GodownFields
+              draft={draft}
+              onChange={(patch) => {
                 setError(null);
                 setDraft((d) => ({ ...d, ...patch }));
-              }} tried={tried} />
+              }}
+              tried={tried}
+            />
           </div>
           <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
-            {tried && !draftOk(draft) && <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>}
+            {tried && !draftOk(draft) && (
+              <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>
+            )}
             {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
             <SubmitButton busy={false}>{t("next")}</SubmitButton>
           </footer>
@@ -124,7 +134,13 @@ export function AddGodownSheet({ open, onClose }: { open: boolean; onClose: () =
               <PickMenu
                 label={t("category")}
                 current={category ? titleCase(category.name) : t("allCategories")}
-                options={[{ id: null, name: t("allCategories") }, ...(categories.data ?? []).map((c) => ({ id: c.id as string | null, name: titleCase(c.name) }))]}
+                options={[
+                  { id: null, name: t("allCategories") },
+                  ...(categories.data ?? []).map((c) => ({
+                    id: c.id as string | null,
+                    name: titleCase(c.name),
+                  })),
+                ]}
                 picked={categoryId}
                 onPick={(id) => {
                   setCategoryId(id);
@@ -135,7 +151,10 @@ export function AddGodownSheet({ open, onClose }: { open: boolean; onClose: () =
               <PickMenu
                 label={t("subCategory")}
                 current={sub ? titleCase(sub.name) : t("allSubCategories")}
-                options={[{ id: null, name: t("allSubCategories") }, ...subs.map((s) => ({ id: s.id as string | null, name: titleCase(s.name) }))]}
+                options={[
+                  { id: null, name: t("allSubCategories") },
+                  ...subs.map((s) => ({ id: s.id as string | null, name: titleCase(s.name) })),
+                ]}
                 picked={subCategoryId}
                 onPick={setSubCategoryId}
                 disabled={subs.length === 0}
@@ -156,11 +175,20 @@ export function AddGodownSheet({ open, onClose }: { open: boolean; onClose: () =
               <p className="py-10 text-center text-chestnut/70">{t("noMatch")}</p>
             ) : (
               shown.map((group) => (
-                <section key={group.key} className="flex gap-3 rounded-control border border-chestnut/20 p-3">
-                  <ProductImage group={group} imageUrl={group.imageUrl} className="size-16 shrink-0 self-start [&_span]:text-xl" />
+                <section
+                  key={group.key}
+                  className="flex gap-3 rounded-control border border-chestnut/20 p-3"
+                >
+                  <ProductImage
+                    group={group}
+                    imageUrl={group.imageUrl}
+                    className="size-16 shrink-0 self-start [&_span]:text-xl"
+                  />
                   <div className="flex min-w-0 flex-1 flex-col gap-2">
                     <div className="min-w-0">
-                      <h3 className="truncate font-heading text-base font-bold leading-6">{productTitle(group)}</h3>
+                      <h3 className="truncate font-heading text-base font-bold leading-6">
+                        {productTitle(group)}
+                      </h3>
                       <p className="truncate text-xs text-chestnut/70">
                         {titleCase(group.categoryName)} | {titleCase(group.subCategoryName)}
                       </p>
@@ -170,13 +198,18 @@ export function AddGodownSheet({ open, onClose }: { open: boolean; onClose: () =
                       {group.packs.map((pack) => {
                         const label = packLabel(pack.packSize, pack.packSizeCode);
                         return (
-                          <li key={pack.productId} className="flex items-center justify-between gap-3">
+                          <li
+                            key={pack.productId}
+                            className="flex items-center justify-between gap-3"
+                          >
                             <span className="tabular text-sm">{label}</span>
                             <NumberInput
                               aria-label={t("quantity", { pack: label })}
                               value={quantities[pack.productId] ?? ""}
                               maxDigits={7}
-                              onChange={(v) => setQuantities((q) => ({ ...q, [pack.productId]: v }))}
+                              onChange={(v) =>
+                                setQuantities((q) => ({ ...q, [pack.productId]: v }))
+                              }
                               placeholder="0"
                               className={cn(
                                 "tabular min-h-10 w-24 px-2.5 text-right text-base placeholder:text-chestnut/40",
@@ -195,7 +228,9 @@ export function AddGodownSheet({ open, onClose }: { open: boolean; onClose: () =
 
           {/* the totals, Back, and Save */}
           <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
-            <p className="tabular text-center text-sm text-chestnut/80">{t("summary", { packs: typed.length - wrong.size, units })}</p>
+            <p className="tabular text-center text-sm text-chestnut/80">
+              {t("summary", { packs: typed.length - wrong.size, units })}
+            </p>
             {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
             <div className="flex gap-2">
               <button

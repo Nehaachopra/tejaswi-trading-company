@@ -1,14 +1,33 @@
 "use client";
 
-import { ArrowDownLeft, ArrowDownUp, ArrowUpRight, ChevronDown, ChevronRight, CircleAlert, Clock, HandCoins, Landmark, type LucideIcon, MapPin, Phone, Plus } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowDownUp,
+  ArrowUpRight,
+  ChevronDown,
+  ChevronRight,
+  CircleAlert,
+  Clock,
+  HandCoins,
+  Landmark,
+  type LucideIcon,
+  MapPin,
+  Phone,
+  Plus,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
-import { ADD_BUTTON, FILTER_BAR_UNDER_TABS, FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
+import {
+  ADD_BUTTON,
+  FILTER_BAR_UNDER_TABS,
+  FILTER_TRIGGER,
+  PAGE,
+} from "~/components/ui/page-styles";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { PageTabs } from "~/components/ui/page-tabs";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { rupees } from "~/lib/format";
 import { useLocalLetters } from "~/lib/use-local-letters";
 import { cn } from "~/lib/utils";
@@ -16,10 +35,22 @@ import { useDues } from "~/providers/dues";
 import type { RouterOutputs } from "@repo/trpc/client";
 
 import { DUE_KINDS, type DueKind } from "./due-kinds";
-import { DueOverdueCard, dayText, daysUntil, NEAR_DAYS, percentOf, ShortNameBadge } from "./due-parts";
+import {
+  DueOverdueCard,
+  dayText,
+  daysUntil,
+  NEAR_DAYS,
+  percentOf,
+  ShortNameBadge,
+} from "./due-parts";
 
 // each tab's sign: money coming in from debtors, going out to creditors, a loan we gave, a loan from a lender
-export const TAB_ICON: Record<DueKind, LucideIcon> = { debtor: ArrowDownLeft, creditor: ArrowUpRight, loanGiven: HandCoins, loanTaken: Landmark };
+export const TAB_ICON: Record<DueKind, LucideIcon> = {
+  debtor: ArrowDownLeft,
+  creditor: ArrowUpRight,
+  loanGiven: HandCoins,
+  loanTaken: Landmark,
+};
 
 type Board = RouterOutputs["transactions"]["due"]["list"];
 type Party = Board["list"][number];
@@ -28,7 +59,8 @@ type Due = Party["dues"][number];
 // the status filter: everyone overdue, or due within 2 days (a payment coming up)
 type Status = "overdue" | "near";
 const STATUSES: Status[] = ["overdue", "near"];
-const isNear = (d: Due) => d.dueOn !== null && d.left > 0 && daysUntil(d.dueOn) >= 0 && daysUntil(d.dueOn) <= NEAR_DAYS;
+const isNear = (d: Due) =>
+  d.dueOn !== null && d.left > 0 && daysUntil(d.dueOn) >= 0 && daysUntil(d.dueOn) <= NEAR_DAYS;
 const inStatus = (d: Due, s: Status) => (s === "overdue" ? d.overdue : isNear(d));
 const STATUS_FILL: Record<Status, string> = { overdue: "#b42318", near: "#f79009" };
 
@@ -37,7 +69,13 @@ const SORTS: Sort[] = ["overdue", "amount", "oldest", "name"];
 
 // a status's colour, beside its name in the filter
 function Swatch({ status }: { status: Status }) {
-  return <span className="size-2.5 shrink-0 rounded-sm" style={{ background: STATUS_FILL[status] }} aria-hidden />;
+  return (
+    <span
+      className="size-2.5 shrink-0 rounded-sm"
+      style={{ background: STATUS_FILL[status] }}
+      aria-hidden
+    />
+  );
 }
 
 // /dues, admin only: what's owed both ways. Under the header stay the four tabs, then + Old due, what's due and what's
@@ -64,7 +102,9 @@ export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
   }
 
   const board = dues.data;
-  const towns = [...new Set((board?.list ?? []).map((p) => p.city).filter((c): c is string => !!c))].sort((a, b) => a.localeCompare(b));
+  const towns = [
+    ...new Set((board?.list ?? []).map((p) => p.city).filter((c): c is string => !!c)),
+  ].sort((a, b) => a.localeCompare(b));
   // the town narrows the numbers too; the status only narrows the cards
   const inTown = (board?.list ?? []).filter((p) => town === null || p.city === town);
   const shown = inTown
@@ -87,7 +127,16 @@ export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
       <h1 className="sr-only">{t("title")}</h1>
 
       {/* Debtors · Creditors · Loans given · Loans taken */}
-      <PageTabs label={t("title")} tabs={DUE_KINDS.map((k) => ({ key: k, label: t(`tabs.${k}`), short: t(`tabsShort.${k}`), current: kind === k, onPick: () => pick(k) }))} />
+      <PageTabs
+        label={t("title")}
+        tabs={DUE_KINDS.map((k) => ({
+          key: k,
+          label: t(`tabs.${k}`),
+          short: t(`tabsShort.${k}`),
+          current: kind === k,
+          onPick: () => pick(k),
+        }))}
+      />
 
       {/* + Old due */}
       <OldDueLink kind={kind} />
@@ -251,12 +300,22 @@ function PartyCard({ kind, party: p }: { kind: DueKind; party: Party }) {
 
   return (
     <li>
-      <Link href={`/dues/${kind}/${p.partyId}`} className="on-ivory flex flex-wrap items-center gap-3 rounded-2xl bg-ivory p-4 text-chestnut hover:bg-[#fbf7ee] sm:flex-nowrap">
-        <ShortNameBadge shortName={p.shortName} name={p.partyName} late={p.overdue > 0} title={p.overdue > 0 ? tf("overdue") : undefined} />
+      <Link
+        href={`/dues/${kind}/${p.partyId}`}
+        className="on-ivory flex flex-wrap items-center gap-3 rounded-2xl bg-ivory p-4 text-chestnut hover:bg-[#fbf7ee] sm:flex-nowrap"
+      >
+        <ShortNameBadge
+          shortName={p.shortName}
+          name={p.partyName}
+          late={p.overdue > 0}
+          title={p.overdue > 0 ? tf("overdue") : undefined}
+        />
 
         <span className="order-last min-w-0 basis-full sm:order-none sm:basis-auto sm:flex-1">
           {/* a roomy line, so the marks above Kannada and Hindi letters aren't cut off by the truncation */}
-          <span className="block truncate py-1 font-heading text-xl font-bold leading-[1.45]">{local(p.partyName)}</span>
+          <span className="block truncate py-1 font-heading text-xl font-bold leading-[1.45]">
+            {local(p.partyName)}
+          </span>
           <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs opacity-70">
             {p.partyPhone && (
               <span className="tabular inline-flex items-center gap-1 whitespace-nowrap">
@@ -265,7 +324,8 @@ function PartyCard({ kind, party: p }: { kind: DueKind; party: Party }) {
             )}
             {p.city && (
               <span className="inline-flex min-w-0 items-center gap-1">
-                <MapPin className="size-3 shrink-0" aria-hidden /> <span className="truncate leading-normal">{local(p.city)}</span>
+                <MapPin className="size-3 shrink-0" aria-hidden />{" "}
+                <span className="truncate leading-normal">{local(p.city)}</span>
               </span>
             )}
           </span>
@@ -278,11 +338,18 @@ function PartyCard({ kind, party: p }: { kind: DueKind; party: Party }) {
               <CircleAlert className="size-3" aria-hidden /> {rupees(p.overdue)}
             </span>
           ) : soonIn !== null && soonIn <= NEAR_DAYS ? (
-            <span className="tabular inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold" style={{ background: "#f7900926", color: "#93370d" }}>
+            <span
+              className="tabular inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
+              style={{ background: "#f7900926", color: "#93370d" }}
+            >
               <Clock className="size-3" aria-hidden /> {t("dueIn", { n: soonIn })}
             </span>
           ) : (
-            p.nextDueOn && <span className="tabular text-xs opacity-60">{t("nextDue", { day: dayText(p.nextDueOn) })}</span>
+            p.nextDueOn && (
+              <span className="tabular text-xs opacity-60">
+                {t("nextDue", { day: dayText(p.nextDueOn) })}
+              </span>
+            )
           )}
         </span>
         <ChevronRight className="size-5 shrink-0 opacity-50" aria-hidden />

@@ -1,17 +1,17 @@
 "use client";
 
 import { Check, ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { packLabel, rupees, titleCase } from "~/lib/format";
-import { parseAmount } from "~/lib/price";
+import { asField, parseAmount } from "~/lib/price";
 import { cn } from "~/lib/utils";
 
 import { type Pack, type ProductGroup, ProductImage, productTitle } from "../../product/products/product-tile";
-import { fieldRow } from "../shared/form-basics";
 import { type CartLine, lineFigures, placedOf, priceOf, useSaleEntry } from "./state";
 
 // a figure that's only read, at a row's right end
@@ -19,6 +19,13 @@ const figure = "tabular flex min-h-11 items-center justify-end text-base font-bo
 
 // a row that opens a panel: its name on the left, what it holds and › on the right
 const goRow = "flex min-h-12 w-full items-center justify-between gap-3 border-t border-chestnut/15 pt-2 text-left text-sm font-semibold";
+
+const box =
+  "flex min-h-11 w-32 shrink-0 items-center gap-[3px] rounded-control px-3 shadow-[0_0_5px_0] transition-shadow";
+// a figure's row: its name on the left (wrapping if it must), its box on the right
+const fieldRow = "flex items-center justify-between gap-2 text-sm";
+const boxInput =
+  "tabular w-full min-w-0 flex-1 bg-transparent text-right text-base font-bold outline-none";
 
 // the product card: one pack size zoomed in over the dimmed page, to put it in the cart or change it. On top its pack
 // chip, name and a square photo; then two panels side by side, the first shown: Price + GST (with ›), Available and
@@ -134,7 +141,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
           aria-label={name}
           className="on-ivory flex w-[min(360px,100%)] min-w-0 animate-zoom-in flex-col gap-2 rounded-control bg-ivory p-4 text-chestnut shadow-[0_12px_40px_rgba(0,0,0,0.4)]"
         >
-          {/* ✕ on top, no border */}
+          {/* ✕ and pack chip on top, no border */}
           <div className="flex justify-between">
             <span className="tabular inline-flex min-h-8 w-fit items-center rounded-control border border-chestnut bg-chestnut px-2.5 text-xs font-semibold text-ivory">
             {packLabel(pack.packSize, pack.packSizeCode)}
@@ -155,7 +162,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
           <ProductImage group={group} imageUrl={pack.imageUrl} className="size-40 self-center" />
 
           {/* the panels: the first, and the price details or godowns to its right */}
-          <div ref={box} className="-mx-4 mt-1 overflow-hidden transition-[height] duration-300 motion-reduce:transition-none" style={{ height }}>
+          <div ref={box} className="overflow-hidden transition-[height] duration-300 motion-reduce:transition-none" style={{ height }}>
             <div
               className={cn(
                 "flex w-[200%] items-start transition-transform duration-300 ease-out motion-reduce:transition-none",
@@ -163,11 +170,11 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
               )}
             >
               {/* the first panel */}
-              <div ref={mainRef} inert={pane !== "main"} className="flex w-1/2 min-w-0 flex-col gap-2 px-4 pb-1">
+              <div ref={mainRef} inert={pane !== "main"} className="flex w-1/2 min-w-0 flex-col gap-3">
                 {/* Price + GST: the new price beside the saved one struck through, once changed */}
-                <button ref={priceRow} type="button" onClick={() => slide("price")} className={goRow} aria-label={t("priceDetails")}>
+                <button ref={priceRow} type="button" onClick={() => slide("price")} aria-label={t("priceDetails")} className={fieldRow}>
                   <span>{t("priceGst")}</span>
-                  <span className="tabular flex min-w-0 items-center gap-1.5">
+                  <span className="tabular flex min-w-0 items-center gap-3">
                     {changed && <s className="truncate text-xs font-normal opacity-60">{rupees(list)}</s>}
                     <span className="shrink-0 text-base font-bold">{rupees(price)}</span>
                     <ChevronRight className="size-5 shrink-0" aria-hidden />
@@ -176,7 +183,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                 {/* from an order: Quantity as a row like the price's, the quantity and › on the right, opening to the
                     ordered and available quantities and its box; otherwise what's free to sell, and how many */}
                 {ordered ? (
-                  <button ref={quantityRow} type="button" onClick={() => slide("quantity")} className={goRow} aria-label={t("quantity")}>
+                  <button ref={quantityRow} type="button" onClick={() => slide("quantity")} className={fieldRow} aria-label={t("quantity")}>
                     <span>
                       {t("quantity")}
                       <RequiredMark />
@@ -187,12 +194,12 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                     </span>
                   </button>
                 ) : (
-                  <div className="flex flex-col gap-2 border-t border-chestnut/15 pt-2">
-                    <div className={fieldRow}>
+                  <div className="grid grid-cols-2 items-start gap-3 text-sm">
+                    <div className="flex flex-col gap-1.5">
                       <span>{t("available")}</span>
                       <span className="tabular flex min-h-11 items-center justify-end text-base font-bold">{available.toLocaleString("en-IN")}</span>
                     </div>
-                    <div className={fieldRow}>
+                    <div className="flex flex-col items-end gap-1.5">
                       <span>
                         {t("quantity")}
                         <RequiredMark />
@@ -234,7 +241,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                   {side === "price" ? t("priceDetails") : side === "quantity" ? t("quantity") : t("godowns")}
                 </button>
                 {side === "price" ? (
-                  <PriceDetails list={list} gst={gst} newPrice={draft.newPrice} belowCost={belowCost} name={name} onNewPrice={(v) => setDraft((d) => ({ ...d, newPrice: v }))} />
+                  <PriceDetails list={list} gst={gst} packSize={pack.packSize} unit={pack.packSizeCode} newPrice={draft.newPrice} belowCost={belowCost} name={name} onNewPrice={(v) => setDraft((d) => ({ ...d, newPrice: v }))} />
                 ) : side === "quantity" && ordered ? (
                   // the quantity, from an order: how many were ordered (and, once some have gone out, how many are
                   // still to go), what's free to sell, and how many this sale sends
@@ -375,11 +382,14 @@ function GodownRows({
   );
 }
 
-// the price details: the saved price before GST, its GST, the two together, a new price for this sale and the discount
-// it gives (in green, the figure only)
+// the price details: the saved price before GST, its GST, the two together, then a price for this sale typed either
+// way, the rate for a kg (or litre, piece…) with GST or the pack's new price, either filling the other, and the
+// discount it gives (in green, the figure only)
 function PriceDetails({
   list,
   gst,
+  packSize,
+  unit,
   newPrice,
   belowCost,
   name,
@@ -387,6 +397,8 @@ function PriceDetails({
 }: {
   list: number;
   gst: number;
+  packSize: number;
+  unit: Pack["packSizeCode"];
   newPrice: string;
   belowCost: boolean;
   name: string;
@@ -397,6 +409,12 @@ function PriceDetails({
   const typed = parseAmount(newPrice);
   const off = typed === null ? 0 : Math.max(0, Math.round((list - typed) * 100) / 100);
   const row = "tabular flex min-h-10 items-center justify-between gap-3 text-sm";
+  const units = useTranslations("products.items.form.units");
+  // the rate as typed, until the new price is typed instead (then it follows the price)
+  const [rateText, setRateText] = useState<string | null>(null);
+  const perUnit = (price: number) => asField(Math.round((price / packSize) * 100) / 100);
+  const rate = rateText ?? (typed === null ? "" : perUnit(typed));
+  const rateLabel = t("ratePer", { unit: units(unit) });
   return (
     <div className="flex flex-col gap-1">
       <p className={row}>
@@ -411,10 +429,30 @@ function PriceDetails({
         <span>{t("priceGst")}</span>
         <b className="text-base">{rupees(list)}</b>
       </p>
+      {/* the rate for one unit, with GST: typing it fills the new price */}
+      <label className={fieldRow}>
+        <span>{rateLabel}</span>
+        <span className="flex min-h-11 items-center gap-[3px] rounded-control px-3 shadow-[0_0_5px_0] shadow-chestnut/40 focus-within:shadow-chestnut/80">
+          <span className="text-base text-chestnut/60">₹</span>
+          <NumberInput
+            value={rate}
+            decimals={2}
+            maxDigits={6}
+            placeholder={perUnit(list)}
+            aria-label={`${rateLabel}: ${name}`}
+            onChange={(v) => {
+              setRateText(v);
+              const r = parseAmount(v);
+              onNewPrice(r === null ? "" : asField(Math.round(r * packSize * 100) / 100));
+            }}
+            className="tabular w-full min-w-0 flex-1 bg-transparent text-right text-base font-bold outline-none placeholder:text-chestnut/45"
+          />
+        </span>
+      </label>
       <label className={fieldRow}>
         <span>{t("newPrice")}</span>
-        <span className="flex min-h-11 items-center gap-[3px] rounded-control bg-chestnut px-3 text-ivory shadow-[0_0_5px_0] shadow-chestnut/40 focus-within:shadow-chestnut/80">
-          <span className="text-base text-ivory/70">₹</span>
+        <span className="flex min-h-11 items-center gap-[3px] rounded-control  px-3  shadow-[0_0_5px_0] shadow-chestnut/40 focus-within:shadow-chestnut/80">
+          <span className="text-base text-chestnut/60">₹</span>
           <NumberInput
             value={newPrice}
             decimals={2}
@@ -422,7 +460,10 @@ function PriceDetails({
             placeholder={String(list)}
             aria-label={`${t("newPrice")}: ${name}`}
             aria-invalid={belowCost || undefined}
-            onChange={onNewPrice}
+            onChange={(v) => {
+              setRateText(null);
+              onNewPrice(v);
+            }}
             className="tabular w-full min-w-0 flex-1 bg-transparent text-right text-base font-bold caret-ivory outline-none placeholder:text-ivory/45"
           />
         </span>

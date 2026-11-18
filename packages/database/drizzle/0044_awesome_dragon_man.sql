@@ -1,0 +1,1 @@
+ALTER TABLE "purchases" ALTER COLUMN "invoice_url" DROP NOT NULL;

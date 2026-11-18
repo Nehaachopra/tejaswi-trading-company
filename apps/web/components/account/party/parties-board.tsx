@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 
 import { FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
 import { Menu, MenuItem } from "~/components/ui/menu";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { useParties } from "~/providers/accounts";

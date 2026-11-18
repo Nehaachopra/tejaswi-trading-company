@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import { PAGE } from "~/components/ui/page-styles";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { Switch } from "~/components/ui/switch";
 import { useSettingsBoard } from "~/providers/settings";
 
@@ -35,8 +35,14 @@ export function SettingsBoard() {
 
       {/* TDS: last year's turnover decides which TDS this year has */}
       {page.data && (
-        <section aria-labelledby="settings-tds" className="flex flex-col gap-4 rounded-control bg-ivory p-4 text-chestnut">
-          <h2 id="settings-tds" className="text-xs font-semibold uppercase tracking-[0.16em] text-chestnut/60">
+        <section
+          aria-labelledby="settings-tds"
+          className="flex flex-col gap-4 rounded-control bg-ivory p-4 text-chestnut"
+        >
+          <h2
+            id="settings-tds"
+            className="text-xs font-semibold uppercase tracking-[0.16em] text-chestnut/60"
+          >
             {t("tds")}
           </h2>
           <Toggle
@@ -68,7 +74,21 @@ export function SettingsBoard() {
 }
 
 // one setting: what it is, what it does, and its switch
-function Toggle({ id, label, hint, on, busy, onFlip }: { id: string; label: string; hint: string; on: boolean; busy: boolean; onFlip: (on: boolean) => void }) {
+function Toggle({
+  id,
+  label,
+  hint,
+  on,
+  busy,
+  onFlip,
+}: {
+  id: string;
+  label: string;
+  hint: string;
+  on: boolean;
+  busy: boolean;
+  onFlip: (on: boolean) => void;
+}) {
   return (
     <div className="flex items-center gap-4">
       <div className="flex min-w-0 flex-1 flex-col gap-1">

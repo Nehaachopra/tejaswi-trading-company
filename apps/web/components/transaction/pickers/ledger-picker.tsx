@@ -15,7 +15,7 @@ import {
 import { ClearButton } from "~/components/ui/clear-button";
 import { MicButton } from "~/components/ui/mic-button";
 import { fieldClass } from "~/components/ui/card-form";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { useLedgerActions, usePickableLedgers } from "~/providers/accounts";
@@ -90,7 +90,11 @@ export function LedgerPicker({
     const timer = setTimeout(() => setAsked(search.trim()), 250);
     return () => clearTimeout(timer);
   }, [search]);
-  const found = usePickableLedgers({ purpose, receiptKind, paymentKind, search: asked }, open, true);
+  const found = usePickableLedgers(
+    { purpose, receiptKind, paymentKind, search: asked },
+    open,
+    true,
+  );
   const shown = found.data ?? [];
 
   // a tap anywhere else closes it
@@ -329,7 +333,11 @@ export function LedgerSearch({
       : purpose === "payment" && paymentKind === "supplier"
         ? "credit"
         : null;
-  const found = usePickableLedgers({ purpose, receiptKind, paymentKind, payee, search: asked }, listing, true);
+  const found = usePickableLedgers(
+    { purpose, receiptKind, paymentKind, payee, search: asked },
+    listing,
+    true,
+  );
   // a tax with nothing owed can't be paid, so it isn't offered (staff see no balances, so they see them all)
   const shown = (found.data ?? []).filter(
     (l) => paymentKind !== "taxPaid" || !l.balance || l.balance.today.amount > 0,

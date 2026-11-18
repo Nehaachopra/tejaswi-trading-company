@@ -115,7 +115,8 @@ export const purchasesTable = pgTable(
       .default("regular")
       .notNull(),
 
-    invoiceUrl: text("invoice_url").notNull(),
+    // the supplier's bill as a photo or PDF, when it's attached (then or later)
+    invoiceUrl: text("invoice_url"),
 
     rcmApplicable: boolean("rcm_applicable").default(false).notNull(),
 

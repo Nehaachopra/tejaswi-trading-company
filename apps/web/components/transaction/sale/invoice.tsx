@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import type { RouterOutputs } from "@repo/trpc/client";
-import { Spinner } from "~/components/ui/spinner";
-import { WhatsAppIcon } from "~/components/ui/whatsapp-icon";
+import { Spinner } from "~/components/ui/icons/spinner";
+import { WhatsAppIcon } from "~/components/ui/icons/whatsapp-icon";
 import { amountInWords } from "~/lib/amount-words";
 import { packLabel, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
@@ -18,7 +18,8 @@ type Invoice = RouterOutputs["transactions"]["sale"]["invoice"];
 type Place = Invoice["shipTo"];
 
 // a button's look on the chestnut page, as on the voucher
-const pill = "on-ivory flex min-h-11 items-center justify-center gap-2 rounded-control bg-ivory px-3 text-sm font-semibold text-chestnut disabled:opacity-50 sm:px-4";
+const pill =
+  "on-ivory flex min-h-11 items-center justify-center gap-2 rounded-control bg-ivory px-3 text-sm font-semibold text-chestnut disabled:opacity-50 sm:px-4";
 
 // an address on one line: its line, landmark, then town - PIN
 const placeLine = (a: Place) =>
@@ -61,7 +62,8 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
     const c = Math.floor((gst * 100) / 2 + 1e-6) / 100;
     return [c, Math.round((gst - c) * 100) / 100] as const;
   };
-  const sum = (pick: (l: Invoice["lines"][number]) => number) => Math.round(d.lines.reduce((a, l) => a + pick(l), 0) * 100) / 100;
+  const sum = (pick: (l: Invoice["lines"][number]) => number) =>
+    Math.round(d.lines.reduce((a, l) => a + pick(l), 0) * 100) / 100;
   const quantity = d.lines.reduce((a, l) => a + l.quantity, 0);
   const itemsGst = sum((l) => l.gst);
   // the items with their GST: the table's Total
@@ -83,7 +85,12 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
   // that opens the invoice without a login
   const whatsApp = (key: string) => {
     const url = `${window.location.origin}/voucher/sale/${d.transactionId}?k=${encodeURIComponent(key)}`;
-    const text = t("whatsAppMessage", { number: d.assignedId, amount: money(d.total), company: c.name, url });
+    const text = t("whatsAppMessage", {
+      number: d.assignedId,
+      amount: money(d.total),
+      company: c.name,
+      url,
+    });
     const to = d.buyer.phone ? `91${d.buyer.phone.replace(/\D/g, "").slice(-10)}` : "";
     return `https://wa.me/${to}?text=${encodeURIComponent(text)}`;
   };
@@ -98,14 +105,23 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
         {shared ? (
           <span className="hidden sm:block" />
         ) : (
-          <Link href={`/transaction/sale/${id}`} className="flex min-h-11 items-center gap-1.5 text-sm font-medium">
+          <Link
+            href={`/transaction/sale/${id}`}
+            className="flex min-h-11 items-center gap-1.5 text-sm font-medium"
+          >
             <ArrowLeft className="size-4" aria-hidden /> {t("back")}
           </Link>
         )}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {/* WhatsApp only when the buyer's phone is kept */}
           {!shared && d.buyer.phone && (
-            <button type="button" disabled={!link.data} onClick={() => window.open(whatsApp(link.data!.key), "_blank", "noopener")} aria-label={t("whatsApp")} className={pill}>
+            <button
+              type="button"
+              disabled={!link.data}
+              onClick={() => window.open(whatsApp(link.data!.key), "_blank", "noopener")}
+              aria-label={t("whatsApp")}
+              className={pill}
+            >
               <span className="whitespace-nowrap">{t("shareOn")}</span>
               <WhatsAppIcon className="size-4 shrink-0" />
             </button>
@@ -121,7 +137,11 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
         <p className="pb-2 text-center font-heading text-2xl font-bold">{t("title")}</p>
         {/* a cancelled sale says so across the top */}
-        {d.status === "cancelled" && <p className="mb-2 rounded-control border border-danger px-3 py-1.5 text-center font-semibold text-danger">{t("cancelled")}</p>}
+        {d.status === "cancelled" && (
+          <p className="mb-2 rounded-control border border-danger px-3 py-1.5 text-center font-semibold text-danger">
+            {t("cancelled")}
+          </p>
+        )}
 
         <div className="border border-chestnut/40">
           {/* our details, and the invoice's */}
@@ -134,7 +154,8 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                   <Phone className="size-3.5 shrink-0" aria-hidden /> {c.phone}
                 </span>
                 <span className="flex min-w-0 items-center gap-1.5">
-                  <Mail className="size-3.5 shrink-0" aria-hidden /> <span className="min-w-0 break-all">{c.email}</span>
+                  <Mail className="size-3.5 shrink-0" aria-hidden />{" "}
+                  <span className="min-w-0 break-all">{c.email}</span>
                 </span>
                 <span>
                   {t("state")}: {c.state} {t("code")}: {c.stateCode}
@@ -142,15 +163,26 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                 <span>GSTIN : {c.gstin}</span>
                 <span>FSSAI No : {c.fssai}</span>
               </div>
-              <p className={cn(cell, "mt-auto border-t font-semibold")}>{t("jurisdiction", { place: c.jurisdiction })}</p>
+              <p className={cn(cell, "mt-auto border-t font-semibold")}>
+                {t("jurisdiction", { place: c.jurisdiction })}
+              </p>
             </div>
             <div className="grid grid-cols-[auto_1fr] content-start border-b border-chestnut/40 [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_1fr_auto_1fr] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
-              <Detail label={t("number")} value={<span className="font-bold">{d.assignedId}</span>} />
+              <Detail
+                label={t("number")}
+                value={<span className="font-bold">{d.assignedId}</span>}
+              />
               <Detail label={t("dated")} value={dated(`${d.invoiceDate}T12:00:00+05:30`)} />
               <Detail label={t("payment")} value={ts(`kinds.${d.kind}`)} />
-              <Detail label={t("placeOfSupply")} value={d.shipTo.state ? `${d.shipTo.state} (${d.shipTo.stateCode ?? ""})` : null} />
+              <Detail
+                label={t("placeOfSupply")}
+                value={d.shipTo.state ? `${d.shipTo.state} (${d.shipTo.stateCode ?? ""})` : null}
+              />
               <Detail label={t("vehicle")} value={d.vehicleNumber} />
-              <Detail label={t("soldBy")} value={d.createdByName ? titleCase(d.createdByName) : null} />
+              <Detail
+                label={t("soldBy")}
+                value={d.createdByName ? titleCase(d.createdByName) : null}
+              />
             </div>
           </div>
 
@@ -161,7 +193,9 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                 {t("billTo")}: {buyer}
               </p>
               <div className={cn(cell, "flex flex-col gap-0.5 break-words")}>
-                {d.buyer.shortName && <span className="font-medium">{titleCase(d.buyer.name)}</span>}
+                {d.buyer.shortName && (
+                  <span className="font-medium">{titleCase(d.buyer.name)}</span>
+                )}
                 {(d.billTo ?? d.shipTo).city && (
                   <>
                     <span className="flex items-start gap-1.5">
@@ -169,7 +203,8 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                       {placeLine(d.billTo ?? d.shipTo)}
                     </span>
                     <span>
-                      {t("state")}: {(d.billTo ?? d.shipTo).state} {t("code")}: {(d.billTo ?? d.shipTo).stateCode}
+                      {t("state")}: {(d.billTo ?? d.shipTo).state} {t("code")}:{" "}
+                      {(d.billTo ?? d.shipTo).stateCode}
                     </span>
                   </>
                 )}
@@ -211,7 +246,9 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                   <th className={cn(cell, "border-r text-right font-semibold")}>{t("price")}</th>
                   <th className={cn(cell, "border-r text-right font-semibold")}>{t("discount")}</th>
                   <th className={cn(cell, "border-r text-right font-semibold")}>{t("taxable")}</th>
-                  <th className={cn(cell, "border-r text-right font-semibold")}>{t("gstPercent")}</th>
+                  <th className={cn(cell, "border-r text-right font-semibold")}>
+                    {t("gstPercent")}
+                  </th>
                   {intra ? (
                     <>
                       <th className={cn(cell, "border-r text-right font-semibold")}>CGST</th>
@@ -240,13 +277,19 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                     <td className={cn(cell, "border-r text-right")}>{l.gstRate}%</td>
                     {intra ? (
                       <>
-                        <td className={cn(cell, "border-r text-right")}>{money(halves(l.gst)[0])}</td>
-                        <td className={cn(cell, "border-r text-right")}>{money(halves(l.gst)[1])}</td>
+                        <td className={cn(cell, "border-r text-right")}>
+                          {money(halves(l.gst)[0])}
+                        </td>
+                        <td className={cn(cell, "border-r text-right")}>
+                          {money(halves(l.gst)[1])}
+                        </td>
                       </>
                     ) : (
                       <td className={cn(cell, "border-r text-right")}>{money(l.gst)}</td>
                     )}
-                    <td className={cn(cell, "text-right")}>{money(Math.round((l.taxable + l.gst) * 100) / 100)}</td>
+                    <td className={cn(cell, "text-right")}>
+                      {money(Math.round((l.taxable + l.gst) * 100) / 100)}
+                    </td>
                   </tr>
                 ))}
                 {/* room below the lines, as on the voucher */}
@@ -263,13 +306,21 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                   <td className={cn(cell, "border-r")} />
                   <td className={cn(cell, "border-r text-right")}>{quantity}</td>
                   <td className={cn(cell, "border-r")} />
-                  <td className={cn(cell, "border-r text-right")}>{money(sum((l) => l.discount))}</td>
-                  <td className={cn(cell, "border-r text-right")}>{money(sum((l) => l.taxable))}</td>
+                  <td className={cn(cell, "border-r text-right")}>
+                    {money(sum((l) => l.discount))}
+                  </td>
+                  <td className={cn(cell, "border-r text-right")}>
+                    {money(sum((l) => l.taxable))}
+                  </td>
                   <td className={cn(cell, "border-r")} />
                   {intra ? (
                     <>
-                      <td className={cn(cell, "border-r text-right")}>{money(sum((l) => halves(l.gst)[0]))}</td>
-                      <td className={cn(cell, "border-r text-right")}>{money(sum((l) => halves(l.gst)[1]))}</td>
+                      <td className={cn(cell, "border-r text-right")}>
+                        {money(sum((l) => halves(l.gst)[0]))}
+                      </td>
+                      <td className={cn(cell, "border-r text-right")}>
+                        {money(sum((l) => halves(l.gst)[1]))}
+                      </td>
                     </>
                   ) : (
                     <td className={cn(cell, "border-r text-right")}>{money(itemsGst)}</td>
@@ -282,7 +333,12 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
 
           {/* the breakup, with the remarks beside it (under it on a phone); the amount in chestnut */}
           <div className="grid border-t border-chestnut/40 sm:grid-cols-[1fr_auto]">
-            <div className={cn(cell, "flex min-w-0 flex-col gap-1 break-words border-b border-chestnut/40 sm:border-b-0")}>
+            <div
+              className={cn(
+                cell,
+                "flex min-w-0 flex-col gap-1 break-words border-b border-chestnut/40 sm:border-b-0",
+              )}
+            >
               <span className="font-semibold">{t("remarks")}:</span>
               <span>{d.remarks ?? "—"}</span>
             </div>
@@ -292,10 +348,13 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                   key={r.key}
                   className={cn(
                     "grid grid-cols-[1fr_9rem] text-right sm:grid-cols-[10rem_9rem] sm:border-l sm:border-chestnut/40",
-                    r.strong && "bg-chestnut font-heading text-base font-bold text-ivory print:bg-[#3b1f14]",
+                    r.strong &&
+                      "bg-chestnut font-heading text-base font-bold text-ivory print:bg-[#3b1f14]",
                   )}
                 >
-                  <span className={cn(cell, "border-r", r.strong && "border-ivory/35")}>{r.label}</span>
+                  <span className={cn(cell, "border-r", r.strong && "border-ivory/35")}>
+                    {r.label}
+                  </span>
                   <span className={cn(cell, "font-semibold")}>{r.value}</span>
                 </p>
               ))}

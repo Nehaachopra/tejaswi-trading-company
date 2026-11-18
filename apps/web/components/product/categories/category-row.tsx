@@ -8,7 +8,7 @@ import type { RouterOutputs } from "@repo/trpc/client";
 import { fieldClass } from "~/components/ui/card-form";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { FieldMessage } from "~/components/ui/field-message";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";

@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { rupees } from "~/lib/format";
 import { usePriceHistory } from "~/providers/products";
 
@@ -25,7 +25,10 @@ function smoothPath(pts: { x: number; y: number }[]) {
     if (i === n - 1) return slope[n - 2]!;
     const a = slope[i - 1]!;
     const b = slope[i]!;
-    return a * b <= 0 ? 0 : (3 * (dx[i - 1]! + dx[i]!)) / ((2 * dx[i]! + dx[i - 1]!) / a + (dx[i]! + 2 * dx[i - 1]!) / b);
+    return a * b <= 0
+      ? 0
+      : (3 * (dx[i - 1]! + dx[i]!)) /
+          ((2 * dx[i]! + dx[i - 1]!) / a + (dx[i]! + 2 * dx[i - 1]!) / b);
   });
   let d = `M${pts[0]!.x},${pts[0]!.y}`;
   for (let i = 0; i < n - 1; i++) {
@@ -35,38 +38,72 @@ function smoothPath(pts: { x: number; y: number }[]) {
   return d;
 }
 
-// one pack size's last 5 saved price changes as a smooth line with a fade under it; only saved prices, never the
-// one being typed. Only the first and last dates are written; a tap or hover shows a point's price
+// one pack size's last 5 saved price changes; only saved prices, never the one being typed. One price alone (the
+// first one, set when the pack size was added) is no history yet
 export function PriceChart({ productId }: { productId: string }) {
   const t = useTranslations("products.items.chart");
+  const history = usePriceHistory(productId);
+  const points = (history.data?.prices ?? []).map((p) => ({ at: p.at, value: p.priceAfterGst }));
+  return (
+    <HistoryChart
+      pending={history.isPending}
+      points={points}
+      least={2}
+      empty={t("empty")}
+      summary={(price) => t("summary", { price })}
+    />
+  );
+}
+
+// figures over time as a smooth line with a fade under it (price history, cost history …). Only the first and last
+// dates are written; a tap or hover shows a point's figure. Fewer than `least` points: the `empty` line instead
+export function HistoryChart({
+  pending,
+  points,
+  least = 1,
+  empty,
+  summary,
+}: {
+  pending: boolean;
+  points: { at: string; value: number }[];
+  least?: number;
+  empty: string;
+  summary: (latest: string) => string;
+}) {
   const locale = useLocale();
   const fadeId = useId();
-  const history = usePriceHistory(productId);
   const [tip, setTip] = useState<number | null>(null);
 
-  if (history.isPending) {
+  if (pending) {
     return (
-      <div className="grid h-20 place-items-center text-chestnut/70">
+      <div className="mx-auto grid h-20 w-full max-w-[268px] place-items-center text-chestnut/70">
         <Spinner />
       </div>
     );
   }
 
-  // the points: saved prices only
   // dates in words, the Indian way round: 22 Oct 2026
   const day = (at: string) =>
-    new Date(at).toLocaleDateString(`${locale}-IN`, { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
-  const pts = (history.data?.prices ?? []).map((p) => ({ label: day(p.at), value: p.priceAfterGst }));
+    new Date(at).toLocaleDateString(`${locale}-IN`, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "Asia/Kolkata",
+    });
+  const pts = points.map((p) => ({ label: day(p.at), value: p.value }));
   const latest = pts[pts.length - 1]?.value;
-  // one price alone (the first one, set when the pack size was added) is no history yet
-  if (pts.length <= 1) return <p className="py-4 text-center text-xs text-chestnut/60">{t("empty")}</p>;
+  if (pts.length < least)
+    return <p className="py-4 text-center text-xs text-chestnut/60">{empty}</p>;
 
   // the scales: one price alone sits in the middle; prices get a little room above and below
   const values = pts.map((p) => p.value);
   const pad = (Math.max(...values) - Math.min(...values)) * 0.15 || Math.max(...values) * 0.1 || 1;
   const lo = Math.max(0, Math.min(...values) - pad);
   const hi = Math.max(...values) + pad;
-  const x = (i: number) => (pts.length === 1 ? (PAD.left + W - PAD.right) / 2 : PAD.left + (i * (W - PAD.left - PAD.right)) / (pts.length - 1));
+  const x = (i: number) =>
+    pts.length === 1
+      ? (PAD.left + W - PAD.right) / 2
+      : PAD.left + (i * (W - PAD.left - PAD.right)) / (pts.length - 1);
   const y = (v: number) => PAD.top + (1 - (v - lo) / (hi - lo)) * (H - PAD.top - PAD.bottom);
 
   // the line through the prices, and the same line closed down to the base for the fade
@@ -76,9 +113,16 @@ export function PriceChart({ productId }: { productId: string }) {
   const area = pts.length > 1 ? `${line}L${x(last)},${base}L${x(0)},${base}Z` : "";
   const shown = tip == null ? null : pts[tip];
 
+  // never wider than on the price card (300px less its padding): the drawing scales with its width, so a wider
+  // card would blow up the dates and points; centred when there's more room
   return (
-    <figure className="relative">
-      <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full overflow-visible" role="img" aria-label={latest != null ? t("summary", { price: rupees(latest) }) : t("empty")}>
+    <figure className="relative mx-auto w-full max-w-[268px]">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="block h-auto w-full overflow-visible"
+        role="img"
+        aria-label={latest != null ? summary(rupees(latest)) : empty}
+      >
         <defs>
           <linearGradient id={fadeId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stopColor="var(--color-chestnut)" stopOpacity={0.32} />
@@ -88,17 +132,51 @@ export function PriceChart({ productId }: { productId: string }) {
         <line x1={PAD.left} x2={W - PAD.right} y1={base} y2={base} className="stroke-chestnut/15" />
         {/* the first and last dates only */}
         {last === 0 ? (
-          <text x={x(0)} y={H - 3} textAnchor="middle" className="tabular fill-chestnut/60 text-[7.5px] font-medium">{pts[0]!.label}</text>
+          <text
+            x={x(0)}
+            y={H - 3}
+            textAnchor="middle"
+            className="tabular fill-chestnut/60 text-[7.5px] font-medium"
+          >
+            {pts[0]!.label}
+          </text>
         ) : (
           <>
-            <text x={x(0)} y={H - 3} textAnchor="start" className="tabular fill-chestnut/60 text-[7.5px] font-medium">{pts[0]!.label}</text>
-            <text x={x(last)} y={H - 3} textAnchor="end" className="tabular fill-chestnut/60 text-[7.5px] font-medium">{pts[last]!.label}</text>
+            <text
+              x={x(0)}
+              y={H - 3}
+              textAnchor="start"
+              className="tabular fill-chestnut/60 text-[7.5px] font-medium"
+            >
+              {pts[0]!.label}
+            </text>
+            <text
+              x={x(last)}
+              y={H - 3}
+              textAnchor="end"
+              className="tabular fill-chestnut/60 text-[7.5px] font-medium"
+            >
+              {pts[last]!.label}
+            </text>
           </>
         )}
         {area && <path d={area} fill={`url(#${fadeId})`} />}
-        <path d={line} fill="none" className="stroke-chestnut" strokeWidth={2} strokeLinecap="round" />
+        <path
+          d={line}
+          fill="none"
+          className="stroke-chestnut"
+          strokeWidth={2}
+          strokeLinecap="round"
+        />
         {pts.map((p, i) => (
-          <circle key={i} cx={x(i)} cy={y(p.value)} r={4} strokeWidth={2} className="fill-chestnut stroke-ivory" />
+          <circle
+            key={i}
+            cx={x(i)}
+            cy={y(p.value)}
+            r={4}
+            strokeWidth={2}
+            className="fill-chestnut stroke-ivory"
+          />
         ))}
         {/* wide tap targets, one per point */}
         {pts.map((p, i) => (

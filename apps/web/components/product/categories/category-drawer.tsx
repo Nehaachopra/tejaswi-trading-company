@@ -8,7 +8,7 @@ import { addSquare } from "~/components/ui/page-styles";
 import { fieldClass } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { Sheet } from "~/components/ui/sheet";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { titleCase } from "~/lib/format";
 
@@ -19,7 +19,13 @@ import { type CategoryError, categoryError, NAME_MAX, nameProblem } from "./cate
 type Option = { id: string; name: string };
 
 // a category's sub-categories, in a sheet: add one at the top, then one row each
-export function CategoryDrawer({ category, onClose }: { category: Category | null; onClose: () => void }) {
+export function CategoryDrawer({
+  category,
+  onClose,
+}: {
+  category: Category | null;
+  onClose: () => void;
+}) {
   const t = useTranslations("products.subCategories");
   const cache = useCategoryCache();
   const { create, setActive: reactivate } = useSubCategoryActions();
@@ -82,7 +88,12 @@ export function CategoryDrawer({ category, onClose }: { category: Category | nul
   }
 
   return (
-    <Sheet open={!!category} title={category ? titleCase(category.name) : ""} closeLabel={t("close")} onClose={close}>
+    <Sheet
+      open={!!category}
+      title={category ? titleCase(category.name) : ""}
+      closeLabel={t("close")}
+      onClose={close}
+    >
       {category && (
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           {/* add a sub-category (an inactive category takes none) */}
@@ -115,7 +126,9 @@ export function CategoryDrawer({ category, onClose }: { category: Category | nul
 
               {/* the problem with the name, and for an inactive match the way to bring it back */}
               {error && (
-                <FieldMessage>{t(`errors.${error}`, { name: titleCase(inactive?.name ?? name.trim()) })}</FieldMessage>
+                <FieldMessage>
+                  {t(`errors.${error}`, { name: titleCase(inactive?.name ?? name.trim()) })}
+                </FieldMessage>
               )}
               {inactive && (
                 <button
@@ -125,7 +138,11 @@ export function CategoryDrawer({ category, onClose }: { category: Category | nul
                   aria-busy={reactivate.isPending}
                   className="flex min-h-11 w-full sm:w-auto items-center justify-center gap-1.5 rounded-control border border-chestnut/60 px-3 text-sm font-medium hover:border-chestnut aria-busy:opacity-80"
                 >
-                  {reactivate.isPending ? <Spinner /> : <RotateCcw className="size-4" aria-hidden />}
+                  {reactivate.isPending ? (
+                    <Spinner />
+                  ) : (
+                    <RotateCcw className="size-4" aria-hidden />
+                  )}
                   {t("reactivateName", { name: titleCase(inactive.name) })}
                 </button>
               )}

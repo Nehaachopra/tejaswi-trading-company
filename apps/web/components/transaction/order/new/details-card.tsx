@@ -5,7 +5,7 @@ import { useLocale } from "next-intl";
 import { DateInput, dayInWords } from "~/components/ui/date-input";
 import { FieldMessage } from "~/components/ui/field-message";
 import { MicField } from "~/components/ui/mic-button";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
@@ -27,7 +27,9 @@ export function DetailsCard() {
       {/* the order's date: today, as plain text */}
       <div className={field}>
         <span>{t("orderDate")}</span>
-        <span className="flex min-h-11 items-center text-base font-normal">{dayInWords(orderDate, locale)}</span>
+        <span className="flex min-h-11 items-center text-base font-normal">
+          {dayInWords(orderDate, locale)}
+        </span>
       </div>
       <label className={field}>
         {t("expected")}
@@ -43,7 +45,11 @@ export function DetailsCard() {
       </label>
       <label className={cn(field, "sm:col-span-2")}>
         {t("remarks")}
-        <MicField onText={(said) => setRemarks((v) => (v.trim() ? `${v.trim()} ${said}` : said).slice(0, REMARKS_MAX))}>
+        <MicField
+          onText={(said) =>
+            setRemarks((v) => (v.trim() ? `${v.trim()} ${said}` : said).slice(0, REMARKS_MAX))
+          }
+        >
           <input
             value={remarks}
             maxLength={REMARKS_MAX}

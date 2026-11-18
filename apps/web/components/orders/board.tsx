@@ -9,7 +9,7 @@ import { DateInput } from "~/components/ui/date-input";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { FILTER_BAR_UNDER_TABS, FILTER_TRIGGER, PAGE } from "~/components/ui/page-styles";
 import { PageTabs } from "~/components/ui/page-tabs";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { titleCase } from "~/lib/format";
 import { useLocalLetters } from "~/lib/use-local-letters";
 import { cn } from "~/lib/utils";
@@ -25,7 +25,11 @@ const STATUSES: Status[] = ["pending", "completed", "cancelled"];
 const RANGES: Range[] = ["today", "week", "month", "lastMonth", "custom"];
 
 // each status's colour, for its dot and word
-const STATUS_TONE: Record<Status, string> = { pending: "text-[#a15c07]", completed: "text-success", cancelled: "text-chestnut/60" };
+const STATUS_TONE: Record<Status, string> = {
+  pending: "text-[#a15c07]",
+  completed: "text-success",
+  cancelled: "text-chestnut/60",
+};
 
 // a day as YYYY-MM-DD, moved by whole days
 const shift = (day: string, days: number) => {
@@ -42,7 +46,10 @@ function rangeDays(range: Range | null, picked: { from: string; to: string }) {
     case "today":
       return { from: today, to: today };
     case "week":
-      return { from: shift(today, -((new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7)), to: today };
+      return {
+        from: shift(today, -((new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7)),
+        to: today,
+      };
     case "month":
       return { from: monthStart, to: today };
     case "lastMonth": {
@@ -59,8 +66,15 @@ function rangeDays(range: Range | null, picked: { from: string; to: string }) {
 // a day as the cards show it: the date, then the day ("13 Nov, Fri")
 const dateThenDay = (day: string, locale: string) => {
   const d = new Date(`${day}T12:00:00+05:30`);
-  const date = d.toLocaleDateString(`${locale}-IN`, { day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
-  const weekday = d.toLocaleDateString(`${locale}-IN`, { weekday: "short", timeZone: "Asia/Kolkata" });
+  const date = d.toLocaleDateString(`${locale}-IN`, {
+    day: "numeric",
+    month: "short",
+    timeZone: "Asia/Kolkata",
+  });
+  const weekday = d.toLocaleDateString(`${locale}-IN`, {
+    weekday: "short",
+    timeZone: "Asia/Kolkata",
+  });
   return `${date}, ${weekday}`;
 };
 
@@ -95,9 +109,22 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
     kind === "purchase"
       ? (purchases.data ?? []).map((o) => ({ ...o, who: o.party.name, phone: o.phone }))
       : (sales.data ?? []).map((o) => ({ ...o, who: o.customer.name, phone: o.customer.phone }))
-  ).map((o) => ({ id: o.id, orderId: o.orderId, status: o.status, orderDate: o.orderDate, itemCount: o.itemCount, who: o.who, phone: o.phone, city: o.city }));
+  ).map((o) => ({
+    id: o.id,
+    orderId: o.orderId,
+    status: o.status,
+    orderDate: o.orderDate,
+    itemCount: o.itemCount,
+    who: o.who,
+    phone: o.phone,
+    city: o.city,
+  }));
   // the towns in the list, A to Z (the same town however it was typed)
-  const towns = [...new Map(orders.filter((o) => o.city).map((o) => [o.city!.trim().toLowerCase(), o.city!.trim()])).entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  const towns = [
+    ...new Map(
+      orders.filter((o) => o.city).map((o) => [o.city!.trim().toLowerCase(), o.city!.trim()]),
+    ).entries(),
+  ].sort((a, b) => a[0].localeCompare(b[0]));
   const shown = town ? orders.filter((o) => o.city?.trim().toLowerCase() === town) : orders;
   const townName = towns.find(([key]) => key === town)?.[1];
 
@@ -116,7 +143,12 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
       {/* Purchase (the admin's) and Sale */}
       <PageTabs
         label={tl("title")}
-        tabs={(isAdmin ? (["sale", "purchase"] as Kind[]) : (["sale"] as Kind[])).map((k) => ({ key: k, label: t(`kinds.${k}`), current: kind === k, onPick: () => pick(k) }))}
+        tabs={(isAdmin ? (["sale", "purchase"] as Kind[]) : (["sale"] as Kind[])).map((k) => ({
+          key: k,
+          label: t(`kinds.${k}`),
+          current: kind === k,
+          onPick: () => pick(k),
+        }))}
       />
 
       {/* the filters, under the tabs while the list scrolls: status, the days ordered, the supplier or customer */}
@@ -129,7 +161,9 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
           triggerClassName={trigger(status !== null)}
           trigger={
             <>
-              <span className="truncate">{status ? tl(`statuses.${status}`) : tl("allStatus")}</span>
+              <span className="truncate">
+                {status ? tl(`statuses.${status}`) : tl("allStatus")}
+              </span>
               <ChevronDown className="size-4 shrink-0" aria-hidden />
             </>
           }
@@ -198,7 +232,10 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
             }
           >
             {(close) =>
-              [[null, tl("allTowns")] as const, ...towns.map(([key, name]) => [key, local(name)] as const)].map(([key, name]) => (
+              [
+                [null, tl("allTowns")] as const,
+                ...towns.map(([key, name]) => [key, local(name)] as const),
+              ].map(([key, name]) => (
                 <MenuItem
                   key={key ?? "all"}
                   selected={town === key}
@@ -221,11 +258,23 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
         <div className="mt-2 grid grid-cols-2 gap-2 sm:max-w-md">
           <label className="flex flex-col gap-1.5 text-xs font-semibold">
             {tl("from")}
-            <DateInput value={picked.from} max={picked.to || undefined} onChange={(from) => setPicked((p) => ({ ...p, from }))} calendarLabel={tl("from")} className="min-h-11 rounded-control border border-ivory/40 bg-transparent px-3 text-base font-normal text-ivory" />
+            <DateInput
+              value={picked.from}
+              max={picked.to || undefined}
+              onChange={(from) => setPicked((p) => ({ ...p, from }))}
+              calendarLabel={tl("from")}
+              className="min-h-11 rounded-control border border-ivory/40 bg-transparent px-3 text-base font-normal text-ivory"
+            />
           </label>
           <label className="flex flex-col gap-1.5 text-xs font-semibold">
             {tl("to")}
-            <DateInput value={picked.to} min={picked.from || undefined} onChange={(to) => setPicked((p) => ({ ...p, to }))} calendarLabel={tl("to")} className="min-h-11 rounded-control border border-ivory/40 bg-transparent px-3 text-base font-normal text-ivory" />
+            <DateInput
+              value={picked.to}
+              min={picked.from || undefined}
+              onChange={(to) => setPicked((p) => ({ ...p, to }))}
+              calendarLabel={tl("to")}
+              className="min-h-11 rounded-control border border-ivory/40 bg-transparent px-3 text-base font-normal text-ivory"
+            />
           </label>
         </div>
       )}
@@ -241,12 +290,20 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
       ) : shown.length === 0 ? (
         <p className="mt-16 text-center text-ivory/70">{tl("empty")}</p>
       ) : (
-        <ul className={cn("mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3", list.isPlaceholderData && "opacity-60")}>
+        <ul
+          className={cn(
+            "mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3",
+            list.isPlaceholderData && "opacity-60",
+          )}
+        >
           {shown.map((o) => (
             // the whole card opens the order (its link stretched over it); Record arrival or dispatch sits above that
             <li
               key={o.id}
-              className={cn("on-ivory relative flex flex-col gap-2.5 rounded-control bg-ivory p-3.5 text-chestnut", o.status === "cancelled" && "opacity-65")}
+              className={cn(
+                "on-ivory relative flex flex-col gap-2.5 rounded-control bg-ivory p-3.5 text-chestnut",
+                o.status === "cancelled" && "opacity-65",
+              )}
             >
               {/* the day it was ordered then its number (smaller than who it's with, muted), and its status with its sign:
                   a softly glowing dot while pending, a tick once completed, a crossed circle when cancelled */}
@@ -255,7 +312,12 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
                   <span className="font-medium">{dateThenDay(o.orderDate, locale)}</span>
                   <span className="tabular">{o.orderId}</span>
                 </span>
-                <span className={cn("flex shrink-0 items-center gap-1.5 text-xs font-semibold", STATUS_TONE[o.status])}>
+                <span
+                  className={cn(
+                    "flex shrink-0 items-center gap-1.5 text-xs font-semibold",
+                    STATUS_TONE[o.status],
+                  )}
+                >
                   {o.status === "pending" ? (
                     <span className="status-glow size-2 rounded-full bg-current" aria-hidden />
                   ) : o.status === "completed" ? (
@@ -268,7 +330,10 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
               </span>
               {/* who it's with: the link that opens the order; under it their phone and town */}
               <span className="mt-1 flex min-w-0 flex-col gap-0.5">
-                <Link href={`/order/${kind}/${o.id}`} className="truncate text-base font-bold after:absolute after:inset-0 after:rounded-control">
+                <Link
+                  href={`/order/${kind}/${o.id}`}
+                  className="truncate text-base font-bold after:absolute after:inset-0 after:rounded-control"
+                >
                   {titleCase(o.who)}
                 </Link>
                 {(o.phone || o.city) && (
@@ -280,7 +345,8 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
                     )}
                     {o.city && (
                       <span className="inline-flex min-w-0 items-center gap-1">
-                        <MapPin className="size-3 shrink-0" aria-hidden /> <span className="truncate leading-normal">{local(o.city)}</span>
+                        <MapPin className="size-3 shrink-0" aria-hidden />{" "}
+                        <span className="truncate leading-normal">{local(o.city)}</span>
                       </span>
                     )}
                   </span>

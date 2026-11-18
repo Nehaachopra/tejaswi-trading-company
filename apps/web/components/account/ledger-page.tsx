@@ -7,7 +7,7 @@ import { useState } from "react";
 
 import { PAGE } from "~/components/ui/page-styles";
 import { Menu, MenuItem } from "~/components/ui/menu";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { useLedger, useLedgerActions } from "~/providers/accounts";
 
@@ -32,7 +32,15 @@ export function LedgerPage({ ledgerId }: { ledgerId: string }) {
       refreshAccounts();
     } catch (err) {
       const code = (err as { data?: { code?: string } })?.data?.code;
-      toast.error(tm(code === "PRECONDITION_FAILED" ? "errors.hasBalance" : code === undefined ? "errors.network" : "errors.failed"));
+      toast.error(
+        tm(
+          code === "PRECONDITION_FAILED"
+            ? "errors.hasBalance"
+            : code === undefined
+              ? "errors.network"
+              : "errors.failed",
+        ),
+      );
     }
   }
 
@@ -40,8 +48,12 @@ export function LedgerPage({ ledgerId }: { ledgerId: string }) {
     // little room below: the statement fills the screen and scrolls inside itself
     <main className={`${PAGE} pb-6`}>
       {/* back to the ledger's head */}
-      <Link href={ledger.data ? `/account/${ledger.data.head}` : "/account"} className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory">
-        <ArrowLeft className="size-4" aria-hidden /> {ledger.data ? t(`heads.${ledger.data.head}`) : t("title")}
+      <Link
+        href={ledger.data ? `/account/${ledger.data.head}` : "/account"}
+        className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory"
+      >
+        <ArrowLeft className="size-4" aria-hidden />{" "}
+        {ledger.data ? t(`heads.${ledger.data.head}`) : t("title")}
       </Link>
 
       {ledger.isPending ? (
@@ -64,29 +76,52 @@ export function LedgerPage({ ledgerId }: { ledgerId: string }) {
             // on the Opening balances page
             menu={
               ledger.data.custom && (
-                <Menu plain label={tm("label")} triggerClassName="size-10 shrink-0" trigger={<Ellipsis className="size-5" aria-hidden />}>
+                <Menu
+                  plain
+                  label={tm("label")}
+                  triggerClassName="size-10 shrink-0"
+                  trigger={<Ellipsis className="size-5" aria-hidden />}
+                >
                   {(close) => (
                     <>
                       <MenuItem
                         onClick={() => {
                           close();
-                          setSheet({ kind: "rename", id: ledger.data.id, head: ledger.data.head, name: ledger.data.name, tdsType: ledger.data.tdsType === "professional" ? null : ledger.data.tdsType });
+                          setSheet({
+                            kind: "rename",
+                            id: ledger.data.id,
+                            head: ledger.data.head,
+                            name: ledger.data.name,
+                            tdsType:
+                              ledger.data.tdsType === "professional" ? null : ledger.data.tdsType,
+                          });
                         }}
                       >
                         <Pencil className="size-4" aria-hidden /> {tm("rename")}
                       </MenuItem>
                       <MenuItem
-                        disabled={ledger.data.isActive && (ledger.data.balance.today.amount !== 0 || !!ledger.data.balance.postDated)}
+                        disabled={
+                          ledger.data.isActive &&
+                          (ledger.data.balance.today.amount !== 0 ||
+                            !!ledger.data.balance.postDated)
+                        }
                         onClick={() => {
                           close();
-                          void toggleActive(ledger.data.id, ledger.data.name, !ledger.data.isActive);
+                          void toggleActive(
+                            ledger.data.id,
+                            ledger.data.name,
+                            !ledger.data.isActive,
+                          );
                         }}
                         className="flex-wrap"
                       >
-                        <Power className="size-4" aria-hidden /> {tm(ledger.data.isActive ? "deactivate" : "reactivate")}
-                        {ledger.data.isActive && (ledger.data.balance.today.amount !== 0 || !!ledger.data.balance.postDated) && (
-                          <span className="w-full pl-6 text-xs">{tm("hasBalance")}</span>
-                        )}
+                        <Power className="size-4" aria-hidden />{" "}
+                        {tm(ledger.data.isActive ? "deactivate" : "reactivate")}
+                        {ledger.data.isActive &&
+                          (ledger.data.balance.today.amount !== 0 ||
+                            !!ledger.data.balance.postDated) && (
+                            <span className="w-full pl-6 text-xs">{tm("hasBalance")}</span>
+                          )}
                       </MenuItem>
                     </>
                   )}

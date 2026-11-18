@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { FieldMessage } from "~/components/ui/field-message";
 import { PAGE } from "~/components/ui/page-styles";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 

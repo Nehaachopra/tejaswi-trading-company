@@ -6,11 +6,17 @@ import { useEffect, useRef, useState } from "react";
 
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
 import { fieldClass } from "~/components/ui/card-form";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { noDigits, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { useBankDirectory, useIfsc } from "~/providers/accounts";
-import { appOfUpi, lengthFits, lengthsFor, type RouterOutputs, upiProblem } from "@repo/trpc/client";
+import {
+  appOfUpi,
+  lengthFits,
+  lengthsFor,
+  type RouterOutputs,
+  upiProblem,
+} from "@repo/trpc/client";
 
 import { PickMenu } from "../../stock/pick-menu";
 import { BANKS } from "./bank-list";
@@ -98,12 +104,16 @@ export function draftProblems(d: BankDraft) {
     bankName: d.bankName.trim() === "",
     branchName: d.branchName.trim() === "",
     // 9 to 18 digits, and a length the bank uses when it keeps to fixed ones
-    accountNumber: !ACCOUNT.test(d.accountNumber) || (d.bankName.trim() !== "" && !lengthFits(d.bankName, d.accountNumber)),
+    accountNumber:
+      !ACCOUNT.test(d.accountNumber) ||
+      (d.bankName.trim() !== "" && !lengthFits(d.bankName, d.accountNumber)),
     accountNumberAgain: needsAgain(d) && d.accountNumberAgain !== d.accountNumber,
     accountHolderName: d.accountHolderName.trim() === "",
     accountType: d.accountType === null,
     // each one name@handle, with a handle its app gives out, and listed once
-    upiIds: upis.some((u) => u.provider === null || upiProblem(u.upiId, u.provider) !== null) || new Set(ids).size !== ids.length,
+    upiIds:
+      upis.some((u) => u.provider === null || upiProblem(u.upiId, u.provider) !== null) ||
+      new Set(ids).size !== ids.length,
   };
 }
 
@@ -119,23 +129,36 @@ export function draftInput(d: BankDraft) {
       accountNumber: d.accountNumber,
       ifscCode: d.ifscCode,
       accountType: d.accountType!,
-      upiIds: d.upiIds.filter((u) => u.upiId.trim() !== "").map((u) => ({ upiId: u.upiId.trim(), provider: u.provider! })),
+      upiIds: d.upiIds
+        .filter((u) => u.upiId.trim() !== "")
+        .map((u) => ({ upiId: u.upiId.trim(), provider: u.provider! })),
     },
   };
 }
 
-const input = (bad: boolean) => `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
+const input = (bad: boolean) =>
+  `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
 
 // a locked value, filled in from the IFSC: tinted, so it reads apart from the fields that can be typed in
-const locked = "flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control border border-chestnut/25 bg-chestnut/[0.1] px-3 text-base";
+const locked =
+  "flex min-h-11 w-full min-w-0 items-center gap-2 rounded-control border border-chestnut/25 bg-chestnut/[0.1] px-3 text-base";
 
 // the bank and branch behind an IFSC, from our branch directory (loaded from Razorpay's open dataset)
-type Lookup = { state: "idle" | "looking" | "missing" } | { state: "found"; bank: string; branch: string };
+type Lookup =
+  { state: "idle" | "looking" | "missing" } | { state: "found"; bank: string; branch: string };
 
 // the fields: IFSC (optional) first, which fills in and locks the bank and branch; without it, the bank from the
 // list and the branch typed. Then the account number (twice when new or changed), holder, type and UPI IDs with
 // their apps; its opening balance is set on the Opening balances page
-export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onChange: (patch: Partial<BankDraft>) => void; tried: boolean }) {
+export function BankFields({
+  draft,
+  onChange,
+  tried,
+}: {
+  draft: BankDraft;
+  onChange: (patch: Partial<BankDraft>) => void;
+  tried: boolean;
+}) {
   const t = useTranslations("accounts.bank.form");
   const bad = draftProblems(draft);
   const show = (field: keyof typeof bad) => tried && bad[field];
@@ -159,10 +182,12 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
     onChangeRef.current({ bankName: bank, branchName: branch, bankOther: false });
   }, [ifscValid, named.data, named.isFetching, named.isError]);
 
-  const setUpi = (key: string, patch: Partial<UpiDraft>) => onChange({ upiIds: draft.upiIds.map((u) => (u.key === key ? { ...u, ...patch } : u)) });
+  const setUpi = (key: string, patch: Partial<UpiDraft>) =>
+    onChange({ upiIds: draft.upiIds.map((u) => (u.key === key ? { ...u, ...patch } : u)) });
   // the banks from the branch directory (the built-in list until it has loaded, or if it's empty)
   const directory = useBankDirectory();
-  const bankNames: readonly string[] = directory.data && directory.data.length > 0 ? directory.data : BANKS;
+  const bankNames: readonly string[] =
+    directory.data && directory.data.length > 0 ? directory.data : BANKS;
   const listed = bankNames.find((n) => n.toLowerCase() === draft.bankName.trim().toLowerCase());
 
   return (
@@ -175,7 +200,9 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
           value={draft.ifscCode}
           maxLength={11}
           autoCapitalize="characters"
-          onChange={(e) => onChange({ ifscCode: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })}
+          onChange={(e) =>
+            onChange({ ifscCode: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })
+          }
           placeholder="SBIN0001234"
           aria-invalid={show("ifscCode") || undefined}
           className={cn(input(show("ifscCode")), "tabular uppercase")}
@@ -186,7 +213,9 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
           </span>
         )}
         {lookup.state === "missing" && <span className="text-xs">{t("notFound")}</span>}
-        {lookup.state === "idle" && draft.ifscCode === "" && <span className="text-xs">{t("ifscHint")}</span>}
+        {lookup.state === "idle" && draft.ifscCode === "" && (
+          <span className="text-xs">{t("ifscHint")}</span>
+        )}
       </label>
 
       {/* bank and branch: locked to the IFSC when it found them, otherwise picked and typed */}
@@ -195,13 +224,15 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
           <div className="flex flex-col gap-2.5">
             <span className="text-sm">{t("bankName")}</span>
             <p className={locked}>
-              <Lock className="size-4 shrink-0" aria-hidden /> <span className="truncate">{draft.bankName}</span>
+              <Lock className="size-4 shrink-0" aria-hidden />{" "}
+              <span className="truncate">{draft.bankName}</span>
             </p>
           </div>
           <div className="flex flex-col gap-2.5">
             <span className="text-sm">{t("branch")}</span>
             <p className={locked}>
-              <Lock className="size-4 shrink-0" aria-hidden /> <span className="truncate">{draft.branchName}</span>
+              <Lock className="size-4 shrink-0" aria-hidden />{" "}
+              <span className="truncate">{draft.branchName}</span>
             </p>
           </div>
         </>
@@ -211,10 +242,25 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
             <span className="text-sm">{t("bankName")}</span>
             <PickMenu
               label={t("bankName")}
-              current={draft.bankOther ? t("otherBank") : listed ? titleCase(listed.toLowerCase()) : t("pickBank")}
-              options={[...bankNames.map((n) => ({ id: n, name: titleCase(n.toLowerCase()) })), { id: OTHER, name: t("otherBank") }]}
+              current={
+                draft.bankOther
+                  ? t("otherBank")
+                  : listed
+                    ? titleCase(listed.toLowerCase())
+                    : t("pickBank")
+              }
+              options={[
+                ...bankNames.map((n) => ({ id: n, name: titleCase(n.toLowerCase()) })),
+                { id: OTHER, name: t("otherBank") },
+              ]}
               picked={draft.bankOther ? OTHER : (listed ?? "")}
-              onPick={(id) => onChange(id === OTHER ? { bankOther: true, bankName: "" } : { bankOther: false, bankName: id })}
+              onPick={(id) =>
+                onChange(
+                  id === OTHER
+                    ? { bankOther: true, bankName: "" }
+                    : { bankOther: false, bankName: id },
+                )
+              }
               invalid={show("bankName") && !draft.bankOther}
               searchable
               searchLabel={t("searchBank")}
@@ -224,7 +270,13 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
           {draft.bankOther && (
             <label className="flex flex-col gap-2.5">
               <span className="text-sm">{t("otherBankName")}</span>
-              <input value={draft.bankName} maxLength={NAME_MAX} onChange={(e) => onChange({ bankName: e.target.value })} aria-invalid={show("bankName") || undefined} className={input(show("bankName"))} />
+              <input
+                value={draft.bankName}
+                maxLength={NAME_MAX}
+                onChange={(e) => onChange({ bankName: e.target.value })}
+                aria-invalid={show("bankName") || undefined}
+                className={input(show("bankName"))}
+              />
             </label>
           )}
           {/* a listed bank's branches can be searched (picking one fills in the IFSC); an Other bank's is typed */}
@@ -240,7 +292,13 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
                 className={input(show("branchName"))}
               />
             ) : (
-              <input value={draft.branchName} maxLength={NAME_MAX} onChange={(e) => onChange({ branchName: e.target.value })} aria-invalid={show("branchName") || undefined} className={input(show("branchName"))} />
+              <input
+                value={draft.branchName}
+                maxLength={NAME_MAX}
+                onChange={(e) => onChange({ branchName: e.target.value })}
+                aria-invalid={show("branchName") || undefined}
+                className={input(show("branchName"))}
+              />
             )}
           </label>
         </>
@@ -261,17 +319,29 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
         {(() => {
           // the bank's own lengths, as a hint while typing and the reason when it's wrong
           const lengths = draft.bankName.trim() ? lengthsFor(draft.bankName) : null;
-          const typedWrong = draft.accountNumber !== "" && lengths && !lengths.includes(draft.accountNumber.length);
+          const typedWrong =
+            draft.accountNumber !== "" && lengths && !lengths.includes(draft.accountNumber.length);
           if (show("accountNumber") || typedWrong) {
             return (
               <span className="text-xs text-danger">
                 {lengths
-                  ? t("accountNumberBankHint", { bank: titleCase(draft.bankName.toLowerCase()), digits: lengths.join(" / "), count: draft.accountNumber.length })
+                  ? t("accountNumberBankHint", {
+                      bank: titleCase(draft.bankName.toLowerCase()),
+                      digits: lengths.join(" / "),
+                      count: draft.accountNumber.length,
+                    })
                   : t("accountNumberHint")}
               </span>
             );
           }
-          return lengths ? <span className="text-xs">{t("accountNumberBankLength", { bank: titleCase(draft.bankName.toLowerCase()), digits: lengths.join(" / ") })}</span> : null;
+          return lengths ? (
+            <span className="text-xs">
+              {t("accountNumberBankLength", {
+                bank: titleCase(draft.bankName.toLowerCase()),
+                digits: lengths.join(" / "),
+              })}
+            </span>
+          ) : null;
         })()}
       </label>
       {needsAgain(draft) && (
@@ -287,7 +357,9 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
             aria-invalid={show("accountNumberAgain") || undefined}
             className={cn(input(show("accountNumberAgain")), "tabular")}
           />
-          {show("accountNumberAgain") && <span className="text-xs text-danger">{t("accountNumberMismatch")}</span>}
+          {show("accountNumberAgain") && (
+            <span className="text-xs text-danger">{t("accountNumberMismatch")}</span>
+          )}
         </label>
       )}
 
@@ -319,12 +391,20 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
         <h3 className="text-sm">{t("upiIds")}</h3>
         {draft.upiIds.map((u, i) => {
           // what's wrong with it, shown once it's been typed out (or on saving)
-          const problem = u.upiId.trim() === "" ? null : u.provider === null ? "app" : upiProblem(u.upiId, u.provider);
+          const problem =
+            u.upiId.trim() === ""
+              ? null
+              : u.provider === null
+                ? "app"
+                : upiProblem(u.upiId, u.provider);
           const typedOut = u.upiId.includes("@") && u.upiId.split("@")[1]!.length >= 2;
           const wrong = problem !== null && (tried || (typedOut && problem === "handle"));
           return (
             // one card per UPI ID: the app it's in and remove on top, the ID below
-            <fieldset key={u.key} className="flex flex-col gap-3 rounded-control border border-chestnut/20 p-3">
+            <fieldset
+              key={u.key}
+              className="flex flex-col gap-3 rounded-control border border-chestnut/20 p-3"
+            >
               <legend className="sr-only">{t("upiN", { n: i + 1 })}</legend>
               <div className="flex items-center gap-2">
                 <div className="w-40 shrink-0">
@@ -342,11 +422,15 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
                 <span className="flex flex-1 justify-end">
                   {draft.upiIds.length > 1 &&
                     (i === 0 ? (
-                      <span className="rounded-control bg-chestnut px-2 py-0.5 text-xs font-semibold text-ivory">{t("upiDefault")}</span>
+                      <span className="rounded-control bg-chestnut px-2 py-0.5 text-xs font-semibold text-ivory">
+                        {t("upiDefault")}
+                      </span>
                     ) : (
                       <button
                         type="button"
-                        onClick={() => onChange({ upiIds: [u, ...draft.upiIds.filter((x) => x.key !== u.key)] })}
+                        onClick={() =>
+                          onChange({ upiIds: [u, ...draft.upiIds.filter((x) => x.key !== u.key)] })
+                        }
                         className="min-h-9 rounded-control border border-chestnut/50 px-2.5 text-xs font-medium hover:border-chestnut"
                       >
                         {t("makeUpiDefault")}
@@ -379,7 +463,11 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
               />
               {wrong && (
                 <span className="text-xs text-danger">
-                  {problem === "handle" ? t("upiWrongHandle", { app: t(`providers.${u.provider!}`) }) : problem === "app" ? t("upiPickApp") : t("upiFormat")}
+                  {problem === "handle"
+                    ? t("upiWrongHandle", { app: t(`providers.${u.provider!}`) })
+                    : problem === "app"
+                      ? t("upiPickApp")
+                      : t("upiFormat")}
                 </span>
               )}
             </fieldset>
@@ -389,7 +477,9 @@ export function BankFields({ draft, onChange, tried }: { draft: BankDraft; onCha
         {draft.upiIds.length < UPI_COUNT && (
           <button
             type="button"
-            onClick={() => onChange({ upiIds: [...draft.upiIds, { key: newKey(), upiId: "", provider: null }] })}
+            onClick={() =>
+              onChange({ upiIds: [...draft.upiIds, { key: newKey(), upiId: "", provider: null }] })
+            }
             className={ADD_ON_IVORY}
           >
             <Plus className="size-4" aria-hidden /> {t("addUpi")}

@@ -9,6 +9,8 @@ import {
   setActiveInputModel,
 } from "@repo/services/category/model";
 import {
+  costHistoryInputModel,
+  costHistoryModel,
   createProductInputModel,
   deleteProductsInputModel,
   listProductsInputModel,
@@ -144,6 +146,13 @@ const productRouter = router({
     .input(priceHistoryInputModel)
     .output(priceHistoryModel)
     .query(({ input }) => productService.priceHistory(input)),
+
+  // one pack size's last 5 purchase costs, for a purchase order's cost chart
+  costHistory: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/inventory/products/{productId}/cost-history", tags: ["inventory"] } })
+    .input(costHistoryInputModel)
+    .output(costHistoryModel)
+    .query(({ input }) => productService.costHistory(input)),
 
   // brand, name, category, sub-category and HSN, for all of a product's pack sizes, with one pack size's unit,
   // size, GST % and active switch

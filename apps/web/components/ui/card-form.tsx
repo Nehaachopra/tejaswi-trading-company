@@ -1,4 +1,4 @@
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { cn } from "~/lib/utils";
 
 // fields and the primary button on an ivory card or sheet (chestnut ink): a field has no fill or edge, only a soft shadow all round it,
@@ -9,7 +9,15 @@ export const fieldClass = (invalid: boolean) =>
     invalid && "shadow-danger/80 focus:shadow-danger focus-within:shadow-danger",
   );
 
-export function SubmitButton({ busy, disabled, children }: { busy: boolean; disabled?: boolean; children: React.ReactNode }) {
+export function SubmitButton({
+  busy,
+  disabled,
+  children,
+}: {
+  busy: boolean;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="submit"

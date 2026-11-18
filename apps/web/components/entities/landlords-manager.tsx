@@ -12,7 +12,7 @@ import {
   FILTER_STACK,
   PAGE,
 } from "~/components/ui/page-styles";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
 import { useLandlordActions, useLandlordList } from "~/providers/entities";

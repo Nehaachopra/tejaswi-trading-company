@@ -5,7 +5,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { Sheet } from "~/components/ui/sheet";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { titleCase } from "~/lib/format";
 import { useStockMoves } from "~/providers/stock";
 import type { RouterOutputs } from "@repo/trpc/client";
@@ -17,13 +17,24 @@ type Move = RouterOutputs["inventory"]["stock"]["moves"][number];
 const PAGE = 30;
 
 // the move history, newest first, with a godown filter and Show older; read-only
-export function MovesSheet({ open, godowns, onClose }: { open: boolean; godowns: { id: string; name: string }[]; onClose: () => void }) {
+export function MovesSheet({
+  open,
+  godowns,
+  onClose,
+}: {
+  open: boolean;
+  godowns: { id: string; name: string }[];
+  onClose: () => void;
+}) {
   const t = useTranslations("stock.moves");
   const format = useFormatter();
   const [godownId, setGodownId] = useState<string | null>(null);
 
   // the first page, then older pages appended below it
-  const { first, fetchOlder } = useStockMoves({ godownId: godownId ?? undefined, limit: PAGE }, open);
+  const { first, fetchOlder } = useStockMoves(
+    { godownId: godownId ?? undefined, limit: PAGE },
+    open,
+  );
   const [older, setOlder] = useState<Move[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -59,7 +70,10 @@ export function MovesSheet({ open, godowns, onClose }: { open: boolean; godowns:
         <PickMenu
           label={t("godown")}
           current={godowns.find((g) => g.id === godownId)?.name ?? t("allGodowns")}
-          options={[{ id: null, name: t("allGodowns") }, ...godowns.map((g) => ({ id: g.id as string | null, name: g.name }))]}
+          options={[
+            { id: null, name: t("allGodowns") },
+            ...godowns.map((g) => ({ id: g.id as string | null, name: g.name })),
+          ]}
           picked={godownId}
           onPick={setGodownId}
           className="min-h-9"
@@ -86,7 +100,9 @@ export function MovesSheet({ open, godowns, onClose }: { open: boolean; godowns:
                   {/* the product and how many */}
                   <div className="flex items-baseline justify-between gap-3">
                     <p className="min-w-0 truncate font-medium">{titleCase(m.productName)}</p>
-                    <p className="tabular shrink-0 font-heading text-lg font-bold">× {m.quantity.toLocaleString("en-IN")}</p>
+                    <p className="tabular shrink-0 font-heading text-lg font-bold">
+                      × {m.quantity.toLocaleString("en-IN")}
+                    </p>
                   </div>
                   {/* from → to */}
                   <p className="flex items-center gap-1.5 text-sm">
@@ -98,7 +114,12 @@ export function MovesSheet({ open, godowns, onClose }: { open: boolean; godowns:
                   <p className="text-xs text-chestnut/70">
                     {[
                       m.movedByName,
-                      format.dateTime(new Date(m.movedAt), { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }),
+                      format.dateTime(new Date(m.movedAt), {
+                        day: "numeric",
+                        month: "short",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      }),
                       m.vehicleNumber ? t("vehicle", { number: m.vehicleNumber }) : null,
                       m.remarks,
                     ]

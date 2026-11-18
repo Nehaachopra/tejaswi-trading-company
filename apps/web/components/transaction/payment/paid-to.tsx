@@ -13,7 +13,7 @@ import { fieldClass } from "~/components/ui/card-form";
 import { dayInWords } from "~/components/ui/date-input";
 import { FieldMessage } from "~/components/ui/field-message";
 import { MicButton } from "~/components/ui/mic-button";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { rupees, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { indiaDay } from "../../account/balance";

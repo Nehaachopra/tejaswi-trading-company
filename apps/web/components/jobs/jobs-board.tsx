@@ -7,7 +7,7 @@ import type { RouterOutputs } from "@repo/trpc/client";
 
 import { FILTER_BAR, PAGE } from "~/components/ui/page-styles";
 import { chip } from "../product/row-styles";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { useJobs, useRetryJob } from "~/providers/jobs";
 
@@ -15,7 +15,13 @@ type Job = RouterOutputs["jobs"]["list"]["jobs"][number];
 type State = Job["state"];
 
 // the chips, in this order; cancelled jobs are rare enough to leave out
-const FILTERS = ["failed", "retry", "created", "active", "completed"] as const satisfies readonly State[];
+const FILTERS = [
+  "failed",
+  "retry",
+  "created",
+  "active",
+  "completed",
+] as const satisfies readonly State[];
 
 const WHEN = { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" } as const;
 
@@ -49,7 +55,8 @@ export function JobsBoard() {
           aria-busy={jobs.isFetching}
           className={`ml-auto flex items-center gap-1.5 aria-busy:opacity-80 ${chip(false)}`}
         >
-          {jobs.isFetching ? <Spinner /> : <RefreshCw className="size-4" aria-hidden />} {t("refresh")}
+          {jobs.isFetching ? <Spinner /> : <RefreshCw className="size-4" aria-hidden />}{" "}
+          {t("refresh")}
         </button>
       </div>
 
@@ -78,7 +85,10 @@ export function JobsBoard() {
 function JobCard({ job }: { job: Job }) {
   const t = useTranslations("jobs");
   const format = useFormatter();
-  const retry = useRetryJob({ onSuccess: () => toast.success(t("queued")), onError: (message) => toast.error(message) });
+  const retry = useRetryJob({
+    onSuccess: () => toast.success(t("queued")),
+    onError: (message) => toast.error(message),
+  });
 
   // a queue the translation files don't know yet shows the server's English title
   const title = t.has(`queues.${job.queue}`) ? t(`queues.${job.queue}`) : job.queueTitle;
@@ -95,7 +105,8 @@ function JobCard({ job }: { job: Job }) {
       {/* attempts, and when it ended */}
       <p className="tabular border-t border-chestnut/15 pt-3 text-sm text-chestnut/80">
         {t("attempt", { attempt: job.attempts, max: job.maxAttempts })}
-        {job.completedOn && ` · ${t("ended", { time: format.dateTime(new Date(job.completedOn), WHEN) })}`}
+        {job.completedOn &&
+          ` · ${t("ended", { time: format.dateTime(new Date(job.completedOn), WHEN) })}`}
       </p>
 
       {/* the last error, in red */}
@@ -115,7 +126,8 @@ function JobCard({ job }: { job: Job }) {
           aria-busy={retry.isPending}
           className="mt-auto flex min-h-11 w-full sm:w-auto items-center justify-center gap-1.5 rounded-control border border-chestnut/60 px-3 text-sm font-medium hover:border-chestnut aria-busy:opacity-80"
         >
-          {retry.isPending ? <Spinner /> : <RotateCcw className="size-4" aria-hidden />} {t("runAgain")}
+          {retry.isPending ? <Spinner /> : <RotateCcw className="size-4" aria-hidden />}{" "}
+          {t("runAgain")}
         </button>
       )}
     </li>

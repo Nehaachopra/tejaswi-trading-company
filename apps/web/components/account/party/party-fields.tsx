@@ -1,6 +1,27 @@
 "use client";
 
-import { Building2, House, IdCard, Landmark, Mail, Map, MapPin, MapPinned, MessageSquare, Pencil, Percent, Phone, Plus, QrCode, ReceiptText, Tag, Trash2, User, Wallet, type LucideIcon } from "lucide-react";
+import {
+  Building2,
+  House,
+  IdCard,
+  Landmark,
+  Mail,
+  Map,
+  MapPin,
+  MapPinned,
+  MessageSquare,
+  Pencil,
+  Percent,
+  Phone,
+  Plus,
+  QrCode,
+  ReceiptText,
+  Tag,
+  Trash2,
+  User,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { createContext, useContext, useEffect, useRef, useState, useLayoutEffect } from "react";
 
@@ -13,7 +34,7 @@ import { MultiAccordion } from "~/components/ui/multi-accordion";
 import { MicButton, MicField } from "~/components/ui/mic-button";
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { noDigits, titleCase } from "~/lib/format";
 import { indiaPostPlace, indiaPostTownPin } from "~/lib/india-post";
 import { cn } from "~/lib/utils";
@@ -32,11 +53,20 @@ type AddressType = (typeof ADDRESS_TYPES)[number];
 
 // lengths follow parties and party_addresses: name 150, phone 20, email 254, PAN 10, remarks 500; label 100,
 // lines 200, landmark 150, city, district and state 100, PIN 6, GSTIN 15; at most 10 addresses
-const MAX = { name: 150, shortName: 20, phone: 20, email: 254, remarks: 500, label: 100, line: 200, landmark: 150, place: 100 } as const;
+const MAX = {
+  name: 150,
+  shortName: 20,
+  phone: 20,
+  email: 254,
+  remarks: 500,
+  label: 100,
+  line: 200,
+  landmark: 150,
+  place: 100,
+} as const;
 // one for billing (and shipping), one more to ship to; a party saved with more keeps them
 const MAX_ADDRESSES = 2;
 const SHORT_NAME = /^[A-Z0-9][A-Z0-9 &.-]{0,19}$/;
-
 
 export type AddressDraft = {
   // stays the same while the sheet is open, so React keeps each address's fields apart
@@ -146,34 +176,50 @@ export const draftFrom = (p: Party): PartyDraft => ({
   tdsBefore: p.paidBefore?.tds ? String(p.paidBefore.tds) : "",
   upiIds: p.upiIds.map((upiId) => ({ key: newKey(), upiId })),
   // the default one first: it's the billing address, the rest are where it ships
-  addresses: [...p.addresses].sort((a, b) => Number(b.isDefault) - Number(a.isDefault)).map((a) => ({
-    key: newKey(),
-    id: a.id,
-    label: a.label ?? "",
-    addressType: a.addressType,
-    addressLine1: a.addressLine1,
-    addressLine2: a.addressLine2 ?? "",
-    landmark: a.landmark ?? "",
-    city: a.city,
-    district: a.district,
-    state: a.state,
-    stateCode: a.stateCode,
-    postalCode: a.postalCode,
-    gstin: a.gstin ?? "",
-    isDefault: a.isDefault,
-  })),
+  addresses: [...p.addresses]
+    .sort((a, b) => Number(b.isDefault) - Number(a.isDefault))
+    .map((a) => ({
+      key: newKey(),
+      id: a.id,
+      label: a.label ?? "",
+      addressType: a.addressType,
+      addressLine1: a.addressLine1,
+      addressLine2: a.addressLine2 ?? "",
+      landmark: a.landmark ?? "",
+      city: a.city,
+      district: a.district,
+      state: a.state,
+      stateCode: a.stateCode,
+      postalCode: a.postalCode,
+      gstin: a.gstin ?? "",
+      isDefault: a.isDefault,
+    })),
 });
 
 // an address with nothing typed in it is simply left out
-export const blank = (a: AddressDraft) => [a.addressLine1, a.city, a.district, a.state, a.postalCode, a.gstin, a.label, a.addressLine2, a.landmark].every((v) => v.trim() === "");
+export const blank = (a: AddressDraft) =>
+  [
+    a.addressLine1,
+    a.city,
+    a.district,
+    a.state,
+    a.postalCode,
+    a.gstin,
+    a.label,
+    a.addressLine2,
+    a.landmark,
+  ].every((v) => v.trim() === "");
 
 // the same place as another address: line 1, landmark, town, district, PIN and state, capitals aside (as a sale's
 // shipping address can't be its billing address again)
 const samePlace = (a: AddressDraft, b: AddressDraft) =>
-  (["addressLine1", "landmark", "city", "district", "postalCode"] as const).every((f) => a[f].trim().toLowerCase() === b[f].trim().toLowerCase()) && a.stateCode === b.stateCode;
+  (["addressLine1", "landmark", "city", "district", "postalCode"] as const).every(
+    (f) => a[f].trim().toLowerCase() === b[f].trim().toLowerCase(),
+  ) && a.stateCode === b.stateCode;
 
 // an address that's already in the list above it (blank ones aside): not another address
-export const repeatsEarlier = (all: AddressDraft[], i: number) => !blank(all[i]!) && all.slice(0, i).some((b) => !blank(b) && samePlace(all[i]!, b));
+export const repeatsEarlier = (all: AddressDraft[], i: number) =>
+  !blank(all[i]!) && all.slice(0, i).some((b) => !blank(b) && samePlace(all[i]!, b));
 
 export function addressProblems(a: AddressDraft) {
   const gstin = a.gstin.trim();
@@ -193,12 +239,17 @@ export function draftProblems(d: PartyDraft, strict = false, phoneOptional = fal
     party: {
       name: d.name.trim() === "",
       phone: !(PHONE_PATTERN.test(d.phone) || (phoneOptional && d.phone === "")),
-      shortName: d.shortNameTaken || (d.shortName.trim() !== "" && !SHORT_NAME.test(d.shortName.trim())),
+      shortName:
+        d.shortNameTaken || (d.shortName.trim() !== "" && !SHORT_NAME.test(d.shortName.trim())),
       email: d.email.trim() !== "" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim()),
       pan: d.pan.trim() !== "" && !/^[A-Z]{5}\d{4}[A-Z]$/.test(d.pan.trim()),
       upi: d.upiIds.some((u) => upiBad(d, u.key)),
     },
-    addresses: d.addresses.map((a, i) => (blank(a) && !(strict && i === 0) ? null : { ...addressProblems(a), same: repeatsEarlier(d.addresses, i) })),
+    addresses: d.addresses.map((a, i) =>
+      blank(a) && !(strict && i === 0)
+        ? null
+        : { ...addressProblems(a), same: repeatsEarlier(d.addresses, i) },
+    ),
   };
 }
 
@@ -257,22 +308,43 @@ export function draftInput(d: PartyDraft) {
     types: d.types,
     // an employee's pay with the employee type (left out otherwise)
     employment: d.types.includes("employee")
-      ? { monthlySalary: Number(d.monthlySalary), payDay: Number(d.payDay), joiningDate: d.joiningDate }
+      ? {
+          monthlySalary: Number(d.monthlySalary),
+          payDay: Number(d.payDay),
+          joiningDate: d.joiningDate,
+        }
       : null,
     upiIds: d.upiIds.map((u) => u.upiId.trim()).filter((u) => u !== ""),
-    details: { name: d.name.trim(), shortName: d.shortName.trim() || null, phone: d.phone, email: d.email.trim(), pan: d.pan.trim(), remarks: d.remarks.trim(), transportDeclaration: d.transportDeclaration },
+    details: {
+      name: d.name.trim(),
+      shortName: d.shortName.trim() || null,
+      phone: d.phone,
+      email: d.email.trim(),
+      pan: d.pan.trim(),
+      remarks: d.remarks.trim(),
+      transportDeclaration: d.transportDeclaration,
+    },
     // by its place in the form: the first is billed (and shipped to, when it's the only one) and is the default, the
     // rest are shipping addresses
-    addresses: kept.map((a, i) => ({ ...addressInput(a), addressType: i > 0 ? ("shipping" as const) : kept.length > 1 ? ("billing" as const) : ("both" as const), isDefault: i === 0 })),
+    addresses: kept.map((a, i) => ({
+      ...addressInput(a),
+      addressType:
+        i > 0 ? ("shipping" as const) : kept.length > 1 ? ("billing" as const) : ("both" as const),
+      isDefault: i === 0,
+    })),
   };
 }
 
-const input = (bad: boolean) => `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
+const input = (bad: boolean) =>
+  `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
 
 // the profile photo's placeholder, left of the personal details (above them on a phone)
 export function ProfilePhoto() {
   return (
-    <div className="grid size-28 shrink-0 place-items-center self-center rounded-full bg-chestnut/10 text-chestnut/50 shadow-[0_14px_10px_-10px] shadow-chestnut/70 @md:self-start" aria-hidden>
+    <div
+      className="grid size-28 shrink-0 place-items-center self-center rounded-full bg-chestnut/10 text-chestnut/50 shadow-[0_14px_10px_-10px] shadow-chestnut/70 @md:self-start"
+      aria-hidden
+    >
       <User className="size-12" />
     </div>
   );
@@ -291,7 +363,21 @@ export function FieldRows({ children }: { children: React.ReactNode }) {
 export const SECTION_TITLE = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
 
 // a labelled field, with an icon before its label; as a row (label left, no icon) inside a rows form
-export function Field({ label, icon: Icon, children, className, required = false, error }: { label: string; icon?: LucideIcon; children: React.ReactNode; className?: string; required?: boolean; error?: string | false }) {
+export function Field({
+  label,
+  icon: Icon,
+  children,
+  className,
+  required = false,
+  error,
+}: {
+  label: string;
+  icon?: LucideIcon;
+  children: React.ReactNode;
+  className?: string;
+  required?: boolean;
+  error?: string | false;
+}) {
   const rows = useContext(RowsContext);
   if (rows)
     return (
@@ -322,7 +408,20 @@ export function Field({ label, icon: Icon, children, className, required = false
 
 // the full name's box: it grows to fit a long name, wrapping at the spaces (a word is never broken); Enter ends the
 // name, it doesn't start a line
-function NameBox({ value, onType, onDone, className, ...rest }: { value: string; onType: (name: string) => void; onDone: () => void; className?: string; autoFocus?: boolean; "aria-invalid"?: boolean }) {
+function NameBox({
+  value,
+  onType,
+  onDone,
+  className,
+  ...rest
+}: {
+  value: string;
+  onType: (name: string) => void;
+  onDone: () => void;
+  className?: string;
+  autoFocus?: boolean;
+  "aria-invalid"?: boolean;
+}) {
   const box = useRef<HTMLTextAreaElement>(null);
   // as tall as what's typed
   useLayoutEffect(() => {
@@ -340,7 +439,10 @@ function NameBox({ value, onType, onDone, className, ...rest }: { value: string;
       onChange={(e) => onType(noDigits(e.target.value.replace(/\s*[\r\n]+\s*/g, " ")))}
       onBlur={onDone}
       onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), onDone())}
-      className={cn(className, "block resize-none overflow-hidden py-2.5 leading-6 [overflow-wrap:normal] [word-break:normal]")}
+      className={cn(
+        className,
+        "block resize-none overflow-hidden py-2.5 leading-6 [overflow-wrap:normal] [word-break:normal]",
+      )}
       {...rest}
     />
   );
@@ -396,7 +498,14 @@ export function AddressFields({
     if (address.district.trim() === "") return onChange({ district });
     pinFromTown.current = "";
     onRestart?.();
-    onChange({ district, city: "", postalCode: "", addressLine1: "", addressLine2: "", landmark: "" });
+    onChange({
+      district,
+      city: "",
+      postalCode: "",
+      addressLine1: "",
+      addressLine2: "",
+      landmark: "",
+    });
   };
   // the town changed: a PIN typed stays, with its district and state (only a PIN the town itself filled in is looked up
   // again for the new town)
@@ -412,8 +521,14 @@ export function AddressFields({
   };
   // the state's districts, with a name the PIN directory gave or one typed in if the list doesn't have it
   const districts = address.stateCode ? DISTRICTS[address.stateCode] : undefined;
-  const inList = (name: string, list: readonly string[] | undefined) => !!list?.some((d) => d.toLowerCase() === name.trim().toLowerCase());
-  const districtOptions = [...(address.district.trim() !== "" && !inList(address.district, districts) ? [address.district] : []), ...(districts ?? [])];
+  const inList = (name: string, list: readonly string[] | undefined) =>
+    !!list?.some((d) => d.toLowerCase() === name.trim().toLowerCase());
+  const districtOptions = [
+    ...(address.district.trim() !== "" && !inList(address.district, districts)
+      ? [address.district]
+      : []),
+    ...(districts ?? []),
+  ];
   // the PIN the address opened with: a saved address isn't filled over until its PIN is changed
   const openedPin = useRef(address.postalCode);
   // the PIN filled in from the town
@@ -433,12 +548,22 @@ export function AddressFields({
 
     // a new PIN is a new place: its district and state replace what was there, and its town too unless one was typed
     // by hand (a town typed before the PIN stays as typed). A saved address opened with this PIN keeps its own
-    const fill = (place: { city: string; district: string; state: string; stateCode: StateCode | null }) => {
+    const fill = (place: {
+      city: string;
+      district: string;
+      state: string;
+      stateCode: StateCode | null;
+    }) => {
       setLookup({ state: "found", place: `${place.district}, ${place.state}` });
       if (pin === openedPin.current && address.city !== "") return;
       const typedTown = address.city.trim() !== "" && address.city !== townFromPin.current;
       if (!typedTown) townFromPin.current = place.city;
-      onChange({ ...(typedTown ? {} : { city: place.city }), district: place.district, state: place.state, stateCode: place.stateCode });
+      onChange({
+        ...(typedTown ? {} : { city: place.city }),
+        district: place.district,
+        state: place.state,
+        stateCode: place.stateCode,
+      });
     };
 
     // India Post's free PIN directory: the town (its block) and the district
@@ -470,9 +595,18 @@ export function AddressFields({
     if (address.postalCode !== "" || city.length < 3) return;
     const controller = new AbortController();
     const timer = setTimeout(() => {
-      const fill = (place: { postalCode: string; district: string; state: string; stateCode: StateCode | null }) => {
+      const fill = (place: {
+        postalCode: string;
+        district: string;
+        state: string;
+        stateCode: StateCode | null;
+      }) => {
         pinFromTown.current = place.postalCode;
-        onChange({ postalCode: place.postalCode, district: place.district, ...(place.stateCode ? { state: place.state, stateCode: place.stateCode } : {}) });
+        onChange({
+          postalCode: place.postalCode,
+          district: place.district,
+          ...(place.stateCode ? { state: place.state, stateCode: place.stateCode } : {}),
+        });
       };
       void savedPlaces
         .townPin(city)
@@ -481,7 +615,8 @@ export function AddressFields({
           if (controller.signal.aborted) return;
           if (saved) return fill(saved);
           const found = await indiaPostTownPin(city, controller.signal);
-          if (found && !controller.signal.aborted) fill({ ...found, stateCode: stateCodeOf(found.state) });
+          if (found && !controller.signal.aborted)
+            fill({ ...found, stateCode: stateCodeOf(found.state) });
         })
         .catch(() => undefined);
     }, 600);
@@ -498,65 +633,112 @@ export function AddressFields({
       {/* which address, default or not, remove */}
       <legend className="sr-only">{t("addressN", { n: index + 1 })}</legend>
       {!single && !noHeader && (
-      <div className="flex flex-wrap items-center gap-2">
-        {/* its name, "Address 1" until it's given one, changed with the pen */}
-        <div className="flex min-w-0 flex-1 basis-20 items-center gap-1">
-          {naming ? (
-            <input
-              autoFocus
-              value={address.label}
-              maxLength={MAX.label}
-              aria-label={t("label")}
-              placeholder={t("labelPlaceholder")}
-              onChange={(e) => onChange({ label: e.target.value })}
-              onBlur={() => setNaming(false)}
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), setNaming(false))}
-              className={cn(input(false), "min-h-9 px-1 text-sm")}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* its name, "Address 1" until it's given one, changed with the pen */}
+          <div className="flex min-w-0 flex-1 basis-20 items-center gap-1">
+            {naming ? (
+              <input
+                autoFocus
+                value={address.label}
+                maxLength={MAX.label}
+                aria-label={t("label")}
+                placeholder={t("labelPlaceholder")}
+                onChange={(e) => onChange({ label: e.target.value })}
+                onBlur={() => setNaming(false)}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), setNaming(false))}
+                className={cn(input(false), "min-h-9 px-1 text-sm")}
+              />
+            ) : (
+              <>
+                <span className="truncate text-sm font-semibold">
+                  {address.label.trim() || t("addressN", { n: index + 1 })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setNaming(true)}
+                  aria-label={t("label")}
+                  className="grid size-9 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
+                >
+                  <Pencil className="size-3.5" aria-hidden />
+                </button>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <PickMenu
+              label={t("use")}
+              current={t(`uses.${address.addressType}`)}
+              options={ADDRESS_TYPES.map((type) => ({ id: type, name: t(`uses.${type}`) }))}
+              picked={address.addressType}
+              onPick={(addressType) => onChange({ addressType })}
+              align="right"
+              className="min-h-9 w-auto gap-1.5 text-xs"
             />
-          ) : (
-            <>
-              <span className="truncate text-sm font-semibold">{address.label.trim() || t("addressN", { n: index + 1 })}</span>
-              <button type="button" onClick={() => setNaming(true)} aria-label={t("label")} className="grid size-9 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]">
-                <Pencil className="size-3.5" aria-hidden />
-              </button>
-            </>
+            <button
+              type="button"
+              aria-pressed={address.isDefault}
+              onClick={onMakeDefault}
+              className={cn(
+                "min-h-9 rounded-control border px-3 text-xs",
+                address.isDefault
+                  ? "border-chestnut bg-chestnut font-medium text-ivory"
+                  : "border-chestnut/50 hover:border-chestnut",
+              )}
+            >
+              {t(address.isDefault ? "isDefault" : "makeDefault")}
+            </button>
+          </div>
+          {count > 1 && (
+            <button
+              type="button"
+              onClick={onRemove}
+              aria-label={t("removeAddress")}
+              className="grid size-9 place-items-center rounded-control border border-chestnut/50 hover:border-chestnut"
+            >
+              <Trash2 className="size-4" aria-hidden />
+            </button>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <PickMenu
-            label={t("use")}
-            current={t(`uses.${address.addressType}`)}
-            options={ADDRESS_TYPES.map((type) => ({ id: type, name: t(`uses.${type}`) }))}
-            picked={address.addressType}
-            onPick={(addressType) => onChange({ addressType })}
-            align="right"
-            className="min-h-9 w-auto gap-1.5 text-xs"
-          />
-          <button
-            type="button"
-            aria-pressed={address.isDefault}
-            onClick={onMakeDefault}
-            className={cn("min-h-9 rounded-control border px-3 text-xs", address.isDefault ? "border-chestnut bg-chestnut font-medium text-ivory" : "border-chestnut/50 hover:border-chestnut")}
-          >
-            {t(address.isDefault ? "isDefault" : "makeDefault")}
-          </button>
-        </div>
-        {count > 1 && (
-          <button type="button" onClick={onRemove} aria-label={t("removeAddress")} className="grid size-9 place-items-center rounded-control border border-chestnut/50 hover:border-chestnut">
-            <Trash2 className="size-4" aria-hidden />
-          </button>
-        )}
-      </div>
       )}
 
       {/* the city beside its PIN, each filling the other and the state and district below; then those two */}
-      <div className={cn("grid items-start gap-x-6 gap-y-3", rows ? "grid-cols-1 @md:grid-cols-2" : "grid-cols-2")}>
-        <Field icon={Building2} label={t("city")} required={must} error={show("city") && t("required")}>
-          <MicField onText={(said) => setCity(noDigits(address.city.trim() ? `${address.city.trim()} ${said}` : said).slice(0, MAX.place))}>
-          <input value={address.city} maxLength={MAX.place} onChange={(e) => setCity(noDigits(e.target.value))} aria-invalid={show("city") || undefined} className={cn(input(show("city")), "pr-11")} />
-        </MicField>
+      <div
+        className={cn(
+          "grid items-start gap-x-6 gap-y-3",
+          rows ? "grid-cols-1 @md:grid-cols-2" : "grid-cols-2",
+        )}
+      >
+        <Field
+          icon={Building2}
+          label={t("city")}
+          required={must}
+          error={show("city") && t("required")}
+        >
+          <MicField
+            onText={(said) =>
+              setCity(
+                noDigits(address.city.trim() ? `${address.city.trim()} ${said}` : said).slice(
+                  0,
+                  MAX.place,
+                ),
+              )
+            }
+          >
+            <input
+              value={address.city}
+              maxLength={MAX.place}
+              onChange={(e) => setCity(noDigits(e.target.value))}
+              aria-invalid={show("city") || undefined}
+              className={cn(input(show("city")), "pr-11")}
+            />
+          </MicField>
         </Field>
-        <Field icon={MapPin} label={t("pin")} required={must} error={show("postalCode") && t(address.postalCode === "" ? "required" : "pinBad")}>
+        <Field
+          icon={MapPin}
+          label={t("pin")}
+          required={must}
+          error={show("postalCode") && t(address.postalCode === "" ? "required" : "pinBad")}
+        >
           <input
             value={address.postalCode}
             inputMode="numeric"
@@ -571,25 +753,54 @@ export function AddressFields({
               <Spinner className="size-3.5" /> {t("lookingUp")}
             </span>
           )}
-          {lookup.state === "found" && <span className="truncate text-xs text-chestnut/70">{titleCase(lookup.place.toLowerCase())}</span>}
-          {lookup.state === "missing" && <span className="text-xs text-chestnut/70">{t("pinNotFound")}</span>}
+          {lookup.state === "found" && (
+            <span className="truncate text-xs text-chestnut/70">
+              {titleCase(lookup.place.toLowerCase())}
+            </span>
+          )}
+          {lookup.state === "missing" && (
+            <span className="text-xs text-chestnut/70">{t("pinNotFound")}</span>
+          )}
         </Field>
       </div>
-      <div className={cn("grid items-start gap-x-6 gap-y-3", rows ? "grid-cols-1 @md:grid-cols-2" : "grid-cols-2")}>
+      <div
+        className={cn(
+          "grid items-start gap-x-6 gap-y-3",
+          rows ? "grid-cols-1 @md:grid-cols-2" : "grid-cols-2",
+        )}
+      >
         <Field icon={Map} label={t("state")} required={must} error={show("state") && t("required")}>
           <PickMenu
             label={t("state")}
-            current={address.stateCode ? (GST_STATES.find(([code]) => code === address.stateCode)?.[1] ?? address.state) : t("pick")}
+            current={
+              address.stateCode
+                ? (GST_STATES.find(([code]) => code === address.stateCode)?.[1] ?? address.state)
+                : t("pick")
+            }
             options={GST_STATES.map(([code, name]) => ({ id: code, name, hint: code }))}
             picked={address.stateCode ?? "29"}
             onPick={(code) => {
               if (code === address.stateCode) return;
               const state = GST_STATES.find(([c]) => c === code)![1];
               // a first pick keeps what's typed; a different state starts its place again
-              if (address.stateCode === null) return onChange({ stateCode: code, state, district: inList(address.district, DISTRICTS[code]) ? address.district : "" });
+              if (address.stateCode === null)
+                return onChange({
+                  stateCode: code,
+                  state,
+                  district: inList(address.district, DISTRICTS[code]) ? address.district : "",
+                });
               pinFromTown.current = "";
               onRestart?.();
-              onChange({ stateCode: code, state, district: "", city: "", postalCode: "", addressLine1: "", addressLine2: "", landmark: "" });
+              onChange({
+                stateCode: code,
+                state,
+                district: "",
+                city: "",
+                postalCode: "",
+                addressLine1: "",
+                addressLine2: "",
+                landmark: "",
+              });
             }}
             invalid={show("state")}
             searchable
@@ -597,12 +808,31 @@ export function AddressFields({
             noMatch={t("noState")}
           />
         </Field>
-        <Field icon={MapPinned} label={t("district")} required={must} error={show("district") && t("required")}>
+        <Field
+          icon={MapPinned}
+          label={t("district")}
+          required={must}
+          error={show("district") && t("required")}
+        >
           {/* picked from the state's districts; a state with no list, like Other Territory, has it typed */}
           {address.stateCode && !districts ? (
-            <MicField onText={(said) => onChange({ district: noDigits(address.district.trim() ? `${address.district.trim()} ${said}` : said).slice(0, MAX.place) })}>
-            <input value={address.district} maxLength={MAX.place} onChange={(e) => onChange({ district: noDigits(e.target.value) })} aria-invalid={show("district") || undefined} className={cn(input(show("district")), "pr-11")} />
-          </MicField>
+            <MicField
+              onText={(said) =>
+                onChange({
+                  district: noDigits(
+                    address.district.trim() ? `${address.district.trim()} ${said}` : said,
+                  ).slice(0, MAX.place),
+                })
+              }
+            >
+              <input
+                value={address.district}
+                maxLength={MAX.place}
+                onChange={(e) => onChange({ district: noDigits(e.target.value) })}
+                aria-invalid={show("district") || undefined}
+                className={cn(input(show("district")), "pr-11")}
+              />
+            </MicField>
           ) : (
             <PickMenu
               label={t("district")}
@@ -624,15 +854,48 @@ export function AddressFields({
       </div>
 
       {/* the address itself */}
-      <div className={cn("grid gap-x-6 gap-y-3", rows ? "grid-cols-1 items-start @md:grid-cols-2" : "grid-cols-2 items-end")}>
+      <div
+        className={cn(
+          "grid gap-x-6 gap-y-3",
+          rows ? "grid-cols-1 items-start @md:grid-cols-2" : "grid-cols-2 items-end",
+        )}
+      >
         <Field icon={House} label={t("line1")}>
-          <MicField onText={(said) => onChange({ addressLine1: (address.addressLine1.trim() ? `${address.addressLine1.trim()} ${said}` : said).slice(0, MAX.line) })}>
-            <input value={address.addressLine1} maxLength={MAX.line} onChange={(e) => onChange({ addressLine1: e.target.value })} className={cn(input(false), "pr-11")} />
+          <MicField
+            onText={(said) =>
+              onChange({
+                addressLine1: (address.addressLine1.trim()
+                  ? `${address.addressLine1.trim()} ${said}`
+                  : said
+                ).slice(0, MAX.line),
+              })
+            }
+          >
+            <input
+              value={address.addressLine1}
+              maxLength={MAX.line}
+              onChange={(e) => onChange({ addressLine1: e.target.value })}
+              className={cn(input(false), "pr-11")}
+            />
           </MicField>
         </Field>
         <Field icon={Landmark} label={t("landmark")}>
-          <MicField onText={(said) => onChange({ landmark: (address.landmark.trim() ? `${address.landmark.trim()} ${said}` : said).slice(0, MAX.landmark) })}>
-            <input value={address.landmark} maxLength={MAX.landmark} onChange={(e) => onChange({ landmark: e.target.value })} className={cn(input(false), "pr-11")} />
+          <MicField
+            onText={(said) =>
+              onChange({
+                landmark: (address.landmark.trim()
+                  ? `${address.landmark.trim()} ${said}`
+                  : said
+                ).slice(0, MAX.landmark),
+              })
+            }
+          >
+            <input
+              value={address.landmark}
+              maxLength={MAX.landmark}
+              onChange={(e) => onChange({ landmark: e.target.value })}
+              className={cn(input(false), "pr-11")}
+            />
           </MicField>
         </Field>
       </div>
@@ -640,20 +903,22 @@ export function AddressFields({
       {/* GSTIN (its first two digits are the state's code) */}
       {/* as rows it takes the left column, in line with the rows above */}
       {!single && (
-      <div className={cn(rows && "grid grid-cols-1 items-start gap-x-6 @md:grid-cols-2")}>
-      <Field icon={ReceiptText} label={t("gstin")} className="mt-6 sm:w-56">
-        <input
-          value={address.gstin}
-          maxLength={15}
-          autoCapitalize="characters"
-          onChange={(e) => onChange({ gstin: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })}
-          placeholder={`${address.stateCode ?? "29"}ABCDE1234F1Z5`}
-          aria-invalid={show("gstin") || undefined}
-          className={cn(input(show("gstin")), "tabular uppercase")}
-        />
-        {show("gstin") && <span className="text-xs text-danger">{t("gstinHint")}</span>}
-      </Field>
-      </div>
+        <div className={cn(rows && "grid grid-cols-1 items-start gap-x-6 @md:grid-cols-2")}>
+          <Field icon={ReceiptText} label={t("gstin")} className="mt-6 sm:w-56">
+            <input
+              value={address.gstin}
+              maxLength={15}
+              autoCapitalize="characters"
+              onChange={(e) =>
+                onChange({ gstin: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })
+              }
+              placeholder={`${address.stateCode ?? "29"}ABCDE1234F1Z5`}
+              aria-invalid={show("gstin") || undefined}
+              className={cn(input(show("gstin")), "tabular uppercase")}
+            />
+            {show("gstin") && <span className="text-xs text-danger">{t("gstinHint")}</span>}
+          </Field>
+        </div>
       )}
     </fieldset>
   );
@@ -746,7 +1011,8 @@ export function PartyFields({
     onAddressesOpen?.();
     const section = addressesRef.current;
     const visible = window.visualViewport?.height ?? window.innerHeight;
-    if (section && section.getBoundingClientRect().top > visible - 96) section.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (section && section.getBoundingClientRect().top > visible - 96)
+      section.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [addressesOpen]);
   useEffect(() => {
     if (nameDone || draft.name.trim().length < 2) return;
@@ -765,30 +1031,59 @@ export function PartyFields({
   useEffect(() => {
     const found = shortCheck.data;
     if (!found || askedShort !== short) return;
-    if (found.shortNameTaken !== draft.shortNameTaken) onChange({ shortNameTaken: found.shortNameTaken });
+    if (found.shortNameTaken !== draft.shortNameTaken)
+      onChange({ shortNameTaken: found.shortNameTaken });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when an answer comes for what's typed now
   }, [shortCheck.data, askedShort, short]);
 
   // one address changed, added, removed or made the default
-  const setAddress = (key: string, patch: Partial<AddressDraft>) => onChange({ addresses: draft.addresses.map((a) => (a.key === key ? { ...a, ...patch } : a)) });
+  const setAddress = (key: string, patch: Partial<AddressDraft>) =>
+    onChange({ addresses: draft.addresses.map((a) => (a.key === key ? { ...a, ...patch } : a)) });
   // a UPI ID changed, added or removed
 
   const removeAddress = (key: string) => {
     const left = draft.addresses.filter((a) => a.key !== key);
-    onChange({ addresses: left.some((a) => a.isDefault) ? left : left.map((a, i) => ({ ...a, isDefault: i === 0 })) });
+    onChange({
+      addresses: left.some((a) => a.isDefault)
+        ? left
+        : left.map((a, i) => ({ ...a, isDefault: i === 0 })),
+    });
   };
 
   // what's still holding the next step back, by name, once the address is in (the labels without their "(optional)")
   const stillNeeded = (() => {
     const problems = draftProblems(draft, strict, phoneOptional);
     // only once the address's own must-haves are in: while it's being filled, nothing is wrong yet
-    const addressIn = draft.addresses.some((a) => !blank(a) && a.city.trim() !== "" && a.district.trim() !== "" && a.stateCode !== null && /^\d{6}$/.test(a.postalCode));
+    const addressIn = draft.addresses.some(
+      (a) =>
+        !blank(a) &&
+        a.city.trim() !== "" &&
+        a.district.trim() !== "" &&
+        a.stateCode !== null &&
+        /^\d{6}$/.test(a.postalCode),
+    );
     if (!strict || !addressIn) return [];
-    const party = { phone: "phoneRequired", name: "name", shortName: "shortName", email: "email", pan: "pan" } as const;
-    const place = { state: "state", district: "district", city: "city", postalCode: "pin", gstin: "gstin" } as const;
+    const party = {
+      phone: "phoneRequired",
+      name: "name",
+      shortName: "shortName",
+      email: "email",
+      pan: "pan",
+    } as const;
+    const place = {
+      state: "state",
+      district: "district",
+      city: "city",
+      postalCode: "pin",
+      gstin: "gstin",
+    } as const;
     const keys = [
-      ...(Object.keys(party) as (keyof typeof party)[]).filter((k) => problems.party[k]).map((k) => party[k]),
-      ...(Object.keys(place) as (keyof typeof place)[]).filter((k) => problems.addresses.some((p) => p?.[k])).map((k) => place[k]),
+      ...(Object.keys(party) as (keyof typeof party)[])
+        .filter((k) => problems.party[k])
+        .map((k) => party[k]),
+      ...(Object.keys(place) as (keyof typeof place)[])
+        .filter((k) => problems.addresses.some((p) => p?.[k]))
+        .map((k) => place[k]),
     ];
     return keys.map((k) => t(k).replace(/\s*\(.*\)$/, ""));
   })();
@@ -799,7 +1094,11 @@ export function PartyFields({
   // the phone: red from a first digit no phone starts with, or once Save was tried
   const phoneBad = !!show("phone") || phoneStartsBad(draft.phone);
   const phone = (
-    <Field icon={Phone} label={t(phoneOptional ? "phone" : "phoneRequired")} required={!phoneOptional}>
+    <Field
+      icon={Phone}
+      label={t(phoneOptional ? "phone" : "phoneRequired")}
+      required={!phoneOptional}
+    >
       <span className={cn("flex min-h-11 items-center gap-2 px-3", fieldClass(phoneBad))}>
         <span className="text-chestnut/70">+91</span>
         <input
@@ -816,7 +1115,9 @@ export function PartyFields({
           until={(heard) => wholePhone(heard, phoneSoFar)}
         />
       </span>
-      <span className={cn("text-xs", phoneBad ? "text-danger" : "text-chestnut/70")}>{phoneBad && draft.phone ? t("phoneBad") : t("phoneHint")}</span>
+      <span className={cn("text-xs", phoneBad ? "text-danger" : "text-chestnut/70")}>
+        {phoneBad && draft.phone ? t("phoneBad") : t("phoneHint")}
+      </span>
     </Field>
   );
 
@@ -833,268 +1134,369 @@ export function PartyFields({
 
   return (
     <RowsContext.Provider value={rows}>
-    <div className="flex flex-col gap-5">
-      {/* what they are to us: any of customer, supplier, employee, lender and agent (none for anyone else), as an
+      <div className="flex flex-col gap-5">
+        {/* what they are to us: any of customer, supplier, employee, lender and agent (none for anyone else), as an
           accordion that folds to the picks */}
-      {asksTypes && (
-        <section className="@container flex flex-col gap-3">
-          <h3 className={SECTION_TITLE}>{t("typesTitle")}</h3>
-          <MultiAccordion
-            label={t("typesTitle")}
-            options={PICKED_ROLES.map((r) => ({ id: r, name: t(`types.${r}`) }))}
-            value={draft.types}
-            onChange={(types) => onChange({ types })}
-            noneLabel={t("types.none")}
-          />
-          {/* an employee: their pay, each field the full width */}
-          {draft.types.includes("employee") && <EmploymentFields draft={draft} onChange={onChange} tried={tried} />}
-        </section>
-      )}
-      {/* personal details: phone and email in a row where both fit, then name and short name (as rows: the name and
+        {asksTypes && (
+          <section className="@container flex flex-col gap-3">
+            <h3 className={SECTION_TITLE}>{t("typesTitle")}</h3>
+            <MultiAccordion
+              label={t("typesTitle")}
+              options={PICKED_ROLES.map((r) => ({ id: r, name: t(`types.${r}`) }))}
+              value={draft.types}
+              onChange={(types) => onChange({ types })}
+              noneLabel={t("types.none")}
+            />
+            {/* an employee: their pay, each field the full width */}
+            {draft.types.includes("employee") && (
+              <EmploymentFields draft={draft} onChange={onChange} tried={tried} />
+            )}
+          </section>
+        )}
+        {/* personal details: phone and email in a row where both fit, then name and short name (as rows: the name and
           phone first), then the PAN set apart */}
-      <section className="@container flex flex-col gap-3">
-        <h3 className={SECTION_TITLE}>{t("personal")}</h3>
-        <div className="flex flex-col gap-4 @md:flex-row @md:items-start @md:gap-8">
-        {photo && <ProfilePhoto />}
-        <div className="flex min-w-0 flex-1 flex-col gap-3">
-        {rows ? (
-          <>
-          {/* as rows: the name first with the phone beside it (under it on a phone), then the email and short name */}
-        <div className="relative grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2">
-          <Field icon={User} label={t("name")} required error={show("name") && t("required")}>
-            <MicField
-              onText={(said) => {
-                const name = noDigits(draft.name.trim() ? `${draft.name.trim()} ${said}` : said).slice(0, MAX.name);
-                onChange({ name });
-                if (name.trim()) setNameDone(true);
-              }}
-            >
-              <NameBox
-                autoFocus
-                value={draft.name}
-                onType={(name) => onChange({ name })}
-                onDone={() => draft.name.trim() && setNameDone(true)}
-                aria-invalid={show("name") || undefined}
-                className={cn(input(show("name")), "pr-11")}
-              />
-            </MicField>
-          </Field>
-          {asksPhone && phone}
-          {belowPhone && <div className="col-span-full">{belowPhone}</div>}
-        </div>
-        {(asksEmail || asksShortName || belowName) && (
-        <div className="relative grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2">
-          {asksEmail && (
-          <Field icon={Mail} label={t("email")}>
-            <input
-              value={draft.email}
-              type="email"
-              maxLength={MAX.email}
-              autoCapitalize="none"
-              onChange={(e) => onChange({ email: e.target.value.replace(/\s/g, "") })}
-              aria-invalid={show("email") || undefined}
-              className={input(show("email"))}
-            />
-          </Field>
-          )}
-          {/* the short name ledgers and lists show (optional; without it they show the full name) */}
-          {asksShortName && (
-          <Field icon={Tag} label={t("shortName")} error={draft.shortNameTaken && t("shortNameTaken")}>
-            <input
-              value={draft.shortName}
-              maxLength={MAX.shortName}
-              autoCapitalize="characters"
-              onChange={(e) => onChange({ shortName: e.target.value.toUpperCase().replace(/[^A-Z0-9 &.-]/g, ""), shortNameTaken: false })}
-              placeholder="SRT"
-              aria-invalid={show("shortName") || draft.shortNameTaken || undefined}
-              className={cn(input(show("shortName") || draft.shortNameTaken), "uppercase")}
-            />
-          </Field>
-          )}
-          {belowName && <div className="col-span-full">{belowName}</div>}
-        </div>
-        )}
-          </>
-        ) : (
-          <>
-        <div className="relative grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2">
-          {asksPhone && phone}
-          {asksEmail && (
-          <Field icon={Mail} label={t("email")}>
-            <input
-              value={draft.email}
-              type="email"
-              maxLength={MAX.email}
-              autoCapitalize="none"
-              onChange={(e) => onChange({ email: e.target.value.replace(/\s/g, "") })}
-              aria-invalid={show("email") || undefined}
-              className={input(show("email"))}
-            />
-          </Field>
-          )}
-          {belowPhone && <div className="col-span-full">{belowPhone}</div>}
-        </div>
-        <div className="relative grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2">
-          <Field icon={User} label={t("name")} required error={show("name") && t("required")}>
-            <MicField
-              onText={(said) => {
-                const name = noDigits(draft.name.trim() ? `${draft.name.trim()} ${said}` : said).slice(0, MAX.name);
-                onChange({ name });
-                if (name.trim()) setNameDone(true);
-              }}
-            >
-              <NameBox
-                value={draft.name}
-                onType={(name) => onChange({ name })}
-                onDone={() => draft.name.trim() && setNameDone(true)}
-                aria-invalid={show("name") || undefined}
-                className={cn(input(show("name")), "pr-11")}
-              />
-            </MicField>
-          </Field>
-          {/* the short name ledgers and lists show (optional; without it they show the full name) */}
-          {asksShortName && (
-          <Field icon={Tag} label={t("shortName")} error={draft.shortNameTaken && t("shortNameTaken")}>
-            <input
-              value={draft.shortName}
-              maxLength={MAX.shortName}
-              autoCapitalize="characters"
-              onChange={(e) => onChange({ shortName: e.target.value.toUpperCase().replace(/[^A-Z0-9 &.-]/g, ""), shortNameTaken: false })}
-              placeholder="SRT"
-              aria-invalid={show("shortName") || draft.shortNameTaken || undefined}
-              className={cn(input(show("shortName") || draft.shortNameTaken), "uppercase")}
-            />
-          </Field>
-          )}
-          {belowName && <div className="col-span-full">{belowName}</div>}
-        </div>
-          </>
-        )}
-        </div>
-        </div>
-
-        {/* as rows it takes the left column, in line with the rows above */}
-        {asksPan && (
-          <div className={cn(rows && "grid grid-cols-1 items-start gap-x-6 @md:grid-cols-2")}>
-          <Field icon={IdCard} label={t("pan")} className="mt-6 sm:w-56">
-            <input
-              value={draft.pan}
-              maxLength={10}
-              autoCapitalize="characters"
-              onChange={(e) => onChange({ pan: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })}
-              placeholder="ABCDE1234F"
-              aria-invalid={show("pan") || undefined}
-              className={cn(input(show("pan")), "tabular uppercase")}
-            />
-          </Field>
-          </div>
-        )}
-
-        {/* a small transporter (10 or fewer trucks) who gave their PAN and a declaration: no TDS on its transport */}
-        {transporter && (
-          <label className="flex min-h-11 items-start gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={draft.transportDeclaration}
-              onChange={(e) => onChange({ transportDeclaration: e.target.checked })}
-              className="mt-0.5 size-5 shrink-0 accent-chestnut"
-            />
-            <span className="flex flex-col gap-0.5">
-              <span>{t("transportDeclaration")}</span>
-              <span className="text-xs text-chestnut/70">{t("transportDeclarationHint")}</span>
-            </span>
-          </label>
-        )}
-
-        {/* paid this year outside this app, which counts towards TDS limits */}
-        {asksPaid && (
-          <div className="flex flex-col gap-1.5">
-            <div className={cn("grid grid-cols-1 gap-x-6 gap-y-3", rows ? "items-start @md:grid-cols-2" : "sm:grid-cols-2")}>
-              <Field icon={Wallet} label={t("paidBefore")}>
-                <NumberInput value={draft.paidBefore} decimals={2} onChange={(paidBefore) => onChange({ paidBefore })} className={cn(input(false), "tabular")} />
-              </Field>
-              {asksTds && (
-                <Field icon={Percent} label={t("tdsBefore")} error={tdsOver(draft) && t("tdsOver")}>
-                  <NumberInput value={draft.tdsBefore} decimals={2} onChange={(tdsBefore) => onChange({ tdsBefore })} aria-invalid={tdsOver(draft) || undefined} className={cn(input(tdsOver(draft)), "tabular")} />
-                </Field>
+        <section className="@container flex flex-col gap-3">
+          <h3 className={SECTION_TITLE}>{t("personal")}</h3>
+          <div className="flex flex-col gap-4 @md:flex-row @md:items-start @md:gap-8">
+            {photo && <ProfilePhoto />}
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
+              {rows ? (
+                <>
+                  {/* as rows: the name first with the phone beside it (under it on a phone), then the email and short name */}
+                  <div className="relative grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2">
+                    <Field
+                      icon={User}
+                      label={t("name")}
+                      required
+                      error={show("name") && t("required")}
+                    >
+                      <MicField
+                        onText={(said) => {
+                          const name = noDigits(
+                            draft.name.trim() ? `${draft.name.trim()} ${said}` : said,
+                          ).slice(0, MAX.name);
+                          onChange({ name });
+                          if (name.trim()) setNameDone(true);
+                        }}
+                      >
+                        <NameBox
+                          autoFocus
+                          value={draft.name}
+                          onType={(name) => onChange({ name })}
+                          onDone={() => draft.name.trim() && setNameDone(true)}
+                          aria-invalid={show("name") || undefined}
+                          className={cn(input(show("name")), "pr-11")}
+                        />
+                      </MicField>
+                    </Field>
+                    {asksPhone && phone}
+                    {belowPhone && <div className="col-span-full">{belowPhone}</div>}
+                  </div>
+                  {(asksEmail || asksShortName || belowName) && (
+                    <div className="relative grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2">
+                      {asksEmail && (
+                        <Field icon={Mail} label={t("email")}>
+                          <input
+                            value={draft.email}
+                            type="email"
+                            maxLength={MAX.email}
+                            autoCapitalize="none"
+                            onChange={(e) => onChange({ email: e.target.value.replace(/\s/g, "") })}
+                            aria-invalid={show("email") || undefined}
+                            className={input(show("email"))}
+                          />
+                        </Field>
+                      )}
+                      {/* the short name ledgers and lists show (optional; without it they show the full name) */}
+                      {asksShortName && (
+                        <Field
+                          icon={Tag}
+                          label={t("shortName")}
+                          error={draft.shortNameTaken && t("shortNameTaken")}
+                        >
+                          <input
+                            value={draft.shortName}
+                            maxLength={MAX.shortName}
+                            autoCapitalize="characters"
+                            onChange={(e) =>
+                              onChange({
+                                shortName: e.target.value
+                                  .toUpperCase()
+                                  .replace(/[^A-Z0-9 &.-]/g, ""),
+                                shortNameTaken: false,
+                              })
+                            }
+                            placeholder="SRT"
+                            aria-invalid={show("shortName") || draft.shortNameTaken || undefined}
+                            className={cn(
+                              input(show("shortName") || draft.shortNameTaken),
+                              "uppercase",
+                            )}
+                          />
+                        </Field>
+                      )}
+                      {belowName && <div className="col-span-full">{belowName}</div>}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="relative grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2">
+                    {asksPhone && phone}
+                    {asksEmail && (
+                      <Field icon={Mail} label={t("email")}>
+                        <input
+                          value={draft.email}
+                          type="email"
+                          maxLength={MAX.email}
+                          autoCapitalize="none"
+                          onChange={(e) => onChange({ email: e.target.value.replace(/\s/g, "") })}
+                          aria-invalid={show("email") || undefined}
+                          className={input(show("email"))}
+                        />
+                      </Field>
+                    )}
+                    {belowPhone && <div className="col-span-full">{belowPhone}</div>}
+                  </div>
+                  <div className="relative grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2">
+                    <Field
+                      icon={User}
+                      label={t("name")}
+                      required
+                      error={show("name") && t("required")}
+                    >
+                      <MicField
+                        onText={(said) => {
+                          const name = noDigits(
+                            draft.name.trim() ? `${draft.name.trim()} ${said}` : said,
+                          ).slice(0, MAX.name);
+                          onChange({ name });
+                          if (name.trim()) setNameDone(true);
+                        }}
+                      >
+                        <NameBox
+                          value={draft.name}
+                          onType={(name) => onChange({ name })}
+                          onDone={() => draft.name.trim() && setNameDone(true)}
+                          aria-invalid={show("name") || undefined}
+                          className={cn(input(show("name")), "pr-11")}
+                        />
+                      </MicField>
+                    </Field>
+                    {/* the short name ledgers and lists show (optional; without it they show the full name) */}
+                    {asksShortName && (
+                      <Field
+                        icon={Tag}
+                        label={t("shortName")}
+                        error={draft.shortNameTaken && t("shortNameTaken")}
+                      >
+                        <input
+                          value={draft.shortName}
+                          maxLength={MAX.shortName}
+                          autoCapitalize="characters"
+                          onChange={(e) =>
+                            onChange({
+                              shortName: e.target.value.toUpperCase().replace(/[^A-Z0-9 &.-]/g, ""),
+                              shortNameTaken: false,
+                            })
+                          }
+                          placeholder="SRT"
+                          aria-invalid={show("shortName") || draft.shortNameTaken || undefined}
+                          className={cn(
+                            input(show("shortName") || draft.shortNameTaken),
+                            "uppercase",
+                          )}
+                        />
+                      </Field>
+                    )}
+                    {belowName && <div className="col-span-full">{belowName}</div>}
+                  </div>
+                </>
               )}
             </div>
-            <span className="text-xs text-chestnut/70">{t("paidBeforeHint")}</span>
           </div>
-        )}
-      </section>
 
-      {/* the addresses, each with its own PIN lookup */}
-      {showAddresses && (
-        <section ref={addressesRef} className="mt-8 flex flex-col gap-3">
-          {/* as a sale's cash buyer: one address for billing and shipping (with its GSTIN); "Ship to a different address"
+          {/* as rows it takes the left column, in line with the rows above */}
+          {asksPan && (
+            <div className={cn(rows && "grid grid-cols-1 items-start gap-x-6 @md:grid-cols-2")}>
+              <Field icon={IdCard} label={t("pan")} className="mt-6 sm:w-56">
+                <input
+                  value={draft.pan}
+                  maxLength={10}
+                  autoCapitalize="characters"
+                  onChange={(e) =>
+                    onChange({ pan: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") })
+                  }
+                  placeholder="ABCDE1234F"
+                  aria-invalid={show("pan") || undefined}
+                  className={cn(input(show("pan")), "tabular uppercase")}
+                />
+              </Field>
+            </div>
+          )}
+
+          {/* a small transporter (10 or fewer trucks) who gave their PAN and a declaration: no TDS on its transport */}
+          {transporter && (
+            <label className="flex min-h-11 items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={draft.transportDeclaration}
+                onChange={(e) => onChange({ transportDeclaration: e.target.checked })}
+                className="mt-0.5 size-5 shrink-0 accent-chestnut"
+              />
+              <span className="flex flex-col gap-0.5">
+                <span>{t("transportDeclaration")}</span>
+                <span className="text-xs text-chestnut/70">{t("transportDeclarationHint")}</span>
+              </span>
+            </label>
+          )}
+
+          {/* paid this year outside this app, which counts towards TDS limits */}
+          {asksPaid && (
+            <div className="flex flex-col gap-1.5">
+              <div
+                className={cn(
+                  "grid grid-cols-1 gap-x-6 gap-y-3",
+                  rows ? "items-start @md:grid-cols-2" : "sm:grid-cols-2",
+                )}
+              >
+                <Field icon={Wallet} label={t("paidBefore")}>
+                  <NumberInput
+                    value={draft.paidBefore}
+                    decimals={2}
+                    onChange={(paidBefore) => onChange({ paidBefore })}
+                    className={cn(input(false), "tabular")}
+                  />
+                </Field>
+                {asksTds && (
+                  <Field
+                    icon={Percent}
+                    label={t("tdsBefore")}
+                    error={tdsOver(draft) && t("tdsOver")}
+                  >
+                    <NumberInput
+                      value={draft.tdsBefore}
+                      decimals={2}
+                      onChange={(tdsBefore) => onChange({ tdsBefore })}
+                      aria-invalid={tdsOver(draft) || undefined}
+                      className={cn(input(tdsOver(draft)), "tabular")}
+                    />
+                  </Field>
+                )}
+              </div>
+              <span className="text-xs text-chestnut/70">{t("paidBeforeHint")}</span>
+            </div>
+          )}
+        </section>
+
+        {/* the addresses, each with its own PIN lookup */}
+        {showAddresses && (
+          <section ref={addressesRef} className="mt-8 flex flex-col gap-3">
+            {/* as a sale's cash buyer: one address for billing and shipping (with its GSTIN); "Ship to a different address"
               adds a second, where it ships, which can be removed and can't be the same place again */}
-          <div className="flex flex-col gap-6">
-            {draft.addresses.map((a, i) => (
-              <div key={a.key} className="flex flex-col gap-3">
-                <div className="flex min-h-9 items-center justify-between gap-3">
-                  <h3 className={SECTION_TITLE}>{t(i > 0 ? "shippingAddress" : draft.addresses.length > 1 ? "billingAddress" : "billShipAddress")}</h3>
-                  {i > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => removeAddress(a.key)}
-                      aria-label={t("removeShipping")}
-                      className="grid size-9 place-items-center rounded-control border border-chestnut/50 hover:border-chestnut"
-                    >
-                      <Trash2 className="size-4" aria-hidden />
-                    </button>
+            <div className="flex flex-col gap-6">
+              {draft.addresses.map((a, i) => (
+                <div key={a.key} className="flex flex-col gap-3">
+                  <div className="flex min-h-9 items-center justify-between gap-3">
+                    <h3 className={SECTION_TITLE}>
+                      {t(
+                        i > 0
+                          ? "shippingAddress"
+                          : draft.addresses.length > 1
+                            ? "billingAddress"
+                            : "billShipAddress",
+                      )}
+                    </h3>
+                    {i > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => removeAddress(a.key)}
+                        aria-label={t("removeShipping")}
+                        className="grid size-9 place-items-center rounded-control border border-chestnut/50 hover:border-chestnut"
+                      >
+                        <Trash2 className="size-4" aria-hidden />
+                      </button>
+                    )}
+                  </div>
+                  <AddressFields
+                    address={a}
+                    index={i}
+                    count={draft.addresses.length}
+                    tried={tried}
+                    required={strict && i === 0}
+                    // no name, use or default to pick: the first is billed, the rest are where it goes (and take no GSTIN;
+                    // one saved with a GSTIN keeps showing it)
+                    single={i > 0 && a.gstin === ""}
+                    noHeader
+                    onChange={(patch) => setAddress(a.key, patch)}
+                    onRestart={onAddressesOpen}
+                    onRemove={() => undefined}
+                    onMakeDefault={() => undefined}
+                  />
+                  {repeatsEarlier(draft.addresses, i) && (
+                    <FieldMessage className="mt-0">{t("sameAddress")}</FieldMessage>
                   )}
                 </div>
-                <AddressFields
-                  address={a}
-                  index={i}
-                  count={draft.addresses.length}
-                  tried={tried}
-                  required={strict && i === 0}
-                  // no name, use or default to pick: the first is billed, the rest are where it goes (and take no GSTIN;
-                  // one saved with a GSTIN keeps showing it)
-                  single={i > 0 && a.gstin === ""}
-                  noHeader
-                  onChange={(patch) => setAddress(a.key, patch)}
-                  onRestart={onAddressesOpen}
-                  onRemove={() => undefined}
-                  onMakeDefault={() => undefined}
-                />
-                {repeatsEarlier(draft.addresses, i) && <FieldMessage className="mt-0">{t("sameAddress")}</FieldMessage>}
-              </div>
-            ))}
-          </div>
-          {!oneAddress && draft.addresses.length < MAX_ADDRESSES && (
-            <button
-              type="button"
-              onClick={() => onChange({ addresses: [...draft.addresses, emptyAddress(draft.addresses.length === 0)] })}
-              className={cn(ADD_ON_IVORY, "px-5 sm:self-center")}
-            >
-              <Plus className="size-4" aria-hidden /> {t("shipElsewhere")}
-            </button>
-          )}
-          {stillNeeded.length > 0 && <FieldMessage className="mt-0">{t("stillNeeded", { fields: stillNeeded.join(", ") })}</FieldMessage>}
-        </section>
-      )}
+              ))}
+            </div>
+            {!oneAddress && draft.addresses.length < MAX_ADDRESSES && (
+              <button
+                type="button"
+                onClick={() =>
+                  onChange({
+                    addresses: [...draft.addresses, emptyAddress(draft.addresses.length === 0)],
+                  })
+                }
+                className={cn(ADD_ON_IVORY, "px-5 sm:self-center")}
+              >
+                <Plus className="size-4" aria-hidden /> {t("shipElsewhere")}
+              </button>
+            )}
+            {stillNeeded.length > 0 && (
+              <FieldMessage className="mt-0">
+                {t("stillNeeded", { fields: stillNeeded.join(", ") })}
+              </FieldMessage>
+            )}
+          </section>
+        )}
 
-
-      {asksRemarks && (
-        <Field icon={MessageSquare} label={t("remarks")}>
-          <textarea value={draft.remarks} maxLength={MAX.remarks} rows={2} onChange={(e) => onChange({ remarks: e.target.value })} className={cn(input(false), "py-2.5")} />
-        </Field>
-      )}
-    </div>
+        {asksRemarks && (
+          <Field icon={MessageSquare} label={t("remarks")}>
+            <textarea
+              value={draft.remarks}
+              maxLength={MAX.remarks}
+              rows={2}
+              onChange={(e) => onChange({ remarks: e.target.value })}
+              className={cn(input(false), "py-2.5")}
+            />
+          </Field>
+        )}
+      </div>
     </RowsContext.Provider>
   );
 }
 
 // the UPI IDs someone is paid on, for a payment's QR: one box always there, then "Add UPI ID" for another (up to `max`)
-export function UpiIdsField({ upiIds, onChange, tried, max = 5 }: { upiIds: PartyDraft["upiIds"]; onChange: (upiIds: PartyDraft["upiIds"]) => void; tried: boolean; max?: number }) {
+export function UpiIdsField({
+  upiIds,
+  onChange,
+  tried,
+  max = 5,
+}: {
+  upiIds: PartyDraft["upiIds"];
+  onChange: (upiIds: PartyDraft["upiIds"]) => void;
+  tried: boolean;
+  max?: number;
+}) {
   const t = useTranslations("accounts.party.form");
   // with none yet, an empty box stands in for the first; typing in it makes it a real one
   const rows = upiIds.length > 0 ? upiIds : [{ key: "upi-blank", upiId: "" }];
   const setUpi = (key: string, upiId: string) =>
-    onChange(upiIds.length === 0 ? [{ key: newKey(), upiId }] : upiIds.map((u) => (u.key === key ? { ...u, upiId } : u)));
+    onChange(
+      upiIds.length === 0
+        ? [{ key: newKey(), upiId }]
+        : upiIds.map((u) => (u.key === key ? { ...u, upiId } : u)),
+    );
   return (
     <div className="flex flex-col gap-2.5">
       <span className="flex items-center gap-1.5 text-xs font-semibold">
@@ -1113,7 +1515,9 @@ export function UpiIdsField({ upiIds, onChange, tried, max = 5 }: { upiIds: Part
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
-                onChange={(e) => setUpi(u.key, e.target.value.toLowerCase().replace(/[^a-z0-9.@_-]/g, ""))}
+                onChange={(e) =>
+                  setUpi(u.key, e.target.value.toLowerCase().replace(/[^a-z0-9.@_-]/g, ""))
+                }
                 placeholder="name@okhdfcbank"
                 aria-label={t("upiIds")}
                 aria-invalid={wrong || undefined}
@@ -1121,7 +1525,12 @@ export function UpiIdsField({ upiIds, onChange, tried, max = 5 }: { upiIds: Part
               />
               {/* the first box stays; the ones added after it can go */}
               {rows.length > 1 && (
-                <button type="button" onClick={() => onChange(upiIds.filter((x) => x.key !== u.key))} aria-label={t("removeUpi")} className="grid size-11 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.06]">
+                <button
+                  type="button"
+                  onClick={() => onChange(upiIds.filter((x) => x.key !== u.key))}
+                  aria-label={t("removeUpi")}
+                  className="grid size-11 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.06]"
+                >
                   <Trash2 className="size-4" aria-hidden />
                 </button>
               )}
@@ -1133,7 +1542,12 @@ export function UpiIdsField({ upiIds, onChange, tried, max = 5 }: { upiIds: Part
       {rows.length < max && (
         <button
           type="button"
-          onClick={() => onChange([...(upiIds.length > 0 ? upiIds : [{ key: newKey(), upiId: "" }]), { key: newKey(), upiId: "" }])}
+          onClick={() =>
+            onChange([
+              ...(upiIds.length > 0 ? upiIds : [{ key: newKey(), upiId: "" }]),
+              { key: newKey(), upiId: "" },
+            ])
+          }
           className={cn(ADD_ON_IVORY, "self-start")}
         >
           <Plus className="size-4" aria-hidden /> {t("addUpi")}
@@ -1148,14 +1562,28 @@ export const upiKey = () => newKey();
 
 // an employee's pay: the day they joined (never after today), monthly salary (₹, grouped as it's typed), and the day of
 // the month it falls due (1 to 31)
-function EmploymentFields({ draft, onChange, tried }: { draft: PartyDraft; onChange: (patch: Partial<PartyDraft>) => void; tried: boolean }) {
+function EmploymentFields({
+  draft,
+  onChange,
+  tried,
+}: {
+  draft: PartyDraft;
+  onChange: (patch: Partial<PartyDraft>) => void;
+  tried: boolean;
+}) {
   const t = useTranslations("accounts.party.form");
   const bad = employmentProblems(draft);
   // as rows (label left, box right; two columns on a wider screen) inside a rows form
   const rows = useContext(RowsContext);
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
   return (
-    <div className={rows ? "grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2" : "flex flex-col gap-3"}>
+    <div
+      className={
+        rows
+          ? "grid grid-cols-1 items-start gap-x-6 gap-y-3 @md:grid-cols-2"
+          : "flex flex-col gap-3"
+      }
+    >
       <Field label={t("joiningDate")} required>
         <DateInput
           value={draft.joiningDate}

@@ -2,7 +2,7 @@
 
 import { useEffect, useId } from "react";
 
-import { Spinner } from "./spinner";
+import { Spinner } from "./icons/spinner";
 
 // asks before something that can't be undone; Cancel has the focus, so Enter never destroys by accident. A plain one
 // (a question, nothing destroyed) has a chestnut answer, and that answer has the focus
@@ -47,7 +47,13 @@ export function ConfirmDialog({
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4">
       {/* the scrim: a tap on it cancels */}
-      <button type="button" aria-label={cancelLabel} tabIndex={-1} onClick={() => !busy && !extra?.busy && onCancel()} className="absolute inset-0 bg-black/50" />
+      <button
+        type="button"
+        aria-label={cancelLabel}
+        tabIndex={-1}
+        onClick={() => !busy && !extra?.busy && onCancel()}
+        className="absolute inset-0 bg-black/50"
+      />
 
       {/* the question, and the two answers */}
       <section

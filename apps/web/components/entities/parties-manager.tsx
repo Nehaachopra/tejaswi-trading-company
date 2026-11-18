@@ -16,7 +16,7 @@ import {
 import { ClearButton } from "~/components/ui/clear-button";
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { PageTabs } from "~/components/ui/page-tabs";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
 import { useParties, usePartyActions } from "~/providers/accounts";

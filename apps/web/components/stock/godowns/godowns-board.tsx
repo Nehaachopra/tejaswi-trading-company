@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { ADD_BUTTON, FILTER_BAR_UNDER_TABS, PAGE } from "~/components/ui/page-styles";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { useGodownActions, useGodowns, useStockByGodown } from "~/providers/stock";
 
@@ -38,7 +38,13 @@ export function GodownsBoard({ isAdmin }: { isAdmin: boolean }) {
   // inactive godowns hold nothing, so they come from the godown list with an empty card
   const inactive = (godowns.data ?? [])
     .filter((g) => !g.isActive)
-    .map((g) => ({ godownId: g.id, godownName: g.godownName, beingCounted: g.beingCounted, productCount: 0, products: [] }));
+    .map((g) => ({
+      godownId: g.id,
+      godownName: g.godownName,
+      beingCounted: g.beingCounted,
+      productCount: 0,
+      products: [],
+    }));
   const cards = stock.data ?? [];
 
   // mark a godown inactive or active again
@@ -49,7 +55,14 @@ export function GodownsBoard({ isAdmin }: { isAdmin: boolean }) {
       refreshGodowns();
     } catch (err) {
       const code = (err as { data?: { code?: string } })?.data?.code;
-      const key = code === "PRECONDITION_FAILED" ? "hasProducts" : code === "CONFLICT" ? "counting" : code === undefined ? "network" : "failed";
+      const key =
+        code === "PRECONDITION_FAILED"
+          ? "hasProducts"
+          : code === "CONFLICT"
+            ? "counting"
+            : code === undefined
+              ? "network"
+              : "failed";
       toast.error(tf(`errors.${key}`));
     }
   }
@@ -75,7 +88,12 @@ export function GodownsBoard({ isAdmin }: { isAdmin: boolean }) {
           <History className="size-4" aria-hidden /> {t("moves")}
         </button>
         {isAdmin && (
-          <button type="button" aria-pressed={showInactive} onClick={() => setShowInactive((v) => !v)} className={chip(showInactive)}>
+          <button
+            type="button"
+            aria-pressed={showInactive}
+            onClick={() => setShowInactive((v) => !v)}
+            className={chip(showInactive)}
+          >
             {t("showInactive")}
           </button>
         )}
@@ -124,7 +142,11 @@ export function GodownsBoard({ isAdmin }: { isAdmin: boolean }) {
       {isAdmin && <AddGodownSheet open={adding} onClose={() => setAdding(false)} />}
       {isAdmin && <EditGodownSheet godownId={editing} onClose={() => setEditing(null)} />}
       <MoveStockSheet start={moving} cards={cards} onClose={() => setMoving(null)} />
-      <MovesSheet open={history} godowns={cards.map((c) => ({ id: c.godownId, name: c.godownName }))} onClose={() => setHistory(false)} />
+      <MovesSheet
+        open={history}
+        godowns={cards.map((c) => ({ id: c.godownId, name: c.godownName }))}
+        onClose={() => setHistory(false)}
+      />
     </main>
   );
 }

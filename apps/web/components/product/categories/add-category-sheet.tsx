@@ -7,7 +7,7 @@ import { useState } from "react";
 import { fieldClass, SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { Sheet } from "~/components/ui/sheet";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { titleCase } from "~/lib/format";
 
@@ -93,7 +93,11 @@ export function AddCategorySheet({ open, onClose }: { open: boolean; onClose: ()
           </label>
 
           {/* the problem with the name, and for an inactive match the way to bring it back */}
-          {error && <FieldMessage>{t(`errors.${error}`, { name: titleCase(inactive?.name ?? name.trim()) })}</FieldMessage>}
+          {error && (
+            <FieldMessage>
+              {t(`errors.${error}`, { name: titleCase(inactive?.name ?? name.trim()) })}
+            </FieldMessage>
+          )}
           {inactive && (
             <button
               type="button"

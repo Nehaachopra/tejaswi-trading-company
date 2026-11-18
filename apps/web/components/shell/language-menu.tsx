@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useTransition } from "react";
 
 import { Menu, MenuItem } from "~/components/ui/menu";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { setLocale } from "~/i18n/actions";
 import { type Locale, localeNames, locales } from "~/i18n/locales";
 

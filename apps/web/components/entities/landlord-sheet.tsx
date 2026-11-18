@@ -9,7 +9,7 @@ import { FieldMessage } from "~/components/ui/field-message";
 import { Note } from "~/components/ui/note";
 import { ActiveRow } from "~/components/ui/active-row";
 import { Sheet } from "~/components/ui/sheet";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { Switch } from "~/components/ui/switch";
 import { toast } from "~/components/ui/toast";
 import { noDigits } from "~/lib/format";

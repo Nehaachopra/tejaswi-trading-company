@@ -17,7 +17,7 @@ import {
 import { RequiredMark } from "~/components/ui/required-mark";
 import { ActiveRow } from "~/components/ui/active-row";
 import { Sheet } from "~/components/ui/sheet";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
 import { useLenderActions, useLenders } from "~/providers/entities";

@@ -4,7 +4,7 @@ import { MapPin } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { titleCase } from "~/lib/format";
 import { useBankBranches } from "~/providers/accounts";
 
@@ -86,8 +86,15 @@ export function BranchSearch({
               >
                 <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{titleCase(b.branch.toLowerCase())}</span>
-                  <span className="block truncate text-xs">{[b.city, b.state].filter(Boolean).map((v) => titleCase(v!.toLowerCase())).join(", ")}</span>
+                  <span className="block truncate font-medium">
+                    {titleCase(b.branch.toLowerCase())}
+                  </span>
+                  <span className="block truncate text-xs">
+                    {[b.city, b.state]
+                      .filter(Boolean)
+                      .map((v) => titleCase(v!.toLowerCase()))
+                      .join(", ")}
+                  </span>
                 </span>
                 <span className="tabular shrink-0 text-xs">{b.ifsc}</span>
               </button>

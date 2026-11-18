@@ -15,7 +15,7 @@ import {
 } from "~/components/ui/page-styles";
 import { ClearButton } from "~/components/ui/clear-button";
 import { Menu, MenuItem } from "~/components/ui/menu";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { packLabel, titleCase } from "~/lib/format";
 import { useCategories } from "~/providers/categories";
 import { useProducts } from "~/providers/products";
@@ -55,7 +55,13 @@ export function ProductsBoard() {
     const words = typed.trim().toLowerCase().split(/\s+/).filter(Boolean);
     if (!list.data || words.length === 0) return list.data;
     return list.data.filter((g) => {
-      const text = [g.brand, g.name, g.categoryName, g.subCategoryName, ...g.packs.map((p) => packLabel(p.packSize, p.packSizeCode))]
+      const text = [
+        g.brand,
+        g.name,
+        g.categoryName,
+        g.subCategoryName,
+        ...g.packs.map((p) => packLabel(p.packSize, p.packSizeCode)),
+      ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
@@ -77,7 +83,10 @@ export function ProductsBoard() {
   }, [opened, open]);
   // the price card zoomed in: the product (found again on every change, as the sheet is) and the pack size shown
   const [pricing, setPricing] = useState<{ packIds: string[]; packId: string } | null>(null);
-  const priced = (pricing && list.data?.find((g) => g.packs.some((p) => pricing.packIds.includes(p.productId)))) ?? null;
+  const priced =
+    (pricing &&
+      list.data?.find((g) => g.packs.some((p) => pricing.packIds.includes(p.productId)))) ??
+    null;
   const closePrice = useCallback(() => setPricing(null), []);
   // the new-product form
   const [adding, setAdding] = useState(false);
@@ -116,10 +125,19 @@ export function ProductsBoard() {
             {typed && <ClearButton onClear={() => setTyped("")} label={tc("clearSearch")} />}
           </label>
           {/* + Add product; a square + on a phone */}
-          <button type="button" onClick={() => setAdding(true)} aria-label={t("add")} className={cn(addSquare("size-11"), "sm:hidden")}>
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            aria-label={t("add")}
+            className={cn(addSquare("size-11"), "sm:hidden")}
+          >
             <Plus className="size-5" aria-hidden />
           </button>
-          <button type="button" onClick={() => setAdding(true)} className={cn(ADD_BUTTON, "hidden shrink-0 sm:flex")}>
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className={cn(ADD_BUTTON, "hidden shrink-0 sm:flex")}
+          >
             <Plus className="size-5" aria-hidden /> {t("add")}
           </button>
         </div>
@@ -127,93 +145,93 @@ export function ProductsBoard() {
         {/* the filters, on top of the cards: the category, then its sub-category (once one with some is picked), then
             Show inactive; one row that scrolls sideways, the dropdown lists floating above it */}
         <div className="-mx-4 mt-6 flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:-mx-6 sm:px-6">
-            <Menu
-              label={t("category")}
-              surface="chestnut"
-              align="left"
-              boxed
-              floating
-              triggerClassName={cn(FILTER_TRIGGER, FILTER_CONTROL, "shrink-0")}
-              trigger={
-                <>
-                  <span className="truncate">
-                    {category ? titleCase(category.name) : t("allCategories")}
-                  </span>
-                  <ChevronDown className="size-4 shrink-0" aria-hidden />
-                </>
-              }
-            >
-              {(close) => (
-                <>
-                  {[
-                    { id: null, name: t("allCategories") },
-                    ...(categories.data ?? []).map((c) => ({ id: c.id, name: titleCase(c.name) })),
-                  ].map((c) => (
-                    <MenuItem
-                      key={c.id ?? "all"}
-                      selected={categoryId === c.id}
-                      onClick={() => {
-                        setCategoryId(c.id);
-                        setSubCategoryId(null);
-                        close();
-                      }}
-                    >
-                      <span className="flex-1">{c.name}</span>
-                      {categoryId === c.id && <Check className="size-4" aria-hidden />}
-                    </MenuItem>
-                  ))}
-                </>
-              )}
-            </Menu>
+          <Menu
+            label={t("category")}
+            surface="chestnut"
+            align="left"
+            boxed
+            floating
+            triggerClassName={cn(FILTER_TRIGGER, FILTER_CONTROL, "shrink-0")}
+            trigger={
+              <>
+                <span className="truncate">
+                  {category ? titleCase(category.name) : t("allCategories")}
+                </span>
+                <ChevronDown className="size-4 shrink-0" aria-hidden />
+              </>
+            }
+          >
+            {(close) => (
+              <>
+                {[
+                  { id: null, name: t("allCategories") },
+                  ...(categories.data ?? []).map((c) => ({ id: c.id, name: titleCase(c.name) })),
+                ].map((c) => (
+                  <MenuItem
+                    key={c.id ?? "all"}
+                    selected={categoryId === c.id}
+                    onClick={() => {
+                      setCategoryId(c.id);
+                      setSubCategoryId(null);
+                      close();
+                    }}
+                  >
+                    <span className="flex-1">{c.name}</span>
+                    {categoryId === c.id && <Check className="size-4" aria-hidden />}
+                  </MenuItem>
+                ))}
+              </>
+            )}
+          </Menu>
 
-            {/* sub-categories: only once a category with some is picked */}
-            <Menu
-              label={t("subCategory")}
-              surface="chestnut"
-              align="left"
-              disabled={subs.length === 0}
-              boxed
-              floating
-              triggerClassName={cn(FILTER_TRIGGER, FILTER_CONTROL, "shrink-0")}
-              trigger={
-                <>
-                  <span className="truncate">
-                    {sub ? titleCase(sub.name) : t("allSubCategories")}
-                  </span>
-                  <ChevronDown className="size-4 shrink-0" aria-hidden />
-                </>
-              }
-            >
-              {(close) => (
-                <>
-                  {[
-                    { id: null, name: t("allSubCategories") },
-                    ...subs.map((s) => ({ id: s.id, name: titleCase(s.name) })),
-                  ].map((s) => (
-                    <MenuItem
-                      key={s.id ?? "all"}
-                      selected={subCategoryId === s.id}
-                      onClick={() => {
-                        setSubCategoryId(s.id);
-                        close();
-                      }}
-                    >
-                      <span className="flex-1">{s.name}</span>
-                      {subCategoryId === s.id && <Check className="size-4" aria-hidden />}
-                    </MenuItem>
-                  ))}
-                </>
-              )}
-            </Menu>
+          {/* sub-categories: only once a category with some is picked */}
+          <Menu
+            label={t("subCategory")}
+            surface="chestnut"
+            align="left"
+            disabled={subs.length === 0}
+            boxed
+            floating
+            triggerClassName={cn(FILTER_TRIGGER, FILTER_CONTROL, "shrink-0")}
+            trigger={
+              <>
+                <span className="truncate">
+                  {sub ? titleCase(sub.name) : t("allSubCategories")}
+                </span>
+                <ChevronDown className="size-4 shrink-0" aria-hidden />
+              </>
+            }
+          >
+            {(close) => (
+              <>
+                {[
+                  { id: null, name: t("allSubCategories") },
+                  ...subs.map((s) => ({ id: s.id, name: titleCase(s.name) })),
+                ].map((s) => (
+                  <MenuItem
+                    key={s.id ?? "all"}
+                    selected={subCategoryId === s.id}
+                    onClick={() => {
+                      setSubCategoryId(s.id);
+                      close();
+                    }}
+                  >
+                    <span className="flex-1">{s.name}</span>
+                    {subCategoryId === s.id && <Check className="size-4" aria-hidden />}
+                  </MenuItem>
+                ))}
+              </>
+            )}
+          </Menu>
 
-            <button
-              type="button"
-              aria-pressed={showInactive}
-              onClick={() => setShowInactive((v) => !v)}
-              className={cn(chip(showInactive), FILTER_CONTROL, "shrink-0")}
-            >
-              {t("showInactive")}
-            </button>
+          <button
+            type="button"
+            aria-pressed={showInactive}
+            onClick={() => setShowInactive((v) => !v)}
+            className={cn(chip(showInactive), FILTER_CONTROL, "shrink-0")}
+          >
+            {t("showInactive")}
+          </button>
         </div>
 
         {/* the tiles: 2 across on phones, more on wider screens */}
@@ -227,7 +245,11 @@ export function ProductsBoard() {
           </p>
         ) : shown!.length === 0 ? (
           <p className="mt-16 text-center text-ivory/70">
-            {typed.trim() ? t("noSearchMatch", { search: typed.trim() }) : categoryId ? t("noMatch") : t("empty")}
+            {typed.trim()
+              ? t("noSearchMatch", { search: typed.trim() })
+              : categoryId
+                ? t("noMatch")
+                : t("empty")}
           </p>
         ) : (
           <ul className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4 xl:grid-cols-5">
@@ -238,7 +260,9 @@ export function ProductsBoard() {
                 onDetails={(packId) =>
                   setOpen({ key: group.key, packIds: group.packs.map((p) => p.productId), packId })
                 }
-                onPrice={(packId) => setPricing({ packIds: group.packs.map((p) => p.productId), packId })}
+                onPrice={(packId) =>
+                  setPricing({ packIds: group.packs.map((p) => p.productId), packId })
+                }
                 onAdd={() => setAddingTo(group)}
               />
             ))}
@@ -247,11 +271,7 @@ export function ProductsBoard() {
       </div>
 
       {/* a pack size's details drawer, the price card, and the new-product form */}
-      <ProductSheet
-        group={opened}
-        packId={open?.packId ?? null}
-        onClose={() => setOpen(null)}
-      />
+      <ProductSheet group={opened} packId={open?.packId ?? null} onClose={() => setOpen(null)} />
       {priced && pricing && (
         <PriceCard
           group={priced}

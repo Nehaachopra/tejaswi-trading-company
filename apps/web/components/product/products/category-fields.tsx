@@ -6,10 +6,15 @@ import { useState } from "react";
 import { fieldClass } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { RequiredMark } from "~/components/ui/required-mark";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { useCategories, useCategoryActions, useCategoryCache, useSubCategoryActions } from "~/providers/categories";
+import {
+  useCategories,
+  useCategoryActions,
+  useCategoryCache,
+  useSubCategoryActions,
+} from "~/providers/categories";
 
 import { PlacePicker } from "../../transaction/shared/place-picker";
 import { categoryError } from "../categories/category-errors";
@@ -72,7 +77,11 @@ export function CategoryFields({
         </span>
         <PlacePicker
           label={t("category")}
-          places={(categories.data ?? []).map((c) => ({ id: c.id, name: titleCase(c.name), disabled: false }))}
+          places={(categories.data ?? []).map((c) => ({
+            id: c.id,
+            name: titleCase(c.name),
+            disabled: false,
+          }))}
           value={categoryId}
           onPick={(id) => {
             if (id !== categoryId) onChange({ categoryId: id, subCategoryId: null });
@@ -83,7 +92,13 @@ export function CategoryFields({
           addLabel={t("form.newCategory")}
           onAdd={() => setAdding("category")}
         />
-        {adding === "category" && <NameAdder label={t("form.newCategory")} busy={createCategory.isPending} onAdd={addCategory} />}
+        {adding === "category" && (
+          <NameAdder
+            label={t("form.newCategory")}
+            busy={createCategory.isPending}
+            onAdd={addCategory}
+          />
+        )}
       </div>
 
       {/* its sub-categories, once a category is picked */}
@@ -106,7 +121,13 @@ export function CategoryFields({
             addLabel={t("form.newSubCategory")}
             onAdd={() => setAdding("sub")}
           />
-          {adding === "sub" && <NameAdder label={t("form.newSubCategoryName")} busy={createSub.isPending} onAdd={addSub} />}
+          {adding === "sub" && (
+            <NameAdder
+              label={t("form.newSubCategoryName")}
+              busy={createSub.isPending}
+              onAdd={addSub}
+            />
+          )}
         </div>
       )}
     </>
@@ -114,7 +135,15 @@ export function CategoryFields({
 }
 
 // a name box with Add beside it; Enter adds too. What the server refuses shows under it
-function NameAdder({ label, busy, onAdd }: { label: string; busy: boolean; onAdd: (name: string) => Promise<void> }) {
+function NameAdder({
+  label,
+  busy,
+  onAdd,
+}: {
+  label: string;
+  busy: boolean;
+  onAdd: (name: string) => Promise<void>;
+}) {
   const t = useTranslations("products.items");
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +156,11 @@ function NameAdder({ label, busy, onAdd }: { label: string; busy: boolean; onAdd
       await onAdd(trimmed);
     } catch (err) {
       const key = categoryError(err);
-      setError(t(`form.errors.${key === "invalidName" ? "check" : key === "hasProducts" ? "inactive" : key}`));
+      setError(
+        t(
+          `form.errors.${key === "invalidName" ? "check" : key === "hasProducts" ? "inactive" : key}`,
+        ),
+      );
     }
   }
 
@@ -147,7 +180,10 @@ function NameAdder({ label, busy, onAdd }: { label: string; busy: boolean; onAdd
           }}
           placeholder={label}
           aria-label={label}
-          className={cn("min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/50", fieldClass(false))}
+          className={cn(
+            "min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/50",
+            fieldClass(false),
+          )}
         />
         <button
           type="button"

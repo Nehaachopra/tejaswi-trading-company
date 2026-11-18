@@ -6,15 +6,28 @@ import { useEffect, useState } from "react";
 import { SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { Sheet } from "~/components/ui/sheet";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { useGodown, useGodownActions } from "~/providers/stock";
 
 import { categoryError } from "../../product/categories/category-errors";
-import { draftFrom, draftInput, draftOk, emptyDraft, GodownFields, type GodownDraft } from "./godown-fields";
+import {
+  draftFrom,
+  draftInput,
+  draftOk,
+  emptyDraft,
+  GodownFields,
+  type GodownDraft,
+} from "./godown-fields";
 
 // a godown's details, admin only; its stock changes only through moves, sales, purchases and counts
-export function EditGodownSheet({ godownId, onClose }: { godownId: string | null; onClose: () => void }) {
+export function EditGodownSheet({
+  godownId,
+  onClose,
+}: {
+  godownId: string | null;
+  onClose: () => void;
+}) {
   const t = useTranslations("stock.form");
   const tg = useTranslations("stock.godowns");
   const godown = useGodown(godownId);
@@ -47,7 +60,9 @@ export function EditGodownSheet({ godownId, onClose }: { godownId: string | null
       onClose();
     } catch (err) {
       const key = categoryError(err);
-      setError(t(`errors.${key === "invalidName" ? "check" : key === "hasProducts" ? "failed" : key}`));
+      setError(
+        t(`errors.${key === "invalidName" ? "check" : key === "hasProducts" ? "failed" : key}`),
+      );
     }
   }
 
@@ -60,13 +75,19 @@ export function EditGodownSheet({ godownId, onClose }: { godownId: string | null
       ) : (
         <form onSubmit={save} noValidate className="flex min-h-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-5 py-5">
-            <GodownFields draft={draft} onChange={(patch) => {
+            <GodownFields
+              draft={draft}
+              onChange={(patch) => {
                 setError(null);
                 setDraft((d) => ({ ...d, ...patch }));
-              }} tried={tried} />
+              }}
+              tried={tried}
+            />
           </div>
           <footer className="flex shrink-0 flex-col gap-3 border-t border-chestnut/15 px-5 py-4">
-            {tried && !draftOk(draft) && <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>}
+            {tried && !draftOk(draft) && (
+              <FieldMessage className="mt-0">{t("errors.fill")}</FieldMessage>
+            )}
             {error && <FieldMessage className="mt-0">{error}</FieldMessage>}
             <SubmitButton busy={update.isPending}>{t("saveDetails")}</SubmitButton>
           </footer>

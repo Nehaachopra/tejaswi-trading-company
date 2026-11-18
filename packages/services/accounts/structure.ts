@@ -73,6 +73,8 @@ export const LEDGERS = {
   // goods a customer sends back take back what the sale earned
   saleReturn: { group: "expense", name: "sale return" },
   discountGiven: { group: "expense", name: "discount given" },
+  // the paise between what a purchase's figures come to and the supplier's bill, rounded to the rupee
+  roundOff: { group: "expense", name: "round off" },
   rent: { group: "expense", name: "rent" },
   // paid to truck owners: TDS as contract work, and no GST where there's no consignment note
   transport: { group: "expense", name: "transport" },

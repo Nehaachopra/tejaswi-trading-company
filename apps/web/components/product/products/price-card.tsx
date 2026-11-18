@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
 import { SlotAmount } from "~/components/ui/slot-amount";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { packLabel, rupees } from "~/lib/format";
 import { asField, packPriceFromRate, parseAmount, rateFromPackPrice } from "~/lib/price";
@@ -140,37 +140,37 @@ export function PriceCard({
         <TileTopForPrice group={group} pack={pack} onPack={onPack} short />
 
         {/* cost and profit: two big numbers, a line between; the profit's digits spin as it changes */}
-          <div className="grid grid-cols-2 text-center">
-            <div className="grid justify-items-center">
-              <b className="tabular font-heading text-2xl font-extrabold leading-[1.15]">
-                {cost == null ? "–" : rupees(cost)}
-              </b>
-              <span className="text-[11px] text-chestnut/60">{t("cost")}</span>
-            </div>
-            <div className="grid justify-items-center border-l border-chestnut/12">
-              <b
-                className={cn(
-                  "font-heading text-2xl font-extrabold leading-[1.15]",
-                  profitPct != null && (loss ? "text-danger" : "text-success"),
-                )}
-              >
-                {profitPct == null ? (
-                  "–"
-                ) : (
-                  <SlotAmount
-                    text={`${Math.abs(profitPct).toFixed(1)}%`}
-                    className="leading-[1.15]"
-                  />
-                )}
-              </b>
-              <span className="text-[11px] text-chestnut/60">
-                {loss ? t("loss") : t("profitEarnable")}
-              </span>
-            </div>
+        <div className="grid grid-cols-2 text-center">
+          <div className="grid justify-items-center">
+            <b className="tabular font-heading text-2xl font-extrabold leading-[1.15]">
+              {cost == null ? "–" : rupees(cost)}
+            </b>
+            <span className="text-[11px] text-chestnut/60">{t("cost")}</span>
           </div>
+          <div className="grid justify-items-center border-l border-chestnut/12">
+            <b
+              className={cn(
+                "font-heading text-2xl font-extrabold leading-[1.15]",
+                profitPct != null && (loss ? "text-danger" : "text-success"),
+              )}
+            >
+              {profitPct == null ? (
+                "–"
+              ) : (
+                <SlotAmount
+                  text={`${Math.abs(profitPct).toFixed(1)}%`}
+                  className="leading-[1.15]"
+                />
+              )}
+            </b>
+            <span className="text-[11px] text-chestnut/60">
+              {loss ? t("loss") : t("profitEarnable")}
+            </span>
+          </div>
+        </div>
 
         {/* the last 5 saved prices */}
-          <PriceChart productId={pack.productId} />
+        <PriceChart productId={pack.productId} />
 
         <div className="flex flex-col gap-3 mt-3.5">
           {/* rate per unit, then the price with GST (chestnut), each a row: label left, box right */}
@@ -183,10 +183,6 @@ export function PriceCard({
             autoFocus
             rows
           />
-
-          
-
-          
 
           {/* Save price */}
           <button

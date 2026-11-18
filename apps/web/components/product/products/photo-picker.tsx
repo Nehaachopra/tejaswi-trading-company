@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 
 import { FieldMessage } from "~/components/ui/field-message";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { cn } from "~/lib/utils";
 
 // photos are shrunk on the device first: at most this many pixels on the long side, as WebP
@@ -22,13 +22,21 @@ async function shrink(file: File): Promise<Blob> {
   canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
   bitmap.close();
   return new Promise((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("encode"))), "image/webp", QUALITY),
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("encode"))),
+      "image/webp",
+      QUALITY,
+    ),
   );
 }
 
 // send it to the API, which stores it and answers with its link
 async function upload(blob: Blob): Promise<string> {
-  const res = await fetch("/uploads/product-image", { method: "POST", body: blob, headers: { "Content-Type": blob.type } });
+  const res = await fetch("/uploads/product-image", {
+    method: "POST",
+    body: blob,
+    headers: { "Content-Type": blob.type },
+  });
   if (!res.ok) throw new Error(`upload ${res.status}`);
   return ((await res.json()) as { url: string }).url;
 }
@@ -94,7 +102,10 @@ export function PhotoPicker({
       )}
       {/* inline, a camera badge says the photo can be changed */}
       {variant === "square" && value && !busy && (
-        <span aria-hidden className="absolute bottom-1.5 right-1.5 grid size-8 place-items-center rounded-full bg-ivory/90 text-chestnut">
+        <span
+          aria-hidden
+          className="absolute bottom-1.5 right-1.5 grid size-8 place-items-center rounded-full bg-ivory/90 text-chestnut"
+        >
           <Camera className="size-4" />
         </span>
       )}
@@ -110,7 +121,15 @@ export function PhotoPicker({
       <Trash2 className="size-4" aria-hidden /> {t("removePhoto")}
     </button>
   );
-  const picker = <input ref={input} type="file" accept="image/*" hidden onChange={(e) => void pick(e.target.files?.[0])} />;
+  const picker = (
+    <input
+      ref={input}
+      type="file"
+      accept="image/*"
+      hidden
+      onChange={(e) => void pick(e.target.files?.[0])}
+    />
+  );
   const error = failed && <FieldMessage>{t("errors.upload")}</FieldMessage>;
 
   if (variant === "big") {

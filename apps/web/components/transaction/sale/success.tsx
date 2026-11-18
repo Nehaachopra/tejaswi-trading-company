@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 
 import { CopyButton } from "~/components/ui/copy-button";
 import { PAGE } from "~/components/ui/page-styles";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { useSavedSale } from "~/providers/sale";
@@ -34,7 +34,10 @@ export function SaleSuccess({ id }: { id: string }) {
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
       ) : (
-        <section role="status" className="on-ivory flex flex-col items-center gap-6 rounded-control bg-ivory p-6 text-center text-chestnut sm:p-8">
+        <section
+          role="status"
+          className="on-ivory flex flex-col items-center gap-6 rounded-control bg-ivory p-6 text-center text-chestnut sm:p-8"
+        >
           {/* it worked */}
           <div className="flex flex-col items-center gap-3">
             <span className="grid size-20 place-items-center rounded-full bg-success/15">
@@ -49,7 +52,9 @@ export function SaleSuccess({ id }: { id: string }) {
             <p className="flex min-w-0 flex-1 items-center justify-between gap-4 rounded-control border border-chestnut/25 py-1.5 pl-4 pr-2 text-left">
               <span className="text-sm font-semibold">{t("number")}</span>
               <span className="flex min-w-0 items-center gap-1">
-                <span className="truncate font-heading text-xl font-bold">{sale.data.assignedId}</span>
+                <span className="truncate font-heading text-xl font-bold">
+                  {sale.data.assignedId}
+                </span>
                 <CopyButton value={sale.data.assignedId} />
               </span>
             </p>
@@ -68,7 +73,13 @@ export function SaleSuccess({ id }: { id: string }) {
               { key: "total", label: t("total"), value: rupees(sale.data.total) },
               { key: "payment", label: t("payment"), value: ts(`kinds.${sale.data.kind}`) },
             ].map((r, i) => (
-              <p key={r.key} className={cn("flex items-baseline justify-between gap-4 py-3", i > 0 && "border-t border-chestnut/15")}>
+              <p
+                key={r.key}
+                className={cn(
+                  "flex items-baseline justify-between gap-4 py-3",
+                  i > 0 && "border-t border-chestnut/15",
+                )}
+              >
                 <span className="text-sm font-semibold">{r.label}</span>
                 <span className="min-w-0 truncate font-heading text-xl font-bold">{r.value}</span>
               </p>

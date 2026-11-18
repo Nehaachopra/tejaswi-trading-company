@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 
 import { CopyButton } from "~/components/ui/copy-button";
 import { PAGE } from "~/components/ui/page-styles";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { useBankName } from "~/lib/bank-names";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
@@ -77,14 +77,26 @@ export function ReceiptSuccess({
   const salaryGet = useSavedSalary(id, isSalary);
   // salary paid to many: every payment, each with its employee and number
   const salaryMany = useSavedSalaries(isSalary ? also : []);
-  const many = isSalary && also.length > 0 && salaryGet.data && salaryMany.every((m) => m.data) ? [salaryGet.data, ...salaryMany.map((m) => m.data!)] : null;
+  const many =
+    isSalary && also.length > 0 && salaryGet.data && salaryMany.every((m) => m.data)
+      ? [salaryGet.data, ...salaryMany.map((m) => m.data!)]
+      : null;
   const receiptGet = useSavedReceipt(id, flow === "receipt");
   const paymentGet = useSavedPayment(id, isPayment);
   const depositGet = useSavedDeposit(id, flow === "deposit");
   const withdrawalGet = useSavedWithdrawal(id, flow === "withdrawal");
   const transferGet = useSavedTransfer(id, flow === "transfer");
-  const contraGet = flow === "withdrawal" ? withdrawalGet : flow === "transfer" ? transferGet : depositGet;
-  const asked = isSalary ? salaryGet : isOther ? otherGet : isDeposit ? contraGet : isPayment ? paymentGet : receiptGet;
+  const contraGet =
+    flow === "withdrawal" ? withdrawalGet : flow === "transfer" ? transferGet : depositGet;
+  const asked = isSalary
+    ? salaryGet
+    : isOther
+      ? otherGet
+      : isDeposit
+        ? contraGet
+        : isPayment
+          ? paymentGet
+          : receiptGet;
   // what this page shows of it, the same for every flow: a deposit or withdrawal moved cash and one account (shown as
   // cash and a bank), a transfer two accounts (the one it left, then the one it went into)
   const d = contraGet.data;
@@ -101,23 +113,25 @@ export function ReceiptSuccess({
           split: null,
         }
       : isOther
-      ? otherGet.data && {
-          assignedId: otherGet.data.assignedId,
-          bankDetailsId: "",
-          settledIn: "bank" as const,
-          moreBankParts: [] as { bankDetailsId: string }[],
-          split: null,
-        }
-      : isDeposit
-      ? d &&
-        contraBank && {
-          assignedId: d.assignedId,
-          bankDetailsId: contraBank.id,
-          settledIn: d.from && d.to ? ("bank" as const) : ("cashAndBank" as const),
-          moreBankParts: (d.from && d.to ? [{ bankDetailsId: d.to.id }] : []) as { bankDetailsId: string }[],
-          split: null,
-        }
-      : (isPayment ? paymentGet : receiptGet).data,
+        ? otherGet.data && {
+            assignedId: otherGet.data.assignedId,
+            bankDetailsId: "",
+            settledIn: "bank" as const,
+            moreBankParts: [] as { bankDetailsId: string }[],
+            split: null,
+          }
+        : isDeposit
+          ? d &&
+            contraBank && {
+              assignedId: d.assignedId,
+              bankDetailsId: contraBank.id,
+              settledIn: d.from && d.to ? ("bank" as const) : ("cashAndBank" as const),
+              moreBankParts: (d.from && d.to ? [{ bankDetailsId: d.to.id }] : []) as {
+                bankDetailsId: string;
+              }[],
+              split: null,
+            }
+          : (isPayment ? paymentGet : receiptGet).data,
   };
   // what cash and each bank account hold now, asked again so it includes this one (null for staff, who don't see them)
   const sources = useMoneyHeld({ fresh: true });
@@ -193,9 +207,14 @@ export function ReceiptSuccess({
               beside it (under it on the phone) */}
           {many ? (
             <div className="flex w-full max-w-lg flex-col gap-2">
-              <p className="text-sm font-semibold">{ownSalary("paidCount", { count: many.length })}</p>
+              <p className="text-sm font-semibold">
+                {ownSalary("paidCount", { count: many.length })}
+              </p>
               {many.map((m) => (
-                <p key={m.transactionId} className="flex min-w-0 items-center justify-between gap-4 rounded-control border border-chestnut/25 py-1.5 pl-4 pr-2 text-left">
+                <p
+                  key={m.transactionId}
+                  className="flex min-w-0 items-center justify-between gap-4 rounded-control border border-chestnut/25 py-1.5 pl-4 pr-2 text-left"
+                >
                   <span className="truncate text-sm font-semibold">{m.employee.name}</span>
                   <span className="flex shrink-0 items-center gap-1">
                     <span className="font-heading text-lg font-bold">{m.assignedId}</span>
@@ -205,23 +224,23 @@ export function ReceiptSuccess({
               ))}
             </div>
           ) : (
-          <div className="flex w-full max-w-lg flex-col gap-3 sm:flex-row sm:items-stretch">
-            <p className="flex min-w-0 flex-1 items-center justify-between gap-4 rounded-control border border-chestnut/25 py-1.5 pl-4 pr-2 text-left">
-              <span className="text-sm font-semibold">{t("number")}</span>
-              <span className="flex items-center gap-1">
-                <span className="font-heading text-xl font-bold">{receipt.data.assignedId}</span>
-                <CopyButton value={receipt.data.assignedId} />
-              </span>
-            </p>
-            {!isDeposit && !isOther && !isSalary && (
-            <Link
-              href={`/transaction/${flow}/${id}/voucher`}
-              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-chestnut/50 px-4 text-sm font-semibold sm:w-auto"
-            >
-              <FileText className="size-4" aria-hidden /> {t("voucher")}
-            </Link>
-            )}
-          </div>
+            <div className="flex w-full max-w-lg flex-col gap-3 sm:flex-row sm:items-stretch">
+              <p className="flex min-w-0 flex-1 items-center justify-between gap-4 rounded-control border border-chestnut/25 py-1.5 pl-4 pr-2 text-left">
+                <span className="text-sm font-semibold">{t("number")}</span>
+                <span className="flex items-center gap-1">
+                  <span className="font-heading text-xl font-bold">{receipt.data.assignedId}</span>
+                  <CopyButton value={receipt.data.assignedId} />
+                </span>
+              </p>
+              {!isDeposit && !isOther && !isSalary && (
+                <Link
+                  href={`/transaction/${flow}/${id}/voucher`}
+                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-chestnut/50 px-4 text-sm font-semibold sm:w-auto"
+                >
+                  <FileText className="size-4" aria-hidden /> {t("voucher")}
+                </Link>
+              )}
+            </div>
           )}
 
           {/* more than was owed (a customer paying us, a supplier we paid): what settled the due and what's an advance,

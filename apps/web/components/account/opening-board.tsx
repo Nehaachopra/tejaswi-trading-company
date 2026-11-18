@@ -9,7 +9,7 @@ import { ClearButton } from "~/components/ui/clear-button";
 import { fieldClass, SubmitButton } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { NumberInput } from "~/components/ui/number-input";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { toast } from "~/components/ui/toast";
 import { cn } from "~/lib/utils";
 import { useOpening } from "~/providers/accounts";
@@ -66,7 +66,10 @@ export function OpeningBoard() {
     setDate(sheet.data.date ? indiaDay(sheet.data.date) : "");
     setAmounts(
       Object.fromEntries(
-        sheet.data.rows.map((r) => [r.ledgerId, r.opening ? `${r.opening.side === usualSide(r.head) ? "" : "-"}${r.opening.amount}` : ""]),
+        sheet.data.rows.map((r) => [
+          r.ledgerId,
+          r.opening ? `${r.opening.side === usualSide(r.head) ? "" : "-"}${r.opening.amount}` : "",
+        ]),
       ),
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when it first loads
@@ -76,8 +79,14 @@ export function OpeningBoard() {
   const needle = search.trim().toLowerCase();
   const shown = (r: Row) => needle === "" || nameOf(r).toLowerCase().includes(needle);
   // Capital is the other side of everything: the rows' total on the debit side, turned round (debit plus)
-  const capitalPaise = -rows.reduce((sum, r) => sum + debitPaise(amounts[r.ledgerId] ?? "", r.head), 0);
-  const capital = { amount: Math.abs(capitalPaise) / 100, side: capitalPaise > 0 ? ("debit" as const) : ("credit" as const) };
+  const capitalPaise = -rows.reduce(
+    (sum, r) => sum + debitPaise(amounts[r.ledgerId] ?? "", r.head),
+    0,
+  );
+  const capital = {
+    amount: Math.abs(capitalPaise) / 100,
+    side: capitalPaise > 0 ? ("debit" as const) : ("credit" as const),
+  };
   const anyAmount = rows.some((r) => debitPaise(amounts[r.ledgerId] ?? "", r.head) !== 0);
   const dateMissing = anyAmount && date === "";
 
@@ -93,7 +102,16 @@ export function OpeningBoard() {
           .filter((r) => !r.locked)
           .map((r) => {
             const paise = debitPaise(amounts[r.ledgerId] ?? "", r.head);
-            return { ledgerId: r.ledgerId, opening: paise === 0 ? null : { amount: Math.abs(paise) / 100, side: paise > 0 ? ("debit" as const) : ("credit" as const) } };
+            return {
+              ledgerId: r.ledgerId,
+              opening:
+                paise === 0
+                  ? null
+                  : {
+                      amount: Math.abs(paise) / 100,
+                      side: paise > 0 ? ("debit" as const) : ("credit" as const),
+                    },
+            };
           }),
       });
       toast.success(t("saved"));
@@ -124,7 +142,10 @@ export function OpeningBoard() {
           onChange={(v) => setAmounts((all) => ({ ...all, [r.ledgerId]: v }))}
           placeholder="0"
           aria-label={nameOf(r)}
-          className={cn("tabular min-h-10 w-40 shrink-0 px-3 text-right text-base sm:w-48", fieldClass(false))}
+          className={cn(
+            "tabular min-h-10 w-40 shrink-0 px-3 text-right text-base sm:w-48",
+            fieldClass(false),
+          )}
         />
       )}
     </li>
@@ -153,7 +174,12 @@ export function OpeningBoard() {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 aria-invalid={(tried && dateMissing) || undefined}
-                className={cn("min-h-11 rounded-control border bg-transparent px-3 text-base text-ivory outline-none [color-scheme:dark]", tried && dateMissing ? "border-2 border-danger" : "border-ivory/50 focus:border-ivory")}
+                className={cn(
+                  "min-h-11 rounded-control border bg-transparent px-3 text-base text-ivory outline-none [color-scheme:dark]",
+                  tried && dateMissing
+                    ? "border-2 border-danger"
+                    : "border-ivory/50 focus:border-ivory",
+                )}
               />
             </label>
             <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-control border border-ivory/40 px-3 focus-within:border-ivory">
@@ -176,24 +202,41 @@ export function OpeningBoard() {
             {HEADS.map((head) => {
               const mine = rows.filter((r) => r.head === head && shown(r));
               if (mine.length === 0) return null;
-              const groups = MASTERS[head].map((m) => ({ key: m, rows: mine.filter((r) => r.masterKey === m) })).filter((g) => g.rows.length > 0);
-              const own = mine.filter((r) => r.masterKey === null).sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
+              const groups = MASTERS[head]
+                .map((m) => ({ key: m, rows: mine.filter((r) => r.masterKey === m) }))
+                .filter((g) => g.rows.length > 0);
+              const own = mine
+                .filter((r) => r.masterKey === null)
+                .sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
               return (
                 <section key={head} aria-label={th(head)}>
                   <h2 className="mb-2 flex items-center gap-2 font-heading text-xl font-bold">
                     {th(head)}
-                    <span className={cn("rounded-control border px-1.5 py-px text-[0.65rem] font-semibold uppercase tracking-wide", usualSide(head) === "debit" ? "border-ivory bg-ivory text-chestnut" : "border-ivory text-ivory")}>
+                    <span
+                      className={cn(
+                        "rounded-control border px-1.5 py-px text-[0.65rem] font-semibold uppercase tracking-wide",
+                        usualSide(head) === "debit"
+                          ? "border-ivory bg-ivory text-chestnut"
+                          : "border-ivory text-ivory",
+                      )}
+                    >
                       {tn(usualSide(head))}
                     </span>
                   </h2>
                   <div className="on-ivory overflow-hidden rounded-control bg-ivory text-chestnut">
                     {groups.map((g) => (
                       <div key={g.key}>
-                        <p className="bg-[color-mix(in_srgb,var(--color-ivory)_90%,var(--color-chestnut))] px-4 py-1.5 text-xs font-semibold">{tm(g.key)}</p>
+                        <p className="bg-[color-mix(in_srgb,var(--color-ivory)_90%,var(--color-chestnut))] px-4 py-1.5 text-xs font-semibold">
+                          {tm(g.key)}
+                        </p>
                         <ul className="divide-y divide-chestnut/10">{g.rows.map(line)}</ul>
                       </div>
                     ))}
-                    {own.length > 0 && <ul className="divide-y divide-chestnut/10 border-t border-chestnut/10 first:border-t-0">{own.map(line)}</ul>}
+                    {own.length > 0 && (
+                      <ul className="divide-y divide-chestnut/10 border-t border-chestnut/10 first:border-t-0">
+                        {own.map(line)}
+                      </ul>
+                    )}
                   </div>
                 </section>
               );
@@ -207,7 +250,12 @@ export function OpeningBoard() {
               <div className="border-t border-chestnut/15 bg-ivory text-chestnut">
                 <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
                   <p className="min-w-0 flex-1 text-sm">
-                    {t("capital")} <SignedAmount balance={capital} head="liability" className="font-heading text-lg font-bold" />
+                    {t("capital")}{" "}
+                    <SignedAmount
+                      balance={capital}
+                      head="liability"
+                      className="font-heading text-lg font-bold"
+                    />
                   </p>
                   {error && (
                     <div className="w-full">

@@ -3,7 +3,7 @@
 import { DateInput } from "~/components/ui/date-input";
 import { FieldMessage } from "~/components/ui/field-message";
 import { MicField } from "~/components/ui/mic-button";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
@@ -25,14 +25,25 @@ export function DetailsCard() {
           maxLength={REFERENCE_MAX}
           placeholder={t("referenceHint")}
           // letters, digits, - and / only, in capitals, as the server keeps it
-          onChange={(e) => setReference(e.target.value.toUpperCase().replace(/[^A-Z0-9/-]/g, "").slice(0, REFERENCE_MAX))}
+          onChange={(e) =>
+            setReference(
+              e.target.value
+                .toUpperCase()
+                .replace(/[^A-Z0-9/-]/g, "")
+                .slice(0, REFERENCE_MAX),
+            )
+          }
           autoCapitalize="characters"
           className={cn(input(false), "tabular")}
         />
       </label>
       <label className="flex flex-col gap-2.5 text-xs font-semibold">
         {tc("q.remarks")}
-        <MicField onText={(said) => setRemarks((v) => (v.trim() ? `${v.trim()} ${said}` : said).slice(0, REMARKS_MAX))}>
+        <MicField
+          onText={(said) =>
+            setRemarks((v) => (v.trim() ? `${v.trim()} ${said}` : said).slice(0, REMARKS_MAX))
+          }
+        >
           <input
             value={remarks}
             maxLength={REMARKS_MAX}
@@ -49,7 +60,8 @@ export function DetailsCard() {
 // the day, as on a receipt (today to start with; never after it; staff a few days back at most), then Save with the
 // amount on it, and why a save failed
 export function SaveBlock() {
-  const { t, tc, isAdmin, day, setDay, tried, value, saving, creating, save, saveError } = useContraEntry();
+  const { t, tc, isAdmin, day, setDay, tried, value, saving, creating, save, saveError } =
+    useContraEntry();
   const busy = saving || creating;
   const today = indiaDay(new Date());
   return (
@@ -64,7 +76,9 @@ export function SaveBlock() {
           min={earliestDay(isAdmin)}
           max={today}
           // a day typed outside what the picker offers is left as it was
-          onChange={(d) => setDay(d !== "" && (d > today || d < (earliestDay(isAdmin) ?? "")) ? day : d)}
+          onChange={(d) =>
+            setDay(d !== "" && (d > today || d < (earliestDay(isAdmin) ?? "")) ? day : d)
+          }
           calendarLabel={tc("q.date")}
           aria-invalid={(tried && day === "") || undefined}
           className={input(day === "")}

@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
 import { MicButton } from "~/components/ui/mic-button";
 import { NumberInput } from "~/components/ui/number-input";
-import { Spinner } from "~/components/ui/spinner";
+import { Spinner } from "~/components/ui/icons/spinner";
 import { noDigits, rupees, titleCase } from "~/lib/format";
 import { indiaPostPlace } from "~/lib/india-post";
 import { spokenDigits, wholePhone, wordsToNumber } from "~/lib/number-words";
@@ -234,7 +234,18 @@ function MoneyChat({
     (flow === "payment" ? tkPayment : flow === "oldDue" ? tkDue : tkReceipt)(k as never);
   const tf = useTranslations("transactions.loan.frequencies");
   const tl = useTranslations("transactions.loan");
-  const { banks, sources, createReceipt, createPayment, addOldDue, paymentFits, pinPlace, afterOldDue, afterPayment, afterReceipt } = useChatEntry(flow);
+  const {
+    banks,
+    sources,
+    createReceipt,
+    createPayment,
+    addOldDue,
+    paymentFits,
+    pinPlace,
+    afterOldDue,
+    afterPayment,
+    afterReceipt,
+  } = useChatEntry(flow);
   const sameName = useSameNameConfirm();
   const router = useRouter();
   const nameOf = useLedgerName();
@@ -487,8 +498,11 @@ function MoneyChat({
         const n = Number(text.replace(/,/g, "")) || wordsToNumber(text) || 0;
         if (!(n > 0)) return bad("amount");
         if (paysOut) {
-          const { fits } = await paymentFits({ settledIn: into, bankDetailsId: into === "bank" ? bankId : null, amount: n })
-            .catch(() => ({ fits: true }));
+          const { fits } = await paymentFits({
+            settledIn: into,
+            bankDetailsId: into === "bank" ? bankId : null,
+            amount: n,
+          }).catch(() => ({ fits: true }));
           if (!fits) {
             const where = t(into === "cash" ? "fromCash" : "fromBank");
             const held =

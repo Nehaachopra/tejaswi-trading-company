@@ -8,13 +8,19 @@ import {
   productsTable,
   purchaseOrderProductsTable,
   purchaseOrdersTable,
+  purchaseProductsTable,
+  purchasesTable,
   saleOrderProductsTable,
   saleOrdersTable,
   subCategoriesTable,
+  transactionsTable,
 } from "@repo/database/schema";
 
 import {
   type ActorModel,
+  type CostHistoryInputModel,
+  costHistoryInputModel,
+  type CostHistoryModel,
   type CreateProductInputModel,
   createProductInputModel,
   type DeleteProductsInputModel,
@@ -163,6 +169,43 @@ export default class ProductService {
     }
   }
 
+  // inside a save (a product of its own, or one added while recording a purchase): the product's pack sizes, each
+  // with its first price; gives back each pack size's id, in the order given. A pack size that already exists fails
+  // the whole save (a unique violation, for the caller to word)
+  async createIn(tx: Tx, rawInput: CreateProductInputModel, actor: ActorModel): Promise<string[]> {
+    const input = createProductInputModel.parse(rawInput);
+    const { categoryId, subCategoryId } = input;
+    await this.assertActiveSubCategory(tx, categoryId, subCategoryId);
+    const ids: string[] = [];
+    for (const pack of input.packs) {
+      const [product] = await tx
+        .insert(productsTable)
+        .values({
+          categoryId,
+          subCategoryId,
+          brand: input.brand,
+          name: input.name ?? null,
+          packSizeCode: pack.packSizeCode,
+          packSize: pack.packSize,
+          hsn4Digit: input.hsn4Digit,
+          hsn8Digit: input.hsn8Digit,
+          imageUrl: input.imageUrl,
+        })
+        .returning({ id: productsTable.id });
+
+      const price = splitPrice(pack.priceAfterGst, pack.gstPercent);
+      await tx.insert(productPricesTable).values({ productId: product!.id, ...price });
+      await tx.insert(productPriceHistoryTable).values({
+        productId: product!.id,
+        ...price,
+        changedById: actor.id,
+        changedByName: actor.name,
+      });
+      ids.push(product!.id);
+    }
+    return ids;
+  }
+
   // a product with all its pack sizes and each pack size's first price, all or nothing;
   // quantity and cost come later from purchases
   async create(rawInput: CreateProductInputModel, actor: ActorModel): Promise<ProductGroupModel> {
@@ -170,35 +213,8 @@ export default class ProductService {
 
     try {
       const { subCategoryId, brand, name } = await db.transaction(async (tx) => {
-        const { categoryId, subCategoryId } = input;
-        await this.assertActiveSubCategory(tx, categoryId, subCategoryId);
-
-        for (const pack of input.packs) {
-          const [product] = await tx
-            .insert(productsTable)
-            .values({
-              categoryId,
-              subCategoryId,
-              brand: input.brand,
-              name: input.name ?? null,
-              packSizeCode: pack.packSizeCode,
-              packSize: pack.packSize,
-              hsn4Digit: input.hsn4Digit,
-              hsn8Digit: input.hsn8Digit,
-              imageUrl: input.imageUrl,
-            })
-            .returning({ id: productsTable.id });
-
-          const price = splitPrice(pack.priceAfterGst, pack.gstPercent);
-          await tx.insert(productPricesTable).values({ productId: product!.id, ...price });
-          await tx.insert(productPriceHistoryTable).values({
-            productId: product!.id,
-            ...price,
-            changedById: actor.id,
-            changedByName: actor.name,
-          });
-        }
-        return { subCategoryId, brand: input.brand, name: input.name ?? null };
+        await this.createIn(tx, input, actor);
+        return { subCategoryId: input.subCategoryId, brand: input.brand, name: input.name ?? null };
       });
 
       const groups = await this.list({ includeInactive: true });
@@ -463,6 +479,32 @@ export default class ProductService {
         changedByName: p.changedByName,
       })),
       costs: [...edge(costBefore), ...costs].map((c) => ({ at: c.at.toISOString(), weightedAverageCost: Number(c.cost) })),
+    };
+  }
+
+  // one pack size's last 5 purchases (active ones only), oldest first: each one's cost a pack with GST, after its
+  // discount, dated by the supplier's invoice
+  async costHistory(rawInput: CostHistoryInputModel): Promise<CostHistoryModel> {
+    const input = costHistoryInputModel.parse(rawInput);
+    const rows = await db
+      .select({
+        at: purchasesTable.invoiceDate,
+        gross: purchaseProductsTable.grossProductPrice,
+        off: purchaseProductsTable.discountAmount,
+        gst: purchaseProductsTable.gstAmount,
+        quantity: purchaseProductsTable.quantity,
+      })
+      .from(purchaseProductsTable)
+      .innerJoin(purchasesTable, eq(purchasesTable.id, purchaseProductsTable.purchaseId))
+      .innerJoin(transactionsTable, eq(transactionsTable.id, purchasesTable.transactionId))
+      .where(and(eq(purchaseProductsTable.productId, input.productId), eq(transactionsTable.status, "active")))
+      .orderBy(desc(purchasesTable.invoiceDate), desc(purchaseProductsTable.createdAt))
+      .limit(5);
+    return {
+      costs: rows.reverse().map((r) => ({
+        at: new Date(`${r.at}T00:00:00+05:30`).toISOString(),
+        costAfterGst: round2((Number(r.gross) - Number(r.off) + Number(r.gst)) / r.quantity),
+      })),
     };
   }
 }
