@@ -2087,7 +2087,10 @@
         "signatory": "अधिकृत हस्ताक्षरकर्ता",
         "price": "दाम",
         "discount": "छूट"
-      }
+      },
+      "basis": "आधार",
+      "current": "अभी",
+      "new": "नया"
     }
   },
   "dues": {
@@ -2281,7 +2284,6 @@
     "change": "बदलें",
     "close": "बंद करें",
     "priceGst": "कीमत + GST",
-    "ratePerUnit": "दर / {unit}",
     "quantity": "मात्रा",
     "less": "एक कम",
     "more": "एक ज़्यादा",

@@ -2087,7 +2087,10 @@
         "signatory": "Authorised Signatory",
         "price": "Price",
         "discount": "Discount"
-      }
+      },
+      "basis": "Basis",
+      "current": "Current",
+      "new": "New"
     }
   },
   "dues": {
@@ -2272,7 +2275,7 @@
     "price": "Price",
     "details": "Details",
     "pack": "Pack",
-    "ratePerUnit": "Rate / unit",
+    "ratePerUnit": "Rate / {unit}",
     "ratePer": "Rate / {unit}",
     "lineTotal": "Total",
     "addToOrder": "Add to order",
@@ -2281,7 +2284,6 @@
     "change": "Change",
     "close": "Close",
     "priceGst": "Price + GST",
-    "ratePerUnit": "Rate / {unit}",
     "quantity": "Quantity",
     "less": "One less",
     "more": "One more",

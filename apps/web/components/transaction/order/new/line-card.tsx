@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { packLabel, rupees, titleCase } from "~/lib/format";
-import { SackIcon } from "~/components/ui/icons/sack-icon";
 
 import {
   type Pack,
@@ -15,7 +14,7 @@ import {
   productTitle,
 } from "../../../product/products/product-tile";
 import { CostChart } from "./cost-chart";
-import { FiguresTable, MoneyBox } from "./figures-table";
+import { FiguresTable, MoneyBox } from "../../shared/figures-table";
 import { QuantityBox } from "./quantity-box";
 import {
   emptyLine,
@@ -183,7 +182,7 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
         <ProductImage
           group={group}
           imageUrl={pack.imageUrl}
-          className="aspect-auto! h-[110px] w-full grid-rows-[100%]"
+          className="size-40 self-center"
         />
 
         {/* a purchase: what this pack size cost on its last purchases */}
@@ -213,7 +212,6 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
               {
                 key: "quantity",
                 label: t("quantity"),
-                icon: <SackIcon className="size-4 shrink-0 fill-chestnut stroke-chestnut" />,
                 current: available.toLocaleString("en-IN"),
                 input: quantityBox,
                 top: true,
