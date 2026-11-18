@@ -400,6 +400,13 @@ export function usePaymentEntryState({
     setBill(raw);
   };
   const payTotal = (goal: number) => setBill(String(goal));
+  // an expense on a GST bill: To pay is typed, what's handed over; the server works the GST and any TDS back out of it
+  const typePaid = (raw: string) => {
+    autoFilled.current = false;
+    setBillText(raw);
+    setTotalGoal(null);
+    setAmount(raw);
+  };
 
   // a loan's interest and a landlord's rent are worked out, not typed: the months being paid, on what's left at the loan's
   // rate or at a month's rent, which starts from what their godowns come to and can be changed for this payment; TDS included
@@ -1499,6 +1506,7 @@ export function usePaymentEntryState({
     interestTyped,
     setInterestTyped,
     typeAmount,
+    typePaid,
     payTotal,
     billText,
     tdsPossible,

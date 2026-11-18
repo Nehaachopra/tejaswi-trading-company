@@ -1611,7 +1611,6 @@
         "searchLedger": "Search ledgers",
         "declaredNoTds": "No TDS: small transporter's declaration",
         "rcmRow": "Reverse charge GST {rate}%",
-        "billNote": "Includes GST {gst} at {rate}%, claimed back.",
         "billNumber": "Bill number",
         "billDate": "Bill date",
         "gstRate": "GST rate",
@@ -1704,6 +1703,7 @@
         "anotherAccount": "Another account",
         "capOnly": "Only {amount} can be paid.",
         "capLeft": "Only {amount} is left to pay.",
+        "taxLeft": "Only {amount} is due on this tax.",
         "loadFailed": "Couldn't load cash and bank balances. Check your connection and try again.",
         "taxFailed": "Couldn't work out the TDS and GST. Check your connection and try again.",
         "fitsFailed": "Couldn't check what cash and the bank hold. Check your connection and try again.",
@@ -1721,7 +1721,10 @@
         "duePart": "Due",
         "paymentPart": "Payment",
         "repay": "Repay",
-        "repaid": "Repaid"
+        "repaid": "Repaid",
+        "expense": "Expense",
+        "gstRow": "GST {rate}%",
+        "expenseWithGst": "Expense + GST"
       }
     },
     "tdsTypes": {

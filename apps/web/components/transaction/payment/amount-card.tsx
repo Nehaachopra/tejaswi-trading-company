@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, IndianRupee, Pencil } from "lucide-react";
+import { ChevronDown, IndianRupee, Info, Pencil } from "lucide-react";
 import { useState } from "react";
 import { Note } from "~/components/ui/note";
 import { Reveal } from "~/components/ui/reveal";
@@ -16,7 +16,7 @@ import { LABOUR_SKIP_MAX, input, saidAmount } from "./shared";
 import { usePaymentEntry } from "./state";
 import { FailNote, CapWarning } from "./notes";
 import { PaidFrom } from "./paid-from";
-import { DueFlow, FoldGroup } from "../shared/fold-group";
+import { DueFlow } from "../shared/fold-group";
 
 export function AmountCard() {
   const {
@@ -66,6 +66,9 @@ export function AmountCard() {
     interestTyped,
     setInterestTyped,
     typeAmount,
+    typePaid,
+    gstInput,
+    stepName,
     billText,
     tdsPossible,
     keyedAmount,
@@ -89,6 +92,7 @@ export function AmountCard() {
     bankOver,
     amountOver,
     loanOver,
+    taxOwed,
     dueShown,
     settlesTotal,
     weOwe,
@@ -100,35 +104,19 @@ export function AmountCard() {
     retryTax,
     show,
   } = usePaymentEntry();
-  // the amount's breakdown (paid, any TDS and reverse-charge GST, the total, a due and an advance), then how the TDS
-  // and GST were worked out. `always`: there once there's an amount (on the right, wider screens); otherwise only
-  // once there's something to break down (under the amount, on a phone)
+  // under the breakdown: why no TDS was taken (a transporter's declaration). A GST bill's GST is its own row now
   const breakdownNotes = (
-    <>
-      <Reveal follow show={value > 0 && !!tax?.declared}>
-        <Note className="text-chestnut/70">{t("declaredNoTds")}</Note>
-      </Reveal>
-      <Reveal follow show={value > 0 && !!tax?.bill}>
-        {tax?.bill && (
-          <Note className="tabular text-chestnut/70">
-            {t("billNote", { rate: tax.bill.rate, gst: rupees(tax.bill.gst) })}
-          </Note>
-        )}
-      </Reveal>
-    </>
+    <Reveal follow show={value > 0 && !!tax?.declared}>
+      <Note className="text-chestnut/70">{t("declaredNoTds")}</Note>
+    </Reveal>
   );
   // the bill's box stays a plain field once filled; the chestnut fill is To pay's, what actually leaves cash or the bank
-  // a typed amount's breakup rows: the bill, any TDS, To pay and reverse-charge GST
+  // a typed amount's breakup rows (the TDS row is used)
   const typedRows = amountRows();
-  const payRow = typedRows.find((r) => r.key === "pay")!;
   // the bill (what's typed, or rent and interest worked out): To pay and the TDS make it up
   const bill = Math.round((total - (tax?.rcm?.gst ?? 0)) * 100) / 100;
-  const billLabel = interestCalc ? t("interestDue") : t("billAmount");
-  // reverse-charge GST on top (or still being worked out): the Total cost then differs from the bill
-  const hasRcm = !!tax?.rcm || rcmOpen;
-  // whether there's a supporting detail to sit above the breakup: a due, an advance, rent's total a month, a PAN to give,
-  // months
-  const hasSupport = dueShown !== null || heldAdvance > 0 || showPan || rentCalc || interestCalc;
+  // an expense's amount: a bill where TDS can come out of it
+  const billLabel = tdsPossible ? t("billAmount") : tc("q.amount");
   // a supplier's, as a sale's or receipt's: what's left once this payment is counted, closing the breakup: what we
   // still owe them, or (nothing owed) the advance with them, ours from before and any paid over
   const supplierDueLeft = Math.max(0, Math.round((weOwe - settlesTotal) * 100) / 100);
@@ -136,13 +124,10 @@ export function AmountCard() {
   const onAdvance = supplierDueLeft === 0 && supplierAdvanceLeft > 0;
   // a part's heading inside the card (a supplier's Due and Payment), as the card's own name reads
   const partHeading = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
-  // the Total cost, folded to its figure until opened
-  const [costOpen, setCostOpen] = useState(false);
   // what this payment goes towards: the due (as much as was owed), and the advance past it. Only where something was
   // owed or an advance is left
   const settled = dueShown === null ? 0 : Math.min(settlesTotal, dueShown);
-  // what was owed before it, and how much of that it clears (all of it when it leaves an advance)
-  const owedBefore = advance > 0 ? weOwe : (dueShown ?? 0);
+  // how much of what was owed it clears (all of it when it leaves an advance)
   const settledOf = advance > 0 ? weOwe : settled;
   const hasDue = value > 0 && (dueShown !== null || advance > 0);
   // the due, folded to what's left (or the advance) until opened
@@ -181,9 +166,10 @@ export function AmountCard() {
   const underValue = "ml-auto w-[60%]";
   // the amount's box: large and bold, chestnut once filled
   const amountBox = "min-h-12 pl-11 font-heading text-xl font-bold tabular";
-  // the bill's box, typed or spoken (a supplier's Repay; any other payment's amount)
-  const billInput = (
-    <MicField onText={(said) => saidAmount(said, typeAmount)}>
+  // the amount's box, typed or spoken: a bill (a supplier's Repay, any other payment's amount) or, on a GST bill,
+  // To pay
+  const amountInput = (onType: (raw: string) => void, paid = false) => (
+    <MicField onText={(said) => saidAmount(said, onType)}>
       {rupeeMark}
       <NumberInput
         id="amount-field"
@@ -191,14 +177,17 @@ export function AmountCard() {
         onChange={(v) => {
           setCapNote(null);
           keyedAmount.current = v;
-          typeAmount(v);
+          onType(v);
         }}
         onCapped={(most) =>
           setCapNote(
             // labour with nobody named, cut at its limit: the warning links to naming them instead
             skipped && most === LABOUR_SKIP_MAX
               ? { key: "labour", text: "" }
-              : { key: "amount", text: t("capOnly", { amount: rupees(most) }) },
+              : // a tax cut at what it owes: says so, as a loan's does
+                kind === "taxPaid" && taxOwed !== null && most === taxOwed
+                ? { key: "amount", text: t("taxLeft", { amount: rupees(most) }) }
+                : { key: "amount", text: t("capOnly", { amount: rupees(most) }) },
           )
         }
         decimals={2}
@@ -210,377 +199,399 @@ export function AmountCard() {
           input(amountOver || tooMuch || (tried && value === 0)),
           amountBox,
           "pr-12",
+          // To pay typed: chestnut once filled, as what leaves cash or the bank
+          paid && value > 0 && !amountOver && !tooMuch && "bg-chestnut text-ivory caret-ivory shadow-none",
         )}
       />
     </MicField>
   );
-  // the Total cost: its heading and figure with ▾, opening to the bill and the reverse-charge GST on top
-  // the Total cost: the bill and the reverse-charge GST on top
-  const costGroup = (
-    <FoldGroup title={t("costGroup")} figure={total} open={costOpen} onOpen={setCostOpen}>
-      <PlainRows
-        rows={[
-          { key: "bill", label: billLabel, amount: bill },
-          ...typedRows.filter((r) => r.key === "rcm"),
-          { key: "total", label: t("total"), amount: total, tone: "total" },
-        ]}
-      />
-    </FoldGroup>
-  );
-  // what the payment goes towards: folded to the payment, open to its due part, its advance and the share of the due
-  // it clears
-  const dueGroup = (
-    <FoldGroup title={t("towardsGroup")} figure={settlesTotal} open={dueOpen} onOpen={setDueOpen}>
-      <DueFlow
-        wholeLabel={t("payGroup")}
-        whole={settlesTotal}
-        dueLabel={t("due")}
-        due={settledOf}
-        advanceLabel={t("advancePart")}
-        advance={advance}
-        paidLabel={t("paidShare")}
-        owedBefore={owedBefore}
-      />
-    </FoldGroup>
-  );
-  // a supplier's, in two parts, the payment under the due. The due: what we owe
-  // them (or the advance we have with them), Repay (typed or spoken) and what's left once it's repaid, a due or an
-  // advance. The payment: what's repaid, the TDS taken out of it, then To pay, what leaves cash or the bank
-  if (toSupplier)
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-6 sm:max-w-[calc(50%-1.5rem)]">
-          {/* the due part */}
-          <section className="flex min-w-0 flex-col gap-2.5">
-            <h3 className={partHeading}>{t("duePart")}</h3>
-            {heldAdvance > 0
-              ? plainRow(t("advancePart"), rupees(heldAdvance))
-              : plainRow(t("due"), rupees(dueShown ?? 0))}
-            {row(
-              // Repay, its star and its ⌄ on one line, centred on each other
-              <span className="flex items-center">
-                {t("repay")}
-                <RequiredMark />
-                {/* its ⌄ shows what it goes towards, under it */}
-                {hasDue && (
-                  <button
-                    type="button"
-                    onClick={(ev) => {
-                      ev.preventDefault();
-                      setDueOpen((o) => !o);
-                    }}
-                    aria-expanded={dueOpen}
-                    aria-label={t("towardsGroup")}
-                    className="p-2 rounded-control hover:bg-chestnut/8"
-                  >
-                    <ChevronDown className={cn("size-4 transition-transform", dueOpen && "rotate-180")} aria-hidden />
-                  </button>
-                )}
-              </span>,
-              billInput,
-              "amount-field",
-            )}
-            {/* what Repay goes towards: the due and any advance past it (no share of the due paid) */}
-            {hasDue && dueOpen && (
-              <div className="rounded-control bg-chestnut/[0.04] px-3 py-2">
-                <DueFlow
-                  wholeLabel={t("payGroup")}
-                  whole={settlesTotal}
-                  dueLabel={t("due")}
-                  due={settledOf}
-                  advanceLabel={t("advancePart")}
-                  advance={advance}
-                  paidLabel={t("paidShare")}
-                  owedBefore={0}
-                />
-              </div>
-            )}
-            <CapWarning at="amount" className={underValue} />
-            {tooMuch && mostHeld !== null && (
-              <FieldMessage className={cn("mt-0", underValue)}>
-                {t("tooMuch", { amount: rupees(mostHeld) })}
-              </FieldMessage>
-            )}
-            {amountOver && !tooMuch && (
-              <FieldMessage className={cn("mt-0", underValue)}>{overMessage()}</FieldMessage>
-            )}
-            {fitsFailed && (
-              <div className={underValue}>
-                <FailNote text={t("fitsFailed")} retry={retryFits} />
-              </div>
-            )}
-            <PlainRows
-              rows={[
-                {
-                  key: "left",
-                  label: onAdvance ? t("advanceLeft") : t("leftDue"),
-                  amount: onAdvance ? supplierAdvanceLeft : supplierDueLeft,
-                  tone: "total",
-                },
-              ]}
-            />
-          </section>
-
-          {/* the payment part */}
-          <section className="flex min-w-0 flex-col gap-2.5">
-            <h3 className={partHeading}>{t("paymentPart")}</h3>
-            {/* their PAN, where TDS applies and there's none on record */}
-            {panField()}
-            <PlainRows
-              rows={[
-                { key: "repaid", label: t("repaid"), amount: bill },
-                ...typedRows.filter((r) => r.key === "tds"),
-              ]}
-            />
-            {/* To pay, what leaves cash or the bank, in the chestnut box, under a line as under a sum */}
-            <div className="border-t border-chestnut/30 pt-2.5">
-              {row(
-                <span className="font-bold">{t("toPay")}</span>,
-                <span className="tabular flex min-h-12 items-center justify-end break-all rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
-                  {rupees(value)}
-                </span>,
-              )}
-            </div>
-            {breakdownNotes}
-            {taxFailed && (
-              <div className={underValue}>
-                <FailNote text={t("taxFailed")} retry={retryTax} />
-              </div>
-            )}
-          </section>
+  const billInput = amountInput(typeAmount);
+  // every payment in the same two parts, the payment under the due.
+  // The due part (a supplier, a loan paid back, a tax): what's owed (a supplier's advance with them instead), the amount
+  // repaid typed (a supplier's ⌄ opens what it goes towards), then what's left once it's repaid. Rent and interest have
+  // theirs worked out instead: rent's godowns a month and the months, interest's months and the interest (its pen
+  // types it over); an expense has only its amount.
+  // The payment part: what's repaid (rent with the reverse-charge GST on it, its ⌄ opening the two), then taken off it
+  // the TDS and the reverse-charge GST (that goes to the government), leaving To pay in the chestnut box
+  const duePart = toSupplier || kind === "loanRepaid" || kind === "taxPaid";
+  // an expense (not rent, worked out from its months; not one with reverse-charge GST): To pay is typed. On a GST bill
+  // the expense and its GST (and any TDS) are worked back out of it; with TDS alone, the expense and the TDS; with
+  // neither, To pay is all there is
+  const gstExpense = kind === "expense" && !rentCalc && !(!!tax?.rcm || rcmOpen);
+  const onGstBill = gstInput !== null;
+  // an expense head that can carry TDS (professional fees, contract work…): the expense is typed instead, the TDS comes
+  // out of it and To pay is what's left. Known from the head, so the box doesn't change while it's typed
+  const expenseTyped = gstExpense && headTds !== null;
+  // the bill's GST and what the expense is before it, once the server has worked them out
+  const billGst = tax?.bill ? tax.bill.gst : null;
+  const expenseBefore = billGst === null ? null : Math.round((bill - billGst) * 100) / 100;
+  // what's still owed once it's repaid: a supplier's due or advance left; a loan's or a tax's due left
+  const leftRow: AmountRow | null = toSupplier
+    ? {
+        key: "left",
+        label: onAdvance ? t("advanceLeft") : t("leftDue"),
+        amount: onAdvance ? supplierAdvanceLeft : supplierDueLeft,
+        tone: "total",
+      }
+    : duePart && dueShown !== null
+      ? { key: "left", label: t("leftDue"), amount: Math.max(0, Math.round((dueShown - bill) * 100) / 100), tone: "total" }
+      : null;
+  // the reverse-charge GST on it (rent from a landlord with no GSTIN, some expenses): known, or still being worked out
+  const rcmGst = tax?.rcm ? tax.rcm.gst : null;
+  const hasRcmRow = !!tax?.rcm || rcmOpen;
+  // the payment part's first row: what's repaid, rent or interest worked out, or an expense's amount; with
+  // reverse-charge GST, that and the GST together, its ⌄ opening the two
+  const firstLabel = duePart
+    ? t("repaid")
+    : rentCalc
+      ? t("rentDue")
+      : interestCalc
+        ? t("interestDue")
+        : hasRcmRow
+          ? t("costGroup")
+          : billLabel;
+  const [firstOpen, setFirstOpen] = useState(false);
+  // the amount's own box (typed, or interest typed over), with its problems under it
+  const amountProblems = (
+    <>
+      <CapWarning at="amount" className={underValue} />
+      {/* labour cut at the limit for nobody named: past it needs the labourer's details, a tap away */}
+      {capNote?.key === "labour" && (
+        <FieldMessage tone="warning" className={cn("mt-0", underValue)}>
+          {t("labourOver", { amount: rupees(LABOUR_SKIP_MAX) })}{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setCapNote(null);
+              setPayeeSkipped(false);
+              show("payee");
+            }}
+            className="font-semibold underline underline-offset-2"
+          >
+            {t("namePayee")}
+          </button>
+        </FieldMessage>
+      )}
+      {tooMuch && mostHeld !== null && (
+        <FieldMessage className={cn("mt-0", underValue)}>
+          {t("tooMuch", { amount: rupees(mostHeld) })}
+        </FieldMessage>
+      )}
+      {amountOver && !tooMuch && (
+        <FieldMessage className={cn("mt-0", underValue)}>{overMessage()}</FieldMessage>
+      )}
+      {loanOver && (
+        <FieldMessage className={cn("mt-0", underValue)}>
+          {tc("problems.loanLeft", { left: rupees(loan!.left) })}
+        </FieldMessage>
+      )}
+      {fitsFailed && (
+        <div className={underValue}>
+          <FailNote text={t("fitsFailed")} retry={retryFits} />
         </div>
-        {/* where it's paid from: a card for each place, the card's full width */}
-        <PaidFrom />
-      </div>
+      )}
+      {/* the EMI in one tap */}
+      {kind === "loanRepaid" &&
+        loan?.emiAmount != null &&
+        loan.emiAmount <= loan.left &&
+        value !== loan.emiAmount && (
+          <button type="button" onClick={() => typeAmount(String(loan.emiAmount))} className={ADD_ON_IVORY}>
+            {t("payEmi", { amount: rupees(loan.emiAmount) })}
+          </button>
+        )}
+    </>
+  );
+  // the amount typed: a supplier's or loan's Repay (a supplier's ⌄ beside it), any other's Amount
+  const amountRow = row(
+    // the name, its star and any ⌄ on one line, centred on each other
+    <span className="flex items-center">
+      {duePart ? t("repay") : billLabel}
+      <RequiredMark />
+      {toSupplier && hasDue && (
+        <button
+          type="button"
+          onClick={(ev) => {
+            ev.preventDefault();
+            setDueOpen((o) => !o);
+          }}
+          aria-expanded={dueOpen}
+          aria-label={t("towardsGroup")}
+          className="ml-1 grid size-8 shrink-0 place-items-center rounded-control hover:bg-chestnut/8"
+        >
+          <ChevronDown className={cn("size-4 transition-transform", dueOpen && "rotate-180")} aria-hidden />
+        </button>
+      )}
+    </span>,
+    billInput,
+    "amount-field",
+  );
+  // interest: worked out from the months, its pen types it over (from a statement)
+  const interestRow =
+    editingInterest || interestTyped !== null
+      ? row(
+          t("interestDue"),
+          <span className="relative block">
+            {rupeeMark}
+            <NumberInput
+              id="amount-field"
+              autoFocus={editingInterest}
+              value={interestTyped ?? (interestWorked > 0 ? String(interestWorked) : "")}
+              onChange={setInterestTyped}
+              decimals={2}
+              maxDigits={13}
+              placeholder="0"
+              aria-invalid={(tried && calcDue === 0) || tooMuch || undefined}
+              className={cn(input((tried && calcDue === 0) || tooMuch), amountBox)}
+            />
+          </span>,
+          "amount-field",
+        )
+      : plainRow(
+          t("interestDue"),
+          rupees(calcDue),
+          <button
+            type="button"
+            onClick={() => setEditingInterest(true)}
+            aria-label={t("interestDue")}
+            className="-my-2 grid size-9 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
+          >
+            <Pencil className="size-4" aria-hidden />
+          </button>,
+        );
+  // the months rent or interest is for
+  const monthsRow = (bad: boolean, value: string, onChange: (v: string) => void, placeholder?: string) =>
+    row(
+      <>
+        {t("months")}
+        <RequiredMark />
+      </>,
+      <NumberInput
+        id="months-field"
+        value={value}
+        onChange={onChange}
+        maxDigits={3}
+        max={120}
+        placeholder={placeholder}
+        aria-invalid={bad || undefined}
+        className={cn(input(bad), "tabular")}
+      />,
+      "months-field",
     );
+  // anything taken off what's repaid before To pay: TDS deducted or reverse-charge GST
+  const takenOff = hasRcmRow || (tdsApplies && tdsAmount > 0);
+  // the payment part's first row, with its ⌄ opening the amount and the reverse-charge GST when there's GST on it
+  const firstFigure = hasRcmRow ? (rcmGst === null ? null : Math.round((bill + rcmGst) * 100) / 100) : bill;
+
+  // the rate once a PAN is given: a supplier's 0.1%, interest, rent and professional fees 10%, brokerage 2%, contract
+  // work 1% (individual or HUF) or 2%
+  const panRate = tdsInfo
+    ? "0.1"
+    : headTds === "brokerage"
+      ? "2"
+      : headTds === "contract"
+        ? "1–2"
+        : "10";
 
   return (
-    // on a phone one column; on a wider screen the due, the amount (TDS, PAN) and its breakup on the left, the Total
-    // cost and the due on the right; then where it's paid from the full width. Every kind of payment the same: rent and interest
-    // only add their months (and rent its godowns, above) and work their amount out
     <div className="flex flex-col gap-4">
-      {/* wider screens, two rows: on top the supporting details (left); under them the breakup (left) level with the
-          Total cost and the due (right) */}
-      <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-12">
-        <div className="flex min-w-0 flex-col gap-4 sm:contents">
-          {/* the supporting details, on top with room under them: the due, rent's total a month, their PAN, the months */}
-          {hasSupport && (
-            <div className="mb-2 flex min-w-0 flex-col gap-2.5 sm:col-start-1 sm:row-start-1">
-              {/* what's owed on the supplier, loan, landlord or tax, as soon as something is owed */}
-              {dueShown !== null && (
-                <div className="tabular flex items-baseline justify-between gap-3 text-sm">
-                  <span className="min-w-0">{t("due")}</span>
-                  <span className="shrink-0 whitespace-nowrap text-base font-semibold">
-                    {rupees(dueShown)}
-                  </span>
-                </div>
+      <div className="flex flex-col gap-6 sm:max-w-[calc(50%-1.5rem)]">
+        {/* their PAN, where TDS applies and there's none on record: under its own heading above the Amount heading (the
+            card's own name is hidden then) */}
+        {showPan && (
+          <>
+            <section className="flex min-w-0 flex-col gap-2.5">
+              {/* no PAN: a message above its row with what giving one brings the TDS down to */}
+              {tdsAmount > 0 && noPan && !panGiven && (
+                <p
+                  role="status"
+                  className="flex items-center gap-2 rounded-control bg-chestnut/10 p-2 rounded-bl-none text-sm font-medium"
+                >
+                  <Info className="size-4 shrink-0" aria-hidden />
+                  <span className="font-semibold">{t("panHint", { rate: panRate })}</span>
+                </p>
               )}
-              {/* an advance we already have with them, shown as the due is */}
-              {heldAdvance > 0 && (
-                <div className="tabular flex items-baseline justify-between gap-3 text-sm">
-                  <span className="min-w-0">{t("advancePart")}</span>
-                  <span className="shrink-0 whitespace-nowrap text-base font-semibold">
-                    {rupees(heldAdvance)}
-                  </span>
-                </div>
-              )}
-              {/* rent: each godown's rent a month, folded to their total */}
-              {rentCalc && rentBreakdown()}
-              {/* their PAN, where TDS applies and there's none on record */}
               {panField()}
-              {/* rent and interest: how many months */}
-              {rentCalc &&
-                row(
-                  <>
-                    {t("months")}
-                    <RequiredMark />
-                  </>,
-                  <NumberInput
-                    id="months-field"
-                    value={rentMonths}
-                    onChange={(v) => setRentMonths(atLeastOne(v))}
-                    maxDigits={3}
-                    max={120}
-                    aria-invalid={(tried && Number(rentMonths) < 1) || undefined}
-                    className={cn(input(tried && Number(rentMonths) < 1), "tabular")}
-                  />,
-                  "months-field",
-                )}
-              {interestCalc &&
-                row(
-                  <>
-                    {t("months")}
-                    <RequiredMark />
-                  </>,
-                  <NumberInput
-                    id="months-field"
-                    value={interestTyped !== null ? "" : interestMonths}
-                    onChange={(v) => {
-                      setInterestTyped(null);
-                      setEditingInterest(false);
-                      setInterestMonths(atLeastOne(v));
-                    }}
-                    maxDigits={3}
-                    max={120}
-                    placeholder="--"
-                    aria-invalid={(tried && calcDue === 0 && interestTyped === null) || undefined}
-                    className={cn(
-                      input(tried && calcDue === 0 && interestTyped === null),
-                      "tabular",
-                    )}
-                  />,
-                  "months-field",
-                )}
+            </section>
+            <h3 className={cn(partHeading, "-mb-3")}>{stepName("amount")}</h3>
+          </>
+        )}
+        {/* the due part: a supplier's, a loan's, a tax's, under its heading; rent's, interest's and an expense's
+            inputs without one */}
+        <section className="flex min-w-0 flex-col gap-2.5">
+          {duePart && <h3 className={partHeading}>{t("duePart")}</h3>}
+          {/* what's owed: a supplier's due or the advance with them, what's left on a loan, what a tax owes */}
+          {duePart &&
+            (heldAdvance > 0
+              ? plainRow(t("advancePart"), rupees(heldAdvance))
+              : plainRow(t("due"), rupees(dueShown ?? 0)))}
+          {/* rent: each godown's rent a month, folded to their total, then the months */}
+          {rentCalc && rentBreakdown()}
+          {rentCalc && monthsRow(tried && Number(rentMonths) < 1, rentMonths, (v) => setRentMonths(atLeastOne(v)))}
+          {/* interest: the months, then what they come to */}
+          {interestCalc &&
+            monthsRow(
+              tried && calcDue === 0 && interestTyped === null,
+              interestTyped !== null ? "" : interestMonths,
+              (v) => {
+                setInterestTyped(null);
+                setEditingInterest(false);
+                setInterestMonths(atLeastOne(v));
+              },
+              "--",
+            )}
+          {interestCalc && interestRow}
+          {/* the amount typed (not rent's or interest's) */}
+          {!rentCalc && !interestCalc && !gstExpense && amountRow}
+          {!gstExpense && amountProblems}
+          {/* what a supplier's Repay goes towards: the due and any advance past it */}
+          {toSupplier && hasDue && dueOpen && (
+            <div className="rounded-control bg-chestnut/[0.04] px-3 py-2">
+              <DueFlow
+                wholeLabel={t("payGroup")}
+                whole={settlesTotal}
+                dueLabel={t("due")}
+                due={settledOf}
+                advanceLabel={t("advancePart")}
+                advance={advance}
+                paidLabel={t("paidShare")}
+                owedBefore={0}
+              />
             </div>
           )}
-          {/* the breakup, the same for every kind of payment: the bill (typed in its box; rent's and interest's worked
-              out), any TDS taken out of it, then To pay, what leaves cash or the bank, in the chestnut box */}
-          <div
-            className={cn(
-              "flex min-w-0 flex-col gap-2.5 sm:col-start-1",
-              hasSupport ? "sm:row-start-2" : "sm:row-start-1",
-            )}
-          >
-            {/* the bill: rent's worked out from the months, interest's worked out but can be typed over, any other
-                typed (or spoken) */}
-            {rentCalc
-              ? value > 0 && plainRow(billLabel, rupees(bill))
-              : interestCalc
-                ? editingInterest || interestTyped !== null
-                  ? row(
-                      t("interestDue"),
-                      <span className="relative block">
-                        {rupeeMark}
-                        <NumberInput
-                          id="amount-field"
-                          autoFocus={editingInterest}
-                          value={
-                            interestTyped ?? (interestWorked > 0 ? String(interestWorked) : "")
-                          }
-                          onChange={setInterestTyped}
-                          decimals={2}
-                          maxDigits={13}
-                          placeholder="0"
-                          aria-invalid={(tried && calcDue === 0) || tooMuch || undefined}
-                          className={cn(input((tried && calcDue === 0) || tooMuch), amountBox)}
-                        />
-                      </span>,
-                      "amount-field",
-                    )
-                  : plainRow(
-                      t("interestDue"),
-                      rupees(calcDue),
-                      <button
-                        type="button"
-                        onClick={() => setEditingInterest(true)}
-                        aria-label={t("interestDue")}
-                        className="-my-2 grid size-9 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
-                      >
-                        <Pencil className="size-4" aria-hidden />
-                      </button>,
-                    )
-                : row(
-                    <>
-                      {tdsPossible ? t("billAmount") : tc("q.amount")}
-                      <RequiredMark />
-                    </>,
-                    billInput,
-                    "amount-field",
-                  )}
-            <CapWarning at="amount" className={underValue} />
-            {/* labour cut at the limit for nobody named: past it needs the labourer's details, a tap away */}
-            {capNote?.key === "labour" && (
-              <FieldMessage tone="warning" className={cn("mt-0", underValue)}>
-                {t("labourOver", { amount: rupees(LABOUR_SKIP_MAX) })}{" "}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCapNote(null);
-                    setPayeeSkipped(false);
-                    show("payee");
-                  }}
-                  className="font-semibold underline underline-offset-2"
-                >
-                  {t("namePayee")}
-                </button>
-              </FieldMessage>
-            )}
-            <div className="flex flex-col gap-2.5">
-              {/* once there's a bill: the TDS taken out of it, then To pay under a line, as under a sum; then the Total
-                cost (the bill and the reverse-charge GST we pay on top), folded to its figure until opened */}
-              {value > 0 && (
-                <>
-                  {tdsApplies && (
-                    <div className="flex min-h-11 flex-col justify-center">
-                      <PlainRows rows={typedRows.filter((r) => r.key === "tds")} />
-                    </div>
-                  )}
-                  <div className="border-t border-chestnut/30 pt-2.5">
-                    {row(
-                      <span className="font-bold">{payRow.label}</span>,
-                      <span className="tabular flex min-h-12 items-center justify-end break-all rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
-                        {rupees(value)}
-                      </span>,
-                    )}
-                  </div>
+          {/* what's left once it's repaid */}
+          {leftRow && <PlainRows rows={[leftRow]} />}
+        </section>
 
-                  {/* a phone: the Total cost and the due under the breakup (wider screens: on the right) */}
-                  {hasRcm && <div className="sm:hidden">{costGroup}</div>}
-                  {hasDue && <div className="sm:hidden">{dueGroup}</div>}
-                </>
+        {/* the payment part */}
+        <section className="flex min-w-0 flex-col gap-2.5">
+          {/* always under its heading, for every kind of payment */}
+          <h3 className={partHeading}>{t("paymentPart")}</h3>
+          {/* an expense: on a GST bill the expense and its GST worked back out of To pay, any TDS, then To pay typed */}
+          {expenseTyped ? (
+            <>
+              {/* on a GST bill: the expense and its GST worked out of what's typed, Expense with GST */}
+              {onGstBill && (
+                <PlainRows
+                  rows={[
+                    { key: "expense", label: t("expense"), amount: value > 0 ? expenseBefore : 0 },
+                    { key: "gst", label: t("gstRow", { rate: gstInput.rate }), amount: value > 0 ? billGst : 0 },
+                  ]}
+                />
               )}
-              {breakdownNotes}
+              {/* what's typed: the expense (with its GST, on a GST bill) */}
+              {row(
+                <span className="flex items-center">
+                  {onGstBill ? t("expenseWithGst") : t("expense")}
+                  <RequiredMark />
+                </span>,
+                billInput,
+                "amount-field",
+              )}
+              {amountProblems}
+              {/* the TDS taken out (on the expense alone), then To pay in the chestnut box */}
+              <PlainRows rows={typedRows.filter((r) => r.key === "tds")} />
+              <div className="border-t border-chestnut/30 pt-2.5">
+                {row(
+                  <span className="font-bold">{t("toPay")}</span>,
+                  <span className="tabular flex min-h-12 items-center justify-end break-all rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
+                    {rupees(value)}
+                  </span>,
+                )}
+              </div>
+            </>
+          ) : gstExpense ? (
+            <>
+              {(onGstBill || tdsApplies) && (
+                <PlainRows
+                  rows={[
+                    {
+                      key: "expense",
+                      label: t("expense"),
+                      amount: value > 0 ? (onGstBill ? expenseBefore : bill) : 0,
+                    },
+                    ...(onGstBill
+                      ? [{ key: "gst", label: t("gstRow", { rate: gstInput.rate }), amount: value > 0 ? billGst : 0 }]
+                      : []),
+                    ...typedRows.filter((r) => r.key === "tds"),
+                  ]}
+                />
+              )}
+              <div className={cn((onGstBill || tdsApplies) && "border-t border-chestnut/30 pt-2.5")}>
+                {row(
+                  <span className="font-bold">
+                    {t("toPay")}
+                    <RequiredMark />
+                  </span>,
+                  <span className={cn("block", value > 0 && !amountOver && !tooMuch && "[&_svg]:text-ivory")}>
+                    {amountInput(typePaid, true)}
+                  </span>,
+                  "amount-field",
+                )}
+              </div>
+              {amountProblems}
+            </>
+          ) : (
+          <>
+          {/* what's repaid, or rent, interest or the amount: with reverse-charge GST, the two together, its ⌄
+              opening them; nothing taken off it (no TDS, no reverse-charge GST): straight to To pay */}
+          {!takenOff ? null : hasRcmRow ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setFirstOpen((o) => !o)}
+                aria-expanded={firstOpen}
+                className="tabular flex min-h-8 items-center justify-between gap-3 text-left text-sm"
+              >
+                <span className="flex items-center gap-1">
+                  {firstLabel}
+                  <ChevronDown className={cn("size-4 transition-transform", firstOpen && "rotate-180")} aria-hidden />
+                </span>
+                <span className="whitespace-nowrap text-base font-semibold">
+                  {firstFigure === null ? "—" : rupees(firstFigure)}
+                </span>
+              </button>
+              {firstOpen && (
+                <div className="rounded-control bg-chestnut/[0.04] px-3 py-2">
+                  <PlainRows
+                    rows={[
+                      { key: "bill", label: rentCalc ? t("rentDue") : billLabel, amount: bill },
+                      { key: "rcmGst", label: t("rcmRow", { rate: tax?.rcm?.rate ?? 18 }), amount: rcmGst },
+                    ]}
+                  />
+                </div>
+              )}
+            </>
+          ) : (
+            <PlainRows rows={[{ key: "first", label: firstLabel, amount: bill }]} />
+          )}
+          {/* taken off it: the TDS, and the reverse-charge GST (paid to the government, not to them) */}
+          {takenOff && <PlainRows
+            rows={[
+              ...typedRows.filter((r) => r.key === "tds"),
+              ...(hasRcmRow
+                ? [{ key: "rcmOff", minus: true, label: t("rcmRow", { rate: tax?.rcm?.rate ?? 18 }), amount: rcmGst }]
+                : []),
+            ]}
+          />}
+          {/* To pay, what leaves cash or the bank, in the chestnut box, under a line as under a sum (no line when it's
+              alone) */}
+          <div className={cn(takenOff && "border-t border-chestnut/30 pt-2.5")}>
+            {row(
+              <span className="font-bold">{t("toPay")}</span>,
+              <span className="tabular flex min-h-12 items-center justify-end break-all rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
+                {rupees(value)}
+              </span>,
+            )}
+          </div>
+          </>
+          )}
+          {breakdownNotes}
+          {taxFailed && (
+            <div className={underValue}>
+              <FailNote text={t("taxFailed")} retry={retryTax} />
             </div>
-            {taxFailed && (
-              <div className={underValue}>
-                <FailNote text={t("taxFailed")} retry={retryTax} />
-              </div>
-            )}
-            {fitsFailed && (
-              <div className={underValue}>
-                <FailNote text={t("fitsFailed")} retry={retryFits} />
-              </div>
-            )}
-            {tooMuch && mostHeld !== null && (
-              <FieldMessage className={cn("mt-0", underValue)}>
-                {t("tooMuch", { amount: rupees(mostHeld) })}
-              </FieldMessage>
-            )}
-            {amountOver && !tooMuch && (
-              <FieldMessage className={cn("mt-0", underValue)}>{overMessage()}</FieldMessage>
-            )}
-            {loanOver && (
-              <FieldMessage className={cn("mt-0", underValue)}>
-                {tc("problems.loanLeft", { left: rupees(loan!.left) })}
-              </FieldMessage>
-            )}
-            {/* the EMI in one tap */}
-            {kind === "loanRepaid" &&
-              loan?.emiAmount != null &&
-              loan.emiAmount <= loan.left &&
-              value !== loan.emiAmount && (
-                <button
-                  type="button"
-                  onClick={() => typeAmount(String(loan.emiAmount))}
-                  className={ADD_ON_IVORY}
-                >
-                  {t("payEmi", { amount: rupees(loan.emiAmount) })}
-                </button>
-              )}
-          </div>
-        </div>
-        {/* wider screens, the right side of the second row: the Total cost and the due, level with the breakup */}
-        {value > 0 && (hasRcm || hasDue) && (
-          <div
-            className={cn(
-              "hidden min-w-0 flex-col gap-4 sm:col-start-2 sm:flex",
-              hasSupport ? "sm:row-start-2" : "sm:row-start-1",
-            )}
-          >
-            {hasRcm && costGroup}
-            {hasDue && dueGroup}
-          </div>
-        )}
+          )}
+        </section>
       </div>
       {/* where it's paid from: a card for each place (cash, a bank account), its UPI ID, the cash warning, the card's
           full width */}
@@ -593,15 +604,6 @@ export function AmountCard() {
   function amountRows(): AmountRow[] {
     // To pay and the total are the same: no TDS taken out, no reverse-charge GST on top
     const payIsTotal = Math.abs(total - value) < 0.005;
-    // the rate once a PAN is given: a supplier's 0.1%, interest, rent and professional fees 10%, brokerage 2%, contract
-    // work 1% (individual or HUF) or 2%
-    const panRate = tdsInfo
-      ? "0.1"
-      : headTds === "brokerage"
-        ? "2"
-        : headTds === "contract"
-          ? "1–2"
-          : "10";
     return [
       // the bill (its box is above the rows)
       { key: "bill", label: tc("q.amount"), amount: total - (tax?.rcm?.gst ?? 0) },
@@ -615,12 +617,6 @@ export function AmountCard() {
                 <span>
                   {tc("sum.tds")}
                   {tdsAmount > 0 && ` ${tdsRate}%`}
-                  {/* no PAN: what giving one brings it down to */}
-                  {tdsAmount > 0 && noPan && !panGiven && (
-                    <span className="block text-xs opacity-70">
-                      {t("panHint", { rate: panRate })}
-                    </span>
-                  )}
                 </span>
               ),
               amount: tdsKnown ? tdsAmount : null,

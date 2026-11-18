@@ -114,6 +114,7 @@ function PaymentEntryView() {
     advance,
     askingAdvance,
     gridShort,
+    showPan,
   } = usePaymentEntry();
   // the balances first, so cash and bank show what they hold from the start
   if (loading)
@@ -194,6 +195,8 @@ function PaymentEntryView() {
         key={current}
         id={current}
         name={stepName(current)}
+        // the Amount card with a PAN to give names its own parts: PAN on top, then Amount
+        hideName={current === "amount" && showPan}
         onBack={index > 0 ? () => show(steps[index - 1]!) : null}
         onChange={changeOf(current)}
         // the amount card names only what's missing: the amount, where it's paid from, or else what's red

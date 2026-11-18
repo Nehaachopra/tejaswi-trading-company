@@ -35,6 +35,9 @@ function Row({ label, htmlFor, children }: { label: React.ReactNode; htmlFor?: s
   );
 }
 
+// a part's heading inside the card (PAN, then Received), as the card's own name reads
+const partHeading = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
+
 // a figure that isn't typed: its name on the left, the figure on the right
 function Figure({ label, amount, strong = false }: { label: string; amount: number; strong?: boolean }) {
   return (
@@ -63,6 +66,8 @@ export function ReceivedCard() {
   const filled = received > 0;
   const amountBad = tried && received === 0 && e.setOff === 0;
   const panBad = tried && panNeeded && !/^[A-Z]{5}\d{4}[A-Z]$/.test(e.pan);
+  // their PAN is asked: TDS on, an amount in, none saved
+  const askPan = tdsCan && filled && panNeeded;
   // the amount's box: large and bold; chestnut, no shadow, once filled
   const amountBox = "min-h-12 pl-11 font-heading text-xl font-bold tabular";
   const rupeeMark = (on: boolean) => (
@@ -125,6 +130,39 @@ export function ReceivedCard() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* their PAN (TDS on, an amount in, none saved): under its own heading above the Received heading (the card's own
+          name is hidden then) */}
+      {askPan && (
+        <>
+          <section className="flex min-w-0 flex-col gap-2.5 sm:max-w-[calc(50%-1.5rem)]">
+            <h3 className={partHeading}>PAN</h3>
+            <Row
+              htmlFor="pan-field"
+              label={
+                <>
+                  {t("pan")}
+                  <RequiredMark />
+                </>
+              }
+            >
+              <input
+                id="pan-field"
+                value={e.pan}
+                maxLength={10}
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="ABCDE1234F"
+                onChange={(ev) => e.setPan(ev.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10))}
+                aria-invalid={panBad || undefined}
+                className={cn("tabular min-h-11 w-full min-w-0 px-3 text-base uppercase placeholder:text-chestnut/60", fieldClass(panBad))}
+              />
+            </Row>
+            {panBad && <FieldMessage className={cn("mt-0", underValue)}>{t("panBad")}</FieldMessage>}
+          </section>
+          <h3 className={cn(partHeading, "-mb-2")}>{t("steps.received")}</h3>
+        </>
+      )}
       {/* wider screens, two rows: on top the supporting details (left); under them the breakup (left) level with what
           it goes towards (right) */}
       <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-12">
@@ -202,33 +240,6 @@ export function ReceivedCard() {
           <Reveal follow show={tdsCan && tdsOnIt && filled} gap="0.625rem">
             <Note className="text-chestnut/70">{tr("tdsNote194Q")}</Note>
           </Reveal>
-          {tdsCan && filled && panNeeded && (
-            <>
-              <Row
-                htmlFor="pan-field"
-                label={
-                  <>
-                    {t("pan")}
-                    <RequiredMark />
-                  </>
-                }
-              >
-                <input
-                  id="pan-field"
-                  value={e.pan}
-                  maxLength={10}
-                  autoCapitalize="characters"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  placeholder="ABCDE1234F"
-                  onChange={(ev) => e.setPan(ev.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10))}
-                  aria-invalid={panBad || undefined}
-                  className={cn("tabular min-h-11 w-full min-w-0 px-3 text-base uppercase placeholder:text-chestnut/60", fieldClass(panBad))}
-                />
-              </Row>
-              {panBad && <FieldMessage className={cn("mt-0", underValue)}>{t("panBad")}</FieldMessage>}
-            </>
-          )}
           {/* a phone: what it goes towards under the breakup (wider screens: on the right) */}
           {hasTowards && <div className="mt-1.5 sm:hidden">{towards}</div>}
           </div>

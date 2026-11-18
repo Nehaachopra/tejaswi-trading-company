@@ -63,6 +63,9 @@ function SaleEntryView() {
     customer,
     setCustomer,
     orderBuyer,
+    tdsCan,
+    received,
+    panNeeded,
     newParty,
     buyerName,
     buyerNeeded,
@@ -203,8 +206,8 @@ function SaleEntryView() {
         id={current}
         // a credit sale's card after the customer is its Due
         name={t(current === "received" && kind === "credit" ? "steps.due" : `steps.${current}`)}
-        // Products names its own parts further down
-        hideName={current === "products"}
+        // Products names its own parts further down; so does Received while it asks a PAN (PAN, then Received)
+        hideName={current === "products" || (current === "received" && tdsCan && received > 0 && panNeeded)}
         onBack={index > 0 ? () => show(steps[index - 1]!) : null}
         // someone new being typed in: Change goes back to the search (as a receipt's); not for an order's buyer, who
         // stays the order's
