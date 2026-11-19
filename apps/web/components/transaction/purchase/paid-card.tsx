@@ -178,7 +178,7 @@ export function PaidCard() {
             }
             value={
               <span className="relative block">
-                <IndianRupee className={cn("pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2", paid > 0 && "text-ivory")} aria-hidden />
+                <IndianRupee className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2 text-ivory" aria-hidden />
                 <NumberInput
                   id="paid-field"
                   value={e.paidText}
@@ -193,10 +193,11 @@ export function PaidCard() {
                     e.typePaid(v);
                   }}
                   aria-invalid={amountBad || undefined}
+                  // chestnut whether typed or not; left empty when it's needed, a red ring
                   className={cn(
                     input(amountBad),
-                    "min-h-12 pl-11 pr-3.5 text-right font-heading text-xl font-bold tabular",
-                    paid > 0 && !amountBad && "bg-chestnut text-ivory caret-ivory shadow-none",
+                    "min-h-12 bg-chestnut pl-11 pr-3.5 text-right font-heading text-xl font-bold tabular text-ivory caret-ivory shadow-none placeholder:text-ivory/60",
+                    amountBad && "ring-2 ring-danger",
                   )}
                 />
               </span>
