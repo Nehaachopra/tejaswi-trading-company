@@ -130,7 +130,8 @@ export const purchaseIdInputModel = z.object({ transactionId: idModel });
 export type PurchaseIdInputModel = z.infer<typeof purchaseIdInputModel>;
 
 // the bill's photo or PDF attached (or changed) after the purchase was saved
-export const attachBillInputModel = z.object({ transactionId: idModel, invoiceUrl: imageUrlModel });
+// the supplier's bill attached after saving, changed, or taken off (null)
+export const attachBillInputModel = z.object({ transactionId: idModel, invoiceUrl: imageUrlModel.nullable() });
 
 export type AttachBillInputModel = z.infer<typeof attachBillInputModel>;
 

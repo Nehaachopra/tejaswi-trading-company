@@ -15,12 +15,11 @@ import { useAttachBill, useSavedPurchase } from "~/providers/purchase";
 import { NEW_TRANSACTION_HREF } from "../../shell/nav-items";
 import { BillAttach } from "./bill-attach";
 
-// /transaction/purchase/[id], where a saved purchase lands: as the sale's success card, that it worked, its number with
-// its copy button, then the items, total, payment and what was paid in one box; the supplier's bill (attach it here if
-// it wasn't attached), and the way to a new transaction
+// /transaction/purchase/[id], where a saved purchase lands: as the sale's success card, that it worked, its transaction
+// ID with its copy button, then the items and total in one box; the supplier's bill (attach it here, or take it off with
+// its bin), and the way to a new transaction
 export function PurchaseSuccess({ id }: { id: string }) {
   const t = useTranslations("transactions.purchase.done");
-  const ts = useTranslations("transactions.sale");
   const tp = useTranslations("transactions.purchase");
   const purchase = useSavedPurchase(id);
   const attach = useAttachBill();
@@ -47,7 +46,7 @@ export function PurchaseSuccess({ id }: { id: string }) {
             <h2 className="font-heading text-2xl font-bold">{t("title")}</h2>
           </div>
 
-          {/* its number in a box: label left, the ID and its copy button right */}
+          {/* its transaction ID in a box: label left, the ID and its copy button right */}
           <p className="flex w-full max-w-lg min-w-0 items-center justify-between gap-4 rounded-control border border-chestnut/25 py-1.5 pl-4 pr-2 text-left">
             <span className="text-sm font-semibold">{t("number")}</span>
             <span className="flex min-w-0 items-center gap-1">
@@ -56,13 +55,11 @@ export function PurchaseSuccess({ id }: { id: string }) {
             </span>
           </p>
 
-          {/* the items, total, payment and what was paid, a row each in one box */}
+          {/* the items and the total, a row each in one box */}
           <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
             {[
               { key: "items", label: t("items"), value: purchase.data.lines.length.toLocaleString("en-IN") },
               { key: "total", label: t("total"), value: rupees(purchase.data.total) },
-              { key: "payment", label: t("payment"), value: ts(`kinds.${purchase.data.kind}`) },
-              ...(purchase.data.kind === "cash" ? [{ key: "paid", label: tp("paidNow"), value: rupees(purchase.data.paid) }] : []),
             ].map((r, i) => (
               <p key={r.key} className={cn("flex items-baseline justify-between gap-4 py-3", i > 0 && "border-t border-chestnut/15")}>
                 <span className="text-sm font-semibold">{r.label}</span>
@@ -71,14 +68,13 @@ export function PurchaseSuccess({ id }: { id: string }) {
             ))}
           </div>
 
-          {/* the supplier's bill: attached, or attach it now */}
+          {/* the supplier's bill: attached (its bin takes it off), or attach it now */}
           <div className="flex w-full max-w-lg flex-col gap-2 text-left">
             <span className="text-sm font-semibold">{tp("billPhoto")}</span>
             <BillAttach
               value={purchase.data.invoiceUrl}
-              onChange={(url) => url && attach.mutate({ transactionId: id, invoiceUrl: url })}
+              onChange={(url) => attach.mutate({ transactionId: id, invoiceUrl: url })}
               onBusy={() => undefined}
-              removable={false}
             />
             {attach.isError && <FieldMessage className="mt-0">{tp("billFailed")}</FieldMessage>}
           </div>

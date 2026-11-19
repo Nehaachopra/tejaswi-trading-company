@@ -2012,7 +2012,7 @@
       },
       "done": {
         "title": "Purchase saved",
-        "number": "Purchase number",
+        "number": "Transaction ID",
         "items": "Items",
         "total": "Total",
         "payment": "Payment",
