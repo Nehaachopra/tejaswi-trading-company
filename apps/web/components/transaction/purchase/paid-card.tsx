@@ -64,8 +64,8 @@ function LeftRow({ label, amount }: { label: string; amount: number }) {
   );
 }
 
-// the Paid card (cash) or Due card (credit). Cash: on the left the due (the old due and the bill, whatever is paid or
-// set off) and the amount to pay (its box never
+// the Paid card (cash) or Due card (credit). Cash: on the left what's left (the due, the advance, or both, an arrow on
+// each opening the breakup) over the amount to pay (its box never
 // more than cash and the banks hold together), then what's left (plain) with an arrow at the right end, which opens the breakup:
 // on the right (under it on a phone). The breakup: an advance they hold (over a line, room under it); the old due, the
 // bill amount, then with an advance their sub total and Set off from advance (a switch); the due; the payment taken off
@@ -120,13 +120,13 @@ export function PaidCard() {
   const advanceLeft = Math.round((heldAdvance - setOff + advance) * 100) / 100;
   // the old due and the bill together, shown with an advance (what it's set off against)
   const subTotal = Math.round((oldDue + total) * 100) / 100;
-  // what's left: both when both are above nothing; otherwise the one that is; neither: ₹0 of what the account had (an
+  // what's left: both when both are above nothing (the advance first); otherwise the one that is; neither: ₹0 of what the account had (an
   // advance when it held one and owed nothing, a due otherwise)
   const left =
     dueLeft > 0 && advanceLeft > 0
       ? [
-          { key: "due", label: tpf("leftDue"), amount: dueLeft },
           { key: "advance", label: tpf("advanceLeft"), amount: advanceLeft },
+          { key: "due", label: tpf("leftDue"), amount: dueLeft },
         ]
       : dueLeft > 0
         ? [{ key: "due", label: tpf("leftDue"), amount: dueLeft }]
@@ -141,8 +141,34 @@ export function PaidCard() {
         {/* each row: its name, the figure ending at the same edge in every row, then the mic or the arrow in a slot of its
             own at the right end */}
         <div className="flex min-w-0 flex-col gap-2.5">
-          {/* what's owed: the old due and the bill, whatever is paid or set off (the breakup shows what comes off it) */}
-          <Line label={tpf("due")} value={<span className={figure}>{rupees(subTotal)}</span>} />
+          {/* on top: what's left (the due, the advance, or both), an arrow on each line: opens the breakup (pointing down on a
+              phone, where it opens under) */}
+          <button
+            type="button"
+            onClick={() => setBreakupOpen((o) => !o)}
+            aria-expanded={breakupOpen}
+            aria-controls="purchase-breakup"
+            aria-label={t("breakup")}
+            className="group flex w-full flex-col gap-1 text-left"
+          >
+            {left.map((l) => (
+              <Line
+                key={l.key}
+                label={<span className="font-semibold">{l.label}</span>}
+                value={<span className={cn(figure, "font-bold")}>{rupees(l.amount)}</span>}
+                // an arrow on each line (both open the breakup), as the mic above: a soft-cornered tile, filled on hover
+                slot={
+                  <span className="grid size-9 place-items-center rounded-control transition-colors group-hover:bg-chestnut/10">
+                    <ChevronRight
+                      // right, left once open; on a phone down, up once open
+                      className={cn("size-5 transition-transform", breakupOpen ? "rotate-180 max-sm:-rotate-90" : "max-sm:rotate-90")}
+                      aria-hidden
+                    />
+                  </span>
+                }
+              />
+            ))}
+          </button>
           <Line
             label={
               <label htmlFor="paid-field" className="flex items-center">
@@ -187,34 +213,6 @@ export function PaidCard() {
               }
             />
           )}
-          {/* what's left (the due, the advance, or both), its arrow at the right end: opens the breakup (pointing down on a
-              phone, where it opens under) */}
-          <button
-            type="button"
-            onClick={() => setBreakupOpen((o) => !o)}
-            aria-expanded={breakupOpen}
-            aria-controls="purchase-breakup"
-            aria-label={t("breakup")}
-            className="group mt-1 flex w-full flex-col gap-1 border-t border-chestnut/30 pt-1.5 text-left"
-          >
-            {left.map((l) => (
-              <Line
-                key={l.key}
-                label={<span className="font-semibold">{l.label}</span>}
-                value={<span className={cn(figure, "font-bold")}>{rupees(l.amount)}</span>}
-                // an arrow on each line (both open the breakup), as the mic above: a soft-cornered tile, filled on hover
-                slot={
-                  <span className="grid size-9 place-items-center rounded-control transition-colors group-hover:bg-chestnut/10">
-                    <ChevronRight
-                      // right, left once open; on a phone down, up once open
-                      className={cn("size-5 transition-transform", breakupOpen ? "rotate-180 max-sm:-rotate-90" : "max-sm:rotate-90")}
-                      aria-hidden
-                    />
-                  </span>
-                }
-              />
-            ))}
-          </button>
         </div>
 
         {/* the breakup */}
