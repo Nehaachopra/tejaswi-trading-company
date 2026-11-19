@@ -34,6 +34,7 @@ export async function undoPurchase(tx: Tx, transactionId: string, stock: StockEn
       quantity: purchaseProductsTable.quantity,
       gross: purchaseProductsTable.grossProductPrice,
       off: purchaseProductsTable.discountAmount,
+      gstRate: purchaseProductsTable.gstRate,
       godownId: productGodownsTable.godownId,
     })
     .from(purchaseProductsTable)
@@ -49,8 +50,9 @@ export async function undoPurchase(tx: Tx, transactionId: string, stock: StockEn
     tx,
     lines.map((l) => ({ productId: l.productId, godownId: l.godownId!, delta: -l.quantity })),
   );
+  // the charges' value before GST (taken out at the highest GST rate among the items, as when saved)
   const itemsValue = toPaise(Number(purchase.subtotal));
-  const charges = toPaise(Number(purchase.charges));
+  const charges = Math.round((toPaise(Number(purchase.charges)) * 100) / (100 + Math.max(0, ...lines.map((l) => l.gstRate))));
   for (const b of before) {
     const mine = lines.filter((l) => l.productId === b.id);
     const value = mine.reduce((a, l) => a + toPaise(Number(l.gross)) - toPaise(Number(l.off)), 0);

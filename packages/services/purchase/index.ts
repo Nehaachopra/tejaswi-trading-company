@@ -42,7 +42,6 @@ import {
   createPurchaseInputModel,
   type PurchaseIdInputModel,
   type PurchaseModel,
-  ROUND_OFF_UNDER,
   type SavedPurchaseModel,
 } from "./model";
 
@@ -165,32 +164,33 @@ export default class PurchaseService {
       });
     });
     const itemsValue = parts.reduce((a, p) => a + p.value, 0);
-    // the charges, before GST: spread over the parts by value and taxed at each part's rate; they go into the cost
+    // the charges, each typed with GST in it. Packing, freight and loading are part of the supply (composite), so their
+    // GST is taken out at the highest GST rate among the items; what's left goes into the packs' cost, spread by value
     const charges = toPaise(input.freightCharges) + toPaise(input.packingCharges) + toPaise(input.loadingCharges) + toPaise(input.otherCharges);
-    let chargeLeft = charges;
+    const chargeTaxable = Math.round((charges * 100) / (100 + Math.max(...parts.map((p) => p.product.gstRate))));
+    let chargeLeft = chargeTaxable;
     const priced = parts.map((p, i) => {
-      const charge = i === parts.length - 1 ? chargeLeft : itemsValue === 0 ? 0 : Math.round((charges * p.value) / itemsValue);
+      const charge = i === parts.length - 1 ? chargeLeft : itemsValue === 0 ? 0 : Math.round((chargeTaxable * p.value) / itemsValue);
       chargeLeft -= charge;
-      return { ...p, charge, gst: Math.round((p.value * p.product.gstRate) / 100), chargeGst: Math.round((charge * p.product.gstRate) / 100) };
+      return { ...p, charge, gst: Math.round((p.value * p.product.gstRate) / 100) };
     });
-    const gstAll = priced.reduce((a, p) => a + p.gst + p.chargeGst, 0);
+    const gstAll = priced.reduce((a, p) => a + p.gst, 0) + charges - chargeTaxable;
     const cgst = intra ? Math.floor(gstAll / 2) : 0;
     const sgst = intra ? gstAll - cgst : 0;
     const igst = intra ? 0 : gstAll;
     // the cash discount: never more than the bill
-    const gross = itemsValue + charges + gstAll;
+    const gross = itemsValue + charges + priced.reduce((a, p) => a + p.gst, 0);
     const off = toPaise(input.discount);
     if (off > gross) throw new TRPCError({ code: "BAD_REQUEST", message: "The discount can't be more than the bill." });
-    // the bill's own total, when it's rounded: under a rupee off our figures, the difference to Round off
+    // the total, rounded to the rupee: the difference to Round off
     const figured = gross - off;
-    const total = input.billTotal === null ? figured : toPaise(input.billTotal);
+    const total = Math.round(figured / 100) * 100;
     const roundOff = total - figured;
-    if (Math.abs(roundOff) >= ROUND_OFF_UNDER * 100) throw new TRPCError({ code: "BAD_REQUEST", message: "The bill's total is a rupee or more off the items. Check the rates." });
 
     // what it posts: Purchase up by the items' and charges' value, the GST we can claim up, the cash discount as
     // income, the round off; the supplier owed the total. Cash: what's paid now off the supplier, out of cash and banks
     const lines: PostingLine[] = [
-      { ledgerId: await this.accounts.ledgerId(tx, "purchase"), side: "debit", amount: (itemsValue + charges) / 100 },
+      { ledgerId: await this.accounts.ledgerId(tx, "purchase"), side: "debit", amount: (itemsValue + chargeTaxable) / 100 },
       { ledgerId: supplier.ledgerId, side: "credit", amount: total / 100 },
     ];
     if (cgst > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "inputCgst"), side: "debit", amount: cgst / 100 });
@@ -250,7 +250,7 @@ export default class PurchaseService {
         subtotal: fromPaise(itemsValue),
         discountAmount: fromPaise(off),
         gstAmount: fromPaise(gstAll),
-        // the charges as typed, before GST
+        // the charges as typed, GST in them
         freightAmount: fromPaise(toPaise(input.freightCharges)),
         packagingAmount: fromPaise(toPaise(input.packingCharges)),
         handlingAmount: fromPaise(toPaise(input.loadingCharges)),
@@ -420,7 +420,9 @@ export default class PurchaseService {
     const gstAll = toPaise(Number(p.gstAmount));
     const intra = p.supplyType === "intra";
     const cgst = intra ? Math.floor(gstAll / 2) : 0;
-    const figured = toPaise(Number(p.subtotal)) + chargesAll + gstAll - toPaise(Number(p.discountAmount));
+    // the charges' GST is the purchase's GST less the items'
+    const chargeGst = gstAll - lines.reduce((a, l) => a + toPaise(l.gst), 0);
+    const figured = toPaise(Number(p.subtotal)) + chargesAll + lines.reduce((a, l) => a + toPaise(l.gst), 0) - toPaise(Number(p.discountAmount));
     const paidNow = await this.paidWith(t.id, p.partyId);
     return {
       transactionId: t.id,
@@ -446,7 +448,7 @@ export default class PurchaseService {
       remarks: p.remarks,
       lines,
       charges: charges.map((c) => ({ key: c.key, amount: c.amount })),
-      taxable: (toPaise(Number(p.subtotal)) + chargesAll) / 100,
+      taxable: (toPaise(Number(p.subtotal)) + chargesAll - chargeGst) / 100,
       cgst: cgst / 100,
       sgst: (intra ? gstAll - cgst : 0) / 100,
       igst: (intra ? 0 : gstAll) / 100,

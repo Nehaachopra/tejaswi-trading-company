@@ -156,16 +156,11 @@ export default class SaleService {
         parts.map((p) => ({ quantity: p.quantity, rate: p.line.rateBeforeGst, discount: 0, gstRate: p.product.gstRate })),
         0,
       );
-      // the charges, each typed with GST in it: spread over the parts by value and taxed at each part's rate, so
-      // their GST is taken out at the goods' rate
+      // the charges, each typed with GST in it. Packing, transport and loading are part of the supply (composite), so
+      // their GST is taken out at the highest GST rate among the bill's items
       const charges = toPaise(input.transportCharges) + toPaise(input.packingCharges) + toPaise(input.loadingCharges);
-      let chargeLeft = charges;
-      let chargeTaxable = 0;
-      priced.priced.forEach((pp, i) => {
-        const share = i === parts.length - 1 ? chargeLeft : priced.subtotal === 0 ? 0 : Math.round((charges * pp.value) / priced.subtotal);
-        chargeLeft -= share;
-        chargeTaxable += Math.round((share * 100) / (100 + parts[i]!.product.gstRate));
-      });
+      const chargeRate = Math.max(...parts.map((p) => p.product.gstRate));
+      const chargeTaxable = Math.round((charges * 100) / (100 + chargeRate));
       const chargeGst = charges - chargeTaxable;
       const gstAll = priced.gst + chargeGst;
       // the cash discount: never more than the bill

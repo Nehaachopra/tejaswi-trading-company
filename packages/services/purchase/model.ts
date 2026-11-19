@@ -9,9 +9,6 @@ const idModel = z.string().uuid();
 // rupees with at most 2 decimals, within the money columns
 const rupeesModel = z.number().min(0).max(9_999_999_999_999).multipleOf(0.01);
 
-// the most a bill's total may differ from what its figures come to: under a rupee, booked to Round off
-export const ROUND_OFF_UNDER = 1;
-
 // one godown's part of an item: how many packs go into it
 export const purchaseGodownPartModel = z.object({ godownId: idModel, quantity: z.number().int().min(1).max(99_999) });
 
@@ -37,9 +34,9 @@ export const purchaseLineInputModel = z
 export type PurchaseLineInputModel = z.infer<typeof purchaseLineInputModel>;
 
 // a purchase: the supplier (picked, or added now) and the bill it's from (its number and day; the day dates the
-// purchase); the items, each into its godowns; new products added with it; the charges on the bill (before GST, taxed
-// at the goods' rate) and a cash discount off what's to be paid (GST stays on the full value); the bill's own total,
-// when it's rounded (under a rupee off our figures goes to Round off); then cash (any part paid now from cash and/or
+// purchase); the items, each into its godowns; new products added with it; the charges on the bill (with GST in
+// them, at the highest rate among the goods) and a cash discount off what's to be paid (GST stays on the full value);
+// the total rounded to the rupee (the difference to Round off); then cash (any part paid now from cash and/or
 // bank accounts, never more than they hold, the rest staying owed; an advance already with the supplier can be set
 // off) or credit (all of it owed, with an optional credit period). An arrival on a purchase order names the order.
 // Then the vehicle, remarks and the bill's photo or PDF
@@ -65,15 +62,13 @@ export const createPurchaseInputModel = z
     // products added with this purchase, each with its pack sizes, GST % and selling price, as on the Products page
     newProducts: z.array(createProductInputModel).max(20).default([]),
     lines: z.array(purchaseLineInputModel).min(1, "Add an item.").max(100),
-    // charges on the bill, each before GST
+    // charges on the bill, each with GST in it (taken out at the highest GST rate among the items)
     freightCharges: rupeesModel.default(0),
     packingCharges: rupeesModel.default(0),
     loadingCharges: rupeesModel.default(0),
     otherCharges: rupeesModel.default(0),
     // a cash discount, taken off what's paid; it doesn't lower the GST
     discount: rupeesModel.default(0),
-    // the bill's total as printed, when it's rounded; none: what the figures come to
-    billTotal: rupeesModel.nullable().default(null),
     kind: z.enum(["cash", "credit"]),
     // an arrival on a purchase order: the purchase is kept on the order, which completes once everything ordered
     // has arrived
@@ -183,7 +178,7 @@ export const purchaseModel = z.object({
       godowns: z.array(z.object({ godownName: z.string(), quantity: z.number().int() })),
     }),
   ),
-  // each charge on the bill, before GST
+  // each charge on the bill, as typed (GST in it)
   charges: z.array(z.object({ key: z.enum(["freight", "packing", "loading", "other"]), amount: z.number() })),
   taxable: z.number(),
   cgst: z.number(),

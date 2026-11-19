@@ -186,14 +186,10 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
   const grossPaise = itemsPaise + chargesPaise;
   const offPaise = Math.min(paise(discount), grossPaise);
   const total = (grossPaise - offPaise) / 100;
-  // the taxable value: the items' value before GST, and the charges with their GST taken out at each line's rate (as
-  // the server spreads them)
-  let chargeLeft = chargesPaise;
-  const chargeTaxable = figures.reduce((sum, f, i) => {
-    const share = i === figures.length - 1 ? chargeLeft : valuePaise === 0 ? 0 : Math.round((chargesPaise * f.value) / valuePaise);
-    chargeLeft -= share;
-    return sum + Math.round((share * 100) / (100 + (packOf(lines[i]!.productId)?.pack.gstPercent ?? 0)));
-  }, 0);
+  // the taxable value: the items' value before GST, and the charges with their GST taken out at the highest GST rate
+  // among the items (packing, transport and loading are part of the supply), as the server does
+  const chargeRate = Math.max(0, ...lines.map((l) => packOf(l.productId)?.pack.gstPercent ?? 0));
+  const chargeTaxable = Math.round((chargesPaise * 100) / (100 + chargeRate));
   const taxable = (valuePaise + chargeTaxable) / 100;
   // a cash sale from ₹50,000 taxable value names its buyer
   const buyerNeeded = kind === "cash" && taxable >= NAMED_BUYER_FROM;
