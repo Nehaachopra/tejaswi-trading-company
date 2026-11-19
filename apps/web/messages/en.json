@@ -2019,6 +2019,7 @@
       "loadingCharges": "Loading charges",
       "discountCap": "Only {amount} can be taken off.",
       "toReceive": "To receive / Total",
+      "toReceiveOnly": "To receive",
       "kinds": {
         "cash": "Cash",
         "credit": "Credit"

@@ -2019,6 +2019,7 @@
       "loadingCharges": "ಲೋಡಿಂಗ್ ಶುಲ್ಕ",
       "discountCap": "ಕೇವಲ {amount} ರಿಯಾಯಿತಿ ನೀಡಬಹುದು.",
       "toReceive": "ಪಡೆಯಬೇಕಾದದ್ದು / ಒಟ್ಟು",
+      "toReceiveOnly": "ಪಡೆಯಬೇಕಾದದ್ದು",
       "kinds": {
         "cash": "ನಗದು",
         "credit": "ಸಾಲ"

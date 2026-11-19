@@ -128,6 +128,23 @@ export function ReceivedCard() {
       </div>
     );
 
+  // a walk-in pays the bill: only what's to be received, then where it came into
+  if (!tdsCan)
+    return (
+      <div className="flex flex-col gap-4">
+        <Row label={t("toReceiveOnly")}>
+          <span className="tabular flex min-h-12 items-center justify-end rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
+            {rupees(received)}
+          </span>
+        </Row>
+        {filled && (
+          <div className="flex flex-col gap-2.5 border-t border-chestnut/15 pt-4">
+            <AccountCards key={received} api={cards} />
+          </div>
+        )}
+      </div>
+    );
+
   return (
     <div className="flex flex-col gap-4">
       {/* their PAN (TDS on, an amount in, none saved): under its own heading above the Received heading (the card's own
@@ -203,40 +220,33 @@ export function ReceivedCard() {
               part of what's due; a walk-in's is the bill), then the TDS they deducted and an advance set off (a switch
               each), then the total */}
           <div className="flex min-w-0 flex-col gap-2.5 sm:col-start-1 sm:row-start-2">
-          {tdsCan ? (
-            <Row
-              htmlFor="received-field"
-              label={
-                <>
-                  {t("amountReceived")}
-                  {e.setOff === 0 && <RequiredMark />}
-                </>
-              }
-            >
-              <MicField onText={(said) => saidAmount(said, e.typeReceived)}>
-                {rupeeMark(filled)}
-                <NumberInput
-                  id="received-field"
-                  value={e.receivedText}
-                  onChange={e.typeReceived}
-                  decimals={2}
-                  maxDigits={13}
-                  placeholder="0"
-                  aria-invalid={amountBad || undefined}
-                  className={cn(input(amountBad), amountBox, "pr-12", filled && !amountBad && "bg-chestnut text-ivory caret-ivory shadow-none")}
-                />
-              </MicField>
-            </Row>
-          ) : (
-            <Row label={t("amountReceived")}>
-              <span className="tabular flex min-h-12 items-center justify-end rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
-                {rupees(received)}
-              </span>
-            </Row>
-          )}
+          <Row
+            htmlFor="received-field"
+            label={
+              <>
+                {t("amountReceived")}
+                {e.setOff === 0 && <RequiredMark />}
+              </>
+            }
+          >
+            <MicField onText={(said) => saidAmount(said, e.typeReceived)}>
+              {rupeeMark(filled)}
+              <NumberInput
+                id="received-field"
+                value={e.receivedText}
+                onChange={e.typeReceived}
+                decimals={2}
+                maxDigits={13}
+                placeholder="0"
+                aria-invalid={amountBad || undefined}
+                className={cn(input(amountBad), amountBox, "pr-12", filled && !amountBad && "bg-chestnut text-ivory caret-ivory shadow-none")}
+              />
+            </MicField>
+          </Row>
+
           {/* the rest of the breakup (the amount itself is the box above), shown before anything is typed too: the TDS
               and the due or advance left */}
-          {tdsCan && <PlainRows rows={rows.slice(1)} />}
+          <PlainRows rows={rows.slice(1)} />
           <Reveal follow show={tdsCan && tdsOnIt && filled} gap="0.625rem">
             <Note className="text-chestnut/70">{tr("tdsNote194Q")}</Note>
           </Reveal>

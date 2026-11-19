@@ -2019,6 +2019,7 @@
       "loadingCharges": "लोडिंग शुल्क",
       "discountCap": "केवल {amount} की छूट दी जा सकती है।",
       "toReceive": "लेना है / कुल",
+      "toReceiveOnly": "लेना है",
       "kinds": {
         "cash": "नकद",
         "credit": "उधार"
