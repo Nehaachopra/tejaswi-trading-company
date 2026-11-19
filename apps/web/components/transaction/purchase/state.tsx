@@ -20,6 +20,7 @@ import type { LedgerChoice } from "../pickers/ledger-picker";
 import { usePhoneMatches } from "../pickers/party-finder";
 import { lineFigures, type OrderLine } from "../order/new/state";
 import { refOkFor } from "../shared/bank-mode";
+import { type QrItem } from "../shared/qr-spot";
 import { moveCard, useCardHistory } from "../shared/card-steps";
 import { momentOf } from "../shared/form-basics";
 
@@ -223,21 +224,35 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     setTypedSplit((was) => ({ ...(was ?? autoSplit), [id]: text }));
   }
 
-  // an account paying by UPI to a supplier with no UPI ID (none saved on the one picked, none typed for a new one):
-  // theirs is asked in the card, and kept on them with the purchase. It may be left empty, as in a payment
-  const savedUpis = picked ? (picked.party?.upiIds ?? []) : newSupplier.upiIds.map((u) => u.upiId.trim()).filter((u) => u !== "");
+  // an account paying by UPI, as in a payment: the supplier's UPI ID (the one saved on them, or typed for a new one)
+  // fills the box; with none, it's asked in the card (it may be left empty), and a new one is kept on them with the
+  // purchase. Once there's one, each card paying by UPI shows the supplier's QR, the ID above it with a pen
+  const savedUpis = (picked ? (picked.party?.upiIds ?? []) : newSupplier.upiIds.map((u) => u.upiId.trim())).map((u) => u.toLowerCase()).filter((u) => upiFormatOk(u));
   const [typedUpi, setTypedUpi] = useState("");
   const [upiLeft, setUpiLeft] = useState(false);
   const [upiEditing, setUpiEditing] = useState(false);
   const typedUpiShapeOk = upiFormatOk(typedUpi.trim());
-  const typedUpiOk = typedUpiShapeOk && appOfUpi(typedUpi) !== null;
-  const asksUpi = kind === "cash" && !!supplier && savedUpis.length === 0 && bankIdsUsed.some((id) => bankModes[id] === "upi");
-  // another supplier: the box starts empty again
+  // one saved on them is taken as it is; a typed one must have a handle a UPI app gives out
+  const typedUpiOk = typedUpiShapeOk && (appOfUpi(typedUpi) !== null || savedUpis.includes(typedUpi.trim().toLowerCase()));
+  const asksUpi = kind === "cash" && !!supplier && bankIdsUsed.some((id) => bankModes[id] === "upi");
+  // kept: saved on them, or typed and Saved; the box then goes, and the ID shows above the QR with its pen
+  const upiKept = !upiEditing && typedUpiOk && (upiLeft || savedUpis.includes(typedUpi.trim().toLowerCase()));
+  // another supplier, or their saved UPI IDs changed: the box starts with their saved one, or empty
+  const savedUpiKey = `${pickedId ?? supplier?.kind ?? ""}|${savedUpis.join()}`;
   useEffect(() => {
-    setTypedUpi("");
+    setTypedUpi(savedUpis[0] ?? "");
     setUpiLeft(false);
     setUpiEditing(false);
-  }, [pickedId, supplier?.kind]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the supplier or their saved UPI IDs change
+  }, [savedUpiKey]);
+  // a QR in each card paying by UPI, for the supplier's UPI ID
+  const supplierName = picked ? (picked.party?.name ?? picked.name) : newSupplier.name.trim();
+  const qrItems: QrItem[] =
+    !asksUpi || !typedUpiOk
+      ? []
+      : placesUsed
+          .filter((p) => p.mode === "upi")
+          .map((p) => ({ key: p.id, title: `${p.name} ${p.sub ?? ""}`.trim(), upiIds: [typedUpi.trim().toLowerCase()], payee: supplierName, amount: p.amount }));
   // Auto switched off by hand empties every card, as a payment's
   const setSplitAuto = (on: boolean) => setTypedSplit(on ? null : {});
   // what's paid changed: the cards start again
@@ -389,7 +404,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
               bankParts: placesUsed
                 .filter((p) => p.id !== "cash")
                 .map((p) => ({ bankDetailsId: p.id, amount: p.amount, mode: bankModes[p.id]!, referenceNumber: (bankRefs[p.id] ?? "").trim() || null })),
-              supplierUpiId: asksUpi && typedUpiOk ? typedUpi.trim().toLowerCase() : null,
+              supplierUpiId: asksUpi && typedUpiOk && !savedUpis.includes(typedUpi.trim().toLowerCase()) ? typedUpi.trim().toLowerCase() : null,
             }
           : { creditPeriodDays: creditDays === "" ? null : Number(creditDays) }),
         vehicleNumber: vehicle || null,
@@ -488,6 +503,8 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     bankRefs,
     setBankRefs,
     asksUpi,
+    upiKept,
+    qrItems,
     upiId: { typed: typedUpi, setTyped: setTypedUpi, shapeOk: typedUpiShapeOk, ok: typedUpiOk, left: upiLeft, setLeft: setUpiLeft, editing: upiEditing, setEditing: setUpiEditing, tried },
     refLeft,
     setRefLeft,

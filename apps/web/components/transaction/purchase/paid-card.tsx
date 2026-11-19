@@ -427,11 +427,13 @@ function usePaidCards(): AccountCardsApi {
     placeFirst: true,
     fieldRows: true,
     auto: { on: e.splitAuto, set: e.setSplitAuto },
-    qrItems: [],
-    qrId: () => ({ hideId: false }),
-    // by UPI to a supplier with no UPI ID: theirs is asked, once (in the first card paying by UPI)
+    // the supplier's QR in each card paying by UPI, their UPI ID above it with a pen (hidden while it's changed in its box)
+    qrItems: e.qrItems,
+    qrIdLabel: tpf("supplierUpi"),
+    qrId: () => ({ hideId: e.upiId.editing, onEdit: () => e.upiId.setEditing(true) }),
+    // by UPI: the supplier's UPI ID box while there's none kept, once (in the first card paying by UPI)
     upiPart: (place) =>
-      place.id === e.places.find((p) => p.amount > 0 && p.mode === "upi")?.id ? <UpiIdField row show={e.asksUpi} label={tpf("supplierUpi")} state={e.upiId} /> : null,
+      place.id === e.places.find((p) => p.amount > 0 && p.mode === "upi")?.id ? <UpiIdField row show={e.asksUpi && !e.upiKept} label={tpf("supplierUpi")} state={e.upiId} /> : null,
     refs,
     setRefs: (update) => {
       const next = typeof update === "function" ? update(refs) : update;
