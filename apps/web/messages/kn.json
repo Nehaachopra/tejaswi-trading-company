@@ -1955,11 +1955,9 @@
     "purchase": {
       "title": "ಖರೀದಿ",
       "rate": "ದರ",
-      "beforeGst": "GST ಮೊದಲು",
-      "withGst": "GST ಸಹಿತ",
       "newProduct": "ಹೊಸ ಉತ್ಪನ್ನ",
       "noProducts": "ಇನ್ನೂ ಉತ್ಪನ್ನಗಳಿಲ್ಲ. ಹೊಸ ಉತ್ಪನ್ನದಿಂದ ಸೇರಿಸಿ.",
-      "hintRate": "ದರ ಬರೆಯಿರಿ.",
+      "hintCost": "ವೆಚ್ಚ ಬರೆಯಿರಿ.",
       "hintGodowns": "ಪ್ರತಿ ಪ್ಯಾಕ್ ಅನ್ನು ಗೋದಾಮಿನಲ್ಲಿ ಇಡಿ.",
       "leftToPlace": "ಇಡಲು ಉಳಿದಿದೆ",
       "holds": "ಇದೆ",

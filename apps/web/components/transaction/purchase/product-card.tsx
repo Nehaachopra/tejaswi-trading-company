@@ -1,26 +1,27 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { packLabel, rupees, titleCase } from "~/lib/format";
-import { parseAmount } from "~/lib/price";
+import { unitsIn } from "~/lib/price";
 import { cn } from "~/lib/utils";
 
 import { type Pack, type ProductGroup, ProductImage, productTitle } from "../../product/products/product-tile";
-import { MoneyBox } from "../shared/figures-table";
-import { GodownStepper, QuantityBox, SackMeter } from "../shared/pack-parts";
-import { type CartLine, lineFigures, placedOf, usePurchaseEntry } from "./state";
+import { CostChart } from "../order/new/cost-chart";
+import { QuantityBox } from "../order/new/quantity-box";
+import { emptyLine, lineFigures, type PriceField, settleLine } from "../order/new/state";
+import { FiguresTable, MoneyBox } from "../shared/figures-table";
+import { GodownStepper, SackMeter } from "../shared/pack-parts";
+import { type CartLine, placedOf, usePurchaseEntry } from "./state";
 
-// the most packs of one size on a bill, as the server takes it
-const MOST_PACKS = 99_999;
-
-// the product card, as the sale's: one pack size zoomed in over the dimmed page, to put it in the cart or change it. On
-// top its pack chip and ✕, the name and a square photo; then the supplier's rate a pack (Before GST or With GST, a
-// switch beside it, the box empty to start) and the quantity, each a row; the GST and the line's total; Godowns with ›,
-// which slides the card to the godowns (what's left to place, then each godown with what it holds and how many go into
-// it); and Add to cart (or Save and Remove from cart). The ✕, a tap on the dim area or Escape closes it unchanged
+// the product card, exactly as a purchase order's line card: one pack size zoomed in over the dimmed page. On top its
+// pack chip and ✕, the name and the photo; what it cost on its last purchases; then Basis | New for Cost per unit, Cost
+// + GST (each fills the other) and Quantity, and the line's total. A purchase also says where the packs go: Godowns
+// with ›, which slides the card to the godowns (what's left to place, then each godown with what it holds and how many
+// go into it). Add to cart (or Save and Remove from cart). The ✕, a tap on the dim area or Escape closes it unchanged
 export function ProductCard() {
   const { cardFor, packOf } = usePurchaseEntry();
   const found = cardFor ? packOf(cardFor) : null;
@@ -30,22 +31,27 @@ export function ProductCard() {
 }
 
 function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
-  const { t, ts, lines, putLine, removeLine, setCardFor } = usePurchaseEntry();
+  const { ts, lines, putLine, removeLine, setCardFor } = usePurchaseEntry();
+  const t = useTranslations("orders");
+  const units = useTranslations("products.items.form.units");
+  const tp = useTranslations("transactions.purchase");
   const saved = lines.find((l) => l.productId === pack.productId);
-  const [draft, setDraft] = useState<CartLine>(() => saved ?? { productId: pack.productId, rate: "", withGst: false, quantity: "", godowns: {} });
+  // a new line starts at a quantity of 0, its costs empty
+  const [draft, setDraft] = useState<CartLine>(() => saved ?? { ...emptyLine(pack.productId), quantity: "0", godowns: {} });
   const [pane, setPane] = useState<"main" | "godowns">("main");
   const close = () => setCardFor(null);
   const name = `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}`;
-  const gst = pack.gstPercent ?? 0;
+  const rateLabel = t("costPer", { unit: units(pack.packSizeCode) });
 
-  // the figures: the rate, the quantity and what's placed in godowns
+  // one of the costs typed: the others follow
+  const setFigure = (field: PriceField, v: string) => setDraft((d) => ({ ...d, ...settleLine({ ...d, [field]: v, from: field }, unitsIn(pack), pack.gstPercent) }));
   const quantity = Number(draft.quantity) || 0;
   const placed = placedOf(draft);
-  const { tax, total } = lineFigures(draft.rate, draft.withGst, quantity, gst);
-  const rateOk = (parseAmount(draft.rate) ?? 0) > 0;
-  const ok = rateOk && quantity >= 1 && placed === quantity;
+  const { total } = lineFigures(draft, unitsIn(pack), pack.gstPercent);
+  const costOk = (Number(draft[draft.from]) || 0) > 0;
+  const ok = costOk && quantity >= 1 && placed === quantity;
   // what still holds Add back, said just above it
-  const hint = !rateOk ? t("hintRate") : quantity < 1 ? ts("hintQuantity") : placed !== quantity ? t("hintGodowns") : null;
+  const hint = !costOk ? tp("hintCost") : quantity < 1 ? ts("hintQuantity") : placed !== quantity ? tp("hintGodowns") : null;
 
   // the page behind doesn't scroll, and Escape closes
   useEffect(() => {
@@ -88,145 +94,144 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   };
   // a quantity typed with packs still to place: the Godowns arrow is highlighted, to say where to go next
   const toPlace = quantity > 0 && placed !== quantity;
-  const row = "flex min-w-0 items-center justify-between gap-3";
 
   return createPortal(
-    // the dim, blurred page; a tap on it closes. The card sits in the middle, and scrolls with the page when taller
-    <div className="fixed inset-0 z-50 animate-fade-in overflow-y-auto bg-[rgba(30,12,6,0.62)] backdrop-blur-[3px]">
-      <div onClick={(e) => e.target === e.currentTarget && close()} className="flex min-h-full items-center justify-center p-4">
-        <section
-          role="dialog"
-          aria-modal="true"
-          aria-label={name}
-          className="on-ivory flex w-[min(360px,100%)] min-w-0 animate-zoom-in flex-col gap-2 rounded-control bg-ivory p-4 text-chestnut shadow-[0_12px_40px_rgba(0,0,0,0.4)]"
-        >
-          {/* the pack chip and ✕ on top */}
-          <div className="flex justify-between">
-            <span className="tabular inline-flex min-h-8 w-fit items-center rounded-control border border-chestnut bg-chestnut px-2.5 text-xs font-semibold text-ivory">
-              {packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}
-            </span>
-            <button type="button" onClick={close} aria-label={ts("close")} className="grid place-items-center rounded-control p-2 hover:bg-chestnut/8">
-              <X className="size-5" aria-hidden />
-            </button>
-          </div>
+    // the dim, blurred page; a tap on it closes
+    <div
+      onClick={(e) => e.target === e.currentTarget && close()}
+      className="fixed inset-0 z-50 grid animate-fade-in place-items-center overflow-y-auto bg-[rgba(30,12,6,0.62)] p-4 backdrop-blur-[3px]"
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-label={name}
+        className="on-ivory flex w-[min(340px,100%)] animate-zoom-in flex-col gap-2 rounded-control bg-ivory p-4 text-chestnut shadow-[0_12px_40px_rgba(0,0,0,0.4)]"
+      >
+        {/* pack quantity and ✕ on top */}
+        <div className="flex justify-between">
+          <span className="tabular inline-flex min-h-8 w-fit items-center rounded-control border border-chestnut bg-chestnut px-2.5 text-xs font-semibold text-ivory">
+            {packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}
+          </span>
+          <button type="button" onClick={close} aria-label={t("close")} className="grid place-items-center rounded-control p-2 hover:bg-chestnut/8">
+            <X className="size-5" aria-hidden />
+          </button>
+        </div>
 
-          {/* the name, category | sub-category, then the square photo in the middle */}
-          <div className="min-w-0">
-            <p className="break-words font-heading text-base font-bold leading-6">{productTitle(group)}</p>
-            <p className="truncate text-xs opacity-70">
-              {titleCase(group.categoryName)} | {titleCase(group.subCategoryName)}
-            </p>
-          </div>
-          <ProductImage group={group} imageUrl={pack.imageUrl} className="size-40 self-center" />
+        {/* the product card's top: the name, category | sub-category, the photo */}
+        <div className="min-w-0">
+          <p className="truncate font-heading text-base font-bold leading-6" title={productTitle(group)}>
+            {productTitle(group)}
+          </p>
+          <p className="truncate text-xs opacity-70">
+            {titleCase(group.categoryName)} | {titleCase(group.subCategoryName)}
+          </p>
+        </div>
+        <ProductImage group={group} imageUrl={pack.imageUrl} className="size-40 self-center" />
 
-          {/* the panels: the first, and the godowns to its right */}
-          <div className="overflow-hidden transition-[height] duration-300 motion-reduce:transition-none" style={{ height }}>
-            <div className={cn("flex w-[200%] items-start transition-transform duration-300 ease-out motion-reduce:transition-none", pane !== "main" && "-translate-x-1/2")}>
-              {/* the first panel: the rate with its switch, then the quantity (room at the sides for the boxes' soft
-                  edges) */}
-              <div ref={mainRef} inert={pane !== "main"} className="flex w-1/2 min-w-0 flex-col gap-3 px-1 py-1">
-                <div className="flex flex-col gap-1.5">
-                  <div className={row}>
-                    <span className="text-sm">{t("rate")}</span>
-                    {/* Before GST / With GST: what the typed rate is */}
-                    <span className="flex rounded-control border border-chestnut/35 p-0.5 text-xs font-semibold" role="group" aria-label={t("rate")}>
-                      {([false, true] as const).map((withGst) => (
-                        <button
-                          key={String(withGst)}
-                          type="button"
-                          aria-pressed={draft.withGst === withGst}
-                          onClick={() => setDraft((d) => ({ ...d, withGst }))}
-                          className={cn("min-h-8 rounded-[6px] px-2.5", draft.withGst === withGst && "bg-chestnut text-ivory")}
-                        >
-                          {t(withGst ? "withGst" : "beforeGst")}
-                        </button>
-                      ))}
-                    </span>
-                  </div>
-                  <MoneyBox value={draft.rate} maxDigits={7} label={`${t("rate")}: ${name}`} onChange={(v) => setDraft((d) => ({ ...d, rate: v }))} />
-                </div>
-                <div className={row}>
-                  <span className="text-sm">{ts("quantity")}</span>
-                  <span className="w-[60%] shrink-0">
-                    <QuantityBox value={draft.quantity} max={MOST_PACKS} label={`${ts("quantity")}: ${name}`} onChange={(v) => setDraft((d) => ({ ...d, quantity: v }))} />
-                  </span>
-                </div>
-              </div>
+        {/* what this pack size cost on its last purchases */}
+        <CostChart productId={pack.productId} />
 
-              {/* the second panel: the godowns */}
-              <div ref={sideRef} inert={pane === "main"} className="flex w-1/2 min-w-0 flex-col gap-2 px-4 pb-1">
-                <button
-                  ref={back}
-                  type="button"
-                  onClick={() => slide("main")}
-                  className="flex min-h-12 w-full items-center gap-1.5 border-t border-chestnut/15 pt-2 text-left text-sm font-semibold"
-                >
-                  <ChevronLeft className="size-5 shrink-0" aria-hidden />
-                  {ts("godowns")}
-                </button>
-                <GodownRows
-                  productId={pack.productId}
-                  quantity={quantity}
-                  parts={draft.godowns}
-                  name={name}
-                  onPart={(godownId, v) => setDraft((d) => ({ ...d, godowns: { ...d.godowns, [godownId]: v } }))}
-                />
+        {/* the panels: the figures, and the godowns to their right */}
+        <div className="mt-1 overflow-hidden transition-[height] duration-300 motion-reduce:transition-none" style={{ height }}>
+          <div className={cn("flex w-[200%] items-start transition-transform duration-300 ease-out motion-reduce:transition-none", pane !== "main" && "-translate-x-1/2")}>
+            {/* the figures: Basis | New for Cost per unit, Cost + GST and Quantity, then the line's total (room at the
+                sides for the boxes' soft edges) */}
+            <div ref={mainRef} inert={pane !== "main"} className="flex w-1/2 min-w-0 flex-col gap-3 px-1 py-1">
+              <FiguresTable
+                headings={{ basis: t("basis"), new: t("new") }}
+                rows={[
+                  {
+                    key: "rate",
+                    label: rateLabel,
+                    current: "",
+                    input: <MoneyBox autoFocus={!saved} value={draft.unitGst} maxDigits={6} onChange={(v) => setFigure("unitGst", v)} label={rateLabel} />,
+                  },
+                  {
+                    key: "price",
+                    label: t("costGst"),
+                    current: "",
+                    input: <MoneyBox value={draft.priceGst} maxDigits={7} onChange={(v) => setFigure("priceGst", v)} label={t("costGst")} />,
+                  },
+                  {
+                    key: "quantity",
+                    label: t("quantity"),
+                    current: "",
+                    input: <QuantityBox value={draft.quantity} onChange={(v) => setDraft((d) => ({ ...d, quantity: v }))} name={name} />,
+                    top: true,
+                  },
+                ]}
+              />
+              {/* the line's total: Cost + GST × quantity */}
+              <div className="flex items-baseline justify-between border-t border-chestnut/12 pt-2.5">
+                <span className="text-sm">{t("lineTotal")}</span>
+                <b className="tabular font-heading text-2xl font-extrabold leading-[1.15]">{total > 0 ? rupees(total / 100) : "–"}</b>
               </div>
             </div>
-          </div>
 
-          {/* the GST on it, then the line's total */}
-          <div className="tabular flex items-baseline justify-between border-t border-chestnut/15 pt-2.5 text-sm">
-            <span>{ts("gstRate", { rate: gst })}</span>
-            <span className="font-semibold">{tax > 0 ? rupees(tax / 100) : "–"}</span>
+            {/* the godowns */}
+            <div ref={sideRef} inert={pane === "main"} className="flex w-1/2 min-w-0 flex-col gap-2 px-4 pb-1">
+              <button
+                ref={back}
+                type="button"
+                onClick={() => slide("main")}
+                className="flex min-h-12 w-full items-center gap-1.5 border-t border-chestnut/15 pt-2 text-left text-sm font-semibold"
+              >
+                <ChevronLeft className="size-5 shrink-0" aria-hidden />
+                {ts("godowns")}
+              </button>
+              <GodownRows
+                productId={pack.productId}
+                quantity={quantity}
+                parts={draft.godowns}
+                name={name}
+                onPart={(godownId, v) => setDraft((d) => ({ ...d, godowns: { ...d.godowns, [godownId]: v } }))}
+              />
+            </div>
           </div>
-          <div className="flex items-baseline justify-between">
-            <span className="text-sm">{ts("lineTotal")}</span>
-            <b className="tabular font-heading text-2xl font-extrabold leading-[1.15]">{total > 0 ? rupees(total / 100) : "–"}</b>
-          </div>
+        </div>
 
-          {/* Godowns and › (while the first panel shows), its arrow filled and pulsing while packs are still to place */}
-          {pane === "main" && (
+        {/* Godowns and › (while the figures show): where the packs go, its arrow filled and pulsing while some are
+            still to place */}
+        {pane === "main" && (
+          <button
+            ref={godownRow}
+            type="button"
+            onClick={() => slide("godowns")}
+            aria-label={ts("godowns")}
+            className="flex min-h-12 w-full items-center justify-between gap-3 text-left text-sm font-semibold"
+          >
+            <span>{ts("godowns")}</span>
+            <span className={cn("grid size-8 shrink-0 place-items-center rounded-full transition-colors", toPlace && "animate-pulse bg-chestnut text-ivory motion-reduce:animate-none")}>
+              <ChevronRight className="size-5" aria-hidden />
+            </span>
+          </button>
+        )}
+
+        {/* Add to cart, or Save and Remove from cart for one already in it */}
+        <div className="mt-1 flex flex-col gap-2">
+          {hint && <p className="text-center text-xs text-chestnut/70">{hint}</p>}
+          <button
+            type="button"
+            onClick={done}
+            disabled={!ok}
+            className="flex min-h-12 w-full items-center justify-center rounded-control bg-chestnut font-heading text-lg font-bold text-ivory transition-opacity disabled:opacity-40"
+          >
+            {saved ? ts("saveLine") : ts("addToCart")}
+          </button>
+          {saved && (
             <button
-              ref={godownRow}
               type="button"
-              onClick={() => slide("godowns")}
-              aria-label={ts("godowns")}
-              className="flex min-h-12 w-full items-center justify-between gap-3 text-left text-sm font-semibold"
+              onClick={() => {
+                removeLine(pack.productId);
+                close();
+              }}
+              className="min-h-11 w-full rounded-control border border-chestnut/35 text-sm font-semibold text-danger hover:bg-chestnut/[0.06]"
             >
-              <span>{ts("godowns")}</span>
-              <span className={cn("grid size-8 shrink-0 place-items-center rounded-full transition-colors", toPlace && "animate-pulse bg-chestnut text-ivory motion-reduce:animate-none")}>
-                <ChevronRight className="size-5" aria-hidden />
-              </span>
+              {ts("removeFromCart")}
             </button>
           )}
-
-          {/* Add to cart, or Save and Remove from cart for one already in it */}
-          <div className="mt-1 flex flex-col gap-2">
-            {hint && <p className="text-center text-xs text-chestnut/70">{hint}</p>}
-            <button
-              type="button"
-              onClick={done}
-              disabled={!ok}
-              className="flex min-h-12 w-full items-center justify-center rounded-control bg-chestnut font-heading text-lg font-bold text-ivory transition-opacity disabled:opacity-40"
-            >
-              {saved ? ts("saveLine") : ts("addToCart")}
-            </button>
-            {saved && (
-              <button
-                type="button"
-                onClick={() => {
-                  removeLine(pack.productId);
-                  close();
-                }}
-                className="min-h-11 w-full rounded-control border border-chestnut/35 text-sm font-semibold text-danger hover:bg-chestnut/[0.06]"
-              >
-                {ts("removeFromCart")}
-              </button>
-            )}
-          </div>
-        </section>
-      </div>
+        </div>
+      </section>
     </div>,
     document.body,
   );

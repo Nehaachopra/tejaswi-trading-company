@@ -144,18 +144,26 @@ export function ProductsCard() {
         </Menu>
       </div>
 
-      {rest.length === 0 ? (
+      {/* the products; the admin's last tile adds a new product (shown even when none is left to list), saved at once
+          with no selling price, then its product card opens */}
+      {rest.length === 0 && !isAdmin ? (
         <p className="py-6 text-center text-sm opacity-70">{!anyBuyable ? t("noProducts") : lines.length > 0 ? ts("allInCart") : ts("noMatch")}</p>
       ) : (
         <ul className={TILE_ROW}>
           {rest.map((group) => (
             <PurchaseTile key={group.key} group={group} />
           ))}
+          {isAdmin && (
+            <NewProductCard
+              tileClassName="w-40 shrink-0 snap-start sm:w-52"
+              open={adding}
+              onOpen={() => setAdding(true)}
+              onClose={() => setAdding(false)}
+              onCreated={setCardFor}
+            />
+          )}
         </ul>
       )}
-
-      {/* a new product: saved at once with no selling price, then its product card opens */}
-      {isAdmin && <NewProductCard tile={false} open={adding} onOpen={() => setAdding(true)} onClose={() => setAdding(false)} onCreated={setCardFor} />}
 
       {/* the product card, over the page, for the pack size being added or changed */}
       <ProductCard />

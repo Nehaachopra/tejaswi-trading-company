@@ -7,7 +7,7 @@ import { createContext, useContext, useState } from "react";
 
 import { bankNameIn } from "~/lib/bank-names";
 import { packLabel } from "~/lib/format";
-import { parseAmount } from "~/lib/price";
+import { parseAmount, unitsIn } from "~/lib/price";
 import { useLeaveGuard } from "~/lib/use-leave-guard";
 import { usePurchaseData } from "~/providers/purchase";
 
@@ -18,6 +18,7 @@ import type { Pack, ProductGroup } from "../../product/products/product-tile";
 import { productTitle } from "../../product/products/product-tile";
 import type { LedgerChoice } from "../pickers/ledger-picker";
 import { usePhoneMatches } from "../pickers/party-finder";
+import { lineFigures, type OrderLine } from "../order/new/state";
 import { refOkFor } from "../shared/bank-mode";
 import { moveCard, useCardHistory } from "../shared/card-steps";
 import { momentOf } from "../shared/form-basics";
@@ -33,22 +34,12 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 export const BILL_NUMBER_MAX = 16;
 export const billNumberOk = (v: string) => /^[A-Z0-9/-]{1,16}$/.test(v);
 
-// one pack size in the cart: the supplier's rate a pack as typed, whether it has GST in it, how many, and how many go
-// into each godown
-export type CartLine = { productId: string; rate: string; withGst: boolean; quantity: string; godowns: Record<string, string> };
+// one pack size in the cart, as a purchase order's line: the cost per unit with GST, the cost before GST and with GST
+// (each fills the others; `from` is the one typed last), how many, and how many go into each godown
+export type CartLine = OrderLine & { godowns: Record<string, string> };
 
 // a godown and how many of a pack size it holds now, and whether it's being counted (locked)
 export type GodownSpot = { godownId: string; name: string; held: number; counting: boolean };
-
-// a line's figures in paise, as the server works them out: the rate before GST (taken out of a rate with GST), its
-// value, the GST on it and its total
-export function lineFigures(rateText: string, withGst: boolean, quantity: number, gstPercent: number) {
-  const typed = parseAmount(rateText) ?? 0;
-  const rate = withGst ? Math.round((typed * 100 * 100) / (100 + gstPercent)) : Math.round(typed * 100);
-  const value = rate * quantity;
-  const tax = Math.round((value * gstPercent) / 100);
-  return { rate, value, tax, total: value + tax };
-}
 
 // the godowns' parts of a line, as numbers
 export const placedOf = (line: Pick<CartLine, "godowns">) => Object.values(line.godowns).reduce((a, v) => a + (Number(v) || 0), 0);
@@ -121,7 +112,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   // the cart, worked out
   const figures = lines.map((l) => {
     const p = packOf(l.productId)?.pack;
-    return lineFigures(l.rate, l.withGst, Number(l.quantity) || 0, p?.gstPercent ?? 0);
+    return lineFigures(l, p ? unitsIn(p) : 1, p?.gstPercent ?? null);
   });
   const itemsPaise = figures.reduce((a, f) => a + f.total, 0);
   const itemsTotal = itemsPaise / 100;
@@ -212,7 +203,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     lines.length > 0 &&
     lines.every((l) => {
       const q = Number(l.quantity) || 0;
-      return (parseAmount(l.rate) ?? 0) > 0 && q >= 1 && placedOf(l) === q;
+      return (parseAmount(l[l.from]) ?? 0) > 0 && q >= 1 && placedOf(l) === q;
     });
   const complete: Record<PurchaseStep, boolean> = {
     products: linesOk,

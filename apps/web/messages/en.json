@@ -1955,11 +1955,9 @@
     "purchase": {
       "title": "Purchase",
       "rate": "Rate",
-      "beforeGst": "Before GST",
-      "withGst": "With GST",
       "newProduct": "New product",
       "noProducts": "No products yet. Add one with New product.",
-      "hintRate": "Type the rate.",
+      "hintCost": "Type the cost.",
       "hintGodowns": "Put every pack in a godown.",
       "leftToPlace": "Left to place",
       "holds": "Has",

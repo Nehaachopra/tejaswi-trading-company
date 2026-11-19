@@ -1955,11 +1955,9 @@
     "purchase": {
       "title": "खरीद",
       "rate": "दर",
-      "beforeGst": "GST से पहले",
-      "withGst": "GST सहित",
       "newProduct": "नया उत्पाद",
       "noProducts": "अभी कोई उत्पाद नहीं। नया उत्पाद से जोड़ें।",
-      "hintRate": "दर लिखें।",
+      "hintCost": "लागत लिखें।",
       "hintGodowns": "हर पैक किसी गोदाम में रखें।",
       "leftToPlace": "रखना बाकी",
       "holds": "है",

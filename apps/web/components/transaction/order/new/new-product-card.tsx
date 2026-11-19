@@ -54,9 +54,12 @@ export function NewProductCard({
   onClose,
   onCreated,
   tile = true,
+  tileClassName,
 }: {
-  // the dashed card after the last product (a purchase opens it from a button instead)
+  // the dashed card after the last product
   tile?: boolean;
+  // its size where the row sets one (a purchase's products scroll sideways)
+  tileClassName?: string;
   open: boolean;
   onOpen: () => void;
   onClose: () => void;
@@ -167,7 +170,7 @@ export function NewProductCard({
     <>
       {/* the dashed card after the last product */}
       {tile && (
-      <li className="flex min-w-0">
+      <li className={cn("flex min-w-0", tileClassName)}>
         <button
           type="button"
           onClick={onOpen}

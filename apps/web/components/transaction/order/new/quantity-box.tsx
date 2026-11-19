@@ -1,10 +1,9 @@
 "use client";
 
 import { Minus, Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { NumberInput } from "~/components/ui/number-input";
-
-import { useOrderEntry } from "./state";
 
 // how many: − and + at the two ends, the number between (never below `min`, never above `max`; `cut` when more
 // was typed)
@@ -21,7 +20,7 @@ export function QuantityBox({
   max?: number;
   min?: number;
 }) {
-  const { t } = useOrderEntry();
+  const t = useTranslations("orders");
   const quantity = Number(value) || 0;
   const set = (n: number) => onChange(String(Math.min(max, Math.max(min, n))), false);
   return (
