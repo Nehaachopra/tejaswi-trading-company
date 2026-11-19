@@ -154,7 +154,8 @@ export function PaidCard() {
                 placeholder="0"
                 onChange={e.setCreditDays}
                 aria-invalid={daysBad || undefined}
-                className={cn(input(daysBad), "tabular pr-14 text-right")}
+                // as the Amount card's figure boxes
+                className={cn(input(daysBad), "min-h-12 pr-14 text-right font-heading text-xl font-bold tabular")}
               />
               <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-chestnut/70">{t("days")}</span>
             </span>

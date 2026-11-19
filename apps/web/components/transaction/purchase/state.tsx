@@ -83,8 +83,8 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   const [bankModes, setBankModes] = useState<Record<string, BankMode | null>>({});
   const [bankRefs, setBankRefs] = useState<Record<string, string>>({});
   const [refLeft, setRefLeft] = useState<string[]>([]);
-  // credit: days until it's due (none: no set period)
-  const [creditDays, setCreditDays] = useState("");
+  // credit: days until it's due, 30 unless changed (emptied: no set period)
+  const [creditDays, setCreditDays] = useState("30");
   // the supplier's bill: its number, its day (which dates the purchase) and its photo or PDF, when attached now
   const [billNumber, setBillNumber] = useState("");
   const [billDay, setBillDay] = useState("");
