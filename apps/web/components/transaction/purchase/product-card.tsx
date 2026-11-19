@@ -254,7 +254,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
             className="flex min-h-12 w-full items-center justify-between gap-3 text-left text-sm font-semibold"
           >
             <span>{ts("godowns")}</span>
-            <span className={cn("grid size-8 shrink-0 place-items-center rounded-full transition-colors", toPlace && "animate-pulse bg-chestnut text-ivory motion-reduce:animate-none")}>
+            <span className={cn("grid size-8 shrink-0 place-items-center rounded-control transition-colors", toPlace && "animate-pulse bg-chestnut text-ivory motion-reduce:animate-none")}>
               <ChevronRight className="size-5" aria-hidden />
             </span>
           </button>
