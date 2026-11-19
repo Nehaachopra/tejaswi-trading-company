@@ -47,6 +47,15 @@
       opacity: 0.5;
     }
   }
+
+  /* the cart button's count jumps when an item goes in */
+  --animate-cart-bump: cart-bump 500ms ease-out;
+
+  @keyframes cart-bump {
+    40% {
+      transform: scale(1.5);
+    }
+  }
 }
 
 @layer base {

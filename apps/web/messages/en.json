@@ -2038,6 +2038,8 @@
         "details": "Details"
       },
       "inCart": "In the cart",
+      "cart": "Cart",
+      "cartDone": "Done",
       "addFromBelow": "Add products from below.",
       "products": "Products",
       "category": "Category",

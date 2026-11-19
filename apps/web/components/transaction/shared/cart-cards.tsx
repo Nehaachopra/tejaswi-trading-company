@@ -5,17 +5,22 @@ import { useTranslations } from "next-intl";
 
 import { packLabel, rupees, titleCase } from "~/lib/format";
 
-import { type Pack, type ProductGroup, ProductImage, productTitle } from "../../product/products/product-tile";
+import {
+  type Pack,
+  type ProductGroup,
+  ProductImage,
+  productTitle,
+} from "../../product/products/product-tile";
 import { type CartRow } from "./cart-table";
-import { TileRow } from "./tile-row";
 
-// the products row's look: cards side by side, swiped sideways
-const ROW = "-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] sm:gap-3";
+// the cards in rows of two (three wider), scrolled up and down inside (room at the sides for their edges)
+const GRID =
+  "-mx-1 grid min-h-0 flex-1 grid-cols-2 content-start gap-2 overflow-y-auto overscroll-contain px-1 py-0.5 [scrollbar-width:thin] sm:grid-cols-3 sm:gap-3";
 
-// what's in the cart as a row of cards, as the products row below it: each card its pack chip, a pen and a red bin on top,
+// what's in the cart as cards, scrolled up and down: each card its pack chip, a pen and a red bin on top,
 // the name and category | sub-category, the photo, then the price (Rate on a purchase) and Quantity, a row each; a tap
-// on a card opens its product card to change it. Under the row, the Total row: Items (how many) and Total (the
-// cart's total) side by side
+// on a card opens its product card to change it. Under them, the Total row: Items (how many) and Total (the
+// cart's total) side by side, which stays put
 export function CartCards({
   lines,
   packOf,
@@ -23,8 +28,6 @@ export function CartCards({
   itemsTotal,
   onOpen,
   onRemove,
-  moreLabel,
-  backLabel,
 }: {
   lines: CartRow[];
   packOf: (id: string) => { group: ProductGroup; pack: Pack } | null;
@@ -32,13 +35,11 @@ export function CartCards({
   itemsTotal: number;
   onOpen: (productId: string) => void;
   onRemove: (productId: string) => void;
-  moreLabel: string;
-  backLabel: string;
 }) {
   const t = useTranslations("transactions.sale");
   return (
-    <div className="flex flex-col gap-2">
-      <TileRow className={ROW} moreLabel={moreLabel} backLabel={backLabel}>
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <ul className={GRID}>
         {lines.map((line) => {
           const found = packOf(line.productId);
           if (!found) return null;
@@ -48,7 +49,7 @@ export function CartCards({
             <li
               key={line.productId}
               onClick={() => onOpen(line.productId)}
-              className="row-arrive flex w-40 shrink-0 cursor-pointer snap-start flex-col gap-2 rounded-control border border-chestnut/15 p-2.5 hover:bg-chestnut/[0.03] sm:w-52 sm:p-3.5"
+              className="row-arrive flex min-w-0 cursor-pointer flex-col gap-2 rounded-control border border-chestnut/15 p-2.5 hover:bg-chestnut/[0.03] sm:p-3.5"
             >
               {/* the pack chip (the card's button, for the keyboard), then the pen (change it) and the bin */}
               <div className="flex items-center justify-between gap-1.5">
@@ -94,7 +95,10 @@ export function CartCards({
 
               {/* the name, then category | sub-category */}
               <div className="min-w-0">
-                <p className="truncate font-heading text-base font-bold leading-6" title={productTitle(group)}>
+                <p
+                  className="truncate font-heading text-base font-bold leading-6"
+                  title={productTitle(group)}
+                >
                   {productTitle(group)}
                 </p>
                 <p className="truncate text-xs opacity-70">
@@ -117,17 +121,21 @@ export function CartCards({
             </li>
           );
         })}
-      </TileRow>
+      </ul>
 
       {/* the Total row: Items with how many (only as wide as it needs), and Total with the cart's total, side by side */}
-      <div className="tabular grid grid-cols-[auto_minmax(0,1fr)] rounded-control bg-chestnut text-ivory">
+      <div className="tabular grid shrink-0 grid-cols-[auto_minmax(0,1fr)] rounded-control bg-chestnut text-ivory">
         <p className="flex items-baseline gap-3 px-2.5 py-2.5">
           <span className="text-sm font-semibold">{t("items")}</span>
-          <span className="font-heading text-lg font-extrabold">{lines.length.toLocaleString("en-IN")}</span>
+          <span className="font-heading text-lg font-extrabold">
+            {lines.length.toLocaleString("en-IN")}
+          </span>
         </p>
         <p className="flex min-w-0 items-baseline justify-between gap-2 border-l border-ivory/25 px-2.5 py-2.5">
           <span className="text-sm font-semibold">{t("lineTotal")}</span>
-          <span className="truncate whitespace-nowrap font-heading text-lg font-extrabold">{rupees(itemsTotal)}</span>
+          <span className="truncate whitespace-nowrap font-heading text-lg font-extrabold">
+            {rupees(itemsTotal)}
+          </span>
         </p>
       </div>
     </div>
