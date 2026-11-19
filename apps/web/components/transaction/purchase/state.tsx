@@ -110,7 +110,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   // a pack size can be bought once it has a GST %
   const buyable = (p: Pack) => p.gstPercent != null;
   // an arrival on a purchase order: how many of a pack size the order still waits for (never more can come on it), and
-  // what one pack was ordered at (with GST, less its share of the order's discounts), to start the cost from
+  // what one pack was ordered at (with GST, before the order's discount, which goes in the Discount box instead)
   const orderLine = (productId: string) => order?.lines.find((l) => l.productId === productId) ?? null;
   const orderLeft = (productId: string) => {
     const l = orderLine(productId);
@@ -118,7 +118,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   };
   const orderCost = (productId: string) => {
     const l = orderLine(productId);
-    return l && l.quantity > 0 ? String(round2(l.total / l.quantity)) : "";
+    return l && l.quantity > 0 ? String(round2((l.total + l.orderDiscountShare) / l.quantity)) : "";
   };
   // every active godown, with how many of a pack size it holds now
   const spotsOf = (productId: string): GodownSpot[] =>
@@ -145,6 +145,24 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   const totalPaise = Math.round(figuredPaise / 100) * 100;
   const roundOff = (totalPaise - figuredPaise) / 100;
   const total = totalPaise / 100;
+
+  // an arrival on a purchase order: the order's discount for what's arriving now (each item's share, by the part of it
+  // that comes) fills the Discount box, again whenever the cart changes, until a discount is typed: then it's left as
+  // typed
+  const [discountTyped, setDiscountTyped] = useState(false);
+  const typeDiscount = (v: string) => {
+    setDiscountTyped(true);
+    setDiscount(v);
+  };
+  const orderOffPaise = order
+    ? lines.reduce((a, l) => {
+        const o = orderLine(l.productId);
+        return o && o.quantity > 0 ? a + Math.round((o.orderDiscountShare * 100 * (Number(l.quantity) || 0)) / o.quantity) : a;
+      }, 0)
+    : 0;
+  useEffect(() => {
+    if (order && !discountTyped) setDiscount(orderOffPaise > 0 ? String(orderOffPaise / 100) : "");
+  }, [order, orderOffPaise, discountTyped]);
 
   // the bill amount changed (an item, a charge or the discount): the Paid card starts again (what's paid, each place's
   // part, how each bank paid and its reference, the set off and the advance asked about)
@@ -497,7 +515,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     setCardFor,
     itemsTotal,
     discount,
-    setDiscount,
+    setDiscount: typeDiscount,
     freight,
     setFreight,
     packing,
