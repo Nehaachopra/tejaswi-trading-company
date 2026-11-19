@@ -15,8 +15,11 @@ export function Meter({
   done = false,
   doneLabel,
   over = false,
+  bare = false,
   className,
 }: {
+  // only the bar: the label and figure are a row of the form's own, above it
+  bare?: boolean;
   label: string;
   figure: number;
   // how far the bar is filled, 0 to 100
@@ -29,6 +32,7 @@ export function Meter({
   const fill = Math.max(0, Math.min(100, share));
   return (
     <div className={cn("tabular flex min-w-0 flex-col gap-2", className)}>
+      {!bare && (
       <div className={cn("flex items-baseline justify-between gap-3", over && "text-danger")}>
         <span className="text-sm">{label}</span>
         {done ? (
@@ -39,6 +43,7 @@ export function Meter({
           <span className="font-heading text-2xl font-bold leading-none">{rupees(figure)}</span>
         )}
       </div>
+      )}
       {/* the bar, with the coin on the end of what's filled (a dark rim so it stands out on the ivory) */}
       <div className="relative py-1.5">
         <div

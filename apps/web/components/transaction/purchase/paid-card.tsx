@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronRight, IndianRupee } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, IndianRupee } from "lucide-react";
 import { useId, useState } from "react";
 
 import { FieldMessage } from "~/components/ui/field-message";
@@ -14,6 +14,7 @@ import { cn } from "~/lib/utils";
 import { AccountCards } from "../shared/account-cards/account-cards";
 import { type AccountCardsApi, type Refs } from "../shared/account-cards/types";
 import { DueFlow } from "../shared/fold-group";
+import { Meter } from "../shared/meter";
 import { input, saidAmount } from "../shared/form-basics";
 import { usePurchaseEntry } from "./state";
 
@@ -213,6 +214,33 @@ export function PaidCard() {
               }
             />
           )}
+          {/* what's still to place in cash and the bank cards below, filling as they take their parts; green with a tick
+              once nothing is left */}
+          {paid > 0 && (
+            <>
+              <Line
+                label={tpf("leftToPay")}
+                value={
+                  e.splitTotal === paid ? (
+                    <span className={cn(figure, "flex items-center justify-end text-success")} aria-label={tpf("nothingLeft")}>
+                      <Check className="size-5" strokeWidth={2.5} aria-hidden />
+                    </span>
+                  ) : (
+                    <span className={cn(figure, "font-bold")}>{rupees(Math.max(0, Math.round((paid - e.splitTotal) * 100) / 100))}</span>
+                  )
+                }
+              />
+              {/* the slider under it, ending where the figures end (clear of the mic and arrow column) */}
+              <Meter
+                bare
+                label={tpf("leftToPay")}
+                figure={0}
+                share={Math.min(100, (e.splitTotal / paid) * 100)}
+                done={e.splitTotal === paid}
+                className="-mt-1 mr-12"
+              />
+            </>
+          )}
         </div>
 
         {/* the breakup */}
@@ -303,6 +331,8 @@ function usePaidCards(): AccountCardsApi {
     setMode: (id, mode) => e.setBankModes((all) => ({ ...all, [id]: mode })),
     tried: e.tried,
     capAtHeld: true,
+    // its meter sits under To pay
+    meterOutside: true,
     modeRows: true,
     placeFirst: true,
     fieldRows: true,

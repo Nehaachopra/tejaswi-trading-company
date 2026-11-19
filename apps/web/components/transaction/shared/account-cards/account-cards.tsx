@@ -70,14 +70,16 @@ export function AccountCards({ api }: { api: AccountCardsApi }) {
       {/* the meter above the cards: what's still left to place, filling as the cards take their parts, green with a
           tick once nothing is left. As wide as one card; it stays just under the header while the cards scroll, on the
           card's ivory, so it's always in view */}
-      <Meter
-        label={labels.barLeft}
-        figure={left}
-        share={share}
-        done={done}
-        doneLabel={labels.barDone}
-        className="sticky top-16 z-10 bg-ivory py-2 sm:w-[calc(50%-0.375rem)]"
-      />
+      {!api.meterOutside && (
+        <Meter
+          label={labels.barLeft}
+          figure={left}
+          share={share}
+          done={done}
+          doneLabel={labels.barDone}
+          className="sticky top-16 z-10 bg-ivory py-2 sm:w-[calc(50%-0.375rem)]"
+        />
+      )}
       {/* wider screens: two to a row, a shorter card (cash) stretched to its neighbour's height */}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch">
         {picks.map((id, i) => (

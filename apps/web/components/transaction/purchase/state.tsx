@@ -461,6 +461,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     typePaid,
     dueLeft,
     places,
+    splitTotal,
     payCap,
     setSplit,
     splitAuto: typedSplit === null,
