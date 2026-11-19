@@ -190,7 +190,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                     current: onOrder ? rupees(Number(orderCost(pack.productId))) : "",
                     input: <MoneyBox value={draft.priceGst} maxDigits={7} onChange={(v) => setFigure("priceGst", v)} label={t("costGst")} />,
                   },
-                  // from an order: Ordered, how many it ordered beside the box (it starts at 0); its ⌄
+                  // from an order: Ordered, how many it still waits for beside the box (it starts at 0); its ⌄
                   // shows what's in stock now. Otherwise just Quantity
                   ...(onOrder
                     ? [
@@ -202,7 +202,8 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                               <ChevronDown className={cn("size-4 shrink-0 transition-transform", stockOpen && "rotate-180")} aria-hidden />
                             </button>
                           ),
-                          current: onOrder.quantity.toLocaleString("en-IN"),
+                          // what the order still waits for (all of it until some has come), as its tile shows
+                          current: left.toLocaleString("en-IN"),
                           input: quantityBox,
                           top: true,
                         },
