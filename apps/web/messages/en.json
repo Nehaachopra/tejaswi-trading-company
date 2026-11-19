@@ -1966,6 +1966,7 @@
       "hintGodowns": "Put every pack in a godown.",
       "leftToArrive": "Left to arrive",
       "orderCap": "Only {n} more can arrive on this order.",
+      "noMoreFromOrder": "No more products from order left",
       "moreProducts": "More products",
       "firstProducts": "Back to the first products",
       "leftToPlace": "Left to place",

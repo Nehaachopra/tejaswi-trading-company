@@ -82,7 +82,7 @@ export function ProductsCard() {
               <span className="tabular text-sm font-semibold">{order.orderId}</span>
             </div>
             {fromOrder.length === 0 ? (
-              <p className="py-6 text-center text-sm opacity-70">{ts("allOrderedInCart")}</p>
+              <p className="py-6 text-center text-sm opacity-70">{t("noMoreFromOrder")}</p>
             ) : (
               <TileRow className={TILE_ROW} moreLabel={t("moreProducts")} backLabel={t("firstProducts")}>
                 {fromOrder.map((group) => (
@@ -95,8 +95,10 @@ export function ProductsCard() {
             <button
               type="button"
               onClick={() => setOthersOpen(true)}
-              className="flex min-h-11 w-full items-center justify-center rounded-control border border-chestnut/35 px-5 text-sm font-semibold hover:bg-chestnut/[0.06]"
+              // small, with ⌄ (they open below): the full width on a phone, its own width wider
+              className="flex min-h-10 w-full items-center justify-center gap-1.5 rounded-control border border-chestnut/35 px-4 text-xs font-semibold hover:bg-chestnut/[0.06] sm:w-auto sm:self-center"
             >
+              <ChevronDown className="size-4 shrink-0" aria-hidden />
               {ts("showOthers")}
             </button>
           )}
