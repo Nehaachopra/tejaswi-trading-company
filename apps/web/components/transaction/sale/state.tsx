@@ -410,7 +410,7 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
     return { kind: "party" };
   }
   // a cash sale under ₹50,000 taxable value (not on an order): no search, the buyer's address is asked straight away
-  // ("Saved customer" brings the search back)
+  // (Change brings the search back)
   const [searchSaved, setSearchSaved] = useState(false);
   const walkIn = kind === "cash" && !buyerNeeded && !order && !searchSaved;
   function findSaved() {
