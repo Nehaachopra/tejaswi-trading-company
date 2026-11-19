@@ -193,11 +193,11 @@ export function PaidCard() {
                     e.typePaid(v);
                   }}
                   aria-invalid={amountBad || undefined}
-                  // chestnut whether typed or not; left empty when it's needed, a red ring
+                  // chestnut whether typed or not; left empty when it's needed, a red line around it with a little room
                   className={cn(
                     input(amountBad),
                     "min-h-12 bg-chestnut pl-11 pr-3.5 text-right font-heading text-xl font-bold tabular text-ivory caret-ivory shadow-none placeholder:text-ivory/60",
-                    amountBad && "ring-2 ring-danger",
+                    amountBad && "outline-solid outline-2 outline-offset-[3px] outline-danger",
                   )}
                 />
               </span>
