@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -20,7 +20,9 @@ import { type CartLine, placedOf, usePurchaseEntry } from "./state";
 
 // the product card, exactly as a purchase order's line card: one pack size zoomed in over the dimmed page. On top its
 // pack chip and ✕, the name and the photo; what it cost on its last purchases; then Basis | New for Cost per unit, Cost
-// + GST (each fills the other) and Quantity, and the line's total. A purchase also says where the packs go: Godowns
+// + GST (each fills the other) and Quantity, and the line's total (an item its order waits for, as a sale's dispatch:
+// Basis | Current | New, the order's figures as Current, and Ordered with ⌄ opening what's in stock in place of
+// Quantity). A purchase also says where the packs go: Godowns
 // with ›, which slides the card to the godowns (what's left to place, then each godown with what it holds and how many
 // go into it). Add to cart (or Save and Remove from cart). The ✕, a tap on the dim area or Escape closes it unchanged
 export function ProductCard() {
@@ -32,7 +34,7 @@ export function ProductCard() {
 }
 
 function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
-  const { ts, lines, putLine, removeLine, setCardFor, orderLine, orderLeft, orderCost } = usePurchaseEntry();
+  const { ts, lines, putLine, removeLine, setCardFor, orderLine, orderLeft, orderCost, spotsOf } = usePurchaseEntry();
   const t = useTranslations("orders");
   const units = useTranslations("products.items.form.units");
   const tp = useTranslations("transactions.purchase");
@@ -41,16 +43,18 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   const left = orderLeft(pack.productId);
   const onOrder = left > 0 ? orderLine(pack.productId) : null;
   // a new line starts at a quantity of 0, its costs empty; one its order waits for starts from the cost it was ordered at
-  // and all that's left to arrive
+  // (its quantity still 0: how many came is typed)
   const [draft, setDraft] = useState<CartLine>(
     () =>
       saved ??
       (left > 0
-        ? { ...settleLine({ ...emptyLine(pack.productId), priceGst: orderCost(pack.productId), from: "priceGst" }, unitsIn(pack), pack.gstPercent), quantity: String(left), godowns: {} }
+        ? { ...settleLine({ ...emptyLine(pack.productId), priceGst: orderCost(pack.productId), from: "priceGst" }, unitsIn(pack), pack.gstPercent), quantity: "0", godowns: {} }
         : { ...emptyLine(pack.productId), quantity: "0", godowns: {} }),
   );
   // typed past what the order still waits for: cut to it, and it says so (until changed again)
   const [cutQty, setCutQty] = useState(false);
+  // from an order: whether the Quantity row (what's in stock now) under Ordered shows
+  const [stockOpen, setStockOpen] = useState(false);
   const [pane, setPane] = useState<"main" | "godowns">("main");
   const close = () => setCardFor(null);
   const name = `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}`;
@@ -108,6 +112,26 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   // a quantity typed with packs still to place: the Godowns arrow is highlighted, to say where to go next
   const toPlace = quantity > 0 && placed !== quantity;
 
+  // how many come: − and + around the number (from an order, never past what it still waits for, saying so when cut)
+  const quantityBox = (
+    <div className="flex flex-col gap-1.5">
+      <QuantityBox
+        value={draft.quantity}
+        max={left > 0 ? left : undefined}
+        onChange={(v, cut) => {
+          setCutQty(cut);
+          setDraft((d) => ({ ...d, quantity: v }));
+        }}
+        name={name}
+      />
+      {cutQty && (
+        <FieldMessage tone="warning" className="mt-0">
+          {tp("orderCap", { n: left.toLocaleString("en-IN") })}
+        </FieldMessage>
+      )}
+    </div>
+  );
+
   return createPortal(
     // the dim, blurred page; a tap on it closes
     <div
@@ -151,50 +175,42 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                 sides for the boxes' soft edges) */}
             <div ref={mainRef} inert={pane !== "main"} className="flex w-1/2 min-w-0 flex-col gap-3 px-1 py-1">
               <FiguresTable
-                headings={{ basis: t("basis"), new: t("new") }}
+                // from an order, as a sale's dispatch: Basis | Current (the order's figures) | New
+                headings={{ basis: t("basis"), current: onOrder ? t("current") : undefined, new: t("new") }}
                 rows={[
                   {
                     key: "rate",
                     label: rateLabel,
-                    current: "",
+                    current: onOrder ? rupees(Math.round((Number(orderCost(pack.productId)) / unitsIn(pack)) * 100) / 100) : "",
                     input: <MoneyBox autoFocus={!saved} value={draft.unitGst} maxDigits={6} onChange={(v) => setFigure("unitGst", v)} label={rateLabel} />,
                   },
                   {
                     key: "price",
                     label: t("costGst"),
-                    current: "",
+                    current: onOrder ? rupees(Number(orderCost(pack.productId))) : "",
                     input: <MoneyBox value={draft.priceGst} maxDigits={7} onChange={(v) => setFigure("priceGst", v)} label={t("costGst")} />,
                   },
-                  // from an order: how many it ordered
+                  // from an order: Ordered, how many it ordered beside the box (it starts at 0); its ⌄
+                  // shows what's in stock now. Otherwise just Quantity
                   ...(onOrder
                     ? [
-                        { key: "ordered", label: ts("ordered"), current: "", input: <span className={orderFigure}>{onOrder.quantity.toLocaleString("en-IN")}</span> },
+                        {
+                          key: "ordered",
+                          label: (
+                            <button type="button" onClick={() => setStockOpen((o) => !o)} aria-expanded={stockOpen} className="flex items-center gap-1 text-left">
+                              {ts("ordered")}
+                              <ChevronDown className={cn("size-4 shrink-0 transition-transform", stockOpen && "rotate-180")} aria-hidden />
+                            </button>
+                          ),
+                          current: onOrder.quantity.toLocaleString("en-IN"),
+                          input: quantityBox,
+                          top: true,
+                        },
+                        ...(stockOpen
+                          ? [{ key: "stock", label: t("quantity"), current: spotsOf(pack.productId).reduce((a, g) => a + g.held, 0).toLocaleString("en-IN"), input: <span /> }]
+                          : []),
                       ]
-                    : []),
-                  {
-                    key: "quantity",
-                    label: t("quantity"),
-                    current: "",
-                    input: (
-                      <div className="flex flex-col gap-1.5">
-                        <QuantityBox
-                          value={draft.quantity}
-                          max={left > 0 ? left : undefined}
-                          onChange={(v, cut) => {
-                            setCutQty(cut);
-                            setDraft((d) => ({ ...d, quantity: v }));
-                          }}
-                          name={name}
-                        />
-                        {cutQty && (
-                          <FieldMessage tone="warning" className="mt-0">
-                            {tp("orderCap", { n: left.toLocaleString("en-IN") })}
-                          </FieldMessage>
-                        )}
-                      </div>
-                    ),
-                    top: true,
-                  },
+                    : [{ key: "quantity", label: t("quantity"), current: "", input: quantityBox, top: true }]),
                 ]}
               />
               {/* the line's total: Cost + GST × quantity */}
@@ -272,9 +288,6 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
     document.body,
   );
 }
-
-// an order's figure in the New column: plain, ending where a box's typed number ends
-const orderFigure = "tabular block pr-2.5 text-right text-base font-bold";
 
 // the godowns' part: what's left to place, then a row each: name left, what it holds now in the middle, how many go
 // into it right (never more than is still to place; none into one being counted). With no quantity typed yet, only the
