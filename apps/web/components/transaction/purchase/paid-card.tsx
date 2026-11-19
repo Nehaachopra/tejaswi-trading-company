@@ -51,7 +51,7 @@ function LeftRow({ label, amount }: { label: string; amount: number }) {
 
 // the Paid card (cash) or Due card (credit). Cash: on the left the due (the bill, with any old due, less an advance set
 // off) and the amount to pay (its box never
-// more than cash and the banks hold together), then Breakup with its arrow at the right end, which opens the breakup:
+// more than cash and the banks hold together), then what's left (plain) with an arrow at the right end, which opens the breakup:
 // on the right (under it on a phone). The breakup: an advance they hold (over a line, room under it); the old due, the
 // bill amount, then with an advance their sub total and Set off from advance (a switch); the due; the payment taken off
 // it (its ⌄ opening what it goes to: the old due first, then the bill); then what's left on chestnut: the due and the
@@ -164,15 +164,24 @@ export function PaidCard() {
               {tpf("capOnly", { amount: rupees(e.payCap) })}
             </FieldMessage>
           )}
-          {/* Breakup, its arrow at the right end: opens the breakup (pointing down on a phone, where it opens under) */}
+          {/* what's left (the due, the advance, or both), its arrow at the right end: opens the breakup (pointing down on a
+              phone, where it opens under) */}
           <button
             type="button"
             onClick={() => setBreakupOpen((o) => !o)}
             aria-expanded={breakupOpen}
             aria-controls="purchase-breakup"
-            className="mt-1 flex min-h-10 w-full items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.08em]"
+            aria-label={t("breakup")}
+            className="mt-1 flex min-h-10 w-full items-center justify-between gap-3 text-left"
           >
-            <span>{t("breakup")}</span>
+            <span className="flex min-w-0 flex-1 flex-col gap-1">
+              {left.map((l) => (
+                <span key={l.key} className="tabular flex items-baseline justify-between gap-3 text-sm font-semibold">
+                  <span>{l.label}</span>
+                  <span className="text-base font-bold">{rupees(l.amount)}</span>
+                </span>
+              ))}
+            </span>
             <ChevronRight
               // right, left once open; on a phone down, up once open
               className={cn("size-5 transition-transform", breakupOpen ? "rotate-180 max-sm:-rotate-90" : "opacity-60 max-sm:rotate-90")}
