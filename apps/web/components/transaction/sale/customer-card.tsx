@@ -22,10 +22,12 @@ import { useSaleEntry } from "./state";
 // a payment adds someone (the admin's; a phone someone already has shows them instead: use them, or change the phone);
 // for cash the buyer's name, phone and addresses, kept on the sale only
 export function CustomerCard() {
-  const { t, kind, isAdmin, customer, setCustomer, newParty, setNewParty, editingCustomer, setEditingCustomer, matched, tried, setTried, orderLocked, orderBuyer } = useSaleEntry();
+  const { t, kind, isAdmin, customer, setCustomer, newParty, setNewParty, editingCustomer, setEditingCustomer, matched, tried, setTried, orderLocked, orderBuyer, walkIn } = useSaleEntry();
   const tc = useTranslations("transactions.chat");
   const tpf = useTranslations("transactions.payment.form");
   const picked = customer?.kind === "ledger" ? customer.ledger : null;
+  // cash under ₹50,000: only the buyer's address, no search
+  if (walkIn) return <CashBuyer />;
   return (
     <div className="flex flex-col gap-4">
       <LedgerSearch

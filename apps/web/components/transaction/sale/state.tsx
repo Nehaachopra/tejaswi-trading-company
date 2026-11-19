@@ -409,6 +409,11 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
     }
     return { kind: "party" };
   }
+  // a cash sale under ₹50,000 taxable value (not on an order): no search, the buyer's address is asked straight away
+  const walkIn = kind === "cash" && !buyerNeeded && !order;
+  useEffect(() => {
+    if (walkIn && customer?.kind !== "party") setCustomer({ kind: "party" });
+  }, [walkIn, customer]);
 
   // what the card still needs, once Next or Save was tapped
   const missingOf = (s: SaleStep) =>
@@ -555,6 +560,7 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
     order,
     orderLocked,
     orderBuyer,
+    walkIn,
     orderLeft,
     freeOf,
     orderPrice,
