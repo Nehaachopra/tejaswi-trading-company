@@ -1954,6 +1954,11 @@
     },
     "purchase": {
       "title": "Purchase",
+      "billAmount": "Bill amount",
+      "toPayAmount": "To pay amount",
+      "breakup": "Breakup",
+      "oldDue": "Old due",
+      "subTotal": "Sub total",
       "rate": "Rate",
       "newProduct": "New product",
       "noProducts": "No products yet. Add one with New product.",
@@ -1990,7 +1995,7 @@
       "missing": {
         "supplier": "Pick the supplier, or add a new one.",
         "creditDays": "A credit period is 365 days at most.",
-        "paid": "Enter what's paid now.",
+        "paid": "Enter the amount to pay.",
         "left": "₹{amount} left to place.",
         "into": "Place the whole amount, and pick how each account paid.",
         "billNumber": "Enter the bill number.",

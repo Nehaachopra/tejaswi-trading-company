@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, IndianRupee } from "lucide-react";
+import { ChevronDown, ChevronRight, IndianRupee } from "lucide-react";
 import { useId, useState } from "react";
 
 import { FieldMessage } from "~/components/ui/field-message";
@@ -13,7 +13,6 @@ import { cn } from "~/lib/utils";
 
 import { AccountCards } from "../shared/account-cards/account-cards";
 import { type AccountCardsApi, type Refs } from "../shared/account-cards/types";
-import { PlainRows } from "../shared/amount-table";
 import { DueFlow } from "../shared/fold-group";
 import { input, saidAmount } from "../shared/form-basics";
 import { usePurchaseEntry } from "./state";
@@ -30,30 +29,42 @@ function Row({ label, htmlFor, children }: { label: React.ReactNode; htmlFor?: s
   );
 }
 
-// a figure that isn't typed: its name on the left, the figure on the right
-function Figure({ label, amount, strong = false }: { label: string; amount: number; strong?: boolean }) {
+// a figure that isn't typed: its name on the left, the figure on the right; `strong` closes a part with a line above
+function Figure({ label, amount, strong = false, className }: { label: React.ReactNode; amount: string; strong?: boolean; className?: string }) {
   return (
-    <div className={cn("tabular flex items-baseline justify-between gap-3 text-sm", strong && "border-t border-chestnut/30 pt-2")}>
-      <span className="min-w-0">{label}</span>
-      <span className={cn("shrink-0 whitespace-nowrap text-base font-semibold", strong && "font-bold")}>{rupees(amount)}</span>
+    <div className={cn("tabular flex items-center justify-between gap-3 text-sm", strong && "border-t border-chestnut/30 pt-2 font-semibold", className)}>
+      <span className="flex min-w-0 items-center">{label}</span>
+      <span className={cn("shrink-0 whitespace-nowrap text-base font-semibold", strong && "font-bold")}>{amount}</span>
     </div>
   );
 }
 
-// the Paid card (cash) or Due card (credit). Cash, laid out as the sale's Received card: on top the supporting details
-// (with an advance already with them: the advance, this bill, Set off from advance as a switch, then what that leaves;
-// otherwise this bill, and with older dues, the old due and the due they make together). Then the breakup: what's paid
-// now in its box (any part of what's due, the rest staying owed, or more, the rest an advance with them; never more
-// than cash and the banks hold together), its ⌄ opening what it goes towards (the old due first, then this bill), then
-// the due left or the advance left. Then the cards for where it's paid from, each never more than it holds. Credit: this bill and the
-// credit period in days (optional)
+// what's left, on chestnut: the amount that closes the breakup
+function LeftRow({ label, amount }: { label: string; amount: number }) {
+  return (
+    <div className="tabular flex items-center justify-between gap-3 rounded-control bg-chestnut px-3 py-2 text-ivory">
+      <span className="text-sm font-semibold">{label}</span>
+      <span className="font-heading text-lg font-bold">{rupees(amount)}</span>
+    </div>
+  );
+}
+
+// the Paid card (cash) or Due card (credit). Cash: on the left only the bill amount and the amount to pay (its box never
+// more than cash and the banks hold together), then Breakup with its arrow at the right end, which opens the breakup:
+// on the right (under it on a phone). The breakup: an advance they hold (over a line, room under it); the old due, the
+// bill amount, then with an advance their sub total and Set off from advance (a switch); the due; the payment taken off
+// it (its ⌄ opening what it goes to: the old due first, then the bill); then what's left on chestnut: the due and the
+// advance when both are above nothing, otherwise the one that is, and when neither is, ₹0 of what the account had.
+// Then the cards for where it's paid from. Credit: the bill amount (with an old due, it and the due) and the credit
+// period in days (optional)
 export function PaidCard() {
   const e = usePurchaseEntry();
-  const { t, ts, tpf, kind, tried, total, oldDue, dueNow, paid, setOff, heldAdvance, dueLeft, advance } = e;
+  const { t, tpf, kind, tried, total, oldDue, dueNow, paid, setOff, heldAdvance, dueLeft, advance } = e;
   const setOffLabel = useId();
   const daysBad = tried && Number(e.creditDays) > 365;
   const cards = usePaidCards();
-  // what's paid split into the due and an advance past it, opened from the ⌄ beside Paid now
+  // the breakup open (it starts open), and what the payment goes to under it
+  const [breakupOpen, setBreakupOpen] = useState(true);
   const [towardsOpen, setTowardsOpen] = useState(false);
   // typed past what cash and the banks hold: cut to it, and it says so (until typed again)
   const [cut, setCut] = useState(false);
@@ -61,11 +72,11 @@ export function PaidCard() {
   if (kind === "credit")
     return (
       <div className="flex min-w-0 flex-col gap-2.5 sm:w-[calc(50%-1.5rem)]">
-        <Figure label={ts("thisBill")} amount={total} />
+        <Figure label={t("billAmount")} amount={rupees(total)} />
         {oldDue > 0 && (
           <>
-            <Figure label={ts("oldDue")} amount={oldDue} />
-            <Figure label={tpf("due")} amount={dueNow} strong />
+            <Figure label={t("oldDue")} amount={rupees(oldDue)} />
+            <Figure label={tpf("due")} amount={rupees(dueNow)} strong />
           </>
         )}
         <div className="mt-2">
@@ -89,121 +100,141 @@ export function PaidCard() {
     );
 
   const amountBad = tried && paid === 0 && setOff === 0;
-  // the advance with them after this purchase: what wasn't set off, and what's paid over all that's due
-  const pendingAdvance = Math.round((heldAdvance - setOff + advance) * 100) / 100;
-  const advanceLeft = dueLeft === 0 && pendingAdvance > 0;
+  // what's left of the advance: what wasn't set off, and what's paid past all that's due
+  const advanceLeft = Math.round((heldAdvance - setOff + advance) * 100) / 100;
+  // the old due and the bill together, shown with an advance (what it's set off against)
+  const subTotal = Math.round((oldDue + total) * 100) / 100;
+  // what's left: both when both are above nothing; otherwise the one that is; neither: ₹0 of what the account had (an
+  // advance when it held one and owed nothing, a due otherwise)
+  const left =
+    dueLeft > 0 && advanceLeft > 0
+      ? [
+          { key: "due", label: tpf("leftDue"), amount: dueLeft },
+          { key: "advance", label: tpf("advanceLeft"), amount: advanceLeft },
+        ]
+      : dueLeft > 0
+        ? [{ key: "due", label: tpf("leftDue"), amount: dueLeft }]
+        : advanceLeft > 0 || (heldAdvance > 0 && oldDue === 0)
+          ? [{ key: "advance", label: tpf("advanceLeft"), amount: advanceLeft }]
+          : [{ key: "due", label: tpf("leftDue"), amount: 0 }];
+
   return (
     <div className="flex flex-col gap-4">
-      {/* half the card wide on a wider screen, as a payment's amount: the supporting details, then the breakup */}
-      <div className="flex min-w-0 flex-col gap-4 sm:w-[calc(50%-1.5rem)]">
-          {/* the supporting details, on top with room under them */}
-          <div className="mb-2 flex min-w-0 flex-col gap-2.5">
-            {heldAdvance > 0 ? (
+      {/* the amounts on the left, the breakup on the right (under them on a phone) */}
+      <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-12">
+        <div className="flex min-w-0 flex-col gap-2.5">
+          <Figure label={t("billAmount")} amount={rupees(total)} />
+          <Row
+            htmlFor="paid-field"
+            label={
               <>
-                <Figure label={tpf("advancePart")} amount={heldAdvance} />
-                <Figure label={ts("thisBill")} amount={total} />
-                <div className="tabular flex items-center justify-between gap-3 text-sm">
-                  <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                    <span id={setOffLabel}>{ts("setOff")}</span>
-                    <Switch small on={e.setOffOn} onFlip={e.setSetOffOn} labelledBy={setOffLabel} />
-                  </span>
-                  <span className="shrink-0 whitespace-nowrap text-base font-semibold">{setOff > 0 ? `− ${rupees(setOff)}` : rupees(0)}</span>
-                </div>
-                {/* the advance set off covers the whole bill: what's left of it; otherwise the due */}
-                {setOff > 0 && dueNow === 0 ? (
-                  <Figure label={tpf("advancePart")} amount={Math.round((heldAdvance - setOff) * 100) / 100} strong />
-                ) : (
-                  <Figure label={tpf("due")} amount={dueNow} strong />
-                )}
+                {t("toPayAmount")}
+                {setOff === 0 && <RequiredMark />}
               </>
-            ) : (
+            }
+          >
+            <MicField onText={(said) => saidAmount(said, e.typePaid)}>
+              <IndianRupee className={cn("pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2", paid > 0 && "text-ivory")} aria-hidden />
+              <NumberInput
+                id="paid-field"
+                value={e.paidText}
+                decimals={2}
+                maxDigits={13}
+                // never more than cash and the banks hold together; typing past it is cut there, with a warning
+                max={e.payCap ?? undefined}
+                onCapped={() => setCut(true)}
+                placeholder="0"
+                onChange={(v) => {
+                  setCut(false);
+                  e.typePaid(v);
+                }}
+                aria-invalid={amountBad || undefined}
+                className={cn(
+                  input(amountBad),
+                  "min-h-12 pl-11 pr-12 font-heading text-xl font-bold tabular",
+                  paid > 0 && !amountBad && "bg-chestnut text-ivory caret-ivory shadow-none",
+                )}
+              />
+            </MicField>
+          </Row>
+          {cut && e.payCap !== null && (
+            <FieldMessage tone="warning" className="ml-auto mt-0 w-[60%]">
+              {tpf("capOnly", { amount: rupees(e.payCap) })}
+            </FieldMessage>
+          )}
+          {/* Breakup, its arrow at the right end: opens the breakup (pointing down on a phone, where it opens under) */}
+          <button
+            type="button"
+            onClick={() => setBreakupOpen((o) => !o)}
+            aria-expanded={breakupOpen}
+            aria-controls="purchase-breakup"
+            className="mt-1 flex min-h-10 w-full items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.08em]"
+          >
+            <span>{t("breakup")}</span>
+            <ChevronRight
+              // right, left once open; on a phone down, up once open
+              className={cn("size-5 transition-transform", breakupOpen ? "rotate-180 max-sm:-rotate-90" : "opacity-60 max-sm:rotate-90")}
+              aria-hidden
+            />
+          </button>
+        </div>
+
+        {/* the breakup */}
+        {breakupOpen && (
+          <div id="purchase-breakup" className="flex min-w-0 flex-col gap-2.5 rounded-control bg-chestnut/[0.04] p-3">
+            {heldAdvance > 0 && <Figure label={tpf("advancePart")} amount={rupees(heldAdvance)} className="mb-3.5 border-b border-chestnut/30 pb-2" />}
+            <Figure label={t("oldDue")} amount={rupees(oldDue)} />
+            <Figure label={t("billAmount")} amount={rupees(total)} />
+            {heldAdvance > 0 && (
               <>
-                <Figure label={ts("thisBill")} amount={total} />
-                {oldDue > 0 && <Figure label={ts("oldDue")} amount={oldDue} />}
-                {oldDue > 0 && <Figure label={tpf("due")} amount={dueNow} strong />}
+                <Figure label={t("subTotal")} amount={rupees(subTotal)} strong />
+                <Figure
+                  label={
+                    <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                      <span id={setOffLabel}>{e.ts("setOff")}</span>
+                      <Switch small on={e.setOffOn} onFlip={e.setSetOffOn} labelledBy={setOffLabel} />
+                    </span>
+                  }
+                  amount={setOff > 0 ? `− ${rupees(setOff)}` : rupees(0)}
+                />
               </>
             )}
-          </div>
-
-          {/* the breakup: what's paid now in its box, then the due or advance left */}
-          <div className="flex min-w-0 flex-col gap-2.5">
-            <Row
-              htmlFor="paid-field"
+            <Figure label={tpf("due")} amount={rupees(dueNow)} strong />
+            {/* the payment taken off, its ⌄ opening what it goes to */}
+            <Figure
               label={
-                // the name, its star and the ⌄ on one line, centred on each other
-                <span className="flex items-center">
-                  {t("paidNow")}
-                  {setOff === 0 && <RequiredMark />}
+                <>
+                  {tpf("payGroup")}
                   <button
                     type="button"
-                    onClick={(ev) => {
-                      ev.preventDefault();
-                      setTowardsOpen((o) => !o);
-                    }}
+                    onClick={() => setTowardsOpen((o) => !o)}
                     aria-expanded={towardsOpen}
                     aria-label={tpf("towardsGroup")}
                     className="ml-1 grid size-8 shrink-0 place-items-center rounded-control hover:bg-chestnut/8"
                   >
                     <ChevronDown className={cn("size-4 transition-transform", towardsOpen && "rotate-180")} aria-hidden />
                   </button>
-                </span>
+                </>
               }
-            >
-              <MicField onText={(said) => saidAmount(said, e.typePaid)}>
-                <IndianRupee className={cn("pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2", paid > 0 && "text-ivory")} aria-hidden />
-                <NumberInput
-                  id="paid-field"
-                  value={e.paidText}
-                  decimals={2}
-                  maxDigits={13}
-                  // never more than cash and the banks hold together; typing past it is cut there, with a warning
-                  max={e.payCap ?? undefined}
-                  onCapped={() => setCut(true)}
-                  placeholder="0"
-                  onChange={(v) => {
-                    setCut(false);
-                    e.typePaid(v);
-                  }}
-                  aria-invalid={amountBad || undefined}
-                  className={cn(
-                    input(amountBad),
-                    "min-h-12 pl-11 pr-12 font-heading text-xl font-bold tabular",
-                    paid > 0 && !amountBad && "bg-chestnut text-ivory caret-ivory shadow-none",
-                  )}
-                />
-              </MicField>
-            </Row>
-            {cut && e.payCap !== null && (
-              <FieldMessage tone="warning" className="ml-auto mt-0 w-[60%]">
-                {tpf("capOnly", { amount: rupees(e.payCap) })}
-              </FieldMessage>
-            )}
-            {/* what it goes towards: the old due first, then this bill (any advance past them shows as Advance left) */}
-            {towardsOpen && (
-              <div className="rounded-control bg-chestnut/[0.04] px-3 py-2">
-                <DueFlow
-                  wholeLabel={tpf("payGroup")}
-                  whole={paid}
-                  dueLabel={ts("oldDue")}
-                  due={e.towardsOld}
-                  advanceLabel={ts("thisBill")}
-                  advance={e.towardsBill}
-                  paidLabel={tpf("paidShare")}
-                  owedBefore={0}
-                />
-              </div>
-            )}
-            <PlainRows
-              rows={[
-                {
-                  key: "left",
-                  label: advanceLeft ? tpf("advanceLeft") : tpf("leftDue"),
-                  amount: advanceLeft ? pendingAdvance : dueLeft,
-                  tone: "total" as const,
-                },
-              ]}
+              amount={`− ${rupees(paid)}`}
             />
+            {towardsOpen && (
+              <DueFlow
+                wholeLabel={tpf("payGroup")}
+                whole={paid}
+                dueLabel={t("oldDue")}
+                due={e.towardsOld}
+                advanceLabel={t("billAmount")}
+                advance={e.towardsBill}
+                paidLabel={tpf("paidShare")}
+                owedBefore={0}
+              />
+            )}
+            {left.map((l) => (
+              <LeftRow key={l.key} label={l.label} amount={l.amount} />
+            ))}
           </div>
+        )}
       </div>
 
       {/* where it's paid from: a card for each place, once there's an amount */}
