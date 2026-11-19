@@ -10,7 +10,7 @@ import { cn } from "~/lib/utils";
 
 import { type ProductGroup, TileTop } from "../../product/products/product-tile";
 import { NewProductCard } from "../order/new/new-product-card";
-import { CartTable } from "../shared/cart-table";
+import { CartCards } from "../shared/cart-cards";
 import { TileRow } from "../shared/tile-row";
 import { ProductCard } from "./product-card";
 import { usePurchaseEntry } from "./state";
@@ -21,7 +21,7 @@ const heading = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
 // the products in one row, swiped sideways
 const TILE_ROW = "-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] sm:gap-3";
 
-// the Products card, as the sale's: on top, what's in the cart as a table; below, every other pack size that can be
+// the Products card, as the sale's: on top, what's in the cart as a row of cards; below, every other pack size that can be
 // bought (it has a GST %), filtered by category, in one row; each tile its name, photo and Add, which opens the
 // product card. The admin's + New product sits beside the heading, as quiet as the filters. An arrival on a purchase
 // order: under the cart a From order part (the pack sizes the order still waits for, each with what's left to arrive),
@@ -52,19 +52,21 @@ export function ProductsCard() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* in the cart, as a table; until there's something, where to add from */}
+      {/* in the cart, as a row of cards with the Total under it; until there's something, where to add from */}
       <div className="flex flex-col gap-2">
         <h3 className={heading}>{ts("inCart")}</h3>
         {lines.length === 0 ? (
           <p className="rounded-control border border-dashed border-chestnut/35 py-6 text-center text-sm opacity-80">{ts("addFromBelow")}</p>
         ) : (
-          <CartTable
+          <CartCards
             lines={lines.map((l, i) => ({ productId: l.productId, price: figures[i]!.rate / 100, quantity: Number(l.quantity) || 0, total: figures[i]!.total / 100 }))}
             packOf={packOf}
             priceLabel={t("rate")}
             itemsTotal={itemsTotal}
             onOpen={setCardFor}
             onRemove={removeLine}
+            moreLabel={t("moreProducts")}
+            backLabel={t("firstProducts")}
           />
         )}
       </div>
