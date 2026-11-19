@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { packLabel, rupees, titleCase } from "~/lib/format";
@@ -12,7 +12,7 @@ import { TileRow } from "./tile-row";
 // the products row's look: cards side by side, swiped sideways
 const ROW = "-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] sm:gap-3";
 
-// what's in the cart as a row of cards, as the products row below it: each card its pack chip and a red bin on top,
+// what's in the cart as a row of cards, as the products row below it: each card its pack chip, a pen and a red bin on top,
 // the name and category | sub-category, the photo, then the price (Rate on a purchase) and Quantity, a row each; a tap
 // on a card opens its product card to change it. Under the row, the Total row as the cart table's: how many, and the
 // cart's total
@@ -50,7 +50,7 @@ export function CartCards({
               onClick={() => onOpen(line.productId)}
               className="row-arrive flex w-40 shrink-0 cursor-pointer snap-start flex-col gap-2 rounded-control border border-chestnut/15 p-2.5 hover:bg-chestnut/[0.03] sm:w-52 sm:p-3.5"
             >
-              {/* the pack chip (the card's button, for the keyboard) and the bin */}
+              {/* the pack chip (the card's button, for the keyboard), then the pen (change it) and the bin */}
               <div className="flex items-center justify-between gap-1.5">
                 <button
                   type="button"
@@ -64,18 +64,32 @@ export function CartCards({
                 >
                   {packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}
                 </button>
-                <button
-                  type="button"
-                  aria-label={`${t("remove")}: ${label}`}
-                  title={t("remove")}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemove(line.productId);
-                  }}
-                  className="grid size-8 shrink-0 place-items-center rounded-control text-danger hover:bg-danger/[0.08]"
-                >
-                  <Trash2 className="size-4" aria-hidden />
-                </button>
+                <span className="flex shrink-0 items-center">
+                  <button
+                    type="button"
+                    aria-label={`${t("change")}: ${label}`}
+                    title={t("change")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpen(line.productId);
+                    }}
+                    className="grid size-8 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
+                  >
+                    <Pencil className="size-4" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`${t("remove")}: ${label}`}
+                    title={t("remove")}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemove(line.productId);
+                    }}
+                    className="grid size-8 shrink-0 place-items-center rounded-control text-danger hover:bg-danger/[0.08]"
+                  >
+                    <Trash2 className="size-4" aria-hidden />
+                  </button>
+                </span>
               </div>
 
               {/* the name, then category | sub-category */}
