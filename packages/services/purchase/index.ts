@@ -8,6 +8,7 @@ import {
   ledgersTable,
   partiesTable,
   partyAddressesTable,
+  partyUpiIdsTable,
   productCostHistoryTable,
   productGodownsTable,
   productPricesTable,
@@ -143,6 +144,8 @@ export default class PurchaseService {
 
     // who it's from and the address on the bill: its state against ours decides the GST
     const supplier = await this.supplierIn(tx, input);
+    // a UPI ID typed for them in the payment goes on the supplier, for next time
+    if (input.supplierUpiId) await tx.insert(partyUpiIdsTable).values({ partyId: supplier.party.id, upiId: input.supplierUpiId }).onConflictDoNothing();
     const billFrom = await this.billFromIn(tx, supplier.party.id, input.billFromAddressId);
     const intra = billFrom.stateCode === company.stateCode;
 

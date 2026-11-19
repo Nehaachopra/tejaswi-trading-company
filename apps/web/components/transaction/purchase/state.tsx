@@ -1,6 +1,6 @@
 "use client";
 
-import type { BankMode } from "@repo/trpc/client";
+import { appOfUpi, type BankMode, upiFormatOk } from "@repo/trpc/client";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { createContext, useContext, useEffect, useState } from "react";
@@ -222,6 +222,22 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   function setSplit(id: string, text: string) {
     setTypedSplit((was) => ({ ...(was ?? autoSplit), [id]: text }));
   }
+
+  // an account paying by UPI to a supplier with no UPI ID (none saved on the one picked, none typed for a new one):
+  // theirs is asked in the card, and kept on them with the purchase. It may be left empty, as in a payment
+  const savedUpis = picked ? (picked.party?.upiIds ?? []) : newSupplier.upiIds.map((u) => u.upiId.trim()).filter((u) => u !== "");
+  const [typedUpi, setTypedUpi] = useState("");
+  const [upiLeft, setUpiLeft] = useState(false);
+  const [upiEditing, setUpiEditing] = useState(false);
+  const typedUpiShapeOk = upiFormatOk(typedUpi.trim());
+  const typedUpiOk = typedUpiShapeOk && appOfUpi(typedUpi) !== null;
+  const asksUpi = kind === "cash" && !!supplier && savedUpis.length === 0 && bankIdsUsed.some((id) => bankModes[id] === "upi");
+  // another supplier: the box starts empty again
+  useEffect(() => {
+    setTypedUpi("");
+    setUpiLeft(false);
+    setUpiEditing(false);
+  }, [pickedId, supplier?.kind]);
   // Auto switched off by hand empties every card, as a payment's
   const setSplitAuto = (on: boolean) => setTypedSplit(on ? null : {});
   // what's paid changed: the cards start again
@@ -373,6 +389,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
               bankParts: placesUsed
                 .filter((p) => p.id !== "cash")
                 .map((p) => ({ bankDetailsId: p.id, amount: p.amount, mode: bankModes[p.id]!, referenceNumber: (bankRefs[p.id] ?? "").trim() || null })),
+              supplierUpiId: asksUpi && typedUpiOk ? typedUpi.trim().toLowerCase() : null,
             }
           : { creditPeriodDays: creditDays === "" ? null : Number(creditDays) }),
         vehicleNumber: vehicle || null,
@@ -470,6 +487,8 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     setBankModes,
     bankRefs,
     setBankRefs,
+    asksUpi,
+    upiId: { typed: typedUpi, setTyped: setTypedUpi, shapeOk: typedUpiShapeOk, ok: typedUpiOk, left: upiLeft, setLeft: setUpiLeft, editing: upiEditing, setEditing: setUpiEditing, tried },
     refLeft,
     setRefLeft,
     creditDays,

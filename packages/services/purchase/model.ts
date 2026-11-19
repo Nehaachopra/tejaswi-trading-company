@@ -2,7 +2,8 @@ import { z } from "zod";
 
 import { moreBankPartModel } from "../payment/model";
 import { createProductInputModel, imageUrlModel } from "../product/model";
-import { createPartyInputModel } from "../party/model";
+import { createPartyInputModel, partyUpiIdModel } from "../party/model";
+import { appOfUpi } from "../bank/upi-handles";
 
 const idModel = z.string().uuid();
 
@@ -80,6 +81,11 @@ export const createPurchaseInputModel = z
     // cash: the cash part, and each bank account's part with how it was paid
     cashAmount: rupeesModel.default(0),
     bankParts: z.array(moreBankPartModel).max(5).default([]),
+    // a part paid by UPI to a supplier with no UPI ID saved: the one typed for it, kept on them for next time
+    supplierUpiId: partyUpiIdModel
+      .refine((u) => appOfUpi(u) !== null, "That isn't a UPI handle (the part after @).")
+      .nullable()
+      .default(null),
     // cash: an advance already with the supplier is set off against this bill (as much as the bill takes)
     advanceSetOff: z.boolean().default(false),
     creditPeriodDays: z.number().int().min(0).max(365).nullable().default(null),

@@ -17,6 +17,7 @@ import { type AccountCardsApi, type Refs } from "../shared/account-cards/types";
 import { DueFlow } from "../shared/fold-group";
 import { Meter } from "../shared/meter";
 import { AutoSwitch } from "../shared/split-grid";
+import { UpiIdField } from "../shared/upi-id-field";
 import { input, saidAmount } from "../shared/form-basics";
 import { usePurchaseEntry } from "./state";
 
@@ -428,7 +429,9 @@ function usePaidCards(): AccountCardsApi {
     auto: { on: e.splitAuto, set: e.setSplitAuto },
     qrItems: [],
     qrId: () => ({ hideId: false }),
-    upiPart: () => null,
+    // by UPI to a supplier with no UPI ID: theirs is asked, once (in the first card paying by UPI)
+    upiPart: (place) =>
+      place.id === e.places.find((p) => p.amount > 0 && p.mode === "upi")?.id ? <UpiIdField row show={e.asksUpi} label={tpf("supplierUpi")} state={e.upiId} /> : null,
     refs,
     setRefs: (update) => {
       const next = typeof update === "function" ? update(refs) : update;
