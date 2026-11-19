@@ -59,15 +59,28 @@ export function BillAttach({ value, onChange, onBusy, removable = true }: { valu
           <Spinner className="size-4" /> {t("billUploading")}
         </p>
       ) : value ? (
-        // attached: open it, or take it off
-        <div className="flex min-h-11 items-center justify-between gap-3 rounded-control border border-chestnut/25 pl-3">
-          <a href={value} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-2 text-sm font-semibold underline-offset-2 hover:underline">
-            <FileText className="size-4 shrink-0" aria-hidden /> {t("billAttached")}
+        // attached: a small preview (the photo; a PDF as its icon) that opens it, and the bin over its corner: shown on
+        // hover (or focus) with a mouse, always on a phone
+        <div className="group relative size-24 overflow-hidden rounded-control border border-chestnut/25 bg-ivory">
+          <a href={value} target="_blank" rel="noreferrer" aria-label={t("billAttached")} className="grid size-full place-items-center">
+            {value.endsWith(".pdf") ? (
+              <span className="flex flex-col items-center gap-1 text-xs font-semibold">
+                <FileText className="size-8" aria-hidden /> PDF
+              </span>
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element -- a stored upload, already shrunk on the device
+              <img src={value} alt="" className="size-full object-cover" />
+            )}
           </a>
           {removable && (
-          <button type="button" onClick={() => onChange(null)} aria-label={t("billRemove")} className="grid size-11 place-items-center rounded-control text-danger hover:bg-danger/[0.08]">
-            <Trash2 className="size-4" aria-hidden />
-          </button>
+            <button
+              type="button"
+              onClick={() => onChange(null)}
+              aria-label={t("billRemove")}
+              className="absolute right-1 top-1 grid size-8 place-items-center rounded-control bg-ivory/90 text-danger shadow-sm transition-opacity hover:bg-ivory pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
+            >
+              <Trash2 className="size-4" aria-hidden />
+            </button>
           )}
         </div>
       ) : (
