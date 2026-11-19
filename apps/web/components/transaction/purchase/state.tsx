@@ -146,11 +146,13 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   const billLeft = round2(total - setOff);
   const dueNow = round2(oldDue + billLeft);
   // what's paid now: any part of what's due or more. It goes to the older dues first, then this bill; anything past
-  // both is an advance with them (only when their balance is known)
+  // both is an advance with them, when their balance is known: a new supplier's is (nothing owed yet), staff don't see
+  // one of ours
   const paid = parseAmount(paidText) ?? 0;
   const towardsOld = Math.min(paid, oldDue);
   const towardsBill = Math.min(round2(paid - towardsOld), billLeft);
-  const advance = picked?.balance && paid > dueNow ? round2(paid - dueNow) : 0;
+  const balanceKnown = supplier?.kind === "party" || !!picked?.balance;
+  const advance = balanceKnown && paid > dueNow ? round2(paid - dueNow) : 0;
   const dueLeft = Math.max(0, round2(dueNow - paid));
   // an advance in it: asked once before going on ("Did you pay ₹X as advance?"); asked again if the advance changes
   const [advanceOk, setAdvanceOk] = useState<number | null>(null);
