@@ -1,7 +1,7 @@
 "use client";
 
-import { Check, ChevronDown, ChevronRight, IndianRupee } from "lucide-react";
-import { useId, useState } from "react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, IndianRupee } from "lucide-react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 
 import { FieldMessage } from "~/components/ui/field-message";
 import { MicButton } from "~/components/ui/mic-button";
@@ -9,6 +9,7 @@ import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { Switch } from "~/components/ui/switch";
 import { rupees } from "~/lib/format";
+import { usePhone } from "~/lib/use-phone";
 import { cn } from "~/lib/utils";
 
 import { AccountCards } from "../shared/account-cards/account-cards";
@@ -69,11 +70,11 @@ function LeftRow({ label, amount }: { label: string; amount: number }) {
 // the Paid card (cash) or Due card (credit). Cash: on the left what's left (the due, the advance, or both, an arrow on
 // each opening the breakup) over the amount to pay (its box never
 // more than cash and the banks hold together), then what's left (plain) with an arrow at the right end, which opens the breakup:
-// on the right (under it on a phone). The breakup: an advance they hold (over a line, room under it); the old due, the
+// on the right (on a phone the card slides to it, ‹ Breakup back). The breakup: an advance they hold (over a line, room under it); the old due, the
 // bill amount, then with an advance their sub total and Set off from advance (a switch); the due; the payment taken off
 // it (its ⌄ opening what it goes to: the old due first, then the bill); then what's left on chestnut: the due and the
 // advance when both are above nothing, otherwise the one that is, and when neither is, ₹0 of what the account had.
-// Then the cards for where it's paid from. Credit: the bill amount (with an old due, it and the due) and the credit
+// Then Left to pay (pinned under the header while the cards scroll) and the cards for where it's paid from. Credit: the bill amount (with an old due, it and the due) and the credit
 // period in days (optional)
 export function PaidCard() {
   const e = usePurchaseEntry();
@@ -81,9 +82,53 @@ export function PaidCard() {
   const setOffLabel = useId();
   const daysBad = tried && Number(e.creditDays) > 365;
   const cards = usePaidCards();
-  // the breakup open (it starts open), and what the payment goes to under it
+  // on a computer the breakup beside (it starts open); on a phone the card slid to it (it starts on the amounts); and
+  // what the payment goes to under it
+  const phone = usePhone();
   const [breakupOpen, setBreakupOpen] = useState(true);
+  const [slid, setSlid] = useState(false);
+  const shown = phone ? slid : breakupOpen;
   const [towardsOpen, setTowardsOpen] = useState(false);
+
+  // a phone's two panels: as tall as the one showing, the other kept out of reach
+  const mainRef = useRef<HTMLDivElement>(null);
+  const sideRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | undefined>(undefined);
+  useLayoutEffect(() => {
+    const panel = slid ? sideRef.current : mainRef.current;
+    if (!phone || !panel) return;
+    const fit = () => setHeight(panel.offsetHeight);
+    fit();
+    const watch = new ResizeObserver(fit);
+    watch.observe(panel);
+    return () => watch.disconnect();
+  }, [phone, slid, kind]);
+  // a computer's breakup lies over the right half: the card is kept at least as tall as it, and the account cards start
+  // below it (pushed down by what the amounts and Left to pay fall short of it)
+  const amountsRef = useRef<HTMLDivElement>(null);
+  const breakupRef = useRef<HTMLDivElement>(null);
+  const stickyRef = useRef<HTMLDivElement>(null);
+  const [beside, setBeside] = useState({ breakup: 0, push: 0 });
+  useLayoutEffect(() => {
+    if (phone) return;
+    const fit = () => {
+      const breakupH = breakupRef.current?.offsetHeight ?? 0;
+      // where the cards' line falls on its own: the amounts, a gap, Left to pay, a gap, its own 6px
+      const natural = (amountsRef.current?.offsetHeight ?? 0) + 10 + (stickyRef.current?.offsetHeight ?? 0) + 10 + 6;
+      setBeside({ breakup: breakupH, push: breakupH ? Math.max(0, breakupH + 16 - natural) : 0 });
+    };
+    fit();
+    const watch = new ResizeObserver(fit);
+    for (const el of [amountsRef.current, breakupRef.current, stickyRef.current]) if (el) watch.observe(el);
+    return () => watch.disconnect();
+  }, [phone, breakupOpen, paid > 0, kind]);
+  // on sliding, the cursor goes to the back arrow (or back to the arrow that opened it)
+  const back = useRef<HTMLButtonElement>(null);
+  const arrowRow = useRef<HTMLButtonElement>(null);
+  const slide = (to: boolean) => {
+    setSlid(to);
+    setTimeout(() => (to ? back : arrowRow).current?.focus({ preventScroll: true, focusVisible: false } as FocusOptions), 320);
+  };
   // typed past what cash and the banks hold: cut to it, and it says so (until typed again)
   const [cut, setCut] = useState(false);
 
@@ -136,19 +181,17 @@ export function PaidCard() {
           ? [{ key: "advance", label: tpf("advanceLeft"), amount: advanceLeft }]
           : [{ key: "due", label: tpf("leftDue"), amount: 0 }];
 
-  return (
-    <div className="flex flex-col gap-4">
-      {/* the amounts on the left, the breakup on the right (under them on a phone) */}
-      <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-12">
-        {/* each row: its name, the figure ending at the same edge in every row, then the mic or the arrow in a slot of its
-            own at the right end */}
+  // the amounts: each row its name, the figure ending at the same edge in every row, then the mic or the arrow in a slot
+  // of its own at the right end
+  const amounts = (
         <div className="flex min-w-0 flex-col gap-2.5">
-          {/* on top: what's left (the due, the advance, or both), an arrow on each line: opens the breakup (pointing down on a
-              phone, where it opens under) */}
+          {/* on top: what's left (the due, the advance, or both), an arrow on each line: opens the breakup (beside on a
+              computer; on a phone the card slides to it) */}
           <button
+            ref={arrowRow}
             type="button"
-            onClick={() => setBreakupOpen((o) => !o)}
-            aria-expanded={breakupOpen}
+            onClick={() => (phone ? slide(true) : setBreakupOpen((o) => !o))}
+            aria-expanded={shown}
             aria-controls="purchase-breakup"
             aria-label={t("breakup")}
             className="group flex w-full flex-col gap-1 text-left"
@@ -162,8 +205,8 @@ export function PaidCard() {
                 slot={
                   <span className="grid size-9 place-items-center rounded-control transition-colors group-hover:bg-chestnut/10">
                     <ChevronRight
-                      // right, left once open; on a phone down, up once open
-                      className={cn("size-5 transition-transform", breakupOpen ? "rotate-180 max-sm:-rotate-90" : "max-sm:rotate-90")}
+                      // right, left once open beside; on a phone always right (it slides there)
+                      className={cn("size-5 transition-transform", !phone && breakupOpen && "rotate-180")}
                       aria-hidden
                     />
                   </span>
@@ -215,9 +258,12 @@ export function PaidCard() {
               }
             />
           )}
-          {/* what's still to place in cash and the bank cards below, filling as they take their parts; green with a tick
-              once nothing is left */}
-          {paid > 0 && (
+        </div>
+  );
+
+  // what's still to place in cash and the bank cards below, filling as they take their parts; green with a tick once
+  // nothing is left
+  const leftToPay = (
             <>
               <Line
                 label={tpf("leftToPay")}
@@ -244,11 +290,10 @@ export function PaidCard() {
                 className="-mt-1 mr-12"
               />
             </>
-          )}
-        </div>
+  );
 
-        {/* the breakup */}
-        {breakupOpen && (
+  // the breakup
+  const breakup = (
           <div id="purchase-breakup" className="flex min-w-0 flex-col gap-2.5 rounded-control bg-chestnut/[0.04] p-3">
             {heldAdvance > 0 && <Figure label={tpf("advancePart")} amount={rupees(heldAdvance)} className="mb-3.5 border-b border-chestnut/30 pb-2" />}
             <Figure label={t("oldDue")} amount={rupees(oldDue)} />
@@ -303,14 +348,54 @@ export function PaidCard() {
               <LeftRow key={l.key} label={l.label} amount={l.amount} />
             ))}
           </div>
-        )}
-      </div>
+  );
 
-      {/* where it's paid from: a card for each place, once there's an amount */}
-      {paid > 0 && (
-        <div className="flex flex-col gap-2.5 border-t border-chestnut/15 pt-4">
-          <AccountCards key={paid} api={cards} />
+  return (
+    // with the breakup beside on a computer, at least as tall as it
+    <div className="relative flex flex-col gap-1.5 sm:gap-2.5" style={{ minHeight: phone ? undefined : beside.breakup || undefined }}>
+      {phone ? (
+        // on a phone, as the product card's godowns: the amounts, and the breakup to their right; the arrow slides the
+        // card to it, its ‹ Breakup back. As tall as the panel showing (room at the sides for the boxes' soft edges)
+        <div className="-mx-1 overflow-hidden transition-[height] duration-300 motion-reduce:transition-none" style={{ height }}>
+          <div className={cn("flex w-[200%] items-start transition-transform duration-300 ease-out motion-reduce:transition-none", slid && "-translate-x-1/2")}>
+            <div ref={mainRef} inert={slid} className="w-1/2 min-w-0 p-1">
+              {amounts}
+            </div>
+            <div ref={sideRef} inert={!slid} className="flex w-1/2 min-w-0 flex-col gap-1 p-1">
+              <button ref={back} type="button" onClick={() => slide(false)} className="flex min-h-11 w-full items-center gap-1.5 text-left text-sm font-semibold">
+                <ChevronLeft className="size-5 shrink-0" aria-hidden />
+                {t("breakup")}
+              </button>
+              {breakup}
+            </div>
+          </div>
         </div>
+      ) : (
+        // on a computer: the amounts on the left; the breakup (while open) on the right, laid over the card's right half
+        // so it never pushes Left to pay down
+        <>
+          <div ref={amountsRef} className="w-[calc(50%-1.5rem)]">
+            {amounts}
+          </div>
+          {breakupOpen && (
+            <div ref={breakupRef} className="absolute right-0 top-0 w-[calc(50%-1.5rem)]">
+              {breakup}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* once there's an amount: Left to pay right under To pay, pinned under the header while the cards below scroll (as
+          wide as the amounts), then a card for each place it's paid from (on a computer, starting below the breakup) */}
+      {paid > 0 && (
+        <>
+          <div ref={stickyRef} className="sticky top-16 z-10 -mx-1 flex flex-col gap-2.5 bg-ivory px-1 pb-1 sm:w-[calc(50%-1rem)]">
+            {leftToPay}
+          </div>
+          <div className="flex flex-col gap-2.5 border-t border-chestnut/15 pt-4" style={{ marginTop: 6 + (phone ? 0 : beside.push) }}>
+            <AccountCards key={paid} api={cards} />
+          </div>
+        </>
       )}
     </div>
   );
