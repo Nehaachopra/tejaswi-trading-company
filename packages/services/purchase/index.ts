@@ -199,8 +199,9 @@ export default class PurchaseService {
     if (off > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "discountReceived"), side: "credit", amount: off / 100 });
     if (roundOff !== 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "roundOff"), side: roundOff > 0 ? "debit" : "credit", amount: Math.abs(roundOff) / 100 });
 
-    // cash: any part of the bill paid now (an advance with them set off first, as much as the bill takes), each part
-    // no more than cash or that account holds today
+    // cash: what's paid now (an advance with them set off first, as much as the bill takes): any part of what's due,
+    // this bill and their older dues, or more (an advance with them), each part no more than cash or that account holds
+    // today
     const banks: { part: (typeof input.bankParts)[number]; ledgerId: string }[] = [];
     let paid = 0;
     let setOff = 0;
@@ -211,7 +212,6 @@ export default class PurchaseService {
       for (const b of input.bankParts) banks.push({ part: b, ledgerId: await settleLedger(tx, this.accounts, "bank", b.bankDetailsId) });
       paid = cash + banks.reduce((a, b) => a + toPaise(b.part.amount), 0);
       if (paid <= 0 && setOff === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "A cash purchase pays some money now." });
-      if (paid > total - setOff) throw new TRPCError({ code: "BAD_REQUEST", message: "That's more than the bill." });
       const now = await this.accounts.balances([...(cashLedger ? [cashLedger] : []), ...banks.map((b) => b.ledgerId)]);
       if (cashLedger && cash > heldPaise(now.get(cashLedger)?.today)) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That's more than there is in cash." });
       for (const b of banks) {

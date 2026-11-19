@@ -3,7 +3,7 @@
 import type { BankMode } from "@repo/trpc/client";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 import { bankNameIn } from "~/lib/bank-names";
 import { packLabel } from "~/lib/format";
@@ -135,15 +135,42 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   // the product card over the page: the pack size being added or changed
   const [cardFor, setCardFor] = useState<string | null>(null);
 
-  // the supplier picked: their ledger, and an advance already with them (their account in debit: we paid before the
-  // goods came). Staff see no balances, so no advance is worked out for them
+  // the supplier picked: their ledger, what we owe them from before (their account in credit) and an advance already
+  // with them (in debit: we paid before the goods came). Staff see no balances, so neither is worked out for them
   const picked = supplier?.kind === "ledger" ? supplier.ledger : null;
+  const pickedId = picked?.id ?? null;
+  const oldDue = picked?.balance?.today.side === "credit" ? picked.balance.today.amount : 0;
   const heldAdvance = picked?.balance?.today.side === "debit" ? picked.balance.today.amount : 0;
   const setOff = kind === "cash" && setOffOn ? Math.min(heldAdvance, total) : 0;
-  // what's left to pay after the advance, what's paid now (never more than that), and what stays owed
+  // what's left of this bill after the advance, and all that's due with the older dues
   const billLeft = round2(total - setOff);
+  const dueNow = round2(oldDue + billLeft);
+  // what's paid now: any part of what's due or more. It goes to the older dues first, then this bill; anything past
+  // both is an advance with them (only when their balance is known)
   const paid = parseAmount(paidText) ?? 0;
-  const dueLeft = Math.max(0, round2(billLeft - paid));
+  const towardsOld = Math.min(paid, oldDue);
+  const towardsBill = Math.min(round2(paid - towardsOld), billLeft);
+  const advance = picked?.balance && paid > dueNow ? round2(paid - dueNow) : 0;
+  const dueLeft = Math.max(0, round2(dueNow - paid));
+  // an advance in it: asked once before going on ("Did you pay ₹X as advance?"); asked again if the advance changes
+  const [advanceOk, setAdvanceOk] = useState<number | null>(null);
+  const [askingAdvance, setAskingAdvance] = useState<((go: boolean) => void) | null>(null);
+  function confirmAdvance() {
+    if (kind !== "cash" || advance <= 0 || advanceOk === advance) return Promise.resolve(true);
+    return new Promise<boolean>((answer) =>
+      setAskingAdvance(() => (go: boolean) => {
+        setAskingAdvance(null);
+        if (go) setAdvanceOk(advance);
+        answer(go);
+      }),
+    );
+  }
+  // someone else picked: what's paid starts again
+  useEffect(() => {
+    setPaidText("");
+    setSetOffOn(false);
+    setTypedSplit({});
+  }, [pickedId]);
 
   // credit: a new supplier's phone that someone already has shows them instead
   const matches = usePhoneMatches(newSupplier.phone, "customer");
@@ -212,8 +239,8 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     supplier:
       (supplier?.kind === "ledger" && !!supplier.ledger.party?.city) ||
       (supplier?.kind === "party" && !matched && partyOk(newSupplier, true, true) && newSupplier.addresses.length > 0),
-    // cash: something paid (or the advance set off), within the bill, placed in full; credit: a period or none
-    paid: kind === "credit" ? creditDays === "" || Number(creditDays) <= 365 : (paid > 0 || setOff > 0) && paid <= billLeft && (paid === 0 || splitOk),
+    // cash: something paid (or the advance set off), placed in full; credit: a period or none
+    paid: kind === "credit" ? creditDays === "" || Number(creditDays) <= 365 : (paid > 0 || setOff > 0) && (paid === 0 || splitOk),
     bill: billNumberOk(billNumber) && billDay !== "" && !billBusy,
     details: true,
   };
@@ -250,8 +277,10 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     setTried(true);
     setTimeout(() => document.querySelector<HTMLElement>('main section [aria-invalid="true"]')?.focus(), 50);
   }
-  function next() {
+  async function next() {
     if (!complete[current]) return guide();
+    // what's paid leaves an advance: they say it's one before going on
+    if (current === "paid" && !(await confirmAdvance())) return;
     show(STEPS[index + 1]!);
   }
   // cash or credit picked: either moves straight on to the supplier (a chip-only card)
@@ -284,9 +313,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
                 ? t("missing.creditDays")
                 : paid === 0 && setOff === 0
                   ? t("missing.paid")
-                  : paid > billLeft
-                    ? t("missing.overBill", { amount: billLeft.toLocaleString("en-IN") })
-                    : splitTotal < paid
+                  : splitTotal < paid
                       ? t("missing.left", { amount: round2(paid - splitTotal).toLocaleString("en-IN") })
                       : t("missing.into")
               : s === "bill"
@@ -309,6 +336,8 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     }
     // someone new with the same name in the same town as one already added: asked first
     if (supplier?.kind === "party" && !(await sameName.confirm(newSupplier))) return;
+    // an advance not yet said to be one (the amount changed after Next): asked here too
+    if (!(await confirmAdvance())) return;
     setSaving(true);
     setSaveError(null);
     try {
@@ -411,6 +440,12 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     editingSupplier,
     setEditingSupplier,
     matched,
+    oldDue,
+    dueNow,
+    towardsOld,
+    towardsBill,
+    advance,
+    askingAdvance,
     heldAdvance,
     setOffOn,
     setSetOffOn,

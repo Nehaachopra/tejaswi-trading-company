@@ -3,6 +3,7 @@
 import { useLocale } from "next-intl";
 import { useState } from "react";
 
+import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { dayInWords } from "~/components/ui/date-input";
 import { packLabel, rupees, titleCase } from "~/lib/format";
 import { PurchaseDataProvider } from "~/providers/purchase";
@@ -55,6 +56,9 @@ function PurchaseEntryView() {
     packOf,
     total,
     kind,
+    tpf,
+    advance,
+    askingAdvance,
     supplier,
     setSupplier,
     newSupplier,
@@ -174,6 +178,18 @@ function PurchaseEntryView() {
     >
       {leaveDialog}
       {sameNameDialog}
+      {/* an advance in what's paid: asked before going on */}
+      <ConfirmDialog
+        open={askingAdvance !== null}
+        tone="plain"
+        title={tpf("advanceAsk.title")}
+        body={tpf("advanceAsk.body", { amount: rupees(advance) })}
+        confirmLabel={tpf("advanceAsk.yes")}
+        cancelLabel={tpf("advanceAsk.no")}
+        busy={false}
+        onConfirm={() => askingAdvance?.(true)}
+        onCancel={() => askingAdvance?.(false)}
+      />
       <StepCard
         key={current}
         id={current}
@@ -186,7 +202,7 @@ function PurchaseEntryView() {
         onChange={current === "supplier" && supplier?.kind === "party" ? () => setSupplier(null) : null}
         missing={tried && !complete[current] ? missingOf(current) : null}
         // Cash or credit waits for a pick and moves on by itself; Details saves
-        end={current === "details" ? <SaveBlock /> : current === "money" ? null : <NextButton onClick={next} />}
+        end={current === "details" ? <SaveBlock /> : current === "money" ? null : <NextButton onClick={() => void next()} />}
       >
         {current === "products" ? (
           <ProductsCard />
