@@ -72,7 +72,8 @@ export function BillAttach({ value, onChange, onBusy, removable = true }: { valu
         </div>
       ) : (
         <div className={cn("flex flex-col gap-2 sm:flex-row")}>
-          <button type="button" onClick={() => camera.current?.click()} className={button}>
+          {/* the camera: a phone or tablet only (a laptop's file chooser has none) */}
+          <button type="button" onClick={() => camera.current?.click()} className={cn(button, "hidden pointer-coarse:flex")}>
             <Camera className="size-4" aria-hidden /> {t("takePhoto")}
           </button>
           <button type="button" onClick={() => file.current?.click()} className={button}>

@@ -8,16 +8,22 @@ import { earliestDay, fieldRow, input } from "../shared/form-basics";
 import { BillAttach } from "./bill-attach";
 import { BILL_NUMBER_MAX, billNumberOk, usePurchaseEntry } from "./state";
 
-// the Bill card: the supplier's bill number (capital letters, digits, / and - only, as GST allows), its date (which
-// dates the purchase; staff a week back at most) and its photo or PDF (optional, can be attached later), each a row:
-// label left, box right (two columns on a wider screen)
+// the Bill card: the supplier's bill on top (a photo or PDF, optional, can be attached later), then its number (capital
+// letters, digits, / and - only, as GST allows) and its date (which dates the purchase; staff a week back at most) side
+// by side, each a row: label left, box right
 export function BillCard() {
   const { t, tc, isAdmin, billNumber, setBillNumber, billDay, setBillDay, billUrl, setBillUrl, setBillBusy, tried, today } = usePurchaseEntry();
   const numberBad = tried && !billNumberOk(billNumber);
   const dayBad = tried && billDay === "";
   return (
     <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-      <label className={fieldRow}>
+      {/* the bill on top, in the left column (the right one empty) */}
+      <div className={cn(fieldRow, "sm:col-start-1")}>
+        <span>{t("billPhoto")}</span>
+        <BillAttach value={billUrl} onChange={setBillUrl} onBusy={setBillBusy} />
+      </div>
+      {/* then its number and date, side by side */}
+      <label className={cn(fieldRow, "sm:col-start-1")}>
         <span>
           {t("billNumber")}
           <RequiredMark />
@@ -56,10 +62,6 @@ export function BillCard() {
           className={input(dayBad)}
         />
       </label>
-      <div className={cn(fieldRow, "sm:col-span-2")}>
-        <span>{t("billPhoto")}</span>
-        <BillAttach value={billUrl} onChange={setBillUrl} onBusy={setBillBusy} />
-      </div>
     </div>
   );
 }

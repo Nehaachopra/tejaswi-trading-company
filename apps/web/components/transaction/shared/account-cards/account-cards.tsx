@@ -65,7 +65,8 @@ export function AccountCards({ api }: { api: AccountCardsApi }) {
         <h3 className="text-xs font-semibold uppercase tracking-[0.08em] opacity-60">
           {labels.breakdown}
         </h3>
-        {auto && <AutoSwitch on={auto.on} set={auto.set} />}
+        {/* (a form showing its own meter shows Auto beside it) */}
+        {auto && !api.meterOutside && <AutoSwitch on={auto.on} set={auto.set} />}
       </div>
       {/* the meter above the cards: what's still left to place, filling as the cards take their parts, green with a
           tick once nothing is left. As wide as one card; it stays just under the header while the cards scroll, on the

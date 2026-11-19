@@ -39,7 +39,8 @@ export type AccountCardsApi = {
   hideHeld?: boolean;
   // one card only, no Another account (an advance to an employee, paid from one place)
   single?: boolean;
-  // the form shows what's left to place itself (a purchase's, under To pay): no meter above the cards
+  // the form shows what's left to place itself, with Auto beside it (a purchase's, under To pay): no meter or Auto
+  // above the cards
   meterOutside?: boolean;
   // Auto, where the form has it (a payment's): fills the cards from what each holds
   auto?: { on: boolean; set: (on: boolean) => void };

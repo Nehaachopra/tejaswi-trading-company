@@ -1977,7 +1977,7 @@
       "days": "days",
       "billNumber": "Bill number",
       "billDate": "Bill date",
-      "billPhoto": "Bill photo or PDF",
+      "billPhoto": "Bill",
       "takePhoto": "Take photo",
       "upload": "Upload",
       "billUploading": "Uploading…",

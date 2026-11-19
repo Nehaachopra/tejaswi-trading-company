@@ -15,6 +15,7 @@ import { AccountCards } from "../shared/account-cards/account-cards";
 import { type AccountCardsApi, type Refs } from "../shared/account-cards/types";
 import { DueFlow } from "../shared/fold-group";
 import { Meter } from "../shared/meter";
+import { AutoSwitch } from "../shared/split-grid";
 import { input, saidAmount } from "../shared/form-basics";
 import { usePurchaseEntry } from "./state";
 
@@ -220,14 +221,18 @@ export function PaidCard() {
             <>
               <Line
                 label={tpf("leftToPay")}
+                // Auto at the left of the figure's space (it fills the cards from what each holds), the figure at its right
                 value={
-                  e.splitTotal === paid ? (
-                    <span className={cn(figure, "flex items-center justify-end text-success")} aria-label={tpf("nothingLeft")}>
-                      <Check className="size-5" strokeWidth={2.5} aria-hidden />
-                    </span>
-                  ) : (
-                    <span className={cn(figure, "font-bold")}>{rupees(Math.max(0, Math.round((paid - e.splitTotal) * 100) / 100))}</span>
-                  )
+                  <span className="flex items-center justify-between gap-2">
+                    <AutoSwitch on={e.splitAuto} set={e.setSplitAuto} />
+                    {e.splitTotal === paid ? (
+                      <span className={cn(figure, "flex items-center justify-end text-success")} aria-label={tpf("nothingLeft")}>
+                        <Check className="size-5" strokeWidth={2.5} aria-hidden />
+                      </span>
+                    ) : (
+                      <span className={cn(figure, "font-bold")}>{rupees(Math.max(0, Math.round((paid - e.splitTotal) * 100) / 100))}</span>
+                    )}
+                  </span>
                 }
               />
               {/* the slider under it, ending where the figures end (clear of the mic and arrow column) */}
