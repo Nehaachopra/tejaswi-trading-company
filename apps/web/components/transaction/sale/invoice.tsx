@@ -31,8 +31,9 @@ const placeLine = (a: Place) =>
 
 // a sale's tax invoice, laid out like the payment voucher and the order: our details and the invoice's, who it's billed
 // to and where it goes, each item (its category over its name, HSN, quantity, a pack's price, the discount off the
-// line, its taxable value, GST % and the GST by tax, and its total), a Total row, then as the sale's Amount card the
-// discount off and each charge on, the amount and the amount in words. It prints (or saves as a PDF) on its own. With a share key it's the customer's copy, opened
+// line, its taxable value, GST % and the GST by tax, and its total); with charges, a Sub total row and then each charge
+// as a row of its own at the bill's highest GST rate; a Total row, then the cash discount off (after GST), the amount
+// and the amount in words. It prints (or saves as a PDF) on its own. With a share key it's the customer's copy, opened
 // from a link without a login: only the download, no way back into the app and nothing to share
 export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string }) {
   const t = useTranslations("transactions.sale.invoice");
@@ -68,28 +69,23 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
     Math.round(d.lines.reduce((a, l) => a + pick(l), 0) * 100) / 100;
   const quantity = d.lines.reduce((a, l) => a + l.quantity, 0);
   const itemsGst = sum((l) => l.gst);
-  // the items with their GST: the table's Total
+  // the items with their GST: the Sub total, when charges follow
   const itemsTotal = Math.round((sum((l) => l.taxable) + itemsGst) * 100) / 100;
-  const chargeOf = (key: Invoice["charges"][number]["key"]) => {
-    const ch = d.charges.find((x) => x.key === key);
-    return ch ? Math.round((ch.taxable + ch.gst) * 100) / 100 : 0;
-  };
-  // under the table, as the sale's Amount card: the discount off and each charge on (only those above zero); the amount
-  // closes it
-  const offOrOn = [
-    ...(d.discount > 0 ? [{ key: "discount", label: ts("discount"), value: `− ₹${money(d.discount)}` }] : []),
-    ...(["transport", "packing", "loading"] as const)
-      .filter((key) => chargeOf(key) > 0)
-      .map((key) => ({
-        key,
-        label: ts(key === "loading" ? "loadingCharges" : key),
-        value: `+ ₹${money(chargeOf(key))}`,
-      })),
-  ];
-  // Total first (the items with their GST), when something comes off or goes on
+  // the charges (part of the supply): each a row under the items, its GST at the highest rate among them
+  const chargeRate = Math.max(0, ...d.lines.map((l) => l.gstRate));
+  const charges = d.charges.map((c) => ({ ...c, label: ts(c.key === "loading" ? "loadingCharges" : c.key), total: Math.round((c.taxable + c.gst) * 100) / 100 }));
+  const add = (a: number, b: number) => Math.round((a + b) * 100) / 100;
+  const chargeSum = (pick: (c: (typeof charges)[number]) => number) => charges.reduce((a, c) => add(a, pick(c)), 0);
+  // the table's Total: the items and the charges, with their GST
+  const tableTotal = add(itemsTotal, chargeSum((c) => c.total));
+  // under the table: the cash discount off (after GST, which stays on the full value); the amount closes it. Total
+  // first, when something comes off
   const breakup =
-    offOrOn.length > 0
-      ? [{ key: "total", label: t("total"), value: `₹${money(itemsTotal)}` }, ...offOrOn]
+    d.discount > 0
+      ? [
+          { key: "total", label: t("total"), value: `₹${money(tableTotal)}` },
+          { key: "discount", label: ts("discount"), value: `− ₹${money(d.discount)}` },
+        ]
       : [];
 
   // WhatsApp opened on the customer's chat with a message ready to send: the invoice number, the amount and the link
@@ -308,6 +304,52 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                     </td>
                   </tr>
                 ))}
+                {/* with charges: the items' Sub total, then each charge as a row (its taxable value, GST % and GST
+                    by tax, and its total; nothing under Qty, Price or Discount) */}
+                {charges.length > 0 && (
+                  <>
+                    <tr className="border-t border-chestnut/40 font-semibold">
+                      <td className={cn(cell, "border-r")} />
+                      <td className={cn(cell, "border-r")}>{t("subTotal")}</td>
+                      <td className={cn(cell, "border-r")} />
+                      <td className={cn(cell, "border-r text-right")}>{quantity}</td>
+                      <td className={cn(cell, "border-r")} />
+                      <td className={cn(cell, "border-r text-right")}>{money(sum((l) => l.discount))}</td>
+                      <td className={cn(cell, "border-r text-right")}>{money(sum((l) => l.taxable))}</td>
+                      <td className={cn(cell, "border-r")} />
+                      {intra ? (
+                        <>
+                          <td className={cn(cell, "border-r text-right")}>{money(sum((l) => halves(l.gst)[0]))}</td>
+                          <td className={cn(cell, "border-r text-right")}>{money(sum((l) => halves(l.gst)[1]))}</td>
+                        </>
+                      ) : (
+                        <td className={cn(cell, "border-r text-right")}>{money(itemsGst)}</td>
+                      )}
+                      <td className={cn(cell, "text-right")}>{money(itemsTotal)}</td>
+                    </tr>
+                    {charges.map((c, i) => (
+                      <tr key={c.key} className={cn("align-top", i === 0 && "border-t border-chestnut/40")}>
+                        <td className={cn(cell, "border-r")} />
+                        <td className={cn(cell, "border-r")}>{c.label}</td>
+                        <td className={cn(cell, "border-r")} />
+                        <td className={cn(cell, "border-r")} />
+                        <td className={cn(cell, "border-r")} />
+                        <td className={cn(cell, "border-r")} />
+                        <td className={cn(cell, "border-r text-right")}>{money(c.taxable)}</td>
+                        <td className={cn(cell, "border-r text-right")}>{chargeRate}%</td>
+                        {intra ? (
+                          <>
+                            <td className={cn(cell, "border-r text-right")}>{money(halves(c.gst)[0])}</td>
+                            <td className={cn(cell, "border-r text-right")}>{money(halves(c.gst)[1])}</td>
+                          </>
+                        ) : (
+                          <td className={cn(cell, "border-r text-right")}>{money(c.gst)}</td>
+                        )}
+                        <td className={cn(cell, "text-right")}>{money(c.total)}</td>
+                      </tr>
+                    ))}
+                  </>
+                )}
                 {/* room below the lines, as on the voucher */}
                 <tr aria-hidden>
                   {Array.from({ length: intra ? 10 : 9 }, (_, i) => (
@@ -315,7 +357,7 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                   ))}
                   <td />
                 </tr>
-                {/* the totals: how many, the discount, the taxable value, each tax and the items' total */}
+                {/* the totals: how many, the discount, the taxable value, each tax and the total, the charges in them */}
                 <tr className="font-bold [&>td]:sticky [&>td]:bottom-0 [&>td]:z-10 [&>td]:bg-ivory [&>td]:shadow-[inset_0_1px_0_rgb(90_42_26/0.4)] print:[&>td]:static">
                   <td className={cn(cell, "border-r")} />
                   <td className={cn(cell, "border-r")}>{t("total")}</td>
@@ -326,22 +368,22 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                     {money(sum((l) => l.discount))}
                   </td>
                   <td className={cn(cell, "border-r text-right")}>
-                    {money(sum((l) => l.taxable))}
+                    {money(add(sum((l) => l.taxable), chargeSum((c) => c.taxable)))}
                   </td>
                   <td className={cn(cell, "border-r")} />
                   {intra ? (
                     <>
                       <td className={cn(cell, "border-r text-right")}>
-                        {money(sum((l) => halves(l.gst)[0]))}
+                        {money(add(sum((l) => halves(l.gst)[0]), chargeSum((c) => halves(c.gst)[0])))}
                       </td>
                       <td className={cn(cell, "border-r text-right")}>
-                        {money(sum((l) => halves(l.gst)[1]))}
+                        {money(add(sum((l) => halves(l.gst)[1]), chargeSum((c) => halves(c.gst)[1])))}
                       </td>
                     </>
                   ) : (
-                    <td className={cn(cell, "border-r text-right")}>{money(itemsGst)}</td>
+                    <td className={cn(cell, "border-r text-right")}>{money(add(itemsGst, chargeSum((c) => c.gst)))}</td>
                   )}
-                  <td className={cn(cell, "text-right")}>{money(itemsTotal)}</td>
+                  <td className={cn(cell, "text-right")}>{money(tableTotal)}</td>
                 </tr>
               </tbody>
             </table>

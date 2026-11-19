@@ -2164,6 +2164,7 @@
         "walkIn": "Cash sale",
         "sl": "Sl",
         "particulars": "Particulars",
+        "subTotal": "Sub total",
         "qty": "Qty",
         "taxable": "Taxable value",
         "gstPercent": "GST %",
