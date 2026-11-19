@@ -13,19 +13,6 @@ import { shrink } from "../../product/products/photo-picker";
 // a PDF goes as it is (10 MB at most, as the server takes it)
 const PDF_MAX = 10 * 1024 * 1024;
 
-// what the server read off a bill: its number and date, each null when it couldn't
-export type BillRead = { number: string | null; date: string | null };
-
-// asks the server to read a stored bill (a free model does it); nothing on any failure, the fields are then typed
-async function read(url: string): Promise<BillRead> {
-  try {
-    const res = await fetch("/uploads/bill/read", { method: "POST", body: JSON.stringify({ url }), headers: { "Content-Type": "application/json" } });
-    return res.ok ? ((await res.json()) as BillRead) : { number: null, date: null };
-  } catch {
-    return { number: null, date: null };
-  }
-}
-
 // send it to the API, which stores it and answers with its link
 async function upload(body: Blob): Promise<string> {
   const res = await fetch("/uploads/bill", { method: "POST", body, headers: { "Content-Type": body.type } });
@@ -36,27 +23,12 @@ async function upload(body: Blob): Promise<string> {
 // the supplier's bill: Take photo (the phone's camera) and Upload (a photo or a PDF) side by side, full width on a
 // phone; once attached, a row with Bill attached (opens it) and a bin to take it off. A photo is shrunk on the device
 // first
-export function BillAttach({
-  value,
-  onChange,
-  onBusy,
-  onRead,
-  removable = true,
-}: {
-  value: string | null;
-  onChange: (url: string | null) => void;
-  onBusy: (busy: boolean) => void;
-  // given, the bill is read once uploaded and what was found handed on (its number and date)
-  onRead?: (found: BillRead) => void;
-  removable?: boolean;
-}) {
+export function BillAttach({ value, onChange, onBusy, removable = true }: { value: string | null; onChange: (url: string | null) => void; onBusy: (busy: boolean) => void; removable?: boolean }) {
   const t = useTranslations("transactions.purchase");
   const camera = useRef<HTMLInputElement>(null);
   const file = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
-  // the bill being read for its number and date, after it's stored
-  const [reading, setReading] = useState(false);
 
   // a photo or PDF picked: shrink a photo, upload it, keep its link
   async function pick(f: File | undefined) {
@@ -66,16 +38,7 @@ export function BillAttach({
     onBusy(true);
     setFailed(null);
     try {
-      const url = await upload(f.type === "application/pdf" ? f : await shrink(f));
-      onChange(url);
-      // stored: read it for its number and date (the form can go on meanwhile)
-      if (onRead) {
-        setReading(true);
-        void read(url).then((found) => {
-          setReading(false);
-          onRead(found);
-        });
-      }
+      onChange(await upload(f.type === "application/pdf" ? f : await shrink(f)));
     } catch {
       setFailed(t("billFailed"));
     } finally {
@@ -117,11 +80,6 @@ export function BillAttach({
             <Upload className="size-4" aria-hidden /> {t("upload")}
           </button>
         </div>
-      )}
-      {reading && (
-        <p className="flex items-center gap-2 text-xs opacity-70">
-          <Spinner className="size-3.5" /> {t("billReading")}
-        </p>
       )}
       {failed && <FieldMessage className="mt-0">{failed}</FieldMessage>}
     </div>

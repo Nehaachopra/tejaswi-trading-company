@@ -6,7 +6,6 @@ import express, { Router } from "express";
 import { logger } from "@repo/logger";
 import { sessionFromRequest } from "@repo/trpc/server";
 
-import { readBill } from "./bill-reader";
 import { env } from "./env";
 
 // photos are stored on this server's disk for now (a CDN comes later) and served back from /uploads
@@ -66,23 +65,6 @@ uploadsRouter.post("/bill", express.raw({ type: Object.keys(BILL_TYPES), limit: 
   } catch (error) {
     logger.error("Couldn't save an uploaded bill", { error });
     return res.status(500).json({ message: "Couldn't save the bill." });
-  }
-});
-
-// a stored bill read for its number and date (see bill-reader.ts), from the admin or staff recording a purchase: only
-// one of ours, by the link the upload gave
-const BILL_LINK = /^\/uploads\/bills\/([0-9a-f-]{36})\.(webp|jpg|png|pdf)$/;
-
-uploadsRouter.post("/bill/read", express.json({ limit: "2kb" }), async (req, res) => {
-  const session = await sessionFromRequest(req);
-  if (!session) return res.status(401).json({ message: "Please log in." });
-  const match = typeof req.body?.url === "string" ? BILL_LINK.exec(req.body.url) : null;
-  if (!match) return res.status(400).json({ message: "Not a bill of ours." });
-  const type = Object.entries(BILL_TYPES).find(([, ext]) => ext === match[2])![0];
-  try {
-    return res.json(await readBill(path.join(uploadsDir, "bills", `${match[1]}.${match[2]}`), type));
-  } catch {
-    return res.status(404).json({ message: "Bill not found." });
   }
 });
 

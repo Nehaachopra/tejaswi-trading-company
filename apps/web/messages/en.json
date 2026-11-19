@@ -1982,8 +1982,6 @@
       "upload": "Upload",
       "billUploading": "Uploading…",
       "billAttached": "Bill attached",
-      "billReading": "Reading the bill…",
-      "billFilled": "Bill number and date filled from the bill. Check them.",
       "billRemove": "Remove bill",
       "billFailed": "Couldn't upload the bill. Try again.",
       "billTooBig": "The PDF is too big (10 MB at most).",
