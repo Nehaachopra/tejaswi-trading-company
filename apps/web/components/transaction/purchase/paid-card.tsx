@@ -175,7 +175,8 @@ export function PaidCard() {
                 />
               </span>
             }
-            slot={<MicButton onText={(said) => saidAmount(said, e.typePaid)} />}
+            // the soft corner of every control (not a circle), filled on hover as the arrow below
+            slot={<MicButton onText={(said) => saidAmount(said, e.typePaid)} className="rounded-[var(--radius-control)]" />}
           />
           {cut && e.payCap !== null && (
             <Line
@@ -194,7 +195,7 @@ export function PaidCard() {
             aria-expanded={breakupOpen}
             aria-controls="purchase-breakup"
             aria-label={t("breakup")}
-            className="mt-1 flex w-full flex-col gap-1 text-left"
+            className="group mt-1 flex w-full flex-col gap-1 border-t border-chestnut/30 pt-1.5 text-left"
           >
             {left.map((l, i) => (
               <Line
@@ -203,11 +204,14 @@ export function PaidCard() {
                 value={<span className={cn(figure, "font-bold")}>{rupees(l.amount)}</span>}
                 slot={
                   i === 0 ? (
-                    <ChevronRight
-                      // right, left once open; on a phone down, up once open
-                      className={cn("size-5 transition-transform", breakupOpen ? "rotate-180 max-sm:-rotate-90" : "opacity-60 max-sm:rotate-90")}
-                      aria-hidden
-                    />
+                    // as the mic above: a soft-cornered tile, filled on hover
+                    <span className="grid size-9 place-items-center rounded-control transition-colors group-hover:bg-chestnut/10">
+                      <ChevronRight
+                        // right, left once open; on a phone down, up once open
+                        className={cn("size-5 transition-transform", breakupOpen ? "rotate-180 max-sm:-rotate-90" : "max-sm:rotate-90")}
+                        aria-hidden
+                      />
+                    </span>
                   ) : null
                 }
               />
