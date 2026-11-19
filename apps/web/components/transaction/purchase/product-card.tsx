@@ -19,10 +19,10 @@ import { GodownStepper, SackMeter } from "../shared/pack-parts";
 import { type CartLine, placedOf, usePurchaseEntry } from "./state";
 
 // the product card, exactly as a purchase order's line card: one pack size zoomed in over the dimmed page. On top its
-// pack chip and ✕, the name and the photo; what it cost on its last purchases; then Basis | New for Cost per unit, Cost
-// + GST (each fills the other) and Quantity, and the line's total (an item its order waits for, as a sale's dispatch:
-// Basis | Current | New, the order's figures as Current, and Ordered with ⌄ opening what's in stock in place of
-// Quantity). A purchase also says where the packs go: Godowns
+// pack chip and ✕, the name and the photo; what it cost on its last purchases; then Basis | Current | New for Cost per unit,
+// Cost + GST (each fills the other; no Current) and Quantity (Current: what's in stock now), and the line's total (an
+// item its order waits for, as a sale's dispatch: the order's costs as Current, and Ordered with ⌄ opening what's in
+// stock in place of Quantity). A purchase also says where the packs go: Godowns
 // with ›, which slides the card to the godowns (what's left to place, then each godown with what it holds and how many
 // go into it). Add to cart (or Save; the bin by ✕ takes one already in the cart out). The ✕, a tap on the dim area or Escape closes it unchanged
 export function ProductCard() {
@@ -53,6 +53,8 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   );
   // typed past what the order still waits for: cut to it, and it says so (until changed again)
   const [cutQty, setCutQty] = useState(false);
+  // what's in stock now, in every godown together (Quantity's Current)
+  const inStock = spotsOf(pack.productId).reduce((a, g) => a + g.held, 0);
   // from an order: whether the Quantity row (what's in stock now) under Ordered shows
   const [stockOpen, setStockOpen] = useState(false);
   const [pane, setPane] = useState<"main" | "godowns">("main");
@@ -191,8 +193,8 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                 sides for the boxes' soft edges) */}
             <div ref={mainRef} inert={pane !== "main"} className="flex w-1/2 min-w-0 flex-col gap-3 px-1 py-1">
               <FiguresTable
-                // from an order, as a sale's dispatch: Basis | Current (the order's figures) | New
-                headings={{ basis: t("basis"), current: onOrder ? t("current") : undefined, new: t("new") }}
+                // Basis | Current | New: Current the order's costs (on an arrival) and what's in stock now
+                headings={{ basis: t("basis"), current: t("current"), new: t("new") }}
                 rows={[
                   {
                     key: "rate",
@@ -224,10 +226,10 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                           top: true,
                         },
                         ...(stockOpen
-                          ? [{ key: "stock", label: t("quantity"), current: spotsOf(pack.productId).reduce((a, g) => a + g.held, 0).toLocaleString("en-IN"), input: <span /> }]
+                          ? [{ key: "stock", label: t("quantity"), current: inStock.toLocaleString("en-IN"), input: <span /> }]
                           : []),
                       ]
-                    : [{ key: "quantity", label: t("quantity"), current: "", input: quantityBox, top: true }]),
+                    : [{ key: "quantity", label: t("quantity"), current: inStock.toLocaleString("en-IN"), input: quantityBox, top: true }]),
                 ]}
               />
               {/* the line's total: Cost + GST × quantity */}

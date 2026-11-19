@@ -1973,7 +1973,7 @@
       "freight": "Freight charges",
       "otherCharges": "Other charges",
       "roundOff": "Round off",
-      "toPay": "To pay / Total",
+      "billTotal": "Total",
       "noAddress": "This supplier has no address. Tap Edit to add one.",
       "advance": "Advance with them",
       "paidNow": "Paid now",

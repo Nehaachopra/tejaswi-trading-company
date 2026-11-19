@@ -18,7 +18,7 @@ const amountBox = "min-h-12 pl-11 font-heading text-xl font-bold tabular text-ri
 
 // the Amount card, as the sale's: the cart's total (worked out, no box), then a ₹ box each for the cash discount and the
 // freight, packing, loading and other charges (each as on the bill, GST in it), the round off when there is one, then
-// To pay / Total in the chestnut box right under them. Half the card wide on a wider screen
+// Total in the chestnut box right under them. Half the card wide on a wider screen
 export function AmountCard() {
   const { t, ts, itemsTotal, discount, setDiscount, freight, setFreight, packing, setPacking, loadingCharges, setLoadingCharges, otherCharges, setOtherCharges, grossTotal, roundOff, total } =
     usePurchaseEntry();
@@ -78,7 +78,7 @@ export function AmountCard() {
       )}
       {/* what's to be paid, in the chestnut box, under a line */}
       <div className={cn(row, "mt-1 border-t border-chestnut/30 pt-2.5")}>
-        <span className="min-w-0 text-sm font-bold">{t("toPay")}</span>
+        <span className="min-w-0 text-sm font-bold">{t("billTotal")}</span>
         <span className="tabular flex min-h-12 w-[60%] shrink-0 items-center justify-end break-all rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
           {rupees(total)}
         </span>

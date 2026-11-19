@@ -279,14 +279,14 @@ export function PaidCard() {
                 // each holds)
                 slot={<AutoSwitch stacked on={e.splitAuto} set={e.setSplitAuto} />}
               />
-              {/* the slider under it, ending where the figures end (clear of the mic and arrow column) */}
+              {/* the slider under it, the full width of the rows above (the mic and arrow column too) */}
               <Meter
                 bare
                 label={tpf("leftToPay")}
                 figure={0}
                 share={Math.min(100, (e.splitTotal / paid) * 100)}
                 done={e.splitTotal === paid}
-                className="-mt-1 mr-12"
+                className="-mt-1"
               />
             </>
   );
