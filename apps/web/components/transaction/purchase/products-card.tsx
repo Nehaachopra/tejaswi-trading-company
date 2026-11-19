@@ -11,6 +11,7 @@ import { cn } from "~/lib/utils";
 import { type ProductGroup, TileTop } from "../../product/products/product-tile";
 import { NewProductCard } from "../order/new/new-product-card";
 import { CartTable } from "../shared/cart-table";
+import { TileRow } from "../shared/tile-row";
 import { ProductCard } from "./product-card";
 import { usePurchaseEntry } from "./state";
 
@@ -81,11 +82,11 @@ export function ProductsCard() {
             {fromOrder.length === 0 ? (
               <p className="py-6 text-center text-sm opacity-70">{ts("allOrderedInCart")}</p>
             ) : (
-              <ul className={TILE_ROW}>
+              <TileRow className={TILE_ROW} moreLabel={t("moreProducts")} backLabel={t("firstProducts")}>
                 {fromOrder.map((group) => (
                   <PurchaseTile key={group.key} group={group} ordered />
                 ))}
-              </ul>
+              </TileRow>
             )}
           </div>
           {!othersOpen && (
@@ -191,7 +192,7 @@ export function ProductsCard() {
       {rest.length === 0 && !isAdmin ? (
         <p className="py-6 text-center text-sm opacity-70">{!anyBuyable ? t("noProducts") : lines.length > 0 ? ts("allInCart") : ts("noMatch")}</p>
       ) : (
-        <ul className={TILE_ROW}>
+        <TileRow className={TILE_ROW} moreLabel={t("moreProducts")} backLabel={t("firstProducts")}>
           {rest.map((group) => (
             <PurchaseTile key={group.key} group={group} />
           ))}
@@ -204,7 +205,7 @@ export function ProductsCard() {
               onCreated={setCardFor}
             />
           )}
-        </ul>
+        </TileRow>
       )}
         </>
       )}

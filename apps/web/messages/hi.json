@@ -1966,6 +1966,8 @@
       "hintGodowns": "हर पैक किसी गोदाम में रखें।",
       "leftToArrive": "आना बाकी",
       "orderCap": "इस ऑर्डर पर केवल {n} और आ सकते हैं।",
+      "moreProducts": "और उत्पाद",
+      "firstProducts": "पहले उत्पादों पर वापस",
       "leftToPlace": "रखना बाकी",
       "freight": "भाड़ा",
       "otherCharges": "अन्य शुल्क",
