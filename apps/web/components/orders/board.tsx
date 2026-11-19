@@ -358,26 +358,16 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
                   <span className="opacity-70">{tl("products")}</span>
                   <span className="tabular font-semibold">{o.itemCount}</span>
                 </span>
-                {o.status === "pending" &&
-                  (kind === "sale" ? (
-                    // a sale order: the sale, as a dispatch on it
-                    <Link
-                      href={`/transaction/sale?order=${o.id}`}
-                      className="relative z-10 flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-control bg-chestnut px-3 text-xs font-semibold text-ivory"
-                    >
-                      <Truck className="size-3.5 shrink-0" aria-hidden />
-                      {t("page.recordDispatch")}
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      className="relative z-10 flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-control bg-chestnut px-3 text-xs font-semibold text-ivory disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Truck className="size-3.5 shrink-0" aria-hidden />
-                      {t("page.recordArrival")}
-                    </button>
-                  ))}
+                {o.status === "pending" && (
+                  // a sale order: the sale, as a dispatch on it; a purchase order: the purchase, as an arrival on it
+                  <Link
+                    href={`/transaction/${kind === "sale" ? "sale" : "purchase"}?order=${o.id}`}
+                    className="relative z-10 flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-control bg-chestnut px-3 text-xs font-semibold text-ivory"
+                  >
+                    <Truck className="size-3.5 shrink-0" aria-hidden />
+                    {t(kind === "sale" ? "page.recordDispatch" : "page.recordArrival")}
+                  </Link>
+                )}
               </span>
             </li>
           ))}

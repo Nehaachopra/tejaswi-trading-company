@@ -190,28 +190,15 @@ export function OrderPage({
           {o.status === "pending" && (
             <span className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap">
               {/* Record dispatch (a sale order) or arrival (a purchase order): the main action, filled; its page comes next */}
-              {kind === "sale" ? (
-                <Link
-                  href={`/transaction/sale?order=${id}`}
-                  aria-label={recordLabel}
-                  title={recordLabel}
-                  className={cn(action, "bg-chestnut text-ivory")}
-                >
-                  <Truck className="size-4 shrink-0" aria-hidden />
-                  {recordLabel}
-                </Link>
-              ) : (
-                <button
-                  type="button"
-                  disabled
-                  aria-label={recordLabel}
-                  title={recordLabel}
-                  className={cn(action, "bg-chestnut text-ivory")}
-                >
-                  <Truck className="size-4 shrink-0" aria-hidden />
-                  {recordLabel}
-                </button>
-              )}
+              <Link
+                href={`/transaction/${kind === "sale" ? "sale" : "purchase"}?order=${id}`}
+                aria-label={recordLabel}
+                title={recordLabel}
+                className={cn(action, "bg-chestnut text-ivory")}
+              >
+                <Truck className="size-4 shrink-0" aria-hidden />
+                {recordLabel}
+              </Link>
               {isAdmin && (
                 <>
                   {/* Edit order: the order's form, started from it */}

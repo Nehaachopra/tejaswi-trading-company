@@ -1964,6 +1964,8 @@
       "noProducts": "No products yet. Add one with New product.",
       "hintCost": "Type the cost.",
       "hintGodowns": "Put every pack in a godown.",
+      "leftToArrive": "Left to arrive",
+      "orderCap": "Only {n} more can arrive on this order.",
       "leftToPlace": "Left to place",
       "freight": "Freight charges",
       "otherCharges": "Other charges",

@@ -24,11 +24,11 @@ import { SupplierCard } from "./supplier-card";
 // with Back and Next, and a summary on the right (a bar above the card on a phone) that goes back to any card. 1
 // Products; 2 Amount: the charges and a cash discount; 3 Cash or credit; 4 Supplier; 5 Paid (cash) or Due (credit); 6
 // Bill: its number, date and photo; 7 Details: vehicle, remarks and Save. A save goes to the purchase's success page.
-// Discarding to open a menu starts the form again
-export function PurchaseForm({ isAdmin }: { isAdmin: boolean }) {
+// Discarding to open a menu starts the form again. `orderId` (Record arrival): an arrival on that purchase order
+export function PurchaseForm({ isAdmin, orderId = null }: { isAdmin: boolean; orderId?: string | null }) {
   const [round, setRound] = useState(0);
   return (
-    <PurchaseDataProvider>
+    <PurchaseDataProvider orderId={orderId}>
       <PurchaseEntry key={round} isAdmin={isAdmin} onDiscard={() => setRound((r) => r + 1)} />
     </PurchaseDataProvider>
   );

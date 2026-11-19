@@ -22,10 +22,14 @@ const TILE_ROW = "-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 [scrollbar-w
 
 // the Products card, as the sale's: on top, what's in the cart as a table; below, every other pack size that can be
 // bought (it has a GST %), filtered by category, in one row; each tile its name, photo and Add, which opens the
-// product card. The admin's + New product sits beside the heading, as quiet as the filters
+// product card. The admin's + New product sits beside the heading, as quiet as the filters. An arrival on a purchase
+// order: under the cart a From order part (the pack sizes the order still waits for, each with what's left to arrive),
+// then Show other products, which opens the rest below it
 export function ProductsCard() {
-  const { t, ts, isAdmin, products, categories, lines, figures, packOf, itemsTotal, setCardFor, removeLine, buyable } = usePurchaseEntry();
+  const { t, ts, isAdmin, products, categories, lines, figures, packOf, itemsTotal, setCardFor, removeLine, buyable, order, orderLeft } = usePurchaseEntry();
   const [adding, setAdding] = useState(false);
+  // the other products, opened from the button (always there on a purchase of its own)
+  const [othersOpen, setOthersOpen] = useState(false);
 
   // the filters for the products below
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -37,9 +41,13 @@ export function ProductsCard() {
   const taken = new Set(lines.map((l) => l.productId));
   const rest = products
     .filter((g) => (!categoryId || g.categoryId === categoryId) && (!subCategoryId || g.subCategoryId === subCategoryId))
-    .map((g) => ({ ...g, packs: g.packs.filter((p) => !taken.has(p.productId) && buyable(p)) }))
+    .map((g) => ({ ...g, packs: g.packs.filter((p) => !taken.has(p.productId) && buyable(p) && orderLeft(p.productId) === 0) }))
     .filter((g) => g.packs.length > 0);
   const anyBuyable = products.some((g) => g.packs.some(buyable));
+  // the order's pack sizes still waited for and not yet in the cart, by product
+  const fromOrder = products
+    .map((g) => ({ ...g, packs: g.packs.filter((p) => !taken.has(p.productId) && orderLeft(p.productId) > 0) }))
+    .filter((g) => g.packs.length > 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -60,6 +68,40 @@ export function ProductsCard() {
         )}
       </div>
 
+      {/* an arrival on an order: what the order still waits for, then the button that opens the other products */}
+      {order && (
+        <>
+          <div className="border-t border-chestnut/15" aria-hidden />
+          <div className="flex flex-col gap-2">
+            {/* the heading, and which order on the right */}
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className={heading}>{ts("fromOrder")}</h3>
+              <span className="tabular text-sm font-semibold">{order.orderId}</span>
+            </div>
+            {fromOrder.length === 0 ? (
+              <p className="py-6 text-center text-sm opacity-70">{ts("allOrderedInCart")}</p>
+            ) : (
+              <ul className={TILE_ROW}>
+                {fromOrder.map((group) => (
+                  <PurchaseTile key={group.key} group={group} ordered />
+                ))}
+              </ul>
+            )}
+          </div>
+          {!othersOpen && (
+            <button
+              type="button"
+              onClick={() => setOthersOpen(true)}
+              className="flex min-h-11 w-full items-center justify-center rounded-control border border-chestnut/35 px-5 text-sm font-semibold hover:bg-chestnut/[0.06]"
+            >
+              {ts("showOthers")}
+            </button>
+          )}
+        </>
+      )}
+
+      {(!order || othersOpen) && (
+        <>
       <div className="border-t border-chestnut/15" aria-hidden />
 
       {/* the products: their heading with + New product beside it (on a phone too, so not full width), the filters,
@@ -164,6 +206,8 @@ export function ProductsCard() {
           )}
         </ul>
       )}
+        </>
+      )}
 
       {/* the product card, over the page, for the pack size being added or changed */}
       <ProductCard />
@@ -171,14 +215,23 @@ export function ProductsCard() {
   );
 }
 
-// a product to buy: its pack chips, name and photo, then Add (no price: the supplier's rate is typed on its card)
-function PurchaseTile({ group }: { group: ProductGroup }) {
-  const { ts, setCardFor } = usePurchaseEntry();
+// a product to buy: its pack chips, name and photo, then Add (no price: the supplier's rate is typed on its card).
+// `ordered` (a pack size its order still waits for): what's left to arrive, on chestnut, above Add
+function PurchaseTile({ group, ordered = false }: { group: ProductGroup; ordered?: boolean }) {
+  const { t, ts, setCardFor, orderLeft } = usePurchaseEntry();
   const [picked, setPicked] = useState(group.packs[0]!.productId);
   const pack = group.packs.find((p) => p.productId === picked) ?? group.packs[0]!;
   return (
     <li className="flex w-40 shrink-0 snap-start flex-col gap-2 rounded-control border border-chestnut/15 p-2.5 sm:w-52 sm:p-3.5">
       <TileTop group={group} pack={pack} onPack={setPicked} />
+      {ordered && (
+        <div className="mt-auto flex flex-col gap-1">
+          <span className="text-xs">{t("leftToArrive")}</span>
+          <span className="tabular flex w-full justify-center truncate rounded-lg bg-chestnut py-1 font-heading text-xl font-semibold text-ivory">
+            {orderLeft(pack.productId).toLocaleString("en-IN")}
+          </span>
+        </div>
+      )}
       <button
         type="button"
         onClick={() => setCardFor(pack.productId)}

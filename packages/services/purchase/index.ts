@@ -361,6 +361,10 @@ export default class PurchaseService {
       .from(purchaseOrderProductsTable)
       .where(eq(purchaseOrderProductsTable.purchaseOrderId, orderId));
     const came = await arrivedFor(tx, orderId);
+    // never more of an ordered item than was ordered (products not on the order may come along freely)
+    if (ordered.some((o) => (came.get(o.productId) ?? 0) > o.quantity)) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "More of an item has arrived than was ordered." });
+    }
     if (ordered.every((o) => (came.get(o.productId) ?? 0) >= o.quantity)) {
       await tx.update(purchaseOrdersTable).set({ status: "completed" }).where(eq(purchaseOrdersTable.id, orderId));
     }

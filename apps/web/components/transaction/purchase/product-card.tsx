@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { FieldMessage } from "~/components/ui/field-message";
 import { packLabel, rupees, titleCase } from "~/lib/format";
 import { unitsIn } from "~/lib/price";
 import { cn } from "~/lib/utils";
@@ -31,13 +32,25 @@ export function ProductCard() {
 }
 
 function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
-  const { ts, lines, putLine, removeLine, setCardFor } = usePurchaseEntry();
+  const { ts, lines, putLine, removeLine, setCardFor, orderLine, orderLeft, orderCost } = usePurchaseEntry();
   const t = useTranslations("orders");
   const units = useTranslations("products.items.form.units");
   const tp = useTranslations("transactions.purchase");
   const saved = lines.find((l) => l.productId === pack.productId);
-  // a new line starts at a quantity of 0, its costs empty
-  const [draft, setDraft] = useState<CartLine>(() => saved ?? { ...emptyLine(pack.productId), quantity: "0", godowns: {} });
+  // an arrival on a purchase order: how many of it the order still waits for (never more can come on it)
+  const left = orderLeft(pack.productId);
+  const onOrder = left > 0 ? orderLine(pack.productId) : null;
+  // a new line starts at a quantity of 0, its costs empty; one its order waits for starts from the cost it was ordered at
+  // and all that's left to arrive
+  const [draft, setDraft] = useState<CartLine>(
+    () =>
+      saved ??
+      (left > 0
+        ? { ...settleLine({ ...emptyLine(pack.productId), priceGst: orderCost(pack.productId), from: "priceGst" }, unitsIn(pack), pack.gstPercent), quantity: String(left), godowns: {} }
+        : { ...emptyLine(pack.productId), quantity: "0", godowns: {} }),
+  );
+  // typed past what the order still waits for: cut to it, and it says so (until changed again)
+  const [cutQty, setCutQty] = useState(false);
   const [pane, setPane] = useState<"main" | "godowns">("main");
   const close = () => setCardFor(null);
   const name = `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}`;
@@ -152,11 +165,34 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                     current: "",
                     input: <MoneyBox value={draft.priceGst} maxDigits={7} onChange={(v) => setFigure("priceGst", v)} label={t("costGst")} />,
                   },
+                  // from an order: how many it ordered
+                  ...(onOrder
+                    ? [
+                        { key: "ordered", label: ts("ordered"), current: "", input: <span className={orderFigure}>{onOrder.quantity.toLocaleString("en-IN")}</span> },
+                      ]
+                    : []),
                   {
                     key: "quantity",
                     label: t("quantity"),
                     current: "",
-                    input: <QuantityBox value={draft.quantity} onChange={(v) => setDraft((d) => ({ ...d, quantity: v }))} name={name} />,
+                    input: (
+                      <div className="flex flex-col gap-1.5">
+                        <QuantityBox
+                          value={draft.quantity}
+                          max={left > 0 ? left : undefined}
+                          onChange={(v, cut) => {
+                            setCutQty(cut);
+                            setDraft((d) => ({ ...d, quantity: v }));
+                          }}
+                          name={name}
+                        />
+                        {cutQty && (
+                          <FieldMessage tone="warning" className="mt-0">
+                            {tp("orderCap", { n: left.toLocaleString("en-IN") })}
+                          </FieldMessage>
+                        )}
+                      </div>
+                    ),
                     top: true,
                   },
                 ]}
@@ -236,6 +272,9 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
     document.body,
   );
 }
+
+// an order's figure in the New column: plain, ending where a box's typed number ends
+const orderFigure = "tabular block pr-2.5 text-right text-base font-bold";
 
 // the godowns' part: what's left to place, then a row each: name left, what it holds now in the middle, how many go
 // into it right (never more than is still to place; none into one being counted). With no quantity typed yet, only the

@@ -55,7 +55,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   const locale = useLocale();
   const router = useRouter();
   const sameName = useSameNameConfirm();
-  const { products, categories, godowns, stock, sources, loading, loadFailed, retryLoad, savePurchase, saving: creating, saved } = usePurchaseData();
+  const { products, categories, godowns, stock, sources, order, orderLedger, loading, loadFailed, retryLoad, savePurchase, saving: creating, saved } = usePurchaseData();
 
   // the answers
   const [lines, setLines] = useState<CartLine[]>([]);
@@ -70,6 +70,11 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   const [supplier, setSupplier] = useState<LedgerChoice>(null);
   const [newSupplier, setNewSupplier] = useState<PartyDraft>(() => emptyParty());
   const [editingSupplier, setEditingSupplier] = useState(false);
+  // an arrival on a purchase order is from the order's supplier: picked already, and kept (the order is theirs)
+  const orderLocked = !!order && !!orderLedger;
+  useEffect(() => {
+    if (orderLedger) setSupplier({ kind: "ledger", ledger: orderLedger });
+  }, [orderLedger]);
   // cash: what's paid now (any part of the bill), whether an advance with them is set off, and each place's part
   const [paidText, setPaidText] = useState("");
   // an advance they hold is set off against what's owed unless switched off
@@ -104,6 +109,17 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   };
   // a pack size can be bought once it has a GST %
   const buyable = (p: Pack) => p.gstPercent != null;
+  // an arrival on a purchase order: how many of a pack size the order still waits for (never more can come on it), and
+  // what one pack was ordered at (with GST, less its share of the order's discounts), to start the cost from
+  const orderLine = (productId: string) => order?.lines.find((l) => l.productId === productId) ?? null;
+  const orderLeft = (productId: string) => {
+    const l = orderLine(productId);
+    return l ? Math.max(0, l.quantity - l.received) : 0;
+  };
+  const orderCost = (productId: string) => {
+    const l = orderLine(productId);
+    return l && l.quantity > 0 ? String(round2(l.total / l.quantity)) : "";
+  };
   // every active godown, with how many of a pack size it holds now
   const spotsOf = (productId: string): GodownSpot[] =>
     (godowns ?? []).map((g) => {
@@ -266,7 +282,8 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     lines.length > 0 &&
     lines.every((l) => {
       const q = Number(l.quantity) || 0;
-      return (parseAmount(l[l.from]) ?? 0) > 0 && q >= 1 && placedOf(l) === q;
+      // an ordered pack size: never more than the order still waits for
+      return (parseAmount(l[l.from]) ?? 0) > 0 && q >= 1 && placedOf(l) === q && (!orderLine(l.productId) || q <= orderLeft(l.productId));
     });
   const complete: Record<PurchaseStep, boolean> = {
     products: linesOk,
@@ -381,6 +398,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
         saveKey,
         dateTime: momentOf(billDay),
         supplierLedgerId: supplier?.kind === "ledger" ? supplier.ledger.id : null,
+        purchaseOrderId: order?.id ?? null,
         newSupplier: supplier?.kind === "party" ? partyInput(newSupplier) : null,
         supplierInvoiceNumber: billNumber,
         lines: lines.map((l, i) => ({
@@ -447,6 +465,11 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     packOf,
     nameOf,
     buyable,
+    order,
+    orderLine,
+    orderLeft,
+    orderCost,
+    orderLocked,
     spotsOf,
     lines,
     figures,

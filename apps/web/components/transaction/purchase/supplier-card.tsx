@@ -16,7 +16,7 @@ import { usePurchaseEntry } from "./state";
 // their details right here, as the sale's new customer: the phone first (needed), then the name and the rest, no
 // email; a phone one of ours already has shows them instead
 export function SupplierCard() {
-  const { t, isAdmin, supplier, setSupplier, newSupplier, setNewSupplier, editingSupplier, setEditingSupplier, matched, tried, setTried, show } = usePurchaseEntry();
+  const { t, isAdmin, supplier, setSupplier, newSupplier, setNewSupplier, editingSupplier, setEditingSupplier, matched, tried, setTried, show, orderLocked } = usePurchaseEntry();
   const tc = useTranslations("transactions.chat");
   const tp = useTranslations("transactions.payment.form");
   const picked = supplier?.kind === "ledger" ? supplier.ledger : null;
@@ -36,6 +36,8 @@ export function SupplierCard() {
         }}
         canAdd={isAdmin}
         addParty
+        // an arrival on a purchase order is from the order's supplier
+        locked={orderLocked && supplier?.kind === "ledger"}
         onEdit={isAdmin && picked?.party ? () => setEditingSupplier((on) => !on) : undefined}
         placeholder={tc("hints.from")}
       />
