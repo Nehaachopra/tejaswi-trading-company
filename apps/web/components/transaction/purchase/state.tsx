@@ -238,7 +238,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     money: kind !== null,
     supplier:
       (supplier?.kind === "ledger" && !!supplier.ledger.party?.city) ||
-      (supplier?.kind === "party" && !matched && partyOk(newSupplier, true, true) && newSupplier.addresses.length > 0),
+      (supplier?.kind === "party" && !matched && partyOk(newSupplier, true)),
     // cash: something paid (or the advance set off), placed in full; credit: a period or none
     paid: kind === "credit" ? creditDays === "" || Number(creditDays) <= 365 : (paid > 0 || setOff > 0) && (paid === 0 || splitOk),
     bill: billNumberOk(billNumber) && billDay !== "" && !billBusy,

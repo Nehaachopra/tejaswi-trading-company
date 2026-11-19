@@ -13,8 +13,8 @@ import { usePurchaseEntry } from "./state";
 
 // the Supplier card, as a purchase order's: a search over the suppliers; picking one with an address moves on (the bill
 // is from their default address; one with none says to add it, Edit for the admin). + New party (the admin's) asks
-// their details right here as rows: the phone optional, no email, PAN or short name, and one full address (the town
-// fills in the rest); a phone one of ours already has shows them instead
+// their details right here, as the sale's new customer: the phone first (needed), then the name and the rest, no
+// email; a phone one of ours already has shows them instead
 export function SupplierCard() {
   const { t, isAdmin, supplier, setSupplier, newSupplier, setNewSupplier, editingSupplier, setEditingSupplier, matched, tried, setTried, show } = usePurchaseEntry();
   const tc = useTranslations("transactions.chat");
@@ -58,14 +58,12 @@ export function SupplierCard() {
             tried={tried}
             strict
             asksRemarks={false}
-            asksPan={false}
-            asksShortName={false}
-            asksEmail={false}
-            oneAddress
-            phoneOptional
-            rows
             onAddressesOpen={() => setTried(false)}
             onlyPhone={!!matched}
+            rows
+            // the phone on top (one of ours with it shows them instead), then the name and short name; no email
+            phoneFirst
+            asksEmail={false}
           />
           {/* a phone someone already has: them instead (use them, or change the phone), as in a payment */}
           {matched?.party && (

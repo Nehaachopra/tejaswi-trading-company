@@ -2,9 +2,13 @@ import { z } from "zod";
 
 import { moreBankPartModel } from "../payment/model";
 import { createProductInputModel, imageUrlModel } from "../product/model";
-import { newSupplierInputModel } from "../purchase-order/model";
+import { createPartyInputModel } from "../party/model";
 
 const idModel = z.string().uuid();
+
+// a supplier added with a purchase, as a customer added with a sale: their phone, name and the rest, and an address
+// (the bill is from it)
+const newSupplierInputModel = createPartyInputModel.refine((p) => p.addresses.length > 0, { message: "A new supplier needs an address.", path: ["addresses"] });
 
 // rupees with at most 2 decimals, within the money columns
 const rupeesModel = z.number().min(0).max(9_999_999_999_999).multipleOf(0.01);

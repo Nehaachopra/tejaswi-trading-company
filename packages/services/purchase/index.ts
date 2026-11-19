@@ -74,7 +74,7 @@ export default class PurchaseService {
   // the supplier: their ledger picked (a party's, active), or a party added now; either way a supplier from here on
   private async supplierIn(tx: Tx, input: ReturnType<typeof createPurchaseInputModel.parse>) {
     let ledgerId = input.supplierLedgerId;
-    if (input.newSupplier) ledgerId = (await this.parties.createIn(tx, input.newSupplier, "supplier", true)).ledgerId;
+    if (input.newSupplier) ledgerId = (await this.parties.createIn(tx, input.newSupplier, "supplier")).ledgerId;
     const [ledger] = await tx.select().from(ledgersTable).where(eq(ledgersTable.id, ledgerId!));
     if (!ledger || ledger.referenceTable !== "parties" || !ledger.referenceId) throw new TRPCError({ code: "NOT_FOUND", message: "Supplier not found." });
     const [party] = await tx.select().from(partiesTable).where(eq(partiesTable.id, ledger.referenceId));
