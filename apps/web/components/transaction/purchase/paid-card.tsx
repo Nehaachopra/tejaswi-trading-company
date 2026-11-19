@@ -197,22 +197,20 @@ export function PaidCard() {
             aria-label={t("breakup")}
             className="group mt-1 flex w-full flex-col gap-1 border-t border-chestnut/30 pt-1.5 text-left"
           >
-            {left.map((l, i) => (
+            {left.map((l) => (
               <Line
                 key={l.key}
                 label={<span className="font-semibold">{l.label}</span>}
                 value={<span className={cn(figure, "font-bold")}>{rupees(l.amount)}</span>}
+                // an arrow on each line (both open the breakup), as the mic above: a soft-cornered tile, filled on hover
                 slot={
-                  i === 0 ? (
-                    // as the mic above: a soft-cornered tile, filled on hover
-                    <span className="grid size-9 place-items-center rounded-control transition-colors group-hover:bg-chestnut/10">
-                      <ChevronRight
-                        // right, left once open; on a phone down, up once open
-                        className={cn("size-5 transition-transform", breakupOpen ? "rotate-180 max-sm:-rotate-90" : "max-sm:rotate-90")}
-                        aria-hidden
-                      />
-                    </span>
-                  ) : null
+                  <span className="grid size-9 place-items-center rounded-control transition-colors group-hover:bg-chestnut/10">
+                    <ChevronRight
+                      // right, left once open; on a phone down, up once open
+                      className={cn("size-5 transition-transform", breakupOpen ? "rotate-180 max-sm:-rotate-90" : "max-sm:rotate-90")}
+                      aria-hidden
+                    />
+                  </span>
                 }
               />
             ))}
