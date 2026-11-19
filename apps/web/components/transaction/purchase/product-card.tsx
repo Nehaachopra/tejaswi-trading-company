@@ -306,7 +306,8 @@ function GodownRows({
   onPart: (godownId: string, v: string) => void;
 }) {
   const { t, ts, spotsOf } = usePurchaseEntry();
-  const spots = spotsOf(productId);
+  // the godowns holding most of it first (where it's kept already), ones being counted last
+  const spots = [...spotsOf(productId)].sort((a, b) => Number(a.counting) - Number(b.counting) || b.held - a.held);
   const placedNow = Object.values(parts).reduce((a, v) => a + (Number(v) || 0), 0);
   const left = quantity - placedNow;
   // a quantity typed: the meter and the Quantity column show
