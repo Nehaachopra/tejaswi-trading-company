@@ -14,8 +14,8 @@ const ROW = "-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:
 
 // what's in the cart as a row of cards, as the products row below it: each card its pack chip, a pen and a red bin on top,
 // the name and category | sub-category, the photo, then the price (Rate on a purchase) and Quantity, a row each; a tap
-// on a card opens its product card to change it. Under the row, the Total row as the cart table's: how many, and the
-// cart's total
+// on a card opens its product card to change it. Under the row, the Total row: Items (how many) and Total (the
+// cart's total) side by side
 export function CartCards({
   lines,
   packOf,
@@ -119,13 +119,16 @@ export function CartCards({
         })}
       </TileRow>
 
-      {/* the Total row: its name with how many beside it, and the cart's total */}
-      <div className="tabular flex items-center justify-between gap-3 rounded-control bg-chestnut px-2.5 py-2.5 text-ivory">
-        <span className="flex items-center gap-2 text-sm font-semibold">
-          {t("lineTotal")}
-          <span className="grid h-5 min-w-5 place-items-center rounded-md bg-ivory px-1 text-xs font-semibold leading-none text-chestnut">{lines.length}</span>
-        </span>
-        <span className="whitespace-nowrap font-heading text-lg font-extrabold">{rupees(itemsTotal)}</span>
+      {/* the Total row: Items with how many (only as wide as it needs), and Total with the cart's total, side by side */}
+      <div className="tabular grid grid-cols-[auto_minmax(0,1fr)] rounded-control bg-chestnut text-ivory">
+        <p className="flex items-baseline gap-3 px-2.5 py-2.5">
+          <span className="text-sm font-semibold">{t("items")}</span>
+          <span className="font-heading text-lg font-extrabold">{lines.length.toLocaleString("en-IN")}</span>
+        </p>
+        <p className="flex min-w-0 items-baseline justify-between gap-2 border-l border-ivory/25 px-2.5 py-2.5">
+          <span className="text-sm font-semibold">{t("lineTotal")}</span>
+          <span className="truncate whitespace-nowrap font-heading text-lg font-extrabold">{rupees(itemsTotal)}</span>
+        </p>
       </div>
     </div>
   );
