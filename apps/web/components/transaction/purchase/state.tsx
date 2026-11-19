@@ -265,6 +265,8 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   // one saved on them is taken as it is; a typed one must have a handle a UPI app gives out
   const typedUpiOk = typedUpiShapeOk && (appOfUpi(typedUpi) !== null || savedUpis.includes(typedUpi.trim().toLowerCase()));
   const asksUpi = kind === "cash" && !!supplier && bankIdsUsed.some((id) => bankModes[id] === "upi");
+  // it may be left empty, but one typed must be right (or cleared) before going on: never dropped without a word
+  const upiTypedBad = asksUpi && typedUpi.trim() !== "" && !typedUpiOk;
   // kept: saved on them, or typed and Saved; the box then goes, and the ID shows above the QR with its pen
   const upiKept = !upiEditing && typedUpiOk && (upiLeft || savedUpis.includes(typedUpi.trim().toLowerCase()));
   // another supplier, or their saved UPI IDs changed: the box starts with their saved one, or empty
@@ -307,7 +309,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
       (supplier?.kind === "ledger" && !!supplier.ledger.party?.city) ||
       (supplier?.kind === "party" && !matched && partyOk(newSupplier, true)),
     // cash: something paid (or the advance set off), placed in full; credit: a period or none
-    paid: kind === "credit" ? creditDays === "" || Number(creditDays) <= 365 : (paid > 0 || setOff > 0) && (payCap === null || paid <= payCap) && (paid === 0 || splitOk),
+    paid: kind === "credit" ? creditDays === "" || Number(creditDays) <= 365 : (paid > 0 || setOff > 0) && (payCap === null || paid <= payCap) && (paid === 0 || splitOk) && !upiTypedBad,
     bill: billNumberOk(billNumber) && billDay !== "" && !billBusy,
     details: true,
   };
@@ -382,7 +384,9 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
                   ? t("missing.paid")
                   : splitTotal < paid
                       ? t("missing.left", { amount: round2(paid - splitTotal).toLocaleString("en-IN") })
-                      : t("missing.into")
+                      : upiTypedBad
+                        ? t("missing.upi")
+                        : t("missing.into")
               : s === "bill"
                 ? !billNumberOk(billNumber)
                   ? t("missing.billNumber")

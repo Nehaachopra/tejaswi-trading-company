@@ -555,6 +555,8 @@ export function usePaymentEntryState({
   // the box shows whenever someone is being paid by UPI (a head paid to no one, like electricity, has none)
   const asksUpi = !!qrParty && (into === "bank" || into === "both") && anyUpi;
   const payeeUpis = typedUpiOk ? [typedUpi.trim().toLowerCase()] : [];
+  // it may be left empty, but one typed must be right (or cleared) before going on: never dropped without a word
+  const upiTypedBad = asksUpi && typedUpi.trim() !== "" && !typedUpiOk;
   // another party: the box starts with their saved UPI ID, or empty
   const savedKey = `${qrParty?.name ?? ""}|${savedUpis.join()}`;
   useEffect(() => {
@@ -941,7 +943,8 @@ export function usePaymentEntryState({
       sourceDone &&
       (!rentCalc || rentOk) &&
       (into === "cash" || into === null || bankMode !== null) &&
-      refAccounts.every(refOk),
+      refAccounts.every(refOk) &&
+      !upiTypedBad,
     source: sourceDone,
     kind: kind !== null,
     to: toDone,

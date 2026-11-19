@@ -2003,6 +2003,7 @@
         "paid": "Enter the amount to pay.",
         "left": "₹{amount} left to place.",
         "into": "Place the whole amount, and pick how each account paid.",
+        "upi": "Correct the supplier's UPI ID, or clear it.",
         "billNumber": "Enter the bill number.",
         "billDate": "Pick the bill date.",
         "billUpload": "Wait for the bill to upload."

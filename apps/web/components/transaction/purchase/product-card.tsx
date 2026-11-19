@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -24,7 +24,7 @@ import { type CartLine, placedOf, usePurchaseEntry } from "./state";
 // Basis | Current | New, the order's figures as Current, and Ordered with ⌄ opening what's in stock in place of
 // Quantity). A purchase also says where the packs go: Godowns
 // with ›, which slides the card to the godowns (what's left to place, then each godown with what it holds and how many
-// go into it). Add to cart (or Save and Remove from cart). The ✕, a tap on the dim area or Escape closes it unchanged
+// go into it). Add to cart (or Save; the bin by ✕ takes one already in the cart out). The ✕, a tap on the dim area or Escape closes it unchanged
 export function ProductCard() {
   const { cardFor, packOf } = usePurchaseEntry();
   const found = cardFor ? packOf(cardFor) : null;
@@ -144,14 +144,30 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
         aria-label={name}
         className="on-ivory flex w-[min(340px,100%)] animate-zoom-in flex-col gap-2 rounded-control bg-ivory p-4 text-chestnut shadow-[0_12px_40px_rgba(0,0,0,0.4)]"
       >
-        {/* pack quantity and ✕ on top */}
+        {/* pack quantity on top; on the right, for one already in the cart a bin (takes it out), then ✕ */}
         <div className="flex justify-between">
           <span className="tabular inline-flex min-h-8 w-fit items-center rounded-control border border-chestnut bg-chestnut px-2.5 text-xs font-semibold text-ivory">
             {packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}
           </span>
-          <button type="button" onClick={close} aria-label={t("close")} className="grid place-items-center rounded-control p-2 hover:bg-chestnut/8">
-            <X className="size-5" aria-hidden />
-          </button>
+          <span className="flex items-center">
+            {saved && (
+              <button
+                type="button"
+                onClick={() => {
+                  removeLine(pack.productId);
+                  close();
+                }}
+                aria-label={ts("removeFromCart")}
+                title={ts("removeFromCart")}
+                className="grid place-items-center rounded-control p-2 text-danger hover:bg-danger/[0.08]"
+              >
+                <Trash2 className="size-5" aria-hidden />
+              </button>
+            )}
+            <button type="button" onClick={close} aria-label={t("close")} className="grid place-items-center rounded-control p-2 hover:bg-chestnut/8">
+              <X className="size-5" aria-hidden />
+            </button>
+          </span>
         </div>
 
         {/* the product card's top: the name, category | sub-category, the photo */}
@@ -260,7 +276,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
           </button>
         )}
 
-        {/* Add to cart, or Save and Remove from cart for one already in it */}
+        {/* Add to cart, or Save for one already in it */}
         <div className="mt-1 flex flex-col gap-2">
           {hint && <p className="text-center text-xs text-chestnut/70">{hint}</p>}
           <button
@@ -271,18 +287,6 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
           >
             {saved ? ts("saveLine") : ts("addToCart")}
           </button>
-          {saved && (
-            <button
-              type="button"
-              onClick={() => {
-                removeLine(pack.productId);
-                close();
-              }}
-              className="min-h-11 w-full rounded-control border border-chestnut/35 text-sm font-semibold text-danger hover:bg-chestnut/[0.06]"
-            >
-              {ts("removeFromCart")}
-            </button>
-          )}
         </div>
       </section>
     </div>,
