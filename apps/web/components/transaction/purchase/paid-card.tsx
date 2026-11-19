@@ -1,6 +1,6 @@
 "use client";
 
-import { IndianRupee } from "lucide-react";
+import { ChevronDown, IndianRupee } from "lucide-react";
 import { useId, useState } from "react";
 
 import { FieldMessage } from "~/components/ui/field-message";
@@ -14,7 +14,7 @@ import { cn } from "~/lib/utils";
 import { AccountCards } from "../shared/account-cards/account-cards";
 import { type AccountCardsApi, type Refs } from "../shared/account-cards/types";
 import { PlainRows } from "../shared/amount-table";
-import { DueFlow, FoldGroup } from "../shared/fold-group";
+import { DueFlow } from "../shared/fold-group";
 import { input, saidAmount } from "../shared/form-basics";
 import { usePurchaseEntry } from "./state";
 
@@ -44,9 +44,8 @@ function Figure({ label, amount, strong = false }: { label: string; amount: numb
 // (with an advance already with them: the advance, this bill, Set off from advance as a switch, then what that leaves;
 // otherwise this bill, and with older dues, the old due and the due they make together). Then the breakup: what's paid
 // now in its box (any part of what's due, the rest staying owed, or more, the rest an advance with them; never more
-// than cash and the banks hold together), then the due
-// left or the advance left. Beside it on a wider screen (under it on a phone), what it goes towards: the old due first,
-// then this bill. Then the cards for where it's paid from, each never more than it holds. Credit: this bill and the
+// than cash and the banks hold together), its ⌄ opening what it goes towards (the old due first, then this bill), then
+// the due left or the advance left. Then the cards for where it's paid from, each never more than it holds. Credit: this bill and the
 // credit period in days (optional)
 export function PaidCard() {
   const e = usePurchaseEntry();
@@ -54,6 +53,7 @@ export function PaidCard() {
   const setOffLabel = useId();
   const daysBad = tried && Number(e.creditDays) > 365;
   const cards = usePaidCards();
+  // what's paid split into the due and an advance past it, opened from the ⌄ beside Paid now
   const [towardsOpen, setTowardsOpen] = useState(false);
   // typed past what cash and the banks hold: cut to it, and it says so (until typed again)
   const [cut, setCut] = useState(false);
@@ -92,32 +92,12 @@ export function PaidCard() {
   // the advance with them after this purchase: what wasn't set off, and what's paid over all that's due
   const pendingAdvance = Math.round((heldAdvance - setOff + advance) * 100) / 100;
   const advanceLeft = dueLeft === 0 && pendingAdvance > 0;
-  // what it goes towards: a saved supplier's, once something is paid
-  const hasTowards = e.supplier?.kind === "ledger" && paid > 0;
-  const towards = (
-    <FoldGroup title={tpf("towardsGroup")} figure={paid} open={towardsOpen} onOpen={setTowardsOpen}>
-      {/* two flows: what goes towards the old due, then towards this bill */}
-      <DueFlow
-        wholeLabel={tpf("payGroup")}
-        whole={paid}
-        dueLabel={ts("oldDue")}
-        due={e.towardsOld}
-        advanceLabel={ts("thisBill")}
-        advance={e.towardsBill}
-        paidLabel=""
-        owedBefore={0}
-      />
-    </FoldGroup>
-  );
-
   return (
     <div className="flex flex-col gap-4">
-      {/* wider screens, two rows: on top the supporting details (left); under them the breakup (left) level with what
-          it goes towards (right) */}
-      <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-12">
-        <div className="flex min-w-0 flex-col gap-4 sm:contents">
+      {/* half the card wide on a wider screen, as a payment's amount: the supporting details, then the breakup */}
+      <div className="flex min-w-0 flex-col gap-4 sm:w-[calc(50%-1.5rem)]">
           {/* the supporting details, on top with room under them */}
-          <div className="mb-2 flex min-w-0 flex-col gap-2.5 sm:col-start-1 sm:row-start-1">
+          <div className="mb-2 flex min-w-0 flex-col gap-2.5">
             {heldAdvance > 0 ? (
               <>
                 <Figure label={tpf("advancePart")} amount={heldAdvance} />
@@ -146,14 +126,27 @@ export function PaidCard() {
           </div>
 
           {/* the breakup: what's paid now in its box, then the due or advance left */}
-          <div className="flex min-w-0 flex-col gap-2.5 sm:col-start-1 sm:row-start-2">
+          <div className="flex min-w-0 flex-col gap-2.5">
             <Row
               htmlFor="paid-field"
               label={
-                <>
+                // the name, its star and the ⌄ on one line, centred on each other
+                <span className="flex items-center">
                   {t("paidNow")}
                   {setOff === 0 && <RequiredMark />}
-                </>
+                  <button
+                    type="button"
+                    onClick={(ev) => {
+                      ev.preventDefault();
+                      setTowardsOpen((o) => !o);
+                    }}
+                    aria-expanded={towardsOpen}
+                    aria-label={tpf("towardsGroup")}
+                    className="ml-1 grid size-8 shrink-0 place-items-center rounded-control hover:bg-chestnut/8"
+                  >
+                    <ChevronDown className={cn("size-4 transition-transform", towardsOpen && "rotate-180")} aria-hidden />
+                  </button>
+                </span>
               }
             >
               <MicField onText={(said) => saidAmount(said, e.typePaid)}>
@@ -185,6 +178,21 @@ export function PaidCard() {
                 {tpf("capOnly", { amount: rupees(e.payCap) })}
               </FieldMessage>
             )}
+            {/* what it goes towards: the old due first, then this bill (any advance past them shows as Advance left) */}
+            {towardsOpen && (
+              <div className="rounded-control bg-chestnut/[0.04] px-3 py-2">
+                <DueFlow
+                  wholeLabel={tpf("payGroup")}
+                  whole={paid}
+                  dueLabel={ts("oldDue")}
+                  due={e.towardsOld}
+                  advanceLabel={ts("thisBill")}
+                  advance={e.towardsBill}
+                  paidLabel={tpf("paidShare")}
+                  owedBefore={0}
+                />
+              </div>
+            )}
             <PlainRows
               rows={[
                 {
@@ -195,11 +203,7 @@ export function PaidCard() {
                 },
               ]}
             />
-            {/* a phone: what it goes towards under the breakup (wider screens: on the right) */}
-            {hasTowards && <div className="mt-1.5 sm:hidden">{towards}</div>}
           </div>
-        </div>
-        {hasTowards && <div className="hidden min-w-0 sm:col-start-2 sm:row-start-2 sm:block">{towards}</div>}
       </div>
 
       {/* where it's paid from: a card for each place, once there's an amount */}
