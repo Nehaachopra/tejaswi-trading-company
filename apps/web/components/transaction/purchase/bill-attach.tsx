@@ -59,9 +59,9 @@ export function BillAttach({ value, onChange, onBusy, removable = true }: { valu
           <Spinner className="size-4" /> {t("billUploading")}
         </p>
       ) : value ? (
-        // attached: a small preview (the photo; a PDF as its icon) that opens it, and the bin over its corner: shown on
-        // hover (or focus) with a mouse, always on a phone
-        <div className="group relative size-24 overflow-hidden rounded-control border border-chestnut/25 bg-ivory">
+        // attached: a preview, a bill's shape (the photo; a PDF as its icon), that opens it, and the bin always over its
+        // corner
+        <div className="relative h-44 w-36 overflow-hidden rounded-control border border-chestnut/25 bg-ivory">
           <a href={value} target="_blank" rel="noreferrer" aria-label={t("billAttached")} className="grid size-full place-items-center">
             {value.endsWith(".pdf") ? (
               <span className="flex flex-col items-center gap-1 text-xs font-semibold">
@@ -77,7 +77,7 @@ export function BillAttach({ value, onChange, onBusy, removable = true }: { valu
               type="button"
               onClick={() => onChange(null)}
               aria-label={t("billRemove")}
-              className="absolute right-1 top-1 grid size-8 place-items-center rounded-control bg-ivory/90 text-danger shadow-sm transition-opacity hover:bg-ivory pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 pointer-fine:focus-visible:opacity-100"
+              className="absolute right-1 top-1 grid size-8 place-items-center rounded-control bg-ivory/90 text-danger shadow-sm hover:bg-ivory"
             >
               <Trash2 className="size-4" aria-hidden />
             </button>
