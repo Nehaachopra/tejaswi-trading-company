@@ -75,7 +75,7 @@ function LeftRow({ label, amount }: { label: string; amount: number }) {
 // bill amount, then with an advance their sub total and Set off from advance (a switch); the due; the payment taken off
 // it (its ⌄ opening what it goes to: the old due first, then the bill); then what's left on chestnut: the due and the
 // advance when both are above nothing, otherwise the one that is, and when neither is, ₹0 of what the account had.
-// Then Left to pay (pinned under the header while the cards scroll) and the cards for where it's paid from. Credit: the bill amount (with an old due, it and the due) and the credit
+// Then Left to pay (pinned under the header while the cards scroll) and the cards for where it's paid from. Credit: the bill amount, the old due and the due (always) and the credit
 // period in days (optional)
 export function PaidCard() {
   const e = usePurchaseEntry();
@@ -136,13 +136,10 @@ export function PaidCard() {
   if (kind === "credit")
     return (
       <div className="flex min-w-0 flex-col gap-2.5 sm:w-[calc(50%-1.5rem)]">
+        {/* the bill, the old due (₹0 with none) and the due, whether they owed anything or not */}
         <Figure label={t("billAmount")} amount={rupees(total)} />
-        {oldDue > 0 && (
-          <>
-            <Figure label={t("oldDue")} amount={rupees(oldDue)} />
-            <Figure label={tpf("due")} amount={rupees(dueNow)} strong />
-          </>
-        )}
+        <Figure label={t("oldDue")} amount={rupees(oldDue)} />
+        <Figure label={tpf("due")} amount={rupees(dueNow)} strong />
         <div className="mt-2">
           <Row htmlFor="credit-days" label={t("creditPeriod")}>
             <span className="relative block">
