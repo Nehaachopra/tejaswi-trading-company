@@ -58,7 +58,10 @@ export function DueFlow({
   advance,
   paidLabel,
   owedBefore,
+  noWhole = false,
 }: {
+  // the whole is the row right above (a breakup's Payment): only the two parts, the lines leaving from it
+  noWhole?: boolean;
   wholeLabel: string;
   whole: number;
   dueLabel: string;
@@ -74,10 +77,12 @@ export function DueFlow({
   ];
   return (
     <div className="tabular flex flex-col text-sm">
-      <div className="flex min-h-8 items-center justify-between gap-3">
-        <span>{wholeLabel}</span>
-        <span className="font-heading text-lg font-bold">{rupees(whole)}</span>
-      </div>
+      {!noWhole && (
+        <div className="flex min-h-8 items-center justify-between gap-3">
+          <span>{wholeLabel}</span>
+          <span className="font-heading text-lg font-bold">{rupees(whole)}</span>
+        </div>
+      )}
       {/* the lines leave from under the whole's name and end at Due and Advance (each row 32px, 2px apart) */}
       <div className="grid grid-cols-[1.75rem_minmax(0,1fr)]">
         <svg viewBox="0 0 28 68" className="h-[68px] w-7 overflow-visible" aria-hidden>

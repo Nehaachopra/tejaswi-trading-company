@@ -228,6 +228,7 @@ export function PaidCard() {
                 advance={e.towardsBill}
                 paidLabel={tpf("paidShare")}
                 owedBefore={0}
+                noWhole
               />
             )}
             {left.map((l) => (
