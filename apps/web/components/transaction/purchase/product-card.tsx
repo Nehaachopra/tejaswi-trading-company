@@ -265,7 +265,7 @@ function GodownRows({
       {placing && <SackMeter label={t("leftToPlace")} left={left} share={(placedNow / quantity) * 100} done={left === 0} />}
       <div className={cn("grid items-center gap-3 px-0.5 text-xs font-semibold opacity-60", cols, !placing && "mt-2")}>
         <span>{ts("godown")}</span>
-        <span className="text-center">{t("holds")}</span>
+        <span className="text-center">{ts("available")}</span>
         {placing && <span className="text-right">{ts("quantity")}</span>}
       </div>
       <div className="border-t border-chestnut/15" />
