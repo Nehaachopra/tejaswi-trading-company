@@ -207,6 +207,8 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     };
   });
   const splitTotal = round2(places.reduce((sum, p) => sum + p.amount, 0));
+  // the most that can be paid now: what cash and every bank account hold together (unknown to staff: the server checks)
+  const payCap = places.every((p) => p.held !== null) ? round2(places.reduce((sum, p) => sum + Math.max(0, p.held!), 0)) : null;
   const placesUsed = places.filter((p) => p.amount > 0);
   const bankIdsUsed = placesUsed.filter((p) => p.id !== "cash").map((p) => p.id);
   // the cards add up to what's paid, none past what it holds, and every account says how it paid
@@ -240,7 +242,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
       (supplier?.kind === "ledger" && !!supplier.ledger.party?.city) ||
       (supplier?.kind === "party" && !matched && partyOk(newSupplier, true)),
     // cash: something paid (or the advance set off), placed in full; credit: a period or none
-    paid: kind === "credit" ? creditDays === "" || Number(creditDays) <= 365 : (paid > 0 || setOff > 0) && (paid === 0 || splitOk),
+    paid: kind === "credit" ? creditDays === "" || Number(creditDays) <= 365 : (paid > 0 || setOff > 0) && (payCap === null || paid <= payCap) && (paid === 0 || splitOk),
     bill: billNumberOk(billNumber) && billDay !== "" && !billBusy,
     details: true,
   };
@@ -456,6 +458,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     typePaid,
     dueLeft,
     places,
+    payCap,
     setSplit,
     splitAuto: typedSplit === null,
     setSplitAuto,

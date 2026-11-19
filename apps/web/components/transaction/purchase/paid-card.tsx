@@ -3,6 +3,7 @@
 import { IndianRupee } from "lucide-react";
 import { useId, useState } from "react";
 
+import { FieldMessage } from "~/components/ui/field-message";
 import { MicField } from "~/components/ui/mic-button";
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
@@ -42,7 +43,8 @@ function Figure({ label, amount, strong = false }: { label: string; amount: numb
 // the Paid card (cash) or Due card (credit). Cash, laid out as the sale's Received card: on top the supporting details
 // (with an advance already with them: the advance, this bill, Set off from advance as a switch, then what that leaves;
 // otherwise this bill, and with older dues, the old due and the due they make together). Then the breakup: what's paid
-// now in its box (any part of what's due, the rest staying owed, or more, the rest an advance with them), then the due
+// now in its box (any part of what's due, the rest staying owed, or more, the rest an advance with them; never more
+// than cash and the banks hold together), then the due
 // left or the advance left. Beside it on a wider screen (under it on a phone), what it goes towards: the old due first,
 // then this bill. Then the cards for where it's paid from, each never more than it holds. Credit: this bill and the
 // credit period in days (optional)
@@ -53,6 +55,8 @@ export function PaidCard() {
   const daysBad = tried && Number(e.creditDays) > 365;
   const cards = usePaidCards();
   const [towardsOpen, setTowardsOpen] = useState(false);
+  // typed past what cash and the banks hold: cut to it, and it says so (until typed again)
+  const [cut, setCut] = useState(false);
 
   if (kind === "credit")
     return (
@@ -159,8 +163,14 @@ export function PaidCard() {
                   value={e.paidText}
                   decimals={2}
                   maxDigits={13}
+                  // never more than cash and the banks hold together; typing past it is cut there, with a warning
+                  max={e.payCap ?? undefined}
+                  onCapped={() => setCut(true)}
                   placeholder="0"
-                  onChange={e.typePaid}
+                  onChange={(v) => {
+                    setCut(false);
+                    e.typePaid(v);
+                  }}
                   aria-invalid={amountBad || undefined}
                   className={cn(
                     input(amountBad),
@@ -170,6 +180,11 @@ export function PaidCard() {
                 />
               </MicField>
             </Row>
+            {cut && e.payCap !== null && (
+              <FieldMessage tone="warning" className="ml-auto mt-0 w-[60%]">
+                {tpf("capOnly", { amount: rupees(e.payCap) })}
+              </FieldMessage>
+            )}
             <PlainRows
               rows={[
                 {
