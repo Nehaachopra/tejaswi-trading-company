@@ -71,7 +71,8 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   const [editingSupplier, setEditingSupplier] = useState(false);
   // cash: what's paid now (any part of the bill), whether an advance with them is set off, and each place's part
   const [paidText, setPaidText] = useState("");
-  const [setOffOn, setSetOffOn] = useState(false);
+  // an advance they hold is set off against what's owed unless switched off
+  const [setOffOn, setSetOffOn] = useState(true);
   const [typedSplit, setTypedSplit] = useState<Record<string, string> | null>({});
   const [bankModes, setBankModes] = useState<Record<string, BankMode | null>>({});
   const [bankRefs, setBankRefs] = useState<Record<string, string>>({});
@@ -170,7 +171,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   // someone else picked: what's paid starts again
   useEffect(() => {
     setPaidText("");
-    setSetOffOn(false);
+    setSetOffOn(true);
     setTypedSplit({});
   }, [pickedId]);
 
@@ -293,7 +294,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
       setKind(next);
       setPaidText("");
       setTypedSplit({});
-      setSetOffOn(false);
+      setSetOffOn(true);
     }
     show("supplier");
   }
