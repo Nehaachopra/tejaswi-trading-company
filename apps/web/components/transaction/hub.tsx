@@ -32,7 +32,7 @@ const GROUPS: { key: string; kinds: Kind[] }[] = [
     key: "goods",
     kinds: [
       { key: "sale", icon: ShoppingCart, href: "/transaction/sale" },
-      { key: "purchase", icon: Truck },
+      { key: "purchase", icon: Truck, href: "/transaction/purchase" },
       { key: "saleReturn", icon: Undo2 },
       { key: "purchaseReturn", icon: Redo2 },
     ],

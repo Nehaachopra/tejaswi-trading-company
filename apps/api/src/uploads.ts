@@ -40,9 +40,37 @@ uploadsRouter.post("/product-image", express.raw({ type: Object.keys(TYPES), lim
   }
 });
 
+// a supplier's bill: a photo (shrunk on the device first) or a PDF as the body, from the admin or staff recording a
+// purchase; answers with the link to keep on the purchase
+const BILL_TYPES: Record<string, string> = { ...TYPES, "application/pdf": "pdf" };
+const BILL_MAX_BYTES = 10 * 1024 * 1024;
+
+uploadsRouter.post("/bill", express.raw({ type: Object.keys(BILL_TYPES), limit: BILL_MAX_BYTES }), async (req, res) => {
+  const session = await sessionFromRequest(req);
+  if (!session) return res.status(401).json({ message: "Please log in." });
+
+  const ext = BILL_TYPES[req.headers["content-type"] ?? ""];
+  if (!ext || !Buffer.isBuffer(req.body) || req.body.length === 0) {
+    return res.status(415).json({ message: "Send a photo or a PDF." });
+  }
+  // a PDF says so in its first bytes
+  if (ext === "pdf" && req.body.subarray(0, 5).toString("latin1") !== "%PDF-") return res.status(415).json({ message: "That isn't a PDF." });
+
+  try {
+    const dir = path.join(uploadsDir, "bills");
+    await mkdir(dir, { recursive: true });
+    const file = `${randomUUID()}.${ext}`;
+    await writeFile(path.join(dir, file), req.body);
+    return res.status(201).json({ url: `/uploads/bills/${file}` });
+  } catch (error) {
+    logger.error("Couldn't save an uploaded bill", { error });
+    return res.status(500).json({ message: "Couldn't save the bill." });
+  }
+});
+
 // a too-big body: say so plainly instead of Express's HTML error page
 uploadsRouter.use((err: { type?: string }, _req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (err.type === "entity.too.large") return res.status(413).json({ message: "The photo is too big (5 MB at most)." });
+  if (err.type === "entity.too.large") return res.status(413).json({ message: "The file is too big." });
   return next(err);
 });
 

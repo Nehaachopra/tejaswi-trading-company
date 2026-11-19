@@ -1,17 +1,17 @@
 "use client";
 
-import { Check, ChevronDown, ChevronLeft, ChevronRight, Minus, Plus, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { NumberInput } from "~/components/ui/number-input";
 import { packLabel, rupees, titleCase } from "~/lib/format";
 import { asField, parseAmount, unitsIn } from "~/lib/price";
 import { cn } from "~/lib/utils";
 
 import { type Pack, type ProductGroup, ProductImage, productTitle } from "../../product/products/product-tile";
 import { FiguresTable, MoneyBox } from "../shared/figures-table";
+import { GodownStepper, QuantityBox, SackMeter } from "../shared/pack-parts";
 import { type CartLine, lineFigures, placedOf, priceOf, useSaleEntry } from "./state";
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
@@ -368,7 +368,7 @@ function GodownRows({
   const left = quantity - placedNow;
   return (
     <div className="flex flex-col gap-1">
-      <SackMeter left={left} share={quantity > 0 ? (placedNow / quantity) * 100 : 0} done={quantity > 0 && left === 0} />
+      <SackMeter label={t("leftToPlace")} left={left} share={quantity > 0 ? (placedNow / quantity) * 100 : 0} done={quantity > 0 && left === 0} />
       {/* the column names, then a row each: name left, what it holds in the middle, how many leave it right */}
       <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_7.5rem] items-center gap-3 px-0.5 text-xs font-semibold opacity-60">
         <span>{t("godown")}</span>
@@ -408,131 +408,5 @@ function GodownRows({
         })}
       </div>
     </div>
-  );
-}
-
-// how many: − and + at the two ends, the number between, chestnut (empty until typed; never above `max`)
-function QuantityBox({ value, onChange, max, label }: { value: string; onChange: (v: string) => void; max: number; label: string }) {
-  const { t } = useSaleEntry();
-  const quantity = Number(value) || 0;
-  const set = (n: number) => onChange(String(Math.min(max, Math.max(1, n))));
-  // more typed than is free: cut to it, and it says so (until changed again)
-  const [over, setOver] = useState(false);
-  return (
-    <span className="flex w-full min-w-0 flex-col gap-1">
-      <span className="flex min-h-11 w-full items-center justify-between rounded-control bg-chestnut text-ivory">
-        <button type="button" aria-label={`${t("less")}: ${label}`} disabled={quantity <= 1} onClick={() => (setOver(false), set(quantity - 1))} className="grid h-11 w-8 shrink-0 place-items-center disabled:opacity-40">
-          <Minus className="size-4" aria-hidden />
-        </button>
-        <NumberInput
-          value={value}
-          maxDigits={5}
-          placeholder="0"
-          onChange={(v) => {
-            const typed = v.replace(/^0+/, "");
-            setOver(Number(typed) > max);
-            onChange(Number(typed) > max ? String(max) : typed);
-          }}
-          aria-label={label}
-          className="tabular w-full min-w-0 flex-1 bg-transparent text-center text-base font-bold caret-ivory outline-none placeholder:text-ivory/45"
-        />
-        <button type="button" aria-label={`${t("more")}: ${label}`} disabled={quantity >= max} onClick={() => (setOver(false), set(quantity + 1))} className="grid h-11 w-9 shrink-0 place-items-center disabled:opacity-40">
-          <Plus className="size-4" aria-hidden />
-        </button>
-      </span>
-      {over && <span className="text-xs text-danger">{t("onlyAvailable", { n: max.toLocaleString("en-IN") })}</span>}
-    </span>
-  );
-}
-
-// how many leave a godown: − and + at the ends, the number between; soft-edged until it has a number, then chestnut
-function GodownStepper({ value, onChange, max, disabled, label }: { value: string; onChange: (v: string) => void; max: number; disabled: boolean; label: string }) {
-  const { t } = useSaleEntry();
-  const n = Number(value) || 0;
-  const set = (next: number) => onChange(next <= 0 ? "" : String(Math.min(max, next)));
-  return (
-    <span
-      className={cn(
-        "flex min-h-10 w-[7.5rem] items-center justify-between rounded-control font-bold",
-        n > 0 ? "bg-chestnut text-ivory" : "shadow-[0_0_5px_0] shadow-chestnut/40",
-      )}
-    >
-      <button type="button" aria-label={`${t("less")}: ${label}`} disabled={disabled || n <= 0} onClick={() => set(n - 1)} className="grid h-10 w-8 shrink-0 place-items-center disabled:opacity-35">
-        <Minus className="size-4" aria-hidden />
-      </button>
-      <NumberInput
-        value={value}
-        maxDigits={5}
-        placeholder="0"
-        disabled={disabled}
-        onChange={(v) => {
-          const typed = Number(v.replace(/^0+/, "")) || 0;
-          set(Math.min(typed, max));
-        }}
-        aria-label={label}
-        className={cn("tabular w-full min-w-0 flex-1 bg-transparent text-center text-base outline-none placeholder:opacity-45", n > 0 && "caret-ivory")}
-      />
-      <button type="button" aria-label={`${t("more")}: ${label}`} disabled={disabled || n >= max} onClick={() => set(n + 1)} className="grid h-10 w-8 shrink-0 place-items-center disabled:opacity-35">
-        <Plus className="size-4" aria-hidden />
-      </button>
-    </span>
-  );
-}
-
-// what's left to place, as a payment's meter: the label and a big figure over a thin bar, a rice sack riding the end of
-// what's filled; done: green with a tick and All placed; past the quantity: red
-function SackMeter({ left, share, done }: { left: number; share: number; done: boolean }) {
-  const { t } = useSaleEntry();
-  const over = left < 0;
-  const fill = over ? 100 : Math.max(0, Math.min(100, share));
-  return (
-    <div className="tabular mb-5 mt-4 flex min-w-0 flex-col gap-3">
-      <div className={cn("flex items-baseline justify-between gap-3", over && "text-danger")}>
-        <span className="text-sm">{t("leftToPlace")}</span>
-        {done ? (
-          <span className="flex items-center gap-1.5 font-heading text-lg font-bold text-success">
-            <Check className="size-4" strokeWidth={2.5} aria-hidden />
-          </span>
-        ) : (
-          <span className="font-heading text-2xl font-bold leading-none">{over ? t("tooMany", { n: -left }) : left.toLocaleString("en-IN")}</span>
-        )}
-      </div>
-      <div className="relative py-1.5">
-        <div
-          role="progressbar"
-          aria-label={t("leftToPlace")}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(fill)}
-          className="h-1.5 overflow-hidden rounded-full bg-chestnut/10"
-        >
-          <div className={cn("h-full rounded-full transition-[width] duration-300", over ? "bg-danger" : done ? "bg-success" : "bg-chestnut")} style={{ width: `${fill}%` }} />
-        </div>
-        <span aria-hidden className="absolute top-1/2 -translate-x-1/2 -translate-y-[70%] transition-[left] duration-300" style={{ left: `clamp(16px, ${fill}%, calc(100% - 16px))` }}>
-          <RiceSack />
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// an open jute rice sack: a woven tan body with corner ears, a rolled rim, white rice heaped on top, a thin chestnut
-// edge
-function RiceSack() {
-  const weave = useId();
-  return (
-    <svg viewBox="0 0 32 32" className="size-8 drop-shadow-[0_1px_1.5px_rgba(60,25,10,0.4)]">
-      <defs>
-        <pattern id={weave} width="2.4" height="2.4" patternUnits="userSpaceOnUse">
-          <rect width="2.4" height="2.4" fill="#c49a64" />
-          <rect width="1.2" height="1.2" fill="#a97f4c" />
-          <rect x="1.2" y="1.2" width="1.2" height="1.2" fill="#b58b56" />
-        </pattern>
-      </defs>
-      <path d="M6 12C5 18 3.4 24 2.5 29.2L6.5 28Q16 30.2 25.5 28L29.5 29.2C28.6 24 27 18 26 12Z" fill={`url(#${weave})`} stroke="currentColor" strokeWidth=".9" strokeLinejoin="round" className="text-chestnut" />
-      <path d="M6.8 10Q8.6 3.2 16 3.2T25.2 10Q16 7.6 6.8 10Z" fill="#fffdf6" stroke="currentColor" strokeWidth=".9" className="text-chestnut" />
-      <path d="M11 7.2l1.2-.4M14.6 5.6l1.2.2M18.4 6.6l1.1.4M13 8.2l1 .1M20.6 8.4l.9.3" fill="none" stroke="#cfc8b6" strokeWidth=".9" strokeLinecap="round" />
-      <path d="M4.8 9.2Q16 6.4 27.2 9.2L27.6 13.4Q16 10.6 4.4 13.4Z" fill="#b88d58" stroke="currentColor" strokeWidth=".9" strokeLinejoin="round" className="text-chestnut" />
-    </svg>
   );
 }

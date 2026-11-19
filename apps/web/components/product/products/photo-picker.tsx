@@ -13,7 +13,7 @@ const MAX_SIDE = 1200;
 const QUALITY = 0.85;
 
 // draw the picked photo onto a canvas no bigger than MAX_SIDE and export it as WebP
-async function shrink(file: File): Promise<Blob> {
+export async function shrink(file: File): Promise<Blob> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");

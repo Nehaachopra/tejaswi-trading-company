@@ -53,7 +53,10 @@ export function NewProductCard({
   onOpen,
   onClose,
   onCreated,
+  tile = true,
 }: {
+  // the dashed card after the last product (a purchase opens it from a button instead)
+  tile?: boolean;
   open: boolean;
   onOpen: () => void;
   onClose: () => void;
@@ -163,6 +166,7 @@ export function NewProductCard({
   return (
     <>
       {/* the dashed card after the last product */}
+      {tile && (
       <li className="flex min-w-0">
         <button
           type="button"
@@ -173,6 +177,7 @@ export function NewProductCard({
           {to("newProduct")}
         </button>
       </li>
+      )}
 
       {/* the popup, straight on the page's body as the line card is, so nothing on the page sits over it */}
       {open &&

@@ -9,9 +9,9 @@ import { rupees, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 import { type ProductGroup, TileTop } from "../../product/products/product-tile";
-import { CartTable } from "./cart-table";
+import { CartTable } from "../shared/cart-table";
 import { ProductCard } from "./product-card";
-import { useSaleEntry } from "./state";
+import { priceOf, useSaleEntry } from "./state";
 
 // a part's small heading on the card
 const heading = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
@@ -21,7 +21,7 @@ const heading = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
 // under the cart a From order part (the pack sizes the order still waits for, each with what's left to dispatch in
 // place of its price), then Show other products, which opens the rest below it
 export function ProductsCard() {
-  const { t, products, categories, lines, sellable, order, orderLeft } = useSaleEntry();
+  const { t, products, categories, lines, figures, packOf, itemsTotal, setCardFor, removeLine, sellable, order, orderLeft } = useSaleEntry();
   // the other products, opened from the button (always there on a sale of its own)
   const [othersOpen, setOthersOpen] = useState(false);
 
@@ -57,7 +57,17 @@ export function ProductsCard() {
             {t("addFromBelow")}
           </p>
         ) : (
-          <CartTable />
+          <CartTable
+            lines={lines.flatMap((l, i) => {
+              const p = packOf(l.productId)?.pack;
+              return p ? [{ productId: l.productId, price: priceOf(l, p), quantity: Number(l.quantity) || 0, total: figures[i]!.total / 100 }] : [];
+            })}
+            packOf={packOf}
+            priceLabel={t("priceGst")}
+            itemsTotal={itemsTotal}
+            onOpen={setCardFor}
+            onRemove={removeLine}
+          />
         )}
       </div>
 

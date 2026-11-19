@@ -1,18 +1,37 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import { Fragment } from "react";
+import { createContext, Fragment, useContext } from "react";
 
 import { packLabel, rupees, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 import { type Pack, type ProductGroup, ProductImage, productTitle } from "../../product/products/product-tile";
-import { type CartLine, priceOf, useSaleEntry } from "./state";
+import { useTranslations } from "next-intl";
 
 const head = "sticky top-0 z-10 whitespace-nowrap bg-[#ede3d0] px-1.5 py-2 text-left text-xs font-semibold text-chestnut/70 first:pl-2.5";
 const cell = "whitespace-nowrap border-b border-chestnut/15 px-1.5 py-2 align-middle";
 
-type ProductRows = { group: ProductGroup; rows: { line: CartLine; pack: Pack; total: number }[] };
+// one pack size in the cart as the table shows it: its price a pack (with GST on a sale, the rate on a purchase), how
+// many and its total, in rupees
+export type CartRow = { productId: string; price: number; quantity: number; total: number };
+type ProductRows = { group: ProductGroup; rows: { line: CartRow; pack: Pack; total: number }[] };
+
+// what the table needs from the form around it: the rows, the products, the price column's name, the cart's total, and
+// what a tap (change it) and the bin (take it out) do
+type CartTableProps = {
+  lines: CartRow[];
+  packOf: (id: string) => { group: ProductGroup; pack: Pack } | null;
+  priceLabel: string;
+  itemsTotal: number;
+  onOpen: (productId: string) => void;
+  onRemove: (productId: string) => void;
+};
+const CartContext = createContext<CartTableProps | null>(null);
+const useCart = () => {
+  const value = useContext(CartContext)!;
+  return { ...value, t: useTranslations("transactions.sale"), setCardFor: value.onOpen, removeLine: value.onRemove };
+};
 
 // what's in the cart, as an order's items table: read only (a tap on a row opens the product card to change it), the
 // cart's total under the last one; at most five products' rows tall, then it scrolls with the column names held on top and
@@ -20,16 +39,24 @@ type ProductRows = { group: ProductGroup; rows: { line: CartLine; pack: Pack; to
 // sub-category) beside each of its pack sizes: Pack, Price + GST, Quantity, Total and a red bin. A phone: each
 // product's photo, name and category on a row across the table, then its pack sizes under it (Pack, Price + GST,
 // Quantity and the bin), nothing sideways
-export function CartTable() {
-  const { t, lines, figures, packOf, itemsTotal } = useSaleEntry();
+export function CartTable(props: CartTableProps) {
+  return (
+    <CartContext.Provider value={props}>
+      <Table />
+    </CartContext.Provider>
+  );
+}
+
+function Table() {
+  const { t, lines, packOf, itemsTotal, priceLabel } = useCart();
 
   // the lines by product, in the order they were added
   const byProduct = new Map<string, ProductRows>();
-  lines.forEach((line, i) => {
+  lines.forEach((line) => {
     const found = packOf(line.productId);
     if (!found) return;
     const entry = byProduct.get(found.group.key) ?? { group: found.group, rows: [] };
-    entry.rows.push({ line, pack: found.pack, total: figures[i]!.total / 100 });
+    entry.rows.push({ line, pack: found.pack, total: line.total });
     byProduct.set(found.group.key, entry);
   });
   const products = [...byProduct.values()];
@@ -50,7 +77,7 @@ export function CartTable() {
             <tr>
               <th className={head}>{t("details")}</th>
               <th className={head}>{t("pack")}</th>
-              <th className={cn(head, "text-right")}>{t("priceGst")}</th>
+              <th className={cn(head, "text-right")}>{priceLabel}</th>
               <th className={cn(head, "text-right")}>{t("quantity")}</th>
               <th className={cn(head, "text-right")}>{t("lineTotal")}</th>
               <th className={cn(head, "w-0")}>
@@ -84,7 +111,7 @@ export function CartTable() {
           <thead>
             <tr>
               <th className={head}>{t("pack")}</th>
-              <th className={cn(head, "text-right")}>{t("priceGst")}</th>
+              <th className={cn(head, "text-right")}>{priceLabel}</th>
               <th className={cn(head, "text-right")}>{t("quantity")}</th>
               <th className={cn(head, "w-0")}>
                 <span className="sr-only">{t("remove")}</span>
@@ -149,7 +176,7 @@ function Details({ group, pack }: { group: ProductGroup; pack: Pack }) {
 
 // the pack chip that opens the product card (the row's button, for the keyboard)
 function PackButton({ group, pack }: { group: ProductGroup; pack: Pack }) {
-  const { t, setCardFor } = useSaleEntry();
+  const { t, setCardFor } = useCart();
   return (
     <button
       type="button"
@@ -168,7 +195,7 @@ function PackButton({ group, pack }: { group: ProductGroup; pack: Pack }) {
 
 // the red bin: out of the cart, back to the products below
 function BinButton({ group, pack }: { group: ProductGroup; pack: Pack }) {
-  const { t, removeLine } = useSaleEntry();
+  const { t, removeLine } = useCart();
   return (
     <button
       type="button"
@@ -186,8 +213,8 @@ function BinButton({ group, pack }: { group: ProductGroup; pack: Pack }) {
 }
 
 // one pack size's row on a wider screen; the first of a product's rows carries its details, spanning them all
-function TableRow({ group, pack, line, total, first, span, last }: { group: ProductGroup; pack: Pack; line: CartLine; total: number; first: boolean; span: number; last: boolean }) {
-  const { setCardFor } = useSaleEntry();
+function TableRow({ group, pack, line, total, first, span, last }: { group: ProductGroup; pack: Pack; line: CartRow; total: number; first: boolean; span: number; last: boolean }) {
+  const { setCardFor } = useCart();
   const under = last ? "" : "border-b-chestnut/8";
   return (
     <tr className="row-arrive cursor-pointer hover:bg-chestnut/[0.04]" onClick={() => setCardFor(pack.productId)}>
@@ -199,8 +226,8 @@ function TableRow({ group, pack, line, total, first, span, last }: { group: Prod
       <td className={cn(cell, under)}>
         <PackButton group={group} pack={pack} />
       </td>
-      <td className={cn(cell, under, "text-right font-bold")}>{rupees(priceOf(line, pack))}</td>
-      <td className={cn(cell, under, "text-right font-bold")}>{Number(line.quantity).toLocaleString("en-IN")}</td>
+      <td className={cn(cell, under, "text-right font-bold")}>{rupees(line.price)}</td>
+      <td className={cn(cell, under, "text-right font-bold")}>{line.quantity.toLocaleString("en-IN")}</td>
       <td className={cn(cell, under, "text-right font-bold")}>{rupees(total)}</td>
       <td className={cn(cell, under, "w-0 pr-1")}>
         <BinButton group={group} pack={pack} />
@@ -210,16 +237,16 @@ function TableRow({ group, pack, line, total, first, span, last }: { group: Prod
 }
 
 // a phone: one pack size's row under its product
-function PhoneRow({ group, pack, line, last }: { group: ProductGroup; pack: Pack; line: CartLine; last: boolean }) {
-  const { setCardFor } = useSaleEntry();
+function PhoneRow({ group, pack, line, last }: { group: ProductGroup; pack: Pack; line: CartRow; last: boolean }) {
+  const { setCardFor } = useCart();
   const under = last ? "" : "border-b-chestnut/8";
   return (
     <tr className="row-arrive cursor-pointer" onClick={() => setCardFor(pack.productId)}>
       <td className={cn(cell, under, "pl-2.5")}>
         <PackButton group={group} pack={pack} />
       </td>
-      <td className={cn(cell, under, "text-right font-bold")}>{rupees(priceOf(line, pack))}</td>
-      <td className={cn(cell, under, "text-right font-bold")}>{Number(line.quantity).toLocaleString("en-IN")}</td>
+      <td className={cn(cell, under, "text-right font-bold")}>{rupees(line.price)}</td>
+      <td className={cn(cell, under, "text-right font-bold")}>{line.quantity.toLocaleString("en-IN")}</td>
       <td className={cn(cell, under, "w-0 pl-0.5 pr-1")}>
         <BinButton group={group} pack={pack} />
       </td>
