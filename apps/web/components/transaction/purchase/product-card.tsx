@@ -238,7 +238,8 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
 }
 
 // the godowns' part: what's left to place, then a row each: name left, what it holds now in the middle, how many go
-// into it right (never more than is still to place; none into one being counted)
+// into it right (never more than is still to place; none into one being counted). With no quantity typed yet, only the
+// godowns and what each holds: no meter, no Quantity column
 function GodownRows({
   productId,
   quantity,
@@ -256,13 +257,16 @@ function GodownRows({
   const spots = spotsOf(productId);
   const placedNow = Object.values(parts).reduce((a, v) => a + (Number(v) || 0), 0);
   const left = quantity - placedNow;
+  // a quantity typed: the meter and the Quantity column show
+  const placing = quantity > 0;
+  const cols = placing ? "grid-cols-[minmax(0,1fr)_3.5rem_7.5rem]" : "grid-cols-[minmax(0,1fr)_3.5rem]";
   return (
     <div className="flex flex-col gap-1">
-      <SackMeter label={t("leftToPlace")} left={left} share={quantity > 0 ? (placedNow / quantity) * 100 : 0} done={quantity > 0 && left === 0} />
-      <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_7.5rem] items-center gap-3 px-0.5 text-xs font-semibold opacity-60">
+      {placing && <SackMeter label={t("leftToPlace")} left={left} share={(placedNow / quantity) * 100} done={left === 0} />}
+      <div className={cn("grid items-center gap-3 px-0.5 text-xs font-semibold opacity-60", cols, !placing && "mt-2")}>
         <span>{ts("godown")}</span>
         <span className="text-center">{t("holds")}</span>
-        <span className="text-right">{ts("quantity")}</span>
+        {placing && <span className="text-right">{ts("quantity")}</span>}
       </div>
       <div className="border-t border-chestnut/15" />
       {/* at most about three rows tall, then the rows scroll inside the card */}
@@ -271,7 +275,7 @@ function GodownRows({
           const mine = Number(parts[g.godownId]) || 0;
           const most = Math.max(0, quantity - (placedNow - mine));
           return (
-            <div key={g.godownId} className={cn("tabular grid min-h-12 grid-cols-[minmax(0,1fr)_3.5rem_7.5rem] items-center gap-3 px-0.5 py-1", g.counting && "opacity-40")}>
+            <div key={g.godownId} className={cn("tabular grid min-h-12 items-center gap-3 px-0.5 py-1", cols, g.counting && "opacity-40")}>
               <span className="min-w-0">
                 <span className="block truncate text-sm font-semibold" title={g.name}>
                   {g.name}
@@ -279,7 +283,7 @@ function GodownRows({
                 {g.counting && <span className="block truncate text-xs">{ts("beingCounted")}</span>}
               </span>
               <span className="text-center text-sm font-semibold">{g.held.toLocaleString("en-IN")}</span>
-              <GodownStepper value={parts[g.godownId] ?? ""} max={most} disabled={g.counting} label={`${g.name}: ${name}`} onChange={(v) => onPart(g.godownId, v)} />
+              {placing && <GodownStepper value={parts[g.godownId] ?? ""} max={most} disabled={g.counting} label={`${g.name}: ${name}`} onChange={(v) => onPart(g.godownId, v)} />}
             </div>
           );
         })}
