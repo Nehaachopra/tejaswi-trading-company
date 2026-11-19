@@ -74,7 +74,7 @@ export function ProductsCard() {
             {fromOrder.length === 0 ? (
               <p className="py-6 text-center text-sm opacity-70">{t("allOrderedInCart")}</p>
             ) : (
-              <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+              <ul className={TILE_ROW}>
                 {fromOrder.map((group) => (
                   <SaleTile key={group.key} group={group} ordered />
                 ))}
@@ -189,7 +189,7 @@ export function ProductsCard() {
           {!anySellable ? t("noProducts") : lines.length > 0 ? t("allInCart") : t("noMatch")}
         </p>
       ) : (
-        <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+        <ul className={TILE_ROW}>
           {rest.map((group) => (
             <SaleTile key={group.key} group={group} />
           ))}
@@ -204,6 +204,9 @@ export function ProductsCard() {
   );
 }
 
+// the products in one row, swiped sideways
+const TILE_ROW = "-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] sm:gap-3";
+
 // a product with pack sizes to sell: its chips, name and photo; under the photo the picked pack size's price with GST
 // on chestnut, in the middle; then Add, which opens the product card for that pack size. `ordered` (a pack size its
 // order still waits for): what's left to dispatch in place of the price, and no Add while there's no stock to take
@@ -212,7 +215,7 @@ function SaleTile({ group, ordered = false }: { group: ProductGroup; ordered?: b
   const [picked, setPicked] = useState(group.packs[0]!.productId);
   const pack = group.packs.find((p) => p.productId === picked) ?? group.packs[0]!;
   return (
-    <li className="flex min-w-0 flex-col gap-2 rounded-control border border-chestnut/15 p-2.5 sm:p-3.5">
+    <li className="flex w-40 shrink-0 snap-start flex-col gap-2 rounded-control sm:w-52 border border-chestnut/15 p-2.5 sm:p-3.5">
       <TileTop group={group} pack={pack} onPack={setPicked} />
       {ordered && <span className="mt-auto text-xs">{t("leftToPlace")}</span>}
       {/* its price with GST (an ordered one: what's left to dispatch), on chestnut, in the middle */}
