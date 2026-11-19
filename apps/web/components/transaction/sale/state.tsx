@@ -410,7 +410,13 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
     return { kind: "party" };
   }
   // a cash sale under ₹50,000 taxable value (not on an order): no search, the buyer's address is asked straight away
-  const walkIn = kind === "cash" && !buyerNeeded && !order;
+  // ("Saved customer" brings the search back)
+  const [searchSaved, setSearchSaved] = useState(false);
+  const walkIn = kind === "cash" && !buyerNeeded && !order && !searchSaved;
+  function findSaved() {
+    setSearchSaved(true);
+    setCustomer(null);
+  }
   useEffect(() => {
     if (walkIn && customer?.kind !== "party") setCustomer({ kind: "party" });
   }, [walkIn, customer]);
@@ -561,6 +567,7 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
     orderLocked,
     orderBuyer,
     walkIn,
+    findSaved,
     orderLeft,
     freeOf,
     orderPrice,

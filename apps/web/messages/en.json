@@ -2037,6 +2037,7 @@
       "billingAddress": "Billing address",
       "shippingAddress": "Shipping address",
       "shipElsewhere": "Ship to a different address",
+      "savedCustomer": "Saved customer",
       "removeShipping": "Remove shipping address",
       "sameAddress": "This is the same as the billing address. Change it or remove it.",
       "vehicle": "Vehicle number",
