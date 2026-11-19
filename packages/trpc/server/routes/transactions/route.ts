@@ -13,6 +13,7 @@ import {
 } from "@repo/services/transaction/model";
 
 import { ledgerSummaryModel } from "@repo/services/accounts/model";
+import { attachBillInputModel, createPurchaseInputModel, purchaseIdInputModel, purchaseModel, savedPurchaseModel } from "@repo/services/purchase/model";
 import { createSaleInputModel, saleIdInputModel, saleInvoiceModel, saleShareKeyModel, saleSummaryModel, savedSaleModel, sharedSaleInputModel } from "@repo/services/sale/model";
 import { placeOfBusinessModel } from "@repo/services/setting/model";
 import { createReceiptInputModel, receiptIdInputModel, receiptModel, receiptShareKeyModel, savedReceiptModel, sharedReceiptInputModel } from "@repo/services/receipt/model";
@@ -48,7 +49,7 @@ import { createOtherInputModel, otherIdInputModel, otherModel, savedOtherModel }
 import { paySalariesInputModel, paySalaryInputModel, salaryEmployeeModel, salaryIdInputModel, salaryPaymentModel } from "@repo/services/salary/model";
 import { opensSale, opensVoucher, saleKey, voucherKey } from "@repo/services/transaction/share-link";
 
-import { accountsService, contraService, documentService, dueService, otherService, paymentService, receiptService, salaryService, saleService, settingService, transactionService } from "../../services";
+import { accountsService, contraService, documentService, dueService, otherService, paymentService, purchaseService, receiptService, salaryService, saleService, settingService, transactionService } from "../../services";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 import { checkDate, limitSaves, onceFor } from "../../guards";
 
@@ -143,6 +144,40 @@ const saleRouter = router({
 });
 
 // receipts: money coming in, recorded by the admin or staff
+// purchases: goods coming in from a supplier, for cash or on credit, recorded by the admin or staff
+const purchaseRouter = router({
+  create: protectedProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/purchases", tags: ["transactions"] } })
+    .input(createPurchaseInputModel)
+    .output(savedPurchaseModel)
+    .mutation(({ ctx, input }) => {
+      // only the admin adds a supplier or a product while recording one
+      if (input.newSupplier && ctx.session.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only the admin adds suppliers." });
+      if (input.newProducts.length > 0 && ctx.session.user.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Only the admin adds products." });
+      // dated today or before (staff a few days back at most), within the user's saves a minute, and once per form
+      checkDate(input.dateTime, ctx.session.user.role);
+      const save = () => {
+        limitSaves(ctx.session.user.id);
+        return purchaseService.create(input, ctx.session.user);
+      };
+      return input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save();
+    }),
+
+  // a purchase as it was recorded
+  get: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/purchases/{transactionId}", tags: ["transactions"] } })
+    .input(purchaseIdInputModel)
+    .output(purchaseModel)
+    .query(({ input }) => purchaseService.get(input)),
+
+  // the supplier's bill (photo or PDF) attached or changed after saving
+  attachBill: protectedProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/purchases/{transactionId}/bill", tags: ["transactions"] } })
+    .input(attachBillInputModel)
+    .output(purchaseModel)
+    .mutation(({ input }) => purchaseService.attachBill(input)),
+});
+
 const receiptRouter = router({
   create: protectedProcedure
     .meta({ openapi: { method: "POST", path: "/transactions/receipts", tags: ["transactions"] } })
@@ -457,6 +492,7 @@ const salaryRouter = router({
 export const transactionsRouter = router({
   history: historyRouter,
   sale: saleRouter,
+  purchase: purchaseRouter,
   receipt: receiptRouter,
   payment: paymentRouter,
   deposit: contraRouter("deposit"),

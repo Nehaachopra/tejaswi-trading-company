@@ -7,6 +7,7 @@ import type { ActorModel, PostingLine } from "../accounts/model";
 import { fromPaise } from "../accounts/money";
 import { LEDGERS } from "../accounts/structure";
 import { queueCancelled } from "../document/queue";
+import { undoPurchase } from "../purchase/undo";
 import { saleOrderDelivered } from "../sale-order/delivered";
 import StockEngine, { type Tx } from "../stock/engine";
 import AssignedIdCounter, { type Prefix } from "./assigned-id";
@@ -157,6 +158,18 @@ export default class TransactionService {
         .limit(1);
       if (paid.length > 0) return "salePaid";
     }
+    // a purchase we've since paid towards (a payment settled its due): that payment is cancelled first. What a cash
+    // purchase paid itself doesn't count
+    if (t.type === "purchase") {
+      const paid = await q
+        .select({ id: dueSettlementsTable.id })
+        .from(dueSettlementsTable)
+        .innerJoin(duesTable, eq(duesTable.id, dueSettlementsTable.dueId))
+        .innerJoin(transactionsTable, eq(transactionsTable.id, dueSettlementsTable.transactionId))
+        .where(and(eq(duesTable.transactionId, t.id), ne(dueSettlementsTable.transactionId, t.id), eq(transactionsTable.status, "active")))
+        .limit(1);
+      if (paid.length > 0) return "purchasePaid";
+    }
     return null;
   }
 
@@ -172,11 +185,15 @@ export default class TransactionService {
       if (blocked === "openingBalance") throw new TRPCError({ code: "BAD_REQUEST", message: "Change opening balances on the Opening balances page." });
       if (blocked === "gstFiled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That month's GST return is filed. Use a return instead." });
       if (blocked === "rcmPaid") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Its reverse-charge GST is already paid. Cancel that Tax paid payment first." });
+      if (blocked === "purchasePaid") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The supplier has been paid towards this purchase. Cancel that payment first." });
       if (blocked === "salePaid") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The customer has paid towards this sale. Cancel that receipt first." });
       const now = new Date();
       await this.engine.reverse(tx, { transactionId: t.id, dateTime: now });
       // a sale: its packs go back into the godowns they left, and what the customer owed for it goes
       if (t.type === "sale") await this.undoSale(tx, t.id);
+      // a purchase: its packs leave the godowns they came into, each pack's cost goes back, its due goes and an order
+      // it completed is pending again
+      if (t.type === "purchase") await undoPurchase(tx, t.id, this.stock);
       await tx
         .update(transactionsTable)
         .set({ status: "cancelled", cancelledAt: now, cancelledById: actor.id, cancelledByName: actor.name.slice(0, 30), cancelReason: input.reason })

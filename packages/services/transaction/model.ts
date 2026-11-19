@@ -71,7 +71,7 @@ export const transactionModel = transactionSummaryModel.extend({
     }),
   ),
   // why it can't be cancelled, if it can't (already cancelled, a filed GST month, reverse-charge GST already paid ...)
-  cancelBlockedBy: z.enum(["cancelled", "gstFiled", "openingBalance", "rcmPaid", "salePaid"]).nullable(),
+  cancelBlockedBy: z.enum(["cancelled", "gstFiled", "openingBalance", "rcmPaid", "salePaid", "purchasePaid"]).nullable(),
 });
 
 export type TransactionModel = z.infer<typeof transactionModel>;
