@@ -2040,6 +2040,8 @@
       "inCart": "In the cart",
       "cart": "Cart",
       "cartDone": "Done",
+      "breakup": "Breakup",
+      "subTotal": "Sub total",
       "addFromBelow": "Add products from below.",
       "products": "Products",
       "category": "Category",
@@ -2138,7 +2140,7 @@
       "saving": "Saving…",
       "done": {
         "title": "Sale saved",
-        "number": "Sale number",
+        "number": "Transaction ID",
         "invoice": "Invoice",
         "items": "Items",
         "total": "Total",

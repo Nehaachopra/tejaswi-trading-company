@@ -273,7 +273,7 @@ export function SummaryLines<S extends string>({
           <dt className="text-[0.65rem] font-semibold uppercase tracking-[0.08em] opacity-60">
             {l.heading}
           </dt>
-          <dd className="flex w-full flex-col font-semibold">
+          <dd className="flex w-full flex-col gap-1.5 font-semibold">
             {(Array.isArray(l.value) ? l.value : [l.value!]).map((line, i) =>
               typeof line === "string" ? (
                 <span key={i} className="truncate">

@@ -3,7 +3,7 @@
 import type { BankMode } from "@repo/trpc/client";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 import { bankNameIn } from "~/lib/bank-names";
 import { packLabel, rupees } from "~/lib/format";
@@ -49,7 +49,12 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 export const NAMED_BUYER_FROM = 50_000;
 
 // one pack size in the cart: a new price with GST ("" keeps its saved price), how many, and how many leave each godown
-export type CartLine = { productId: string; newPrice: string; quantity: string; godowns: Record<string, string> };
+export type CartLine = {
+  productId: string;
+  newPrice: string;
+  quantity: string;
+  godowns: Record<string, string>;
+};
 
 // a godown holding a pack size: its name, how many it has, and whether it's being counted (locked)
 export type GodownHold = { godownId: string; name: string; held: number; counting: boolean };
@@ -72,13 +77,33 @@ export const placedOf = (line: Pick<CartLine, "godowns">) =>
   Object.values(line.godowns).reduce((a, v) => a + (Number(v) || 0), 0);
 
 // everything the sale form holds and works out. Made once in SaleEntry; every card reads it with useSaleEntry()
-export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () => void }) {
+export function useSaleEntryState({
+  isAdmin,
+  onDiscard,
+}: {
+  isAdmin: boolean;
+  onDiscard: () => void;
+}) {
   const t = useTranslations("transactions.sale");
   const tc = useTranslations("transactions.chat");
   const locale = useLocale();
   const router = useRouter();
   const sameName = useSameNameConfirm();
-  const { products, categories, stock, placeOfBusiness, banks, order, orderLedger, loading, loadFailed, retryLoad, saveSale, saving: creating, saved } = useSaleData();
+  const {
+    products,
+    categories,
+    stock,
+    placeOfBusiness,
+    banks,
+    order,
+    orderLedger,
+    loading,
+    loadFailed,
+    retryLoad,
+    saveSale,
+    saving: creating,
+    saved,
+  } = useSaleData();
 
   // the answers
   const [lines, setLines] = useState<CartLine[]>([]);
@@ -107,8 +132,9 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
   const [receivedText, setReceivedText] = useState("");
   const [tdsOnIt, setTdsOnIt] = useState(false);
   const [pan, setPan] = useState("");
-  // cash, to a customer with an advance with us: whether it's set off against this bill
-  const [setOffOn, setSetOffOn] = useState(false);
+  // cash, to a customer with an advance with us: whether it's set off against this bill (on unless switched off, as a
+  // purchase's)
+  const [setOffOn, setSetOffOn] = useState(true);
   // the place of business fills the first address's town, district, state and PIN once it's in hand (only while
   // nothing's been typed in it); its line and landmark are left to type
   useEffect(() => {
@@ -140,33 +166,46 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
 
   // each pack size with its product, to find a line's name, photo, price and GST %
   const packs = new Map<string, { group: ProductGroup; pack: Pack }>();
-  for (const group of products ?? []) for (const pack of group.packs) packs.set(pack.productId, { group, pack });
+  for (const group of products ?? [])
+    for (const pack of group.packs) packs.set(pack.productId, { group, pack });
   const packOf = (id: string) => packs.get(id) ?? null;
   const nameOf = (id: string) => {
     const p = packOf(id);
-    return p ? `${productTitle(p.group)} ${packLabel(p.pack.packSize, p.pack.packSizeCode, p.pack.packCount)}` : "";
+    return p
+      ? `${productTitle(p.group)} ${packLabel(p.pack.packSize, p.pack.packSizeCode, p.pack.packCount)}`
+      : "";
   };
   // the godowns holding each pack size, from what each godown holds
   const holds = new Map<string, GodownHold[]>();
   for (const g of stock ?? [])
     for (const product of g.products)
       for (const p of product.packs)
-        if (p.quantity > 0) holds.set(p.productId, [...(holds.get(p.productId) ?? []), { godownId: g.godownId, name: g.godownName, held: p.quantity, counting: g.beingCounted }]);
+        if (p.quantity > 0)
+          holds.set(p.productId, [
+            ...(holds.get(p.productId) ?? []),
+            {
+              godownId: g.godownId,
+              name: g.godownName,
+              held: p.quantity,
+              counting: g.beingCounted,
+            },
+          ]);
   const godownsOf = (productId: string) => holds.get(productId) ?? [];
   // a dispatch on a sale order: how many of a pack size the order still waits for (what it holds back from stock)
-  const orderLine = (productId: string) => order?.lines.find((l) => l.productId === productId) ?? null;
+  const orderLine = (productId: string) =>
+    order?.lines.find((l) => l.productId === productId) ?? null;
   const orderLeft = (productId: string) => {
     const l = orderLine(productId);
     return l ? Math.max(0, l.quantity - l.delivered) : 0;
   };
   // what of a pack size this sale can take: the free stock, and what its order holds back for it
   const freeOf = (p: Pack) => p.unreservedQuantity + orderLeft(p.productId);
-  // the price a pack was ordered at (with GST, less its share of the order's discounts), as a new price to start
-  // from; "" when it's the saved price, or the pack isn't waited for
+  // the price a pack was ordered at (with GST, before the order's discount, which goes in the Discount box instead),
+  // as a new price to start from; "" when it's the saved price, or the pack isn't waited for
   const orderPrice = (p: Pack) => {
     const l = orderLine(p.productId);
     if (!l || l.quantity === 0 || orderLeft(p.productId) === 0) return "";
-    const each = round2(l.total / l.quantity);
+    const each = round2((l.total + l.orderDiscountShare) / l.quantity);
     return each === p.priceAfterGst ? "" : String(each);
   };
   // a pack size can be sold once it has a price, a GST % and stock it can take
@@ -186,6 +225,25 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
   const grossPaise = itemsPaise + chargesPaise;
   const offPaise = Math.min(paise(discount), grossPaise);
   const total = (grossPaise - offPaise) / 100;
+
+  // a dispatch on a sale order: the order's discount for what goes now (each item's share, by the part of it that
+  // goes) fills the Discount box, again whenever the cart changes, until a discount is typed: then it's left as typed
+  const [discountTyped, setDiscountTyped] = useState(false);
+  const typeDiscount = (v: string) => {
+    setDiscountTyped(true);
+    setDiscount(v);
+  };
+  const orderOffPaise = order
+    ? lines.reduce((a, l) => {
+        const o = orderLine(l.productId);
+        return o && o.quantity > 0
+          ? a + Math.round((o.orderDiscountShare * 100 * (Number(l.quantity) || 0)) / o.quantity)
+          : a;
+      }, 0)
+    : 0;
+  useEffect(() => {
+    if (order && !discountTyped) setDiscount(orderOffPaise > 0 ? String(orderOffPaise / 100) : "");
+  }, [order, orderOffPaise, discountTyped]);
   // the taxable value: the items' value before GST, and the charges with their GST taken out at the highest GST rate
   // among the items (packing, transport and loading are part of the supply), as the server does
   const chargeRate = Math.max(0, ...lines.map((l) => packOf(l.productId)?.pack.gstPercent ?? 0));
@@ -196,8 +254,13 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
 
   // change the cart: put one in (or change it, from the product card), or take it out
   const putLine = (line: CartLine) =>
-    setLines((all) => (all.some((l) => l.productId === line.productId) ? all.map((l) => (l.productId === line.productId ? line : l)) : [...all, line]));
-  const removeLine = (productId: string) => setLines((all) => all.filter((l) => l.productId !== productId));
+    setLines((all) =>
+      all.some((l) => l.productId === line.productId)
+        ? all.map((l) => (l.productId === line.productId ? line : l))
+        : [...all, line],
+    );
+  const removeLine = (productId: string) =>
+    setLines((all) => all.filter((l) => l.productId !== productId));
   // the product card over the page: the pack size being added or changed
   const [cardFor, setCardFor] = useState<string | null>(null);
 
@@ -214,7 +277,8 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
   const oldDue = picked?.party ? owedBefore : 0;
   // an advance they already have with us (their account is in credit), and what of it is set off against this bill
   // (as much as the bill takes), once they say so
-  const heldAdvance = tdsCan && picked?.balance?.today.side === "credit" ? picked.balance.today.amount : 0;
+  const heldAdvance =
+    tdsCan && picked?.balance?.today.side === "credit" ? picked.balance.today.amount : 0;
   const setOff = setOffOn ? Math.min(heldAdvance, total) : 0;
   const billLeft = round2(total - setOff);
   const dueNow = round2(oldDue + billLeft);
@@ -222,7 +286,10 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
   const received = tdsCan ? (parseAmount(receivedText) ?? 0) : total;
   // the TDS on it; a paisa off the bill or the whole due from rounding is taken as exactly that (as the server does)
   let tdsAmount = tdsIs && received > 0 ? tdsOn(received, SALE_TDS_RATE) : 0;
-  if (tdsIs && received > 0) for (const target of [billLeft, dueNow]) if (Math.abs(round2(received + tdsAmount) - target) < 0.015) tdsAmount = round2(target - received);
+  if (tdsIs && received > 0)
+    for (const target of [billLeft, dueNow])
+      if (Math.abs(round2(received + tdsAmount) - target) < 0.015)
+        tdsAmount = round2(target - received);
   const settles = round2(received + tdsAmount);
   // of what it settles: the old due first, then this bill, then an advance (only when their balance is known); and
   // what's still owed after
@@ -249,10 +316,26 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
       }),
     );
   }
+  // the bill amount changed (an item, a charge or the discount): the Received card starts again, as the purchase's
+  // Paid card (what's received, each place's part, how each bank received it and its reference, TDS, the set off and
+  // the advance asked about); a PAN typed stays, the customer being the same
+  const totalSeen = useRef(total);
+  useEffect(() => {
+    if (totalSeen.current === total) return;
+    totalSeen.current = total;
+    setReceivedText("");
+    setGridTexts({});
+    setGridModes({});
+    setRefs({});
+    setRefLeft([]);
+    setTdsOnIt(false);
+    setSetOffOn(true);
+    setAdvanceOk(null);
+  }, [total]);
   // someone else picked (or cash or credit changed): what was received starts again
   useEffect(() => {
     setReceivedText("");
-    setSetOffOn(false);
+    setSetOffOn(true);
     setTdsOnIt(false);
     setPan("");
   }, [pickedId, kind]);
@@ -272,14 +355,20 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
   });
   const gridTotal = Math.round(gridPlaces.reduce((sum, p) => sum + p.amount, 0) * 100) / 100;
   const gridAccs = gridPlaces.filter((p) => p.id !== "cash" && p.amount > 0);
-  const refOf = (id: string, mode: BankMode | null) => (mode && refs[id]?.mode === mode ? refs[id]!.text : "");
+  const refOf = (id: string, mode: BankMode | null) =>
+    mode && refs[id]?.mode === mode ? refs[id]!.text : "";
   const upiIdsOf = (id: string) => banks?.find((b) => b.id === id)?.upiIds ?? [];
   // the cards add up to what's received; every account says how it came in, with a reference that fits, and an
   // account by UPI has a UPI ID of ours
   const intoOk =
     received > 0 &&
     gridTotal === received &&
-    gridAccs.every((p) => p.mode !== null && refOkFor(p.mode, refOf(p.id, p.mode)) && (p.mode !== "upi" || upiIdsOf(p.id).length > 0));
+    gridAccs.every(
+      (p) =>
+        p.mode !== null &&
+        refOkFor(p.mode, refOf(p.id, p.mode)) &&
+        (p.mode !== "upi" || upiIdsOf(p.id).length > 0),
+    );
   // what's received changed: what came in where starts again
   useEffect(() => {
     setGridTexts({});
@@ -298,7 +387,8 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
 
   // credit: a new customer's phone that someone already has shows them instead
   const matches = usePhoneMatches(newParty.phone, "customer");
-  const matched = kind === "credit" && customer?.kind === "party" && matches.length > 0 ? matches[0]! : null;
+  const matched =
+    kind === "credit" && customer?.kind === "party" && matches.length > 0 ? matches[0]! : null;
   // cash: the buyer's name and phone (a 10-digit mobile) are asked only from ₹50,000 taxable value, and needed then;
   // every address typed in full
   const phoneOk = buyerPhone === "" || /^[6-9]\d{9}$/.test(buyerPhone);
@@ -306,9 +396,12 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
   const sameText = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
   const sameAddress =
     addresses.length > 1 &&
-    (["addressLine1", "landmark", "city", "district", "postalCode"] as const).every((f) => sameText(addresses[0]![f], addresses[1]![f])) &&
+    (["addressLine1", "landmark", "city", "district", "postalCode"] as const).every((f) =>
+      sameText(addresses[0]![f], addresses[1]![f]),
+    ) &&
     addresses[0]!.stateCode === addresses[1]!.stateCode;
-  const addressesOk = !sameAddress && addresses.every((a) => !Object.values(addressProblems(a)).some(Boolean));
+  const addressesOk =
+    !sameAddress && addresses.every((a) => !Object.values(addressProblems(a)).some(Boolean));
   const buyerOk = !buyerNeeded || (phoneOk && buyerName.trim() !== "" && buyerPhone !== "");
 
   // when each card is filled in
@@ -327,7 +420,8 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
     received: kind === "credit" || (receivedOk && (received === 0 || intoOk)),
     customer:
       customer?.kind === "ledger" ||
-      (customer?.kind === "party" && (kind === "credit" ? !matched && partyOk(newParty, true) : buyerOk && addressesOk)),
+      (customer?.kind === "party" &&
+        (kind === "credit" ? !matched && partyOk(newParty, true) : buyerOk && addressesOk)),
     details: day !== "",
   };
   // a credit sale takes no money now: its card after the customer only shows what they'll owe (the old due, this
@@ -364,7 +458,10 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
   // something missing: show it in red and put the cursor on its first field
   function guide() {
     setTried(true);
-    setTimeout(() => document.querySelector<HTMLElement>('main section [aria-invalid="true"]')?.focus(), 50);
+    setTimeout(
+      () => document.querySelector<HTMLElement>('main section [aria-invalid="true"]')?.focus(),
+      50,
+    );
   }
   async function next() {
     if (!complete[current]) return guide();
@@ -394,14 +491,28 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
     if (next === "credit" && !isAdmin) return null;
     const at = order.deliveryAddress;
     const address: AddressDraft = at
-      ? { ...emptyAddress(true), addressLine1: at.addressLine1, landmark: at.landmark, city: at.city, district: at.district, state: at.state, stateCode: at.stateCode as StateCode, postalCode: at.postalCode }
+      ? {
+          ...emptyAddress(true),
+          addressLine1: at.addressLine1,
+          landmark: at.landmark,
+          city: at.city,
+          district: at.district,
+          state: at.state,
+          stateCode: at.stateCode as StateCode,
+          postalCode: at.postalCode,
+        }
       : emptyAddress(true);
     if (next === "cash") {
       setBuyerName(order.customer.name);
       setBuyerPhone(order.customer.phone ?? "");
       if (at) setAddresses([address]);
     } else {
-      setNewParty({ ...emptyParty(), name: order.customer.name, phone: order.customer.phone ?? "", addresses: [address] });
+      setNewParty({
+        ...emptyParty(),
+        name: order.customer.name,
+        phone: order.customer.phone ?? "",
+        addresses: [address],
+      });
     }
     return { kind: "party" };
   }
@@ -431,11 +542,11 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
             ? received === 0
               ? t("missing.received")
               : !panOk
-                  ? t("missing.pan")
-                  : // what's still to be placed, or (all placed) how an account got its part
-                    gridTotal < received
-                    ? t("missing.left", { amount: rupees(round2(received - gridTotal)) })
-                    : t("missing.into")
+                ? t("missing.pan")
+                : // what's still to be placed, or (all placed) how an account got its part
+                  gridTotal < received
+                  ? t("missing.left", { amount: rupees(round2(received - gridTotal)) })
+                  : t("missing.into")
             : s === "details"
               ? t("missing.date")
               : kind === "credit" || customer?.kind !== "party"
@@ -469,7 +580,8 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
       return guide();
     }
     // someone new with the same name in the same town as one already added: asked first
-    if (kind === "credit" && customer?.kind === "party" && !(await sameName.confirm(newParty))) return;
+    if (kind === "credit" && customer?.kind === "party" && !(await sameName.confirm(newParty)))
+      return;
     // an advance not yet said to be one (the amount changed after Next): asked here too
     if (!(await confirmAdvance())) return;
     setSaving(true);
@@ -515,7 +627,14 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
               })),
               // someone new: their addresses, and from ₹50,000 their name and phone, kept on the sale
               ...(customer?.kind === "party"
-                ? { buyer: buyerNeeded || orderBuyer ? { name: buyerName.trim(), phone: buyerPhone } : null, shipTo: { address: typedAddress(shipAt) }, billToAddress: typedAddress(billAt) }
+                ? {
+                    buyer:
+                      buyerNeeded || orderBuyer
+                        ? { name: buyerName.trim(), phone: buyerPhone }
+                        : null,
+                    shipTo: { address: typedAddress(shipAt) },
+                    billToAddress: typedAddress(billAt),
+                  }
                 : {}),
             }
           : {
@@ -535,7 +654,8 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
           : code === "TOO_MANY_REQUESTS"
             ? t("errors.busy")
             : // the server's own words where they say what to fix (a price below cost, a godown being counted ...)
-              (code === "BAD_REQUEST" || code === "CONFLICT" || code === "PRECONDITION_FAILED") && e.message
+              (code === "BAD_REQUEST" || code === "CONFLICT" || code === "PRECONDITION_FAILED") &&
+                e.message
               ? e.message
               : code === "NOT_FOUND"
                 ? t("errors.gone")
@@ -575,7 +695,7 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
     setCardFor,
     itemsTotal,
     discount,
-    setDiscount,
+    setDiscount: typeDiscount,
     transport,
     setTransport,
     packing,
@@ -590,7 +710,8 @@ export function useSaleEntryState({ isAdmin, onDiscard }: { isAdmin: boolean; on
     pickKind,
     gridPlaces,
     setGridText: (id: string, text: string) => setGridTexts((all) => ({ ...all, [id]: text })),
-    setGridMode: (id: string, mode: BankMode | null) => setGridModes((all) => ({ ...all, [id]: mode })),
+    setGridMode: (id: string, mode: BankMode | null) =>
+      setGridModes((all) => ({ ...all, [id]: mode })),
     gridTotal,
     gridAccs,
     upiIdsOf,

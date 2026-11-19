@@ -13,12 +13,11 @@ import { useSavedSale } from "~/providers/sale";
 
 import { NEW_TRANSACTION_HREF } from "../../shell/nav-items";
 
-// /transaction/sale/[id], where a saved sale lands: as a payment's success card, that it worked, its number with the
-// invoice beside it (under it on a phone), then the items, total and whether it was cash or credit in one box, and the
-// way to a new transaction
+// /transaction/sale/[id], where a saved sale lands: as the purchase's success card, that it worked, its transaction ID
+// with its copy button and the invoice beside it (under it on a phone), then the items and total in one box (no payment
+// details), and the way to a new transaction
 export function SaleSuccess({ id }: { id: string }) {
   const t = useTranslations("transactions.sale.done");
-  const ts = useTranslations("transactions.sale");
   const sale = useSavedSale(id);
 
   return (
@@ -46,7 +45,7 @@ export function SaleSuccess({ id }: { id: string }) {
             <h2 className="font-heading text-2xl font-bold">{t("title")}</h2>
           </div>
 
-          {/* its number in a box (label left, the ID and its copy button right), the invoice beside it (under it on a
+          {/* its transaction ID in a box (label left, the ID and its copy button right), the invoice beside it (under it on a
               phone) */}
           <div className="flex w-full max-w-lg flex-col gap-3 sm:flex-row sm:items-stretch">
             <p className="flex min-w-0 flex-1 items-center justify-between gap-4 rounded-control border border-chestnut/25 py-1.5 pl-4 pr-2 text-left">
@@ -66,12 +65,11 @@ export function SaleSuccess({ id }: { id: string }) {
             </Link>
           </div>
 
-          {/* the items, total and payment, a row each in one box */}
+          {/* the items and the total, a row each in one box */}
           <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
             {[
               { key: "items", label: t("items"), value: sale.data.items.toLocaleString("en-IN") },
               { key: "total", label: t("total"), value: rupees(sale.data.total) },
-              { key: "payment", label: t("payment"), value: ts(`kinds.${sale.data.kind}`) },
             ].map((r, i) => (
               <p
                 key={r.key}

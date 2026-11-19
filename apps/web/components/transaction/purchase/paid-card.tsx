@@ -179,6 +179,8 @@ export function PaidCard() {
         : advanceLeft > 0 || (heldAdvance > 0 && oldDue === 0)
           ? [{ key: "advance", label: tpf("advanceLeft"), amount: advanceLeft }]
           : [{ key: "due", label: tpf("leftDue"), amount: 0 }];
+  // on the left: Due left always, ₹0 too (with an advance left, under it)
+  const leftSide = left.some((l) => l.key === "due") ? left : [...left, { key: "due", label: tpf("leftDue"), amount: 0 }];
 
   // the amounts: each row its name, the figure ending at the same edge in every row, then the mic or the arrow in a slot
   // of its own at the right end
@@ -195,7 +197,7 @@ export function PaidCard() {
             aria-label={t("breakup")}
             className="group flex w-full flex-col gap-1 text-left"
           >
-            {left.map((l) => (
+            {leftSide.map((l) => (
               <Line
                 key={l.key}
                 label={<span className="font-semibold">{l.label}</span>}

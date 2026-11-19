@@ -1,30 +1,38 @@
 "use client";
 
-import { IndianRupee } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, IndianRupee } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 
 import { fieldClass } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
-import { MicField } from "~/components/ui/mic-button";
+import { MicButton } from "~/components/ui/mic-button";
 import { Note } from "~/components/ui/note";
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
-import { Reveal } from "~/components/ui/reveal";
 import { Switch } from "~/components/ui/switch";
 import { rupees } from "~/lib/format";
+import { usePhone } from "~/lib/use-phone";
 import { cn } from "~/lib/utils";
 
 import { AccountCards } from "../shared/account-cards/account-cards";
 import { type AccountCardsApi } from "../shared/account-cards/types";
-import { type AmountRow, PlainRows } from "../shared/amount-table";
-import { DueFlow, FoldGroup } from "../shared/fold-group";
+import { DueFlow } from "../shared/fold-group";
 import { input, saidAmount } from "../shared/form-basics";
+import { Meter } from "../shared/meter";
 import { SALE_TDS_RATE, useSaleEntry } from "./state";
 
 // a row: its name on the left (level with the box's first line), its figure or box on the right, as a receipt's
 const underValue = "ml-auto w-[60%]";
-function Row({ label, htmlFor, children }: { label: React.ReactNode; htmlFor?: string; children: React.ReactNode }) {
+function Row({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: React.ReactNode;
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex min-w-0 items-start justify-between gap-3">
       <label htmlFor={htmlFor} className="flex min-h-11 min-w-0 items-center text-sm">
@@ -38,23 +46,78 @@ function Row({ label, htmlFor, children }: { label: React.ReactNode; htmlFor?: s
 // a part's heading inside the card (PAN, then Received), as the card's own name reads
 const partHeading = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
 
-// a figure that isn't typed: its name on the left, the figure on the right
-function Figure({ label, amount, strong = false }: { label: string; amount: number; strong?: boolean }) {
+// a figure that isn't typed: its name on the left, the figure on the right; `strong` closes a part with a line above
+function Figure({
+  label,
+  amount,
+  strong = false,
+  className,
+}: {
+  label: React.ReactNode;
+  amount: string;
+  strong?: boolean;
+  className?: string;
+}) {
   return (
-    <div className={cn("tabular flex items-baseline justify-between gap-3 text-sm", strong && "border-t border-chestnut/30 pt-2")}>
-      <span className="min-w-0">{label}</span>
-      <span className={cn("shrink-0 whitespace-nowrap text-base font-semibold", strong && "font-bold")}>{rupees(amount)}</span>
+    <div
+      className={cn(
+        "tabular flex items-center justify-between gap-3 text-sm",
+        strong && "border-t border-chestnut/30 pt-2 font-semibold",
+        className,
+      )}
+    >
+      <span className="flex min-w-0 items-center">{label}</span>
+      <span
+        className={cn("shrink-0 whitespace-nowrap text-base font-semibold", strong && "font-bold")}
+      >
+        {amount}
+      </span>
     </div>
   );
 }
 
-// the Received card (a cash sale's, after the customer), laid out as a payment's Amount card. On top the supporting
-// details: the old due (if they owe from before) and this bill; with an advance they already have with us, Set off
-// from advance (a switch, taking as much as the bill needs); then the due left to pay. Then one breakup: the amount received in its box (a saved customer's is typed: any part of what's due, the
-// rest staying owed, or more, the rest an advance; a walk-in's is the bill), the TDS they deducted (a switch; the PAN
-// is asked once TDS is on and none is saved), then the total of the two. Beside it on a wider screen, with an old due: what it goes towards, the old
-// due first. Then the account cards, the card's full width. A credit sale to someone who owes from before shows only
-// the three due rows
+// a row on the left, as the purchase's Paid card: its name, its figure or box (ending at the same edge in every row),
+// then a slot for the mic or the arrow at the right end (empty for a plain figure)
+function Line({
+  label,
+  value,
+  slot,
+}: {
+  label?: React.ReactNode;
+  value: React.ReactNode;
+  slot?: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <span className="flex min-h-11 min-w-0 flex-1 items-center text-sm">{label}</span>
+      <span className="w-[55%] shrink-0">{value}</span>
+      <span className="grid size-10 shrink-0 place-items-center">{slot}</span>
+    </div>
+  );
+}
+
+// a figure on the left: at the right of its space, where a box's typed number ends
+const figure = "tabular block pr-3.5 text-right text-base font-semibold";
+
+// what's left, on chestnut: the amount that closes the breakup
+function LeftRow({ label, amount }: { label: string; amount: number }) {
+  return (
+    <div className="tabular flex items-center justify-between gap-3 rounded-control bg-chestnut px-3 py-2 text-ivory">
+      <span className="text-sm font-semibold">{label}</span>
+      <span className="font-heading text-lg font-bold">{rupees(amount)}</span>
+    </div>
+  );
+}
+
+// the Received card (a cash sale's, after the customer), laid out as the purchase's Paid card. A saved customer's: on
+// the left three things: what's left (the due, the advance, or both, an arrow on each opening the breakup), To receive
+// (its box, with the mic), then Left to receive with its slider, pinned under the header while the account cards below
+// scroll. The breakup on the right (on a phone the card slides to it, ‹ Breakup back): an advance they have with us
+// (over a line), the old due, this bill, then with an advance their sub total and Set off from advance (a switch); the
+// due; the amount received taken off it (its ⌄ opening what it goes towards, the old due first) and the TDS they
+// deducted (a switch; the PAN is asked above once TDS is on and none is saved); then what's left on chestnut. A
+// walk-in pays the bill: To receive (the bill), then Left to receive and the cards. A credit sale shows only the three
+// due rows
 export function ReceivedCard() {
   const e = useSaleEntry();
   const { t, tc, kind, tried, total, oldDue, dueNow, received, tdsCan, tdsOnIt, panNeeded } = e;
@@ -62,88 +125,322 @@ export function ReceivedCard() {
   const tdsLabel = useId();
   const setOffLabel = useId();
   const cards = useSaleCards();
-  const [towardsOpen, setTowardsOpen] = useState(false);
   const filled = received > 0;
   const amountBad = tried && received === 0 && e.setOff === 0;
   const panBad = tried && panNeeded && !/^[A-Z]{5}\d{4}[A-Z]$/.test(e.pan);
   // their PAN is asked: TDS on, an amount in, none saved
   const askPan = tdsCan && filled && panNeeded;
-  // the amount's box: large and bold; chestnut, no shadow, once filled
-  const amountBox = "min-h-12 pl-11 font-heading text-xl font-bold tabular";
-  const rupeeMark = (on: boolean) => (
-    <IndianRupee className={cn("pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2", on && "text-ivory")} aria-hidden />
-  );
 
-  // the advance still with us after this sale: what wasn't set off against the bill, and what's paid over what's due
-  const pendingAdvance = Math.round((e.heldAdvance - e.setOff + e.advance) * 100) / 100;
-  // the breakup's rows: what came in, the TDS they deducted, then what's left once they're counted: the due they still
-  // owe, or (nothing owed) the advance still with us
-  const advanceLeft = e.leftDue === 0 && pendingAdvance > 0;
-  const rows: AmountRow[] = [
-    { key: "in", label: tc("sum.amount"), amount: received },
-    {
-      key: "tds",
-      label: (
-        <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span id={tdsLabel}>{tc("sum.tds")}</span>
-          <Switch small on={tdsOnIt} onFlip={e.flipTds} labelledBy={tdsLabel} />
-          {tdsOnIt && <span className="tabular text-xs font-semibold">{SALE_TDS_RATE}%</span>}
-        </span>
-      ),
-      amount: e.tdsAmount,
-    },
-    {
-      key: "left",
-      label: advanceLeft ? t("advanceLeft") : t("leftDue"),
-      amount: advanceLeft ? pendingAdvance : e.leftDue,
-      tone: "total" as const,
-    },
-  ];
+  // on a computer the breakup beside (it starts open); on a phone the card slid to it (it starts on the amounts); and
+  // what the receipt goes towards under it
+  const phone = usePhone();
+  const [breakupOpen, setBreakupOpen] = useState(true);
+  const [slid, setSlid] = useState(false);
+  const shown = phone ? slid : breakupOpen;
+  const [towardsOpen, setTowardsOpen] = useState(false);
 
-  const towards = (
-    <FoldGroup title={tr("towardsGroup")} figure={e.settles} open={towardsOpen} onOpen={setTowardsOpen}>
-      {/* two flows: what goes towards the old due, then towards this bill */}
-      <DueFlow
-        wholeLabel={tr("receiptGroup")}
-        whole={e.settles}
-        dueLabel={t("oldDue")}
-        due={e.towardsOld}
-        advanceLabel={t("thisBill")}
-        advance={e.towardsBill}
-        paidLabel=""
-        owedBefore={0}
-      />
-    </FoldGroup>
-  );
-  // a saved customer's: shown for every amount received, whatever they owed or had with us before
-  const hasTowards = tdsCan && filled;
+  // a phone's two panels: as tall as the one showing, the other kept out of reach
+  const mainRef = useRef<HTMLDivElement>(null);
+  const sideRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | undefined>(undefined);
+  useLayoutEffect(() => {
+    const panel = slid ? sideRef.current : mainRef.current;
+    if (!phone || !panel) return;
+    const fit = () => setHeight(panel.offsetHeight);
+    fit();
+    const watch = new ResizeObserver(fit);
+    watch.observe(panel);
+    return () => watch.disconnect();
+  }, [phone, slid, kind, tdsCan]);
+  // a computer's breakup lies over the right half: the card is kept at least as tall as it, and the account cards start
+  // below it (pushed down by what the amounts and Left to receive fall short of it)
+  const amountsRef = useRef<HTMLDivElement>(null);
+  const breakupRef = useRef<HTMLDivElement>(null);
+  const stickyRef = useRef<HTMLDivElement>(null);
+  const [beside, setBeside] = useState({ breakup: 0, push: 0 });
+  useLayoutEffect(() => {
+    if (phone) return;
+    const fit = () => {
+      const breakupH = breakupRef.current?.offsetHeight ?? 0;
+      // where the cards' line falls on its own: the amounts, a gap, Left to receive, a gap, its own 6px
+      const natural =
+        (amountsRef.current?.offsetHeight ?? 0) +
+        10 +
+        (stickyRef.current?.offsetHeight ?? 0) +
+        10 +
+        6;
+      setBeside({ breakup: breakupH, push: breakupH ? Math.max(0, breakupH + 16 - natural) : 0 });
+    };
+    fit();
+    const watch = new ResizeObserver(fit);
+    for (const el of [amountsRef.current, breakupRef.current, stickyRef.current])
+      if (el) watch.observe(el);
+    return () => watch.disconnect();
+  }, [phone, breakupOpen, filled, kind, tdsCan]);
+  // on sliding, the cursor goes to the back arrow (or back to the arrow that opened it)
+  const back = useRef<HTMLButtonElement>(null);
+  const arrowRow = useRef<HTMLButtonElement>(null);
+  const slide = (to: boolean) => {
+    setSlid(to);
+    setTimeout(
+      () =>
+        (to ? back : arrowRow).current?.focus({
+          preventScroll: true,
+          focusVisible: false,
+        } as FocusOptions),
+      320,
+    );
+  };
 
   // a credit sale: only what they'll owe, nothing to type
   if (kind === "credit")
     return (
       <div className="flex flex-col gap-2 sm:max-w-80">
-        <Figure label={t("thisBill")} amount={total} />
-        <Figure label={t("oldDue")} amount={oldDue} />
-        <Figure label={tr("due")} amount={dueNow} strong />
+        <Figure label={t("thisBill")} amount={rupees(total)} />
+        <Figure label={t("oldDue")} amount={rupees(oldDue)} />
+        <Figure label={tr("due")} amount={rupees(dueNow)} strong />
       </div>
     );
 
-  // a walk-in pays the bill: only what's to be received, then where it came into
+  // what's still to place in cash and the bank cards below, filling as they take their parts; green with a tick once
+  // nothing is left. Pinned under the header while the cards scroll
+  const leftToReceive = filled && (
+    <div
+      ref={stickyRef}
+      className="sticky top-16 z-10 -mx-1 flex flex-col gap-2.5 bg-ivory px-1 pb-1 sm:w-[calc(50%-1rem)]"
+    >
+      <Line
+        label={tr("leftToReceive")}
+        value={
+          e.gridTotal === received ? (
+            <span
+              className={cn(figure, "flex items-center justify-end text-success")}
+              aria-label={tr("nothingLeft")}
+            >
+              <Check className="size-5" strokeWidth={2.5} aria-hidden />
+            </span>
+          ) : (
+            <span className={cn(figure, "font-bold")}>
+              {rupees(Math.max(0, Math.round((received - e.gridTotal) * 100) / 100))}
+            </span>
+          )
+        }
+      />
+      {/* the slider under it, the full width of the rows above (the mic and arrow column too) */}
+      <Meter
+        bare
+        label={tr("leftToReceive")}
+        figure={0}
+        share={Math.min(100, (e.gridTotal / received) * 100)}
+        done={e.gridTotal === received}
+        className="-mt-1"
+      />
+    </div>
+  );
+  // where it came into: a card for each place, once there's an amount (on a computer, starting below the breakup)
+  const accountCards = filled && (
+    <div
+      className="flex flex-col gap-2.5 border-t border-chestnut/15 pt-4"
+      style={{ marginTop: 6 + (phone || !tdsCan ? 0 : beside.push) }}
+    >
+      <AccountCards key={received} api={cards} />
+    </div>
+  );
+
+  // a walk-in pays the bill: only what's to be received, then Left to receive and where it came into
   if (!tdsCan)
     return (
-      <div className="flex flex-col gap-4">
-        <Row label={t("toReceiveOnly")}>
-          <span className="tabular flex min-h-12 items-center justify-end rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
-            {rupees(received)}
-          </span>
-        </Row>
-        {filled && (
-          <div className="flex flex-col gap-2.5 border-t border-chestnut/15 pt-4">
-            <AccountCards key={received} api={cards} />
-          </div>
-        )}
+      <div className="flex flex-col gap-1.5 sm:gap-2.5">
+        <div className="sm:w-[calc(50%-1.5rem)]">
+          <Line
+            label={t("toReceiveOnly")}
+            value={
+              <span className="tabular flex min-h-12 items-center justify-end rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
+                {rupees(received)}
+              </span>
+            }
+          />
+        </div>
+        {leftToReceive}
+        {accountCards}
       </div>
     );
+
+  // the advance still with us after this sale: what wasn't set off against the bill, and what's paid over what's due
+  const advanceLeft = Math.round((e.heldAdvance - e.setOff + e.advance) * 100) / 100;
+  // the old due and the bill together, shown with an advance (what it's set off against)
+  const subTotal = Math.round((oldDue + total) * 100) / 100;
+  // what's left: both when both are above nothing (the advance first); otherwise the one that is; neither: ₹0 of what
+  // the account had (an advance when it held one and owed nothing, a due otherwise)
+  const left =
+    e.leftDue > 0 && advanceLeft > 0
+      ? [
+          { key: "advance", label: t("advanceLeft"), amount: advanceLeft },
+          { key: "due", label: t("leftDue"), amount: e.leftDue },
+        ]
+      : e.leftDue > 0
+        ? [{ key: "due", label: t("leftDue"), amount: e.leftDue }]
+        : advanceLeft > 0 || (e.heldAdvance > 0 && oldDue === 0)
+          ? [{ key: "advance", label: t("advanceLeft"), amount: advanceLeft }]
+          : [{ key: "due", label: t("leftDue"), amount: 0 }];
+  // on the left: Due left always, ₹0 too (with an advance left, under it)
+  const leftSide = left.some((l) => l.key === "due")
+    ? left
+    : [...left, { key: "due", label: t("leftDue"), amount: 0 }];
+
+  // the amounts: what's left (an arrow on each line opening the breakup), then To receive in its box with the mic
+  const amounts = (
+    <div className="flex min-w-0 flex-col gap-2.5">
+      <button
+        ref={arrowRow}
+        type="button"
+        onClick={() => (phone ? slide(true) : setBreakupOpen((o) => !o))}
+        aria-expanded={shown}
+        aria-controls="sale-breakup"
+        aria-label={t("breakup")}
+        className="group flex w-full flex-col gap-1 text-left"
+      >
+        {leftSide.map((l) => (
+          <Line
+            key={l.key}
+            label={<span className="font-semibold">{l.label}</span>}
+            value={<span className={cn(figure, "font-bold")}>{rupees(l.amount)}</span>}
+            // an arrow on each line (both open the breakup): a soft-cornered tile, filled on hover
+            slot={
+              <span className="grid size-9 place-items-center rounded-control transition-colors group-hover:bg-chestnut/10">
+                <ChevronRight
+                  className={cn(
+                    "size-5 transition-transform",
+                    !phone && breakupOpen && "rotate-180",
+                  )}
+                  aria-hidden
+                />
+              </span>
+            }
+          />
+        ))}
+      </button>
+      <Line
+        label={
+          <label htmlFor="received-field" className="flex items-center">
+            {t("toReceiveOnly")}
+            {e.setOff === 0 && <RequiredMark />}
+          </label>
+        }
+        value={
+          <span className="relative block">
+            <IndianRupee
+              className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2 text-ivory"
+              aria-hidden
+            />
+            <NumberInput
+              id="received-field"
+              value={e.receivedText}
+              decimals={2}
+              maxDigits={13}
+              placeholder="0"
+              onChange={e.typeReceived}
+              aria-invalid={amountBad || undefined}
+              // chestnut whether typed or not, as the purchase's To pay; left empty when it's needed, only the card's
+              // message says so
+              className={cn(
+                input(false),
+                "min-h-12 bg-chestnut pl-11 pr-3.5 text-right font-heading text-xl font-bold tabular text-ivory caret-ivory shadow-none placeholder:text-ivory/60",
+              )}
+            />
+          </span>
+        }
+        slot={
+          <MicButton
+            onText={(said) => saidAmount(said, e.typeReceived)}
+            className="rounded-[var(--radius-control)]"
+          />
+        }
+      />
+    </div>
+  );
+
+  // the breakup
+  const breakup = (
+    <div
+      id="sale-breakup"
+      className="flex min-w-0 flex-col gap-2.5 rounded-control bg-chestnut/[0.04] p-3"
+    >
+      {e.heldAdvance > 0 && (
+        <Figure
+          label={tr("advancePart")}
+          amount={rupees(e.heldAdvance)}
+          className="mb-3.5 border-b border-chestnut/30 pb-2"
+        />
+      )}
+      <Figure label={t("oldDue")} amount={rupees(oldDue)} />
+      <Figure label={t("thisBill")} amount={rupees(total)} />
+      {e.heldAdvance > 0 && (
+        <>
+          <Figure label={t("subTotal")} amount={rupees(subTotal)} strong />
+          <Figure
+            label={
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span id={setOffLabel}>{t("setOff")}</span>
+                <Switch small on={e.setOffOn} onFlip={e.setSetOffOn} labelledBy={setOffLabel} />
+              </span>
+            }
+            amount={e.setOff > 0 ? `− ${rupees(e.setOff)}` : rupees(0)}
+          />
+        </>
+      )}
+      <Figure label={tr("due")} amount={rupees(dueNow)} strong />
+      {/* the amount received taken off, its ⌄ opening what it goes towards */}
+      <Figure
+        label={
+          <>
+            {tr("receiptGroup")}
+            <button
+              type="button"
+              onClick={() => setTowardsOpen((o) => !o)}
+              aria-expanded={towardsOpen}
+              aria-label={tr("towardsGroup")}
+              className="ml-1 grid size-8 shrink-0 place-items-center rounded-control hover:bg-chestnut/8"
+            >
+              <ChevronDown
+                className={cn("size-4 transition-transform", towardsOpen && "rotate-180")}
+                aria-hidden
+              />
+            </button>
+          </>
+        }
+        amount={`− ${rupees(received)}`}
+      />
+      {/* the TDS they deducted: a switch, its rate once on */}
+      <Figure
+        label={
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span id={tdsLabel}>{tc("sum.tds")}</span>
+            <Switch small on={tdsOnIt} onFlip={e.flipTds} labelledBy={tdsLabel} />
+            {tdsOnIt && <span className="tabular text-xs font-semibold">{SALE_TDS_RATE}%</span>}
+          </span>
+        }
+        amount={e.tdsAmount > 0 ? `− ${rupees(e.tdsAmount)}` : rupees(0)}
+      />
+      {towardsOpen && (
+        <DueFlow
+          wholeLabel={tr("receiptGroup")}
+          whole={e.settles}
+          dueLabel={t("oldDue")}
+          due={e.towardsOld}
+          advanceLabel={t("thisBill")}
+          advance={e.towardsBill}
+          paidLabel=""
+          owedBefore={0}
+          noWhole
+        />
+      )}
+      {left.map((l) => (
+        <LeftRow key={l.key} label={l.label} amount={l.amount} />
+      ))}
+      {tdsOnIt && filled && <Note className="text-chestnut/70">{tr("tdsNote194Q")}</Note>}
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -170,104 +467,88 @@ export function ReceivedCard() {
                 autoCorrect="off"
                 spellCheck={false}
                 placeholder="ABCDE1234F"
-                onChange={(ev) => e.setPan(ev.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10))}
+                onChange={(ev) =>
+                  e.setPan(
+                    ev.target.value
+                      .toUpperCase()
+                      .replace(/[^A-Z0-9]/g, "")
+                      .slice(0, 10),
+                  )
+                }
                 aria-invalid={panBad || undefined}
-                className={cn("tabular min-h-11 w-full min-w-0 px-3 text-base uppercase placeholder:text-chestnut/60", fieldClass(panBad))}
+                className={cn(
+                  "tabular min-h-11 w-full min-w-0 px-3 text-base uppercase placeholder:text-chestnut/60",
+                  fieldClass(panBad),
+                )}
               />
             </Row>
-            {panBad && <FieldMessage className={cn("mt-0", underValue)}>{t("panBad")}</FieldMessage>}
+            {panBad && (
+              <FieldMessage className={cn("mt-0", underValue)}>{t("panBad")}</FieldMessage>
+            )}
           </section>
           <h3 className={cn(partHeading, "-mb-2")}>{t("steps.received")}</h3>
         </>
       )}
-      {/* wider screens, two rows: on top the supporting details (left); under them the breakup (left) level with what
-          it goes towards (right) */}
-      <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-12">
-        <div className="flex min-w-0 flex-col gap-4 sm:contents">
-          {/* the supporting details, on top with room under them. An advance they have with us: the advance, this
-              bill, less what's set off from the advance (a switch, as much as the bill takes), then what that leaves:
-              an advance still with us, or a due. Otherwise: this bill, the old due and the due they make together */}
-          <div className="mb-2 flex min-w-0 flex-col gap-2.5 sm:col-start-1 sm:row-start-1">
-            {e.heldAdvance > 0 ? (
-              <>
-                <Figure label={tr("advancePart")} amount={e.heldAdvance} />
-                <Figure label={t("thisBill")} amount={total} />
-                <div className="tabular flex items-center justify-between gap-3 text-sm">
-                  <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                    <span id={setOffLabel}>{t("setOff")}</span>
-                    <Switch small on={e.setOffOn} onFlip={e.setSetOffOn} labelledBy={setOffLabel} />
-                  </span>
-                  <span className="shrink-0 whitespace-nowrap text-base font-semibold">
-                    {e.setOff > 0 ? `− ${rupees(e.setOff)}` : rupees(0)}
-                  </span>
-                </div>
-                {/* the advance set off covers the whole bill: what's left of it; otherwise the due */}
-                {e.setOff > 0 && dueNow === 0 ? (
-                  <Figure label={tr("advancePart")} amount={Math.round((e.heldAdvance - e.setOff) * 100) / 100} strong />
-                ) : (
-                  <Figure label={tr("due")} amount={dueNow} strong />
-                )}
-              </>
-            ) : (
-              <>
-                <Figure label={t("thisBill")} amount={total} />
-                {oldDue > 0 && <Figure label={t("oldDue")} amount={oldDue} />}
-                {oldDue > 0 && <Figure label={tr("due")} amount={dueNow} strong />}
-              </>
-            )}
-          </div>
-          {/* the breakup, as a payment's: the amount received in its box (a saved customer's is typed or spoken, any
-              part of what's due; a walk-in's is the bill), then the TDS they deducted and an advance set off (a switch
-              each), then the total */}
-          <div className="flex min-w-0 flex-col gap-2.5 sm:col-start-1 sm:row-start-2">
-          <Row
-            htmlFor="received-field"
-            label={
-              <>
-                {t("amountReceived")}
-                {e.setOff === 0 && <RequiredMark />}
-              </>
-            }
-          >
-            <MicField onText={(said) => saidAmount(said, e.typeReceived)}>
-              {rupeeMark(filled)}
-              <NumberInput
-                id="received-field"
-                value={e.receivedText}
-                onChange={e.typeReceived}
-                decimals={2}
-                maxDigits={13}
-                placeholder="0"
-                aria-invalid={amountBad || undefined}
-                className={cn(input(amountBad), amountBox, "pr-12", filled && !amountBad && "bg-chestnut text-ivory caret-ivory shadow-none")}
-              />
-            </MicField>
-          </Row>
 
-          {/* the rest of the breakup (the amount itself is the box above), shown before anything is typed too: the TDS
-              and the due or advance left */}
-          <PlainRows rows={rows.slice(1)} />
-          <Reveal follow show={tdsCan && tdsOnIt && filled} gap="0.625rem">
-            <Note className="text-chestnut/70">{tr("tdsNote194Q")}</Note>
-          </Reveal>
-          {/* a phone: what it goes towards under the breakup (wider screens: on the right) */}
-          {hasTowards && <div className="mt-1.5 sm:hidden">{towards}</div>}
+      {/* with the breakup beside on a computer, at least as tall as it */}
+      <div
+        className="relative flex flex-col gap-1.5 sm:gap-2.5"
+        style={{ minHeight: phone ? undefined : beside.breakup || undefined }}
+      >
+        {phone ? (
+          // on a phone, as the purchase's Paid card: the amounts, and the breakup to their right; the arrow slides the
+          // card to it, its ‹ Breakup back. As tall as the panel showing (room at the sides for the boxes' soft edges)
+          <div
+            className="-mx-1 overflow-hidden transition-[height] duration-300 motion-reduce:transition-none"
+            style={{ height }}
+          >
+            <div
+              className={cn(
+                "flex w-[200%] items-start transition-transform duration-300 ease-out motion-reduce:transition-none",
+                slid && "-translate-x-1/2",
+              )}
+            >
+              <div ref={mainRef} inert={slid} className="w-1/2 min-w-0 p-1">
+                {amounts}
+              </div>
+              <div ref={sideRef} inert={!slid} className="flex w-1/2 min-w-0 flex-col gap-1 p-1">
+                <button
+                  ref={back}
+                  type="button"
+                  onClick={() => slide(false)}
+                  className="flex min-h-11 w-full items-center gap-1.5 text-left text-sm font-semibold"
+                >
+                  <ChevronLeft className="size-5 shrink-0" aria-hidden />
+                  {t("breakup")}
+                </button>
+                {breakup}
+              </div>
+            </div>
           </div>
-        </div>
-        {hasTowards && <div className="hidden min-w-0 sm:col-start-2 sm:row-start-2 sm:block">{towards}</div>}
+        ) : (
+          // on a computer: the amounts on the left; the breakup (while open) on the right, laid over the card's right
+          // half so it never pushes Left to receive down
+          <>
+            <div ref={amountsRef} className="w-[calc(50%-1.5rem)]">
+              {amounts}
+            </div>
+            {breakupOpen && (
+              <div ref={breakupRef} className="absolute right-0 top-0 w-[calc(50%-1.5rem)]">
+                {breakup}
+              </div>
+            )}
+          </>
+        )}
+        {leftToReceive}
+        {accountCards}
       </div>
-      {/* where it came into: a card for each place, once there's an amount */}
-      {filled && (
-        <div className="flex flex-col gap-2.5 border-t border-chestnut/15 pt-4">
-          <AccountCards key={received} api={cards} />
-        </div>
-      )}
     </div>
   );
 }
 
 // the bank cards with a receipt's words and parts, laid out as a payment's (every field a row): no cap at what a place
-// holds and no balances shown (money comes in), no Auto. An account by UPI with no UPI ID of ours says to add one
+// holds and no balances shown (money comes in), no Auto; Left to receive and its slider sit above them. An account by
+// UPI with no UPI ID of ours says to add one
 function useSaleCards(): AccountCardsApi {
   const e = useSaleEntry();
   const t = useTranslations("transactions.receipt.form");
@@ -281,6 +562,7 @@ function useSaleCards(): AccountCardsApi {
     tried: e.tried,
     capAtHeld: false,
     hideHeld: true,
+    meterOutside: true,
     modeRows: true,
     placeFirst: true,
     fieldRows: true,
@@ -288,7 +570,9 @@ function useSaleCards(): AccountCardsApi {
     qrIdLabel: t("upiId"),
     qrId: () => ({ hideId: false }),
     upiPart: (place) =>
-      e.upiIdsOf(place.id).length > 0 ? null : <FieldMessage className="mt-0 ml-auto w-[62%]">{e.t("noUpi")}</FieldMessage>,
+      e.upiIdsOf(place.id).length > 0 ? null : (
+        <FieldMessage className="mt-0 ml-auto w-[62%]">{e.t("noUpi")}</FieldMessage>
+      ),
     refs: e.refs,
     setRefs: e.setRefs,
     refLeft: e.refLeft,

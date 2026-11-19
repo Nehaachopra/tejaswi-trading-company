@@ -10,20 +10,13 @@ import { cn } from "~/lib/utils";
 
 import { type ProductGroup, TileTop } from "../../product/products/product-tile";
 import { NewProductCard } from "../order/new/new-product-card";
-import { CartButton } from "./cart-button";
+import { SCROLL_BOX, TILE_GRID } from "../shared/cart-button";
+import { PurchaseCartButton } from "./cart-button";
 import { ProductCard } from "./product-card";
 import { usePurchaseEntry } from "./state";
 
 // a part's small heading on the card
 const heading = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
-
-// the products in rows of two (three wider)
-const TILE_GRID = "grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3";
-
-// the products' box: as tall as the screen leaves between the card's top (heading, filters) and Next, scrolled up and
-// down inside (room at the sides for the tiles' edges)
-const SCROLL_BOX =
-  "-mx-1 flex max-h-[calc(100dvh-26rem)] min-h-72 flex-col gap-4 overflow-y-auto overscroll-contain px-1 py-0.5 [scrollbar-width:thin] lg:max-h-[calc(100dvh-21rem)]";
 
 // the Products card: the cart button (its total and count; opens the cart card) at the top right; every pack size not
 // in the cart that can be bought (it has a GST %), filtered by category, in one row; each tile its name, photo and Add,
@@ -203,7 +196,7 @@ export function ProductsCard() {
             <h3 className={heading}>{ts("fromOrder")}</h3>
             <span className="tabular truncate text-sm font-semibold">{order.orderId}</span>
           </div>
-          <CartButton />
+          <PurchaseCartButton />
         </div>
       ) : (
         <>
@@ -211,7 +204,7 @@ export function ProductsCard() {
             <h3 className={cn(heading, "min-w-0 truncate")}>{ts("products")}</h3>
             <div className="flex shrink-0 items-center gap-2">
               {newProduct}
-              <CartButton />
+              <PurchaseCartButton />
             </div>
           </div>
           {filters}
