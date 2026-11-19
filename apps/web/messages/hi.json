@@ -1955,7 +1955,7 @@
     "purchase": {
       "title": "खरीद",
       "billAmount": "बिल राशि",
-      "toPayAmount": "देने की राशि",
+      "toPayAmount": "देना है",
       "breakup": "ब्योरा",
       "oldDue": "पुराना बकाया",
       "subTotal": "उप-योग",

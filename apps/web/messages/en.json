@@ -1955,7 +1955,7 @@
     "purchase": {
       "title": "Purchase",
       "billAmount": "Bill amount",
-      "toPayAmount": "To pay amount",
+      "toPayAmount": "To pay",
       "breakup": "Breakup",
       "oldDue": "Old due",
       "subTotal": "Sub total",

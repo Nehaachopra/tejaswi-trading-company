@@ -1955,7 +1955,7 @@
     "purchase": {
       "title": "ಖರೀದಿ",
       "billAmount": "ಬಿಲ್ ಮೊತ್ತ",
-      "toPayAmount": "ಕೊಡಬೇಕಾದ ಮೊತ್ತ",
+      "toPayAmount": "ಕೊಡಬೇಕಾದದ್ದು",
       "breakup": "ವಿವರ",
       "oldDue": "ಹಳೆಯ ಬಾಕಿ",
       "subTotal": "ಉಪ ಮೊತ್ತ",
