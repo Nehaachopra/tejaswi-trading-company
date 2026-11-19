@@ -184,11 +184,10 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
                 label={t("placeOfSupply")}
                 value={d.shipTo.state ? `${d.shipTo.state} (${d.shipTo.stateCode ?? ""})` : null}
               />
-              <Detail label={t("vehicle")} value={d.vehicleNumber} />
-              <Detail
-                label={t("soldBy")}
-                value={d.createdByName ? titleCase(d.createdByName) : null}
-              />
+              {/* the vehicle, last and alone on its row: its value runs to the end, so the line under it (over the
+                  terms) is whole */}
+              <span className={cn(cell, "border-b border-r font-medium")}>{t("vehicle")}</span>
+              <span className={cn(cell, "tabular border-b sm:col-span-3 sm:border-r-0!")}>{d.vehicleNumber ?? "—"}</span>
             </div>
             <div className={cn(cell, "border-b break-words")}>
               <span className="font-semibold">{t("terms")}:</span>

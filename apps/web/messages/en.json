@@ -2167,7 +2167,6 @@
         "payment": "Payment",
         "placeOfSupply": "Place of supply",
         "vehicle": "Vehicle no.",
-        "soldBy": "Sold by",
         "billTo": "Bill to",
         "shipTo": "Ship to",
         "walkIn": "Cash sale",

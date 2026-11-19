@@ -6,8 +6,9 @@ import { cn } from "~/lib/utils";
 // the lines and boxes (as on the voucher)
 const cell = "border-chestnut/40 px-2 py-1.5";
 
-// the table's last column (Total, Amount): the breakup's figures sit right under it, so both are this wide
-export const LAST_COL = "w-40 min-w-40";
+// the table's last column (Total, Amount): the breakup's figures sit right under it, so both are this wide (narrower
+// printed, so every column fits the page)
+export const LAST_COL = "w-40 min-w-40 print:w-32! print:min-w-32!";
 
 // the title centred, with the jurisdiction on its line at the left, over our name; on a phone, under the title
 export function DocHead({ title, jurisdiction }: { title: string; jurisdiction: string }) {
@@ -34,7 +35,8 @@ export function Breakup({
   label: string;
   amount: string;
 }) {
-  const line = "grid grid-cols-[1fr_10rem] text-right sm:grid-cols-[12rem_10rem] sm:border-l sm:border-chestnut/40";
+  const line =
+    "grid grid-cols-[1fr_10rem] text-right sm:grid-cols-[12rem_10rem] sm:border-l sm:border-chestnut/40 print:grid-cols-[12rem_8rem]!";
   return (
     <div className="tabular grid content-start">
       {rows.map((r) => (

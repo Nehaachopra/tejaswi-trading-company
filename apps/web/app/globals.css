@@ -132,6 +132,17 @@ input[type="search"]::-webkit-search-cancel-button {
   .no-print {
     display: none !important;
   }
+  /* a document's tables fit the page's width: no least width (the screen's scrolls sideways instead), smaller figures
+     and tighter cells, so every column shows */
+  .print-area table {
+    min-width: 0 !important;
+    font-size: 10px !important;
+  }
+  .print-area table th,
+  .print-area table td {
+    padding-left: 3px !important;
+    padding-right: 3px !important;
+  }
 }
 
 /* a scroll area with no visible scrollbar; it still scrolls by wheel, touch and keys */
