@@ -49,7 +49,8 @@ function LeftRow({ label, amount }: { label: string; amount: number }) {
   );
 }
 
-// the Paid card (cash) or Due card (credit). Cash: on the left only the bill amount and the amount to pay (its box never
+// the Paid card (cash) or Due card (credit). Cash: on the left the bill amount, the due when it isn't just the bill (an
+// old due, or an advance set off), and the amount to pay (its box never
 // more than cash and the banks hold together), then Breakup with its arrow at the right end, which opens the breakup:
 // on the right (under it on a phone). The breakup: an advance they hold (over a line, room under it); the old due, the
 // bill amount, then with an advance their sub total and Set off from advance (a switch); the due; the payment taken off
@@ -124,6 +125,8 @@ export function PaidCard() {
       <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-12">
         <div className="flex min-w-0 flex-col gap-2.5">
           <Figure label={t("billAmount")} amount={rupees(total)} />
+          {/* what's owed, when it isn't just the bill (an old due, or an advance set off): what To pay is typed against */}
+          {dueNow !== total && <Figure label={tpf("due")} amount={rupees(dueNow)} strong />}
           <Row
             htmlFor="paid-field"
             label={
