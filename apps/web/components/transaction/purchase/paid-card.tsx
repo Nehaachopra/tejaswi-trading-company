@@ -64,8 +64,8 @@ function LeftRow({ label, amount }: { label: string; amount: number }) {
   );
 }
 
-// the Paid card (cash) or Due card (credit). Cash: on the left the due (the bill, with any old due, less an advance set
-// off) and the amount to pay (its box never
+// the Paid card (cash) or Due card (credit). Cash: on the left the due (the old due and the bill, whatever is paid or
+// set off) and the amount to pay (its box never
 // more than cash and the banks hold together), then what's left (plain) with an arrow at the right end, which opens the breakup:
 // on the right (under it on a phone). The breakup: an advance they hold (over a line, room under it); the old due, the
 // bill amount, then with an advance their sub total and Set off from advance (a switch); the due; the payment taken off
@@ -141,8 +141,8 @@ export function PaidCard() {
         {/* each row: its name, the figure ending at the same edge in every row, then the mic or the arrow in a slot of its
             own at the right end */}
         <div className="flex min-w-0 flex-col gap-2.5">
-          {/* what's owed (the bill, with any old due, less an advance set off): what To pay is typed against */}
-          <Line label={tpf("due")} value={<span className={figure}>{rupees(dueNow)}</span>} />
+          {/* what's owed: the old due and the bill, whatever is paid or set off (the breakup shows what comes off it) */}
+          <Line label={tpf("due")} value={<span className={figure}>{rupees(subTotal)}</span>} />
           <Line
             label={
               <label htmlFor="paid-field" className="flex items-center">
