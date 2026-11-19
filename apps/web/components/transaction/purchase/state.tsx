@@ -146,10 +146,26 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   const roundOff = (totalPaise - figuredPaise) / 100;
   const total = totalPaise / 100;
 
+  // a product put in or taken out: the Paid card starts again (what's paid, each place's part, how each bank paid and
+  // its reference, the set off and the advance asked about)
+  function resetPaid() {
+    setPaidText("");
+    setTypedSplit({});
+    setBankModes({});
+    setBankRefs({});
+    setRefLeft([]);
+    setSetOffOn(true);
+    setAdvanceOk(null);
+  }
   // change the cart: put one in (or change it, from the product card), or take it out
-  const putLine = (line: CartLine) =>
+  const putLine = (line: CartLine) => {
+    if (!lines.some((l) => l.productId === line.productId)) resetPaid();
     setLines((all) => (all.some((l) => l.productId === line.productId) ? all.map((l) => (l.productId === line.productId ? line : l)) : [...all, line]));
-  const removeLine = (productId: string) => setLines((all) => all.filter((l) => l.productId !== productId));
+  };
+  const removeLine = (productId: string) => {
+    resetPaid();
+    setLines((all) => all.filter((l) => l.productId !== productId));
+  };
   // the product card over the page: the pack size being added or changed
   const [cardFor, setCardFor] = useState<string | null>(null);
 
