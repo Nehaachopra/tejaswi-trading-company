@@ -219,20 +219,21 @@ export function ProductsCard() {
 }
 
 // a product to buy: its pack chips, name and photo, then Add (no price: the supplier's rate is typed on its card).
-// `ordered` (a pack size its order still waits for): how many it ordered, above Add
+// `ordered` (a pack size its order still waits for): what's left to arrive, on chestnut, above Add
 function PurchaseTile({ group, ordered = false }: { group: ProductGroup; ordered?: boolean }) {
-  const { ts, setCardFor, orderLine } = usePurchaseEntry();
+  const { t, ts, setCardFor, orderLeft } = usePurchaseEntry();
   const [picked, setPicked] = useState(group.packs[0]!.productId);
   const pack = group.packs.find((p) => p.productId === picked) ?? group.packs[0]!;
   return (
     <li className="flex w-40 shrink-0 snap-start flex-col gap-2 rounded-control border border-chestnut/15 p-2.5 sm:w-52 sm:p-3.5">
       <TileTop group={group} pack={pack} onPack={setPicked} />
-      {/* how many the order has of it, as the cart cards' Quantity: name left, figure right, under a line */}
       {ordered && (
-        <p className="tabular mt-auto flex items-baseline justify-between gap-2 border-t border-chestnut/15 pt-2 text-xs">
-          <span>{ts("ordered")}</span>
-          <b className="text-sm font-bold">{(orderLine(pack.productId)?.quantity ?? 0).toLocaleString("en-IN")}</b>
-        </p>
+        <div className="mt-auto flex flex-col gap-1">
+          <span className="text-xs">{t("leftToArrive")}</span>
+          <span className="tabular flex w-full justify-center truncate rounded-lg bg-chestnut py-1 font-heading text-xl font-semibold text-ivory">
+            {orderLeft(pack.productId).toLocaleString("en-IN")}
+          </span>
+        </div>
       )}
       <button
         type="button"
