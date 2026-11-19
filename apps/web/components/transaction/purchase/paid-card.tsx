@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, IndianRupee } from "lucide-react";
 import { useId, useState } from "react";
 
 import { FieldMessage } from "~/components/ui/field-message";
-import { MicField } from "~/components/ui/mic-button";
+import { MicButton } from "~/components/ui/mic-button";
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { Switch } from "~/components/ui/switch";
@@ -38,6 +38,21 @@ function Figure({ label, amount, strong = false, className }: { label: React.Rea
     </div>
   );
 }
+
+// a row on the left: its name, its figure or box (ending at the same edge in every row), then a slot for the mic or the
+// arrow at the right end (empty for a plain figure)
+function Line({ label, value, slot }: { label?: React.ReactNode; value: React.ReactNode; slot?: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <span className="flex min-h-11 min-w-0 flex-1 items-center text-sm">{label}</span>
+      <span className="w-[55%] shrink-0">{value}</span>
+      <span className="grid size-10 shrink-0 place-items-center">{slot}</span>
+    </div>
+  );
+}
+
+// a figure on the left: at the right of its space, where a box's typed number ends
+const figure = "tabular block pr-3.5 text-right text-base font-semibold";
 
 // what's left, on chestnut: the amount that closes the breakup
 function LeftRow({ label, amount }: { label: string; amount: number }) {
@@ -123,46 +138,53 @@ export function PaidCard() {
     <div className="flex flex-col gap-4">
       {/* the amounts on the left, the breakup on the right (under them on a phone) */}
       <div className="grid gap-4 sm:grid-cols-2 sm:items-start sm:gap-x-12">
+        {/* each row: its name, the figure ending at the same edge in every row, then the mic or the arrow in a slot of its
+            own at the right end */}
         <div className="flex min-w-0 flex-col gap-2.5">
           {/* what's owed (the bill, with any old due, less an advance set off): what To pay is typed against */}
-          <Figure label={tpf("due")} amount={rupees(dueNow)} />
-          <Row
-            htmlFor="paid-field"
+          <Line label={tpf("due")} value={<span className={figure}>{rupees(dueNow)}</span>} />
+          <Line
             label={
-              <>
+              <label htmlFor="paid-field" className="flex items-center">
                 {t("toPayAmount")}
                 {setOff === 0 && <RequiredMark />}
-              </>
+              </label>
             }
-          >
-            <MicField onText={(said) => saidAmount(said, e.typePaid)}>
-              <IndianRupee className={cn("pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2", paid > 0 && "text-ivory")} aria-hidden />
-              <NumberInput
-                id="paid-field"
-                value={e.paidText}
-                decimals={2}
-                maxDigits={13}
-                // never more than cash and the banks hold together; typing past it is cut there, with a warning
-                max={e.payCap ?? undefined}
-                onCapped={() => setCut(true)}
-                placeholder="0"
-                onChange={(v) => {
-                  setCut(false);
-                  e.typePaid(v);
-                }}
-                aria-invalid={amountBad || undefined}
-                className={cn(
-                  input(amountBad),
-                  "min-h-12 pl-11 pr-12 font-heading text-xl font-bold tabular",
-                  paid > 0 && !amountBad && "bg-chestnut text-ivory caret-ivory shadow-none",
-                )}
-              />
-            </MicField>
-          </Row>
+            value={
+              <span className="relative block">
+                <IndianRupee className={cn("pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2", paid > 0 && "text-ivory")} aria-hidden />
+                <NumberInput
+                  id="paid-field"
+                  value={e.paidText}
+                  decimals={2}
+                  maxDigits={13}
+                  // never more than cash and the banks hold together; typing past it is cut there, with a warning
+                  max={e.payCap ?? undefined}
+                  onCapped={() => setCut(true)}
+                  placeholder="0"
+                  onChange={(v) => {
+                    setCut(false);
+                    e.typePaid(v);
+                  }}
+                  aria-invalid={amountBad || undefined}
+                  className={cn(
+                    input(amountBad),
+                    "min-h-12 pl-11 pr-3.5 text-right font-heading text-xl font-bold tabular",
+                    paid > 0 && !amountBad && "bg-chestnut text-ivory caret-ivory shadow-none",
+                  )}
+                />
+              </span>
+            }
+            slot={<MicButton onText={(said) => saidAmount(said, e.typePaid)} />}
+          />
           {cut && e.payCap !== null && (
-            <FieldMessage tone="warning" className="ml-auto mt-0 w-[60%]">
-              {tpf("capOnly", { amount: rupees(e.payCap) })}
-            </FieldMessage>
+            <Line
+              value={
+                <FieldMessage tone="warning" className="mt-0">
+                  {tpf("capOnly", { amount: rupees(e.payCap) })}
+                </FieldMessage>
+              }
+            />
           )}
           {/* what's left (the due, the advance, or both), its arrow at the right end: opens the breakup (pointing down on a
               phone, where it opens under) */}
@@ -172,21 +194,24 @@ export function PaidCard() {
             aria-expanded={breakupOpen}
             aria-controls="purchase-breakup"
             aria-label={t("breakup")}
-            className="mt-1 flex min-h-10 w-full items-center justify-between gap-3 text-left"
+            className="mt-1 flex w-full flex-col gap-1 text-left"
           >
-            <span className="flex min-w-0 flex-1 flex-col gap-1">
-              {left.map((l) => (
-                <span key={l.key} className="tabular flex items-baseline justify-between gap-3 text-sm font-semibold">
-                  <span>{l.label}</span>
-                  <span className="text-base font-bold">{rupees(l.amount)}</span>
-                </span>
-              ))}
-            </span>
-            <ChevronRight
-              // right, left once open; on a phone down, up once open
-              className={cn("size-5 transition-transform", breakupOpen ? "rotate-180 max-sm:-rotate-90" : "opacity-60 max-sm:rotate-90")}
-              aria-hidden
-            />
+            {left.map((l, i) => (
+              <Line
+                key={l.key}
+                label={<span className="font-semibold">{l.label}</span>}
+                value={<span className={cn(figure, "font-bold")}>{rupees(l.amount)}</span>}
+                slot={
+                  i === 0 ? (
+                    <ChevronRight
+                      // right, left once open; on a phone down, up once open
+                      className={cn("size-5 transition-transform", breakupOpen ? "rotate-180 max-sm:-rotate-90" : "opacity-60 max-sm:rotate-90")}
+                      aria-hidden
+                    />
+                  ) : null
+                }
+              />
+            ))}
           </button>
         </div>
 
