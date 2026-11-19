@@ -149,7 +149,7 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
     // the dim, blurred page; a tap on it closes
     <div
       onClick={(e) => e.target === e.currentTarget && close()}
-      className="fixed inset-0 z-50 grid animate-fade-in place-items-center overflow-y-auto bg-[rgba(30,12,6,0.62)] p-4 backdrop-blur-[3px]"
+      className="fixed inset-0 z-50 grid animate-fade-in grid-cols-[minmax(0,1fr)] place-items-center overflow-y-auto bg-[rgba(30,12,6,0.62)] p-4 backdrop-blur-[3px]"
     >
       <section
         role="dialog"

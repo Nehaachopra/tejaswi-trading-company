@@ -187,7 +187,7 @@ export function NewProductCard({
         createPortal(
           <div
             onClick={(e) => e.target === e.currentTarget && untouched && onClose()}
-            className="fixed inset-0 z-50 grid animate-fade-in place-items-center overflow-y-auto bg-[rgba(30,12,6,0.62)] p-4 backdrop-blur-[3px]"
+            className="fixed inset-0 z-50 grid animate-fade-in grid-cols-[minmax(0,1fr)] place-items-center overflow-y-auto bg-[rgba(30,12,6,0.62)] p-4 backdrop-blur-[3px]"
           >
             <form
               role="dialog"

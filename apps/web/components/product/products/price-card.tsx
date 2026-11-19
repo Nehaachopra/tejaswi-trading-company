@@ -117,7 +117,7 @@ export function PriceCard({
     // the dim, blurred page; a tap on it closes
     <div
       onClick={(e) => e.target === e.currentTarget && onClose()}
-      className="fixed inset-0 z-50 grid animate-fade-in place-items-center overflow-y-auto bg-[rgba(30,12,6,0.62)] p-4 backdrop-blur-[3px]"
+      className="fixed inset-0 z-50 grid animate-fade-in grid-cols-[minmax(0,1fr)] place-items-center overflow-y-auto bg-[rgba(30,12,6,0.62)] p-4 backdrop-blur-[3px]"
     >
       <section
         role="dialog"
