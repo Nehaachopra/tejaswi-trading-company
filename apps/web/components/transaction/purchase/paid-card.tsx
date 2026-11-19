@@ -221,19 +221,18 @@ export function PaidCard() {
             <>
               <Line
                 label={tpf("leftToPay")}
-                // Auto at the left of the figure's space (it fills the cards from what each holds), the figure at its right
                 value={
-                  <span className="flex items-center justify-between gap-2">
-                    <AutoSwitch on={e.splitAuto} set={e.setSplitAuto} />
-                    {e.splitTotal === paid ? (
-                      <span className={cn(figure, "flex items-center justify-end text-success")} aria-label={tpf("nothingLeft")}>
-                        <Check className="size-5" strokeWidth={2.5} aria-hidden />
-                      </span>
-                    ) : (
-                      <span className={cn(figure, "font-bold")}>{rupees(Math.max(0, Math.round((paid - e.splitTotal) * 100) / 100))}</span>
-                    )}
-                  </span>
+                  e.splitTotal === paid ? (
+                    <span className={cn(figure, "flex items-center justify-end text-success")} aria-label={tpf("nothingLeft")}>
+                      <Check className="size-5" strokeWidth={2.5} aria-hidden />
+                    </span>
+                  ) : (
+                    <span className={cn(figure, "font-bold")}>{rupees(Math.max(0, Math.round((paid - e.splitTotal) * 100) / 100))}</span>
+                  )
                 }
+                // Auto beside the figure, as the mic beside To pay: the word over its switch (it fills the cards from what
+                // each holds)
+                slot={<AutoSwitch stacked on={e.splitAuto} set={e.setSplitAuto} />}
               />
               {/* the slider under it, ending where the figures end (clear of the mic and arrow column) */}
               <Meter

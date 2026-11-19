@@ -143,10 +143,11 @@ export function ShowQrButton({ shown, onShow }: { shown: boolean; onShow: () => 
 }
 
 // Auto (a payment's): fills the boxes from what each holds, cash first; typing turns it off
-export function AutoSwitch({ on, set }: { on: boolean; set: (on: boolean) => void }) {
+// `stacked`: the word over the switch, to fit a narrow slot beside a figure (as a mic sits beside its box)
+export function AutoSwitch({ on, set, stacked = false }: { on: boolean; set: (on: boolean) => void; stacked?: boolean }) {
   const t = useTranslations("transactions.salary");
   return (
-    <span className="inline-flex items-center justify-end gap-1.5 text-xs font-semibold">
+    <span className={cn("inline-flex items-center justify-end font-semibold", stacked ? "flex-col gap-0.5 text-[10px] leading-none" : "gap-1.5 text-xs")}>
       {t("table.auto")}
       <button
         type="button"
