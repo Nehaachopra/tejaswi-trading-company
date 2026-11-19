@@ -1982,6 +1982,8 @@
       "upload": "अपलोड",
       "billUploading": "अपलोड हो रहा है…",
       "billAttached": "बिल लगा है",
+      "billReading": "बिल पढ़ा जा रहा है…",
+      "billFilled": "बिल नंबर और तारीख बिल से भरे गए। जाँच लें।",
       "billRemove": "बिल हटाएँ",
       "billFailed": "बिल अपलोड नहीं हुआ। फिर कोशिश करें।",
       "billTooBig": "PDF बहुत बड़ा है (अधिकतम 10 MB)।",
