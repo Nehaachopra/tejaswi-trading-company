@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 import { packLabel, rupees, titleCase } from "~/lib/format";
 import { asField, parseAmount, unitsIn } from "~/lib/price";
 import { cn } from "~/lib/utils";
+import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 
 import { type Pack, type ProductGroup, ProductImage, productTitle } from "../../product/products/product-tile";
 import { FiguresTable, MoneyBox } from "../shared/figures-table";
@@ -72,9 +73,14 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   const rateLabel = t("ratePer", { unit: units(pack.packSizeCode) });
   const typedPrice = parseAmount(draft.newPrice);
   const rateValue = rateText ?? (typedPrice === null ? "" : asField(round2(typedPrice / unitsIn(pack))));
-  const ok = price > 0 && quantity >= 1 && quantity <= available && placed === quantity && !belowCost;
+  const ok = price > 0 && quantity >= 1 && quantity <= available && placed === quantity;
+  // below cost: Add asks first whether to sell it that low (a pack's cost with GST, to set against the price)
+  const [askBelow, setAskBelow] = useState(false);
+  const costGst = round2((pack.weightedAverageCost ?? 0) * (1 + gst / 100));
   // what still holds Add back, said just above it
-  const hint = belowCost
+  const hint = price <= 0
+    ? t("hintPrice")
+    : belowCost
     ? t("belowCost")
     : quantity < 1
       ? t("hintQuantity")
@@ -86,18 +92,28 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   useEffect(() => {
     const { overflow } = document.body.style;
     document.body.style.overflow = "hidden";
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setCardFor(null);
+    // (not while the below-cost question is open: Escape answers that one)
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !askBelow && setCardFor(null);
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = overflow;
       window.removeEventListener("keydown", onKey);
     };
-  }, [setCardFor]);
+  }, [setCardFor, askBelow]);
 
-  function done() {
+  function done(sellBelow = false) {
     if (!ok) return;
+    // below cost: asked first
+    if (belowCost && !sellBelow) {
+      setAskBelow(true);
+      return;
+    }
     // only the godowns with something leaving them
-    putLine({ ...draft, godowns: Object.fromEntries(Object.entries(draft.godowns).filter(([, v]) => (Number(v) || 0) > 0)) });
+    putLine({
+      ...draft,
+      belowCostOk: belowCost,
+      godowns: Object.fromEntries(Object.entries(draft.godowns).filter(([, v]) => (Number(v) || 0) > 0)),
+    });
     close();
   }
 
@@ -179,13 +195,19 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                 <FiguresTable
                   headings={{ basis: t("basis"), current: t("current"), new: t("new") }}
                   rows={[
+                    // no saved price: what a pack costs us with GST, to price above it (first, above the rate)
+                    ...(pack.priceAfterGst == null && pack.weightedAverageCost != null
+                      ? [{ key: "cost", label: t("costGst"), current: rupees(round2(pack.weightedAverageCost * (1 + gst / 100))), input: <span /> }]
+                      : []),
                     // the rate for one unit, with GST: typing it fills the price
                     {
                       key: "rate",
                       label: rateLabel,
-                      current: rupees(round2(list / unitsIn(pack))),
+                      current: pack.priceAfterGst != null ? rupees(round2(list / unitsIn(pack))) : "–",
                       input: (
+                        // quiet: the price is the one to type; the rate follows it (and can still be typed)
                         <MoneyBox
+                          quiet
                           value={rateValue}
                           maxDigits={6}
                           label={`${rateLabel}: ${name}`}
@@ -201,9 +223,11 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                     {
                       key: "price",
                       label: t("priceGst"),
-                      current: rupees(list),
+                      current: pack.priceAfterGst != null ? rupees(list) : "–",
                       input: (
+                        // the cursor starts here when the card opens
                         <MoneyBox
+                          autoFocus
                           value={draft.newPrice}
                           maxDigits={7}
                           label={`${t("priceGst")}: ${name}`}
@@ -288,13 +312,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
             </div>
           </div>
 
-          {/* the line's total: Price + GST × quantity */}
-          <div className="flex items-baseline justify-between border-t border-chestnut/15 pt-2.5">
-            <span className="text-sm">{t("lineTotal")}</span>
-            <b className="tabular font-heading text-2xl font-extrabold leading-[1.15]">{total > 0 ? rupees(total / 100) : "–"}</b>
-          </div>
-
-          {/* Godowns and › under the total (while the first panel shows): opens the godowns, its arrow filled and
+          {/* Godowns and › above the total (while the first panel shows): opens the godowns, its arrow filled and
               pulsing while packs are still to dispatch */}
           {pane === "main" && (
             <button
@@ -316,12 +334,18 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
             </button>
           )}
 
+          {/* the line's total: Price + GST × quantity */}
+          <div className="flex items-baseline justify-between border-t border-chestnut/15 pt-2.5">
+            <span className="text-sm">{t("lineTotal")}</span>
+            <b className="tabular font-heading text-2xl font-extrabold leading-[1.15]">{total > 0 ? rupees(total / 100) : "–"}</b>
+          </div>
+
           {/* Add to cart, or Save and Remove from cart for one already in it */}
           <div className="mt-1 flex flex-col gap-2">
             {hint && <p className="text-center text-xs text-chestnut/70">{hint}</p>}
             <button
               type="button"
-              onClick={done}
+              onClick={() => done()}
               disabled={!ok}
               className="flex min-h-12 w-full items-center justify-center rounded-control bg-chestnut font-heading text-lg font-bold text-ivory transition-opacity disabled:opacity-40"
             >
@@ -342,6 +366,29 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
           </div>
         </section>
       </div>
+
+      {/* Add to cart below cost: asked whether to sell it that low */}
+      <ConfirmDialog
+        open={askBelow}
+        // No on the left, Yes on the right
+        tone="danger"
+        title={t("sellBelowTitle")}
+        // the price and a pack's cost (both with GST), then on its own line the question with the loss on all the packs
+        body={
+          <>
+            <p>{t("sellBelowFact", { price: rupees(price), cost: rupees(costGst) })}</p>
+            <p className="mt-2 font-semibold text-chestnut">{t("sellBelowAsk", { loss: rupees(round2((costGst - price) * quantity)) })}</p>
+          </>
+        }
+        confirmLabel={t("yes")}
+        cancelLabel={t("no")}
+        busy={false}
+        onConfirm={() => {
+          setAskBelow(false);
+          done(true);
+        }}
+        onCancel={() => setAskBelow(false)}
+      />
     </div>,
     document.body,
   );

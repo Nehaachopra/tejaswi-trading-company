@@ -49,11 +49,31 @@
   }
 
   /* the cart button's count jumps when an item goes in */
-  --animate-cart-bump: cart-bump 500ms ease-out;
+  /* a number rolling like a slot machine's reel: the new one comes in as the old one goes out, up when it grows,
+     down when it shrinks */
+  --animate-slot-in-up: slot-in-up 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-slot-out-up: slot-out-up 900ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  --animate-slot-in-down: slot-in-down 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-slot-out-down: slot-out-down 900ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 
-  @keyframes cart-bump {
-    40% {
-      transform: scale(1.5);
+  @keyframes slot-in-up {
+    from {
+      transform: translateY(100%);
+    }
+  }
+  @keyframes slot-out-up {
+    to {
+      transform: translateY(-100%);
+    }
+  }
+  @keyframes slot-in-down {
+    from {
+      transform: translateY(-100%);
+    }
+  }
+  @keyframes slot-out-down {
+    to {
+      transform: translateY(100%);
     }
   }
 }

@@ -27,6 +27,7 @@ import type { ActorModel, PostingLine } from "../accounts/model";
 import { fromPaise, toPaise } from "../accounts/money";
 import DueService from "../due";
 import PartyService from "../party";
+import ProductService from "../product";
 import { BANK_MODE_DB } from "../payment/model";
 import { priceLines } from "../purchase-order";
 import SettingService from "../setting";
@@ -71,6 +72,7 @@ export default class SaleService {
     private readonly dues = new DueService(accounts, transactions, parties),
     private readonly settings = new SettingService(),
     private readonly stock = new StockEngine(),
+    private readonly products = new ProductService(),
   ) {}
 
   // a party's saved address, which must be theirs and in use
@@ -131,13 +133,13 @@ export default class SaleService {
       if (!r || r.p.deletedAt) throw new TRPCError({ code: "NOT_FOUND", message: "Product not found." });
       if (!r.p.isActive) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "An item is inactive." });
       if (r.gst == null) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Set the GST % for every item first." });
-      // added from a purchase order and not priced yet: it can't be sold until it is
-      if (r.listRate == null) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Set the selling price for every item first." });
-      // never below what a pack costs us
-      if (r.p.weightedAverageCost != null && toPaise(l.rateBeforeGst) < toPaise(Number(r.p.weightedAverageCost))) {
+      // no selling price saved (added from a purchase order): it sells at the price typed on the sale, no discount
+      // below what a pack costs us only when the user said yes to it
+      if (!l.belowCostOk && r.p.weightedAverageCost != null && toPaise(l.rateBeforeGst) < toPaise(Number(r.p.weightedAverageCost))) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "An item's price is below what it costs." });
       }
-      return { gstRate: Number(r.gst), listRate: toPaise(Number(r.listRate ?? 0)), name: productNameSnapshot({ ...r.p, categoryName: r.categoryName, subCategoryName: r.subCategoryName }) };
+      // `unpriced`: no selling price saved yet (the sale's price becomes it, unless sold at a loss)
+      return { gstRate: Number(r.gst), listRate: toPaise(Number(r.listRate ?? 0)), unpriced: r.listRate == null, name: productNameSnapshot({ ...r.p, categoryName: r.categoryName, subCategoryName: r.subCategoryName }) };
     });
   }
 
@@ -421,6 +423,14 @@ export default class SaleService {
         if (input.creditPeriodDays !== null) {
           await tx.insert(salePurchaseCreditDetailsTable).values({ transactionId: t.id, creditPeriodInDays: input.creditPeriodDays });
         }
+      }
+
+      // a pack size sold with no selling price saved: the price it sold at (GST included) becomes its price, unless it
+      // was sold at a loss
+      for (const [i, l] of input.lines.entries()) {
+        if (!products[i]!.unpriced || l.belowCostOk) continue;
+        const priceAfterGst = Math.round(toPaise(l.rateBeforeGst) * (1 + products[i]!.gstRate / 100)) / 100;
+        await this.products.setPriceIn(tx, l.productId, priceAfterGst, products[i]!.gstRate, actor);
       }
 
       return { transactionId: t.id, assignedId: t.assignedId, total: total / 100 };

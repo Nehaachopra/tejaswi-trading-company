@@ -13,13 +13,16 @@ const rupeesModel = z.number().min(0).max(9_999_999_999_999).multipleOf(0.01);
 // one godown's part of an item: how many packs leave it
 export const saleGodownPartModel = z.object({ godownId: idModel, quantity: z.number().int().min(1).max(99_999) });
 
-// one item sold: a pack size, its rate per pack before GST (the GST % comes from the product, never sent) and where its
+// one item sold: a pack size, its rate per pack before GST (the GST % comes from the product, never sent), whether
+// selling it below cost was agreed to, and where its
 // packs leave from: one or more godowns, their quantities adding up to the item's
 export const saleLineInputModel = z
   .object({
     productId: idModel,
     quantity: z.number().int().min(1).max(99_999),
     rateBeforeGst: rupeesModel.max(9_999_999.99),
+    // the user was asked and chose to sell this item below what a pack costs
+    belowCostOk: z.boolean().default(false),
     godowns: z.array(saleGodownPartModel).min(1, "Pick a godown.").max(20),
   })
   .refine((l) => l.godowns.reduce((a, g) => a + g.quantity, 0) === l.quantity, { message: "The godowns must add up to the quantity.", path: ["godowns"] })

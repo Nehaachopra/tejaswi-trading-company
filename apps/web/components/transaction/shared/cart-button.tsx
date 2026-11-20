@@ -2,11 +2,10 @@
 
 import { ChevronRight, ShoppingCart, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { rupees } from "~/lib/format";
-import { cn } from "~/lib/utils";
 
 import { type Pack, type ProductGroup } from "../../product/products/product-tile";
 import { CartCards } from "./cart-cards";
@@ -20,9 +19,8 @@ export const TILE_GRID = "grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3";
 export const SCROLL_BOX =
   "-mx-1 flex max-h-[calc(100dvh-26rem)] min-h-72 flex-col gap-4 overflow-y-auto overscroll-contain px-1 py-0.5 [scrollbar-width:thin] lg:max-h-[calc(100dvh-21rem)]";
 
-// the cart button at the top of a Products card (a purchase's or a sale's): the cart's total and, on its corner, how
-// many items (a chestnut badge that jumps when one is added). Quiet, as the filters; greyed out while the cart is
-// empty. A tap opens the cart card, a popup as the line card: the In the cart cards, the Items | Total row, then Done.
+// the cart button at the top of a Products card (a purchase's or a sale's): the cart icon and the cart's total (the
+// count shows in the Total row beside it). Quiet, as the filters; greyed out while the cart is empty. A tap opens the cart card, a popup as the line card: the In the cart cards, the Items | Total row, then Done.
 // `lineOpen`: a line card is open over it (Escape closes that one first); `iconOnly`: no total on it
 export function CartButton({
   rows,
@@ -42,7 +40,7 @@ export function CartButton({
   onOpen: (productId: string) => void;
   onRemove: (productId: string) => void;
   lineOpen: boolean;
-  // only the cart icon and the count (the total shows in the Total row beside it)
+  // only the cart icon (the total shows in the Total row beside it)
   iconOnly?: boolean;
   // the cart opens beside the products in their card (a › after the icon) instead of as a popup
   onSlide?: () => void;
@@ -50,14 +48,6 @@ export function CartButton({
   const ts = useTranslations("transactions.sale");
   const [open, setOpen] = useState(false);
   const count = rows.length;
-
-  // the badge jumps when the count goes up
-  const [bump, setBump] = useState(false);
-  const seen = useRef(count);
-  useEffect(() => {
-    if (count > seen.current) setBump(true);
-    seen.current = count;
-  }, [count]);
 
   // the last item taken out: the cart card closes
   useEffect(() => {
@@ -74,26 +64,17 @@ export function CartButton({
 
   return (
     <>
-      {/* the button: cart icon, the total, the count on its corner */}
+      {/* the button: cart icon, the total (or ›) */}
       <button
         type="button"
         disabled={count === 0}
         onClick={() => (onSlide ? onSlide() : setOpen(true))}
         aria-label={`${ts("cart")}: ${count}`}
-        className="relative flex min-h-10 shrink-0 items-center gap-2 rounded-control border border-chestnut/60 px-3 text-sm font-semibold transition-colors hover:border-chestnut disabled:cursor-default disabled:opacity-60 disabled:hover:border-chestnut/60"
+        className="flex min-h-10 shrink-0 items-center gap-2 rounded-control border border-chestnut/60 px-3 text-sm font-semibold transition-colors hover:border-chestnut disabled:cursor-default disabled:opacity-60 disabled:hover:border-chestnut/60"
       >
         <ShoppingCart className="size-4.5 shrink-0" aria-hidden />
         {!iconOnly && <span className="tabular">{count > 0 ? rupees(itemsTotal) : ts("cart")}</span>}
         {onSlide && <ChevronRight className="-mx-1 size-4.5 shrink-0" aria-hidden />}
-        <span
-          onAnimationEnd={() => setBump(false)}
-          className={cn(
-            "tabular absolute -right-2 -top-2 grid h-5.5 min-w-5.5 place-items-center rounded-full bg-chestnut px-1.5 text-xs font-extrabold text-ivory ring-2 ring-ivory",
-            bump && "animate-cart-bump motion-reduce:animate-none",
-          )}
-        >
-          {count.toLocaleString("en-IN")}
-        </span>
       </button>
 
       {/* the cart card, a popup over the dim, blurred page as the line card: In the cart with ✕, the cart cards

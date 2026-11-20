@@ -232,6 +232,19 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                     : [{ key: "quantity", label: t("quantity"), current: inStock.toLocaleString("en-IN"), input: quantityBox, top: true }]),
                 ]}
               />
+              {/* Godowns and ›: where the packs go, its arrow filled and pulsing while some are still to place */}
+              <button
+                ref={godownRow}
+                type="button"
+                onClick={() => slide("godowns")}
+                aria-label={ts("godowns")}
+                className="flex min-h-12 w-full items-center justify-between gap-3 text-left text-sm font-semibold"
+              >
+                <span>{ts("godowns")}</span>
+                <span className={cn("grid size-8 shrink-0 place-items-center rounded-control transition-colors", toPlace && "animate-pulse bg-chestnut text-ivory motion-reduce:animate-none")}>
+                  <ChevronRight className="size-5" aria-hidden />
+                </span>
+              </button>
               {/* the line's total: Cost + GST × quantity */}
               <div className="flex items-baseline justify-between border-t border-chestnut/12 pt-2.5">
                 <span className="text-sm">{t("lineTotal")}</span>
@@ -260,23 +273,6 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
             </div>
           </div>
         </div>
-
-        {/* Godowns and › (while the figures show): where the packs go, its arrow filled and pulsing while some are
-            still to place */}
-        {pane === "main" && (
-          <button
-            ref={godownRow}
-            type="button"
-            onClick={() => slide("godowns")}
-            aria-label={ts("godowns")}
-            className="flex min-h-12 w-full items-center justify-between gap-3 text-left text-sm font-semibold"
-          >
-            <span>{ts("godowns")}</span>
-            <span className={cn("grid size-8 shrink-0 place-items-center rounded-control transition-colors", toPlace && "animate-pulse bg-chestnut text-ivory motion-reduce:animate-none")}>
-              <ChevronRight className="size-5" aria-hidden />
-            </span>
-          </button>
-        )}
 
         {/* Add to cart, or Save for one already in it */}
         <div className="mt-1 flex flex-col gap-2">

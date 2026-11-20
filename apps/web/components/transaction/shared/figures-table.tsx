@@ -42,15 +42,16 @@ export function FiguresTable({
           : "grid-cols-[minmax(4.5rem,1fr)_8rem]",
       )}
     >
-      {/* the headings */}
+      {/* the headings, as the godowns' (Godown, Available, Quantity): small, bold, muted, a line under them */}
       {headings && (
         <>
-          <span className="text-xs opacity-70">{headings.basis}</span>
-          {withCurrent && <span className="text-right text-xs opacity-70">{headings.current}</span>}
-          <span className="text-right text-xs opacity-70">
+          <span className="text-xs font-semibold opacity-60">{headings.basis}</span>
+          {withCurrent && <span className="text-right text-xs font-semibold opacity-60">{headings.current}</span>}
+          <span className="text-right text-xs font-semibold opacity-60">
             {headings.new}
             <RequiredMark />
           </span>
+          <div className="col-span-full -my-1 border-t border-chestnut/15" />
         </>
       )}
 
@@ -92,6 +93,7 @@ export function MoneyBox({
   maxDigits,
   label,
   autoFocus,
+  quiet = false,
   className,
 }: {
   value: string;
@@ -99,12 +101,15 @@ export function MoneyBox({
   maxDigits: number;
   label: string;
   autoFocus?: boolean;
+  // a box that can be typed in but needn't be (it follows another): no soft edge until it has the cursor
+  quiet?: boolean;
   className?: string;
 }) {
   return (
     <span
       className={cn(
-        "flex min-h-11 w-full min-w-0 items-center gap-[3px] rounded-control px-2.5 shadow-[0_0_5px_0] shadow-chestnut/40 transition-shadow focus-within:shadow-chestnut/80",
+        "flex min-h-11 w-full min-w-0 items-center gap-[3px] rounded-control px-2.5 shadow-[0_0_5px_0] transition-shadow focus-within:shadow-chestnut/80",
+        quiet ? "shadow-transparent" : "shadow-chestnut/40",
         className,
       )}
     >

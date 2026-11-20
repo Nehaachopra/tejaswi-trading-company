@@ -54,6 +54,8 @@ export type CartLine = {
   newPrice: string;
   quantity: string;
   godowns: Record<string, string>;
+  // asked on Add to cart: yes, sell it below what a pack costs
+  belowCostOk?: boolean;
 };
 
 // a godown holding a pack size: its name, how many it has, and whether it's being counted (locked)
@@ -208,8 +210,8 @@ export function useSaleEntryState({
     const each = round2((l.total + l.orderDiscountShare) / l.quantity);
     return each === p.priceAfterGst ? "" : String(each);
   };
-  // a pack size can be sold once it has a price, a GST % and stock it can take
-  const sellable = (p: Pack) => p.priceAfterGst != null && p.gstPercent != null && freeOf(p) > 0;
+  // a pack size can be sold once it has a GST % and stock it can take (with no saved price, one is typed on its card)
+  const sellable = (p: Pack) => p.gstPercent != null && freeOf(p) > 0;
 
   // the cart, worked out
   const figures = lines.map((l) => {
@@ -590,6 +592,7 @@ export function useSaleEntryState({
       productId: l.productId,
       quantity: Number(l.quantity),
       rateBeforeGst: figures[i]!.rate / 100,
+      belowCostOk: l.belowCostOk ?? false,
       godowns: Object.entries(l.godowns)
         .filter(([, v]) => (Number(v) || 0) > 0)
         .map(([godownId, v]) => ({ godownId, quantity: Number(v) })),

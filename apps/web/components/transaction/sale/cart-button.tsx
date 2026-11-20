@@ -1,32 +1,57 @@
 "use client";
 
 import { CartButton } from "../shared/cart-button";
+import { CartCards } from "../shared/cart-cards";
 import { priceOf, useSaleEntry } from "./state";
 
-// the sale's cart button: its cart, each line's price with GST
-export function SaleCartButton() {
-  const { t, lines, figures, packOf, itemsTotal, setCardFor, removeLine, cardFor } = useSaleEntry();
+// the sale's cart, a row for each line: its price with GST, quantity and total
+function useCartRows() {
+  const { lines, figures, packOf } = useSaleEntry();
+  return lines.flatMap((l, i) => {
+    const p = packOf(l.productId)?.pack;
+    return p
+      ? [
+          {
+            productId: l.productId,
+            price: priceOf(l, p),
+            quantity: Number(l.quantity) || 0,
+            total: figures[i]!.total / 100,
+          },
+        ]
+      : [];
+  });
+}
+
+// the sale's cart button: only the icon, the count and a ›; a tap slides the Products card to the cart
+export function SaleCartButton({ onSlide }: { onSlide: () => void }) {
+  const { t, packOf, itemsTotal, setCardFor, removeLine, cardFor } = useSaleEntry();
   return (
     <CartButton
-      rows={lines.flatMap((l, i) => {
-        const p = packOf(l.productId)?.pack;
-        return p
-          ? [
-              {
-                productId: l.productId,
-                price: priceOf(l, p),
-                quantity: Number(l.quantity) || 0,
-                total: figures[i]!.total / 100,
-              },
-            ]
-          : [];
-      })}
+      rows={useCartRows()}
       packOf={packOf}
       priceLabel={t("priceGst")}
       itemsTotal={itemsTotal}
       onOpen={setCardFor}
       onRemove={removeLine}
       lineOpen={cardFor !== null}
+      iconOnly
+      onSlide={onSlide}
+    />
+  );
+}
+
+// the cart's cards, in the Products card's cart panel (the Total row already shows above)
+export function SaleCartCards() {
+  const { t, packOf, itemsTotal, setCardFor, removeLine } = useSaleEntry();
+  return (
+    <CartCards
+      lines={useCartRows()}
+      packOf={packOf}
+      priceLabel={t("priceGst")}
+      itemsTotal={itemsTotal}
+      onOpen={setCardFor}
+      onRemove={removeLine}
+      showTotal={false}
     />
   );
 }

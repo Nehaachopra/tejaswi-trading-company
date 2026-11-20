@@ -13,6 +13,7 @@ import {
   productTitle,
 } from "../../product/products/product-tile";
 import { type CartRow } from "./cart-table";
+import { SlotNumber } from "./slot-number";
 
 // the cards in rows of two (three wider), scrolled up and down inside (room at the sides for their edges)
 const GRID =
@@ -135,13 +136,25 @@ export function CartCards({
 
 // the Total row: Items with how many (only as wide as it needs), and Total with the cart's total, side by side; under
 // the cart cards, and above a purchase's Products heading
-export function CartTotalRow({ count, itemsTotal, className }: { count: number; itemsTotal: number; className?: string }) {
+// `hold`: a line card is open over it, so the count rolls only once that's closed
+export function CartTotalRow({
+  count,
+  itemsTotal,
+  hold = false,
+  className,
+}: {
+  count: number;
+  itemsTotal: number;
+  hold?: boolean;
+  className?: string;
+}) {
   const t = useTranslations("transactions.sale");
   return (
     <div className={cn("tabular grid shrink-0 grid-cols-[auto_minmax(0,1fr)] rounded-control bg-chestnut text-ivory", className)}>
       <p className="flex items-baseline gap-3 px-2.5 py-2.5">
         <span className="text-sm font-semibold">{t("items")}</span>
-        <span className="font-heading text-lg font-extrabold">{count.toLocaleString("en-IN")}</span>
+        {/* the count rolls like a slot machine when an item goes in or out */}
+        <SlotNumber value={count} hold={hold} className="font-heading text-lg font-extrabold" />
       </p>
       <p className="flex min-w-0 items-baseline justify-between gap-2 border-l border-ivory/25 px-2.5 py-2.5">
         <span className="text-sm font-semibold">{t("lineTotal")}</span>

@@ -239,6 +239,18 @@ export default class ProductService {
     }
   }
 
+  // saves a pack size's selling price (GST included) inside a running transaction, and logs it as a step on the graph;
+  // the price card's change and a sale of a pack size with no price yet both come here
+  async setPriceIn(tx: Tx, productId: string, priceAfterGst: number, gstPercent: number, actor: ActorModel) {
+    const price = splitPrice(priceAfterGst, gstPercent);
+    await tx
+      .insert(productPricesTable)
+      .values({ productId, ...price })
+      .onConflictDoUpdate({ target: productPricesTable.productId, set: { ...price, updatedAt: new Date() } });
+    await tx.insert(productPriceHistoryTable).values({ productId, ...price, changedById: actor.id, changedByName: actor.name });
+    return price;
+  }
+
   // the new price applies to new sales only; each change is logged and becomes a step on the graph
   async updatePrice(input: UpdatePriceInputModel, actor: ActorModel) {
     return db.transaction(async (tx) => {
@@ -254,18 +266,7 @@ export default class ProductService {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Set the GST % for this pack size." });
       }
 
-      const price = splitPrice(input.priceAfterGst, gstPercent);
-      await tx
-        .insert(productPricesTable)
-        .values({ productId: input.productId, ...price })
-        .onConflictDoUpdate({ target: productPricesTable.productId, set: { ...price, updatedAt: new Date() } });
-
-      await tx.insert(productPriceHistoryTable).values({
-        productId: input.productId,
-        ...price,
-        changedById: actor.id,
-        changedByName: actor.name,
-      });
+      const price = await this.setPriceIn(tx, input.productId, input.priceAfterGst, gstPercent, actor);
 
       return {
         productId: input.productId,

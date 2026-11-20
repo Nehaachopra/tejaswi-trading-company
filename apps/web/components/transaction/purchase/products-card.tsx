@@ -25,7 +25,7 @@ const heading = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
 // on a purchase order: first a From order part (the pack sizes the order still waits for, each with what's left to
 // arrive), then Show other products, which opens the rest below it
 export function ProductsCard() {
-  const { t, ts, isAdmin, products, categories, lines, itemsTotal, setCardFor, buyable, order, orderLeft } =
+  const { t, ts, isAdmin, products, categories, lines, itemsTotal, cardFor, setCardFor, buyable, order, orderLeft } =
     usePurchaseEntry();
   const [adding, setAdding] = useState(false);
   // the other products, opened from the button (always there on a purchase of its own)
@@ -168,20 +168,6 @@ export function ProductsCard() {
     </div>
   );
 
-  // the admin's + New product, beside the heading (on a phone too, so not full width), as quiet as the filters
-  const newProduct = isAdmin && (
-    <button
-      type="button"
-      onClick={() => setAdding(true)}
-      className={cn(
-        FILTER_TRIGGER,
-        "flex min-h-10 shrink-0 items-center justify-center rounded-control border border-chestnut/60 text-chestnut transition-colors hover:border-chestnut",
-      )}
-    >
-      <Plus className="size-4 shrink-0" aria-hidden /> {t("newProduct")}
-    </button>
-  );
-
   // the products, in rows of two (three wider); the admin's last tile adds a new product (shown even when none is left
   // to list), saved at once with no selling price, then its product card opens
   const restGrid =
@@ -211,7 +197,7 @@ export function ProductsCard() {
       {/* the top, which stays put: the Total row (Items | Total), and beside it the cart icon with its › (slides to the
           cart), or while the cart shows ‹ Products in its place (slides back) */}
       <div className="-mb-2 flex items-center gap-3">
-        <CartTotalRow count={lines.length} itemsTotal={itemsTotal} className="flex-1" />
+        <CartTotalRow count={lines.length} itemsTotal={itemsTotal} hold={cardFor !== null} className="flex-1" />
         {pane === "products" ? (
           <PurchaseCartButton onSlide={() => setPane("cart")} />
         ) : (
@@ -232,12 +218,8 @@ export function ProductsCard() {
         <div className={cn("flex w-[200%] items-start transition-transform duration-300 ease-out motion-reduce:transition-none", pane === "cart" && "-translate-x-1/2")}>
           {/* the products: the heading, the filters, then the tiles */}
           <div ref={productsRef} inert={pane !== "products"} className="flex w-1/2 min-w-0 flex-col gap-4 px-1">
-            {order ? (
-              <div className="flex min-w-0 flex-col">
-                <h3 className={heading}>{ts("fromOrder")}</h3>
-                <span className="tabular truncate text-sm font-semibold">{order.orderId}</span>
-              </div>
-            ) : (
+            {/* a purchase of its own: the heading and filters above the box (an arrival's sit inside it) */}
+            {!order && (
               <>
                 <h3 className={cn(heading, "-mb-2 min-w-0 truncate")}>{ts("products")}</h3>
                 {filters}
@@ -248,16 +230,25 @@ export function ProductsCard() {
             <div className={SCROLL_BOX}>
               {order ? (
                 <>
-                  {/* what the order still waits for, then the button that opens the other products */}
-                  {fromOrder.length === 0 ? (
-                    <p className="py-6 text-center text-sm opacity-70">{t("noMoreFromOrder")}</p>
-                  ) : (
-                    <ul className={TILE_GRID}>
-                      {fromOrder.map((group) => (
-                        <PurchaseTile key={group.key} group={group} ordered />
-                      ))}
-                    </ul>
-                  )}
+                  {/* the From order part: its heading (with which order) stays at the box's top only while its own
+                      tiles scroll under it; once the other products come up, their heading takes its place */}
+                  <section className="flex flex-col gap-4">
+                    <div className="sticky -top-0.5 z-10 -mx-1 flex min-w-0 justify-between gap-3 bg-ivory px-1 pb-2 pt-0.5">
+                      <h3 className={heading}>{ts("fromOrder")}</h3>
+                      <span className="tabular truncate text-sm font-semibold">{order.orderId}</span>
+                    </div>
+                    {/* what the order still waits for */}
+                    {fromOrder.length === 0 ? (
+                      <p className="py-6 text-center text-sm opacity-70">{t("noMoreFromOrder")}</p>
+                    ) : (
+                      <ul className={TILE_GRID}>
+                        {fromOrder.map((group) => (
+                          <PurchaseTile key={group.key} group={group} ordered />
+                        ))}
+                      </ul>
+                    )}
+                  </section>
+                  {/* then the button that opens the other products */}
                   {!othersOpen ? (
                     <button
                       type="button"
@@ -273,7 +264,6 @@ export function ProductsCard() {
                       {/* the other products' heading and filters stay at the box's top while their tiles scroll under them
                           (a line above them, the card's ivory behind them) */}
                       <div className="sticky -top-0.5 z-10 -mx-1 flex flex-col gap-2 border-t border-chestnut/15 bg-ivory px-1 pb-2 pt-4">
-                        {newProduct && <div className="flex justify-end">{newProduct}</div>}
                         <h3 className={cn(heading, "min-w-0 truncate")}>{ts("products")}</h3>
                         {filters}
                       </div>
@@ -303,7 +293,7 @@ export function ProductsCard() {
 }
 
 // a product to buy: its pack chips, name and photo, then Add (no price: the supplier's rate is typed on its card).
-// `ordered` (a pack size its order still waits for): what's left to arrive, on chestnut, above Add
+// `ordered` (a pack size its order still waits for): how many packs are left to arrive ("12 packs"), on chestnut, above Add
 function PurchaseTile({ group, ordered = false }: { group: ProductGroup; ordered?: boolean }) {
   const { t, ts, setCardFor, orderLeft } = usePurchaseEntry();
   const [picked, setPicked] = useState(group.packs[0]!.productId);
@@ -312,12 +302,11 @@ function PurchaseTile({ group, ordered = false }: { group: ProductGroup; ordered
     <li className="flex min-w-0 flex-col gap-2 rounded-control border border-chestnut/15 p-2.5 sm:w-52 sm:p-3.5">
       <TileTop group={group} pack={pack} onPack={setPicked} phoneShort />
       {ordered && (
-        <div className="mt-auto flex flex-col gap-1">
-          <span className="text-xs">{t("leftToArrive")}</span>
-          <span className="tabular flex w-full justify-center truncate rounded-lg bg-chestnut py-1 font-heading text-xl font-semibold text-ivory">
-            {orderLeft(pack.productId).toLocaleString("en-IN")}
-          </span>
-        </div>
+        <span className="tabular mt-auto flex w-full items-baseline justify-center gap-1 truncate rounded-lg bg-chestnut py-1 text-ivory">
+          <span className="font-heading text-xl font-semibold">{orderLeft(pack.productId).toLocaleString("en-IN")}</span>
+          {/* "packs", small and muted */}
+          <span className="text-xs opacity-70">{t("packsWord", { n: orderLeft(pack.productId) })}</span>
+        </span>
       )}
       <button
         type="button"

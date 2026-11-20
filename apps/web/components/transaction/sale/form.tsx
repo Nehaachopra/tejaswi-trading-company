@@ -87,6 +87,7 @@ function SaleEntryView() {
     sameNameDialog,
     show,
     next,
+    figures,
   } = useSaleEntry();
   const locale = useLocale();
   const tr = useTranslations("transactions.receipt.form");
@@ -112,13 +113,15 @@ function SaleEntryView() {
       key: "products",
       step: "products",
       heading: t("steps.products"),
-      value: lines.flatMap((l) => {
+      // each item: its name with ×quantity beside it (muted), its total (price × quantity, with GST) at the end
+      value: lines.flatMap((l, i) => {
         const found = packOf(l.productId);
         if (!found) return [];
         return [
           {
             name: `${productTitle(found.group)} ${packLabel(found.pack.packSize, found.pack.packSizeCode, found.pack.packCount)}`,
-            amount: (Number(l.quantity) || 0).toLocaleString("en-IN"),
+            middle: `×${(Number(l.quantity) || 0).toLocaleString("en-IN")}`,
+            amount: rupees((figures[i]?.total ?? 0) / 100),
             image: <ProductImage group={found.group} imageUrl={found.pack.imageUrl} className="size-8 rounded-md text-xs" />,
           },
         ];
