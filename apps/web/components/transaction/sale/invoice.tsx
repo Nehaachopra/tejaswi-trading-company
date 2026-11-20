@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowLeft, CircleAlert, Download, Flag, Mail, Phone } from "lucide-react";
+import { ArrowLeft, Ban, CircleAlert, Download, Flag, Mail, Phone } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import type { RouterOutputs } from "@repo/trpc/client";
 import { Spinner } from "~/components/ui/icons/spinner";
@@ -12,11 +13,15 @@ import { packLabel, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { useSaleInvoice, useSaleShareKey } from "~/providers/sale";
 
+import { CancelDialog } from "../../history/cancel-dialog";
+import { CancelledNote } from "../../history/cancelled-note";
+
 import { Breakup, DocHead, LAST_COL, Remarks } from "../done/document-parts";
 import { band, cell, dated, Detail, money } from "../done/voucher";
 
 type Invoice = RouterOutputs["transactions"]["sale"]["invoice"];
 type Place = Invoice["shipTo"];
+type HistoryRecord = RouterOutputs["transactions"]["history"]["get"];
 
 // a button's look on the chestnut page, as on the voucher
 const pill =
@@ -34,13 +39,26 @@ const placeLine = (a: Place) =>
 // line, its taxable value, GST % and the GST by tax, and its total); with charges, a Sub total row and then each charge
 // as a row of its own at the bill's highest GST rate; a Total row, then the cash discount off (after GST), the amount
 // and the amount in words. It prints (or saves as a PDF) on its own. With a share key it's the customer's copy, opened
-// from a link without a login: only the download, no way back into the app and nothing to share
-export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string }) {
+// from a link without a login: only the download, no way back into the app and nothing to share. Opened from History
+// it goes back there, and the admin can cancel it (greyed, with why, when it can't be); a cancelled one has a note
+// above it (when, by whom, why). A cancelled sale carries a CANCELLED stamp everywhere, printed too, and isn't shared
+export function SaleInvoice({
+  id,
+  shareKey,
+  history,
+}: {
+  id: string;
+  shareKey?: string;
+  history?: { record: HistoryRecord; isAdmin: boolean };
+}) {
   const t = useTranslations("transactions.sale.invoice");
   const ts = useTranslations("transactions.sale");
+  const th = useTranslations("history");
   const shared = shareKey !== undefined;
   const doc = useSaleInvoice(id, shareKey);
   const link = useSaleShareKey(id, !shared);
+  // the Cancel sale popup
+  const [asking, setAsking] = useState(false);
 
   if (doc.isPending)
     return (
@@ -57,6 +75,11 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
 
   const d = doc.data!;
   const c = d.company;
+  const cancelled = d.status === "cancelled";
+  // the admin's Cancel sale, from History, while it's live; why it can't be, when it can't
+  const record = history?.record;
+  const canAsk = !!history?.isAdmin && !cancelled;
+  const blocked = record?.cancelBlockedBy && record.cancelBlockedBy !== "cancelled" ? record.cancelBlockedBy : null;
   // who it's billed to: their full name, never the short name (as the vouchers)
   const buyer = d.buyer.name.trim() ? titleCase(d.buyer.name) : t("walkIn");
   const intra = d.supplyType === "intra";
@@ -109,22 +132,22 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
     <main className="mx-auto max-w-4xl px-4 pb-28 pt-6 sm:px-6">
       <h1 className="sr-only">{t("title")}</h1>
 
-      {/* back to the sale's page, sending it on WhatsApp, and the download; on a phone each button is full width, under
-          the back link */}
+      {/* back to the sale's page (or History), sending it on WhatsApp, the download and (the admin, from History) Cancel
+          sale; on a phone each button is full width, under the back link */}
       <div className="no-print mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         {shared ? (
           <span className="hidden sm:block" />
         ) : (
           <Link
-            href={`/transaction/sale/${id}`}
+            href={history ? "/history" : `/transaction/sale/${id}`}
             className="flex min-h-11 items-center gap-1.5 text-sm font-medium"
           >
-            <ArrowLeft className="size-4" aria-hidden /> {t("back")}
+            <ArrowLeft className="size-4" aria-hidden /> {history ? th("title") : t("back")}
           </Link>
         )}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          {/* WhatsApp only when the buyer's phone is kept */}
-          {!shared && d.buyer.phone && (
+          {/* WhatsApp only when the buyer's phone is kept, and never once cancelled */}
+          {!shared && !cancelled && d.buyer.phone && (
             <button
               type="button"
               disabled={!link.data}
@@ -140,18 +163,33 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
           <button type="button" onClick={() => window.print()} className={pill}>
             <Download className="size-4" aria-hidden /> {t("download")}
           </button>
+          {/* Cancel sale: greyed when it can't be */}
+          {canAsk && (
+            <button type="button" disabled={!!blocked} onClick={() => setAsking(true)} className={cn(pill, "text-danger")}>
+              <Ban className="size-4" aria-hidden /> {th("cancelSale")}
+            </button>
+          )}
         </div>
       </div>
+      {/* why it can't be cancelled, and what comes first */}
+      {canAsk && blocked && (
+        <p className="no-print -mt-2 mb-4 text-sm text-ivory/80 sm:text-right">{th(`blocked.${blocked}`)}</p>
+      )}
+      {/* a cancelled one: when, by whom and why */}
+      {record && cancelled && <CancelledNote at={record.cancelledAt} by={record.cancelledByName} reason={record.cancelReason} />}
 
       {/* the invoice itself */}
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
         <DocHead title={t("title")} jurisdiction={t("jurisdiction", { place: c.jurisdiction })} />
-        {/* a cancelled sale says so across the top */}
-        {d.status === "cancelled" && (
-          <p className="mb-2 rounded-control border border-danger px-3 py-1.5 text-center font-semibold text-danger">
-            {t("cancelled")}
-          </p>
+        {/* a cancelled sale: a faded CANCELLED stamp across it (printed too), over everything but not in the way */}
+        {cancelled && (
+          <div aria-hidden className="pointer-events-none absolute inset-0 z-20 grid place-items-center">
+            <span className="-rotate-[24deg] rounded-control border-4 border-danger px-5 pb-1 pt-3 font-heading text-6xl font-bold tracking-[0.06em] text-danger opacity-35 sm:text-8xl">
+              {th("stamp")}
+            </span>
+          </div>
         )}
+        {cancelled && <p className="sr-only">{t("cancelled")}</p>}
 
         <div className="border border-chestnut/40">
           {/* our details, and the invoice's */}
@@ -411,6 +449,9 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
           <p className="font-semibold">{t("signatory")}</p>
         </div>
       </article>
+
+      {/* Cancel sale asks first, with the reason */}
+      {canAsk && <CancelDialog open={asking} id={d.transactionId} number={d.assignedId} onClose={() => setAsking(false)} />}
     </main>
   );
 }

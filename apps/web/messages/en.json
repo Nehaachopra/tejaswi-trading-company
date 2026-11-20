@@ -2649,6 +2649,26 @@
     "cancelled": "Cancelled",
     "loading": "Loading…",
     "loadError": "Couldn't load the transactions. Try again.",
-    "empty": "No transactions found."
+    "empty": "No transactions found.",
+    "notFound": "Transaction not found.",
+    "loadOneError": "Couldn't load this transaction. Try again.",
+    "comingSoon": "This kind of transaction can't be opened here yet.",
+    "cancelSale": "Cancel sale",
+    "cancelTitle": "Cancel this sale?",
+    "cancelBody": "{number} will be undone: its goods go back into stock and what the customer owes for it is removed. It keeps its number, marked cancelled.",
+    "reason": "Reason",
+    "reasonMissing": "Write why it's being cancelled.",
+    "keep": "Keep it",
+    "cancelDone": "Sale cancelled.",
+    "cancelledOn": "{when} by {name}",
+    "reasonLine": "Reason: {reason}",
+    "stamp": "CANCELLED",
+    "blocked": {
+      "gstFiled": "Can't cancel: this month's GST return is filed. Use a sale return instead.",
+      "salePaid": "Can't cancel: the customer has paid towards this sale. Cancel that receipt first.",
+      "purchasePaid": "Can't cancel: the supplier has been paid towards this purchase. Cancel that payment first.",
+      "rcmPaid": "Can't cancel: its reverse-charge GST is already paid. Cancel that Tax paid payment first.",
+      "openingBalance": "Opening balances are changed on the Opening balances page."
+    }
   }
 }

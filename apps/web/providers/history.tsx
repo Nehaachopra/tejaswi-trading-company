@@ -28,3 +28,21 @@ export function useHistory(filters: HistoryFilters) {
 export function useHistoryMonths() {
   return trpc.transactions.history.months.useQuery();
 }
+
+// one transaction as History knows it: its type, status, who cancelled it, when and why, and why it can't be cancelled
+export function useHistoryTransaction(id: string) {
+  return trpc.transactions.history.get.useQuery({ id });
+}
+
+// cancelling one (the admin's): everything about transactions is read again (the list, this one, its invoice), and the
+// stock, orders and dues it touched
+export function useCancelTransaction() {
+  const utils = trpc.useUtils();
+  return trpc.transactions.history.cancel.useMutation({
+    onSuccess: () => {
+      void utils.transactions.invalidate();
+      void utils.inventory.invalidate();
+      void utils.orders.invalidate();
+    },
+  });
+}
