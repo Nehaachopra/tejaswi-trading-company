@@ -2444,7 +2444,7 @@
     },
     "done": {
       "title": "Order saved",
-      "number": "Order number",
+      "number": "Transaction ID",
       "supplier": "Supplier",
       "items": "Items",
       "total": "Total",
