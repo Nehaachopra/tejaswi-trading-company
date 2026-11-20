@@ -558,7 +558,7 @@
       "drawing": "Drawing",
       "deposit": "Deposit",
       "withdrawal": "Withdrawal",
-      "transfer": "Transfer",
+      "transfer": "Interbank transfer",
       "salary": "Salary",
       "other": "Others",
       "opening_balance": "Opening balance"
@@ -1117,7 +1117,7 @@
         "payment": "Payment",
         "deposit": "Deposit",
         "withdrawal": "Withdrawal",
-        "transfer": "Transfer",
+        "transfer": "Interbank transfer",
         "saleReturn": "Sale return",
         "purchaseReturn": "Purchase return",
         "salary": "Salary",
@@ -1814,7 +1814,7 @@
       }
     },
     "transfer": {
-      "title": "Transfer",
+      "title": "Interbank transfer",
       "loadFailed": "Couldn't load the bank accounts. Check your connection and try again.",
       "steps": {
         "amount": "Amount",
@@ -1832,15 +1832,15 @@
       "reference": "UTR or reference no.",
       "referenceHint": "e.g. 412345678901",
       "saving": "Saving…",
-      "save": "Save transfer",
+      "save": "Save interbank transfer",
       "errors": {
         "cash": "That's more than there is in the account now. Check the amount.",
-        "failed": "Couldn't save the transfer. Try again."
+        "failed": "Couldn't save the interbank transfer. Try again."
       },
       "success": {
-        "title": "Transfer successfully created",
-        "loading": "Loading the transfer…",
-        "loadError": "Couldn't load the transfer. Check your connection and try again."
+        "title": "Interbank transfer successfully created",
+        "loading": "Loading the interbank transfer…",
+        "loadError": "Couldn't load the interbank transfer. Check your connection and try again."
       }
     },
     "other": {

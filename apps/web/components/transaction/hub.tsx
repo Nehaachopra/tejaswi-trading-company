@@ -10,10 +10,8 @@ import {
   HandCoins,
   Landmark,
   type LucideIcon,
-  Redo2,
   ShoppingCart,
   Truck,
-  Undo2,
   Users,
   Wallet,
 } from "lucide-react";
@@ -26,15 +24,13 @@ import { toast } from "~/components/ui/toast";
 type Kind = { key: string; icon: LucideIcon; href?: string; adminOnly?: boolean };
 
 // every kind of transaction, under what it's about: goods moving, orders, money, then the admin's own; the ones built
-// so far open their page
+// so far open their page. Returns aren't here: they start from a sale's or purchase's row in History
 const GROUPS: { key: string; kinds: Kind[] }[] = [
   {
     key: "goods",
     kinds: [
       { key: "sale", icon: ShoppingCart, href: "/transaction/sale" },
       { key: "purchase", icon: Truck, href: "/transaction/purchase" },
-      { key: "saleReturn", icon: Undo2 },
-      { key: "purchaseReturn", icon: Redo2 },
     ],
   },
   {

@@ -22,7 +22,7 @@ import {
 const held = (b: { amount: number; side: "debit" | "credit" } | undefined) => (b ? (b.side === "debit" ? 1 : -1) * b.amount : 0);
 
 // what each kind is called in a message
-const NAME: Record<ContraKind, string> = { deposit: "Deposit", withdrawal: "Withdrawal", transfer: "Transfer" };
+const NAME: Record<ContraKind, string> = { deposit: "Deposit", withdrawal: "Withdrawal", transfer: "Interbank transfer" };
 
 // money moving between cash and our bank accounts (a contra): a deposit (cash into a bank account), a withdrawal (cash
 // out of one) and a transfer (from one account to another). Dated as a receipt is (today or before; staff a few days
