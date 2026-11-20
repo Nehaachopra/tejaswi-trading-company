@@ -147,7 +147,7 @@ export function ShowQrButton({ shown, onShow }: { shown: boolean; onShow: () => 
 export function AutoSwitch({ on, set, stacked = false }: { on: boolean; set: (on: boolean) => void; stacked?: boolean }) {
   const t = useTranslations("transactions.salary");
   return (
-    <span className={cn("inline-flex items-center justify-end font-semibold", stacked ? "flex-col gap-0.5 text-[10px] leading-none" : "gap-1.5 text-xs")}>
+    <span className={cn("inline-flex items-center justify-end font-semibold", stacked ? "flex-col gap-2 text-[10px] leading-none" : "gap-2 text-xs")}>
       {t("table.auto")}
       <button
         type="button"
