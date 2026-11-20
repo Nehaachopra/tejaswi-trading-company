@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { packLabel, rupees, titleCase } from "~/lib/format";
+import { cn } from "~/lib/utils";
 
 import {
   type Pack,
@@ -28,6 +29,7 @@ export function CartCards({
   itemsTotal,
   onOpen,
   onRemove,
+  showTotal = true,
 }: {
   lines: CartRow[];
   packOf: (id: string) => { group: ProductGroup; pack: Pack } | null;
@@ -35,6 +37,8 @@ export function CartCards({
   itemsTotal: number;
   onOpen: (productId: string) => void;
   onRemove: (productId: string) => void;
+  // the Total row under the cards (left out where it already shows above them)
+  showTotal?: boolean;
 }) {
   const t = useTranslations("transactions.sale");
   return (
@@ -105,7 +109,8 @@ export function CartCards({
                   {titleCase(group.categoryName)} | {titleCase(group.subCategoryName)}
                 </p>
               </div>
-              <ProductImage group={group} imageUrl={pack.imageUrl} className="w-full" />
+              {/* the photo as tall as the product tiles' (shorter on a phone) */}
+              <ProductImage group={group} imageUrl={pack.imageUrl} className="w-full max-sm:h-24 max-sm:grid-rows-[100%] max-sm:aspect-auto!" />
 
               {/* the price and how many, a row each under a line: name left, figure right */}
               <div className="tabular mt-auto flex flex-col gap-1 border-t border-chestnut/15 pt-2">
@@ -123,21 +128,25 @@ export function CartCards({
         })}
       </ul>
 
-      {/* the Total row: Items with how many (only as wide as it needs), and Total with the cart's total, side by side */}
-      <div className="tabular grid shrink-0 grid-cols-[auto_minmax(0,1fr)] rounded-control bg-chestnut text-ivory">
-        <p className="flex items-baseline gap-3 px-2.5 py-2.5">
-          <span className="text-sm font-semibold">{t("items")}</span>
-          <span className="font-heading text-lg font-extrabold">
-            {lines.length.toLocaleString("en-IN")}
-          </span>
-        </p>
-        <p className="flex min-w-0 items-baseline justify-between gap-2 border-l border-ivory/25 px-2.5 py-2.5">
-          <span className="text-sm font-semibold">{t("lineTotal")}</span>
-          <span className="truncate whitespace-nowrap font-heading text-lg font-extrabold">
-            {rupees(itemsTotal)}
-          </span>
-        </p>
-      </div>
+      {showTotal && <CartTotalRow count={lines.length} itemsTotal={itemsTotal} />}
+    </div>
+  );
+}
+
+// the Total row: Items with how many (only as wide as it needs), and Total with the cart's total, side by side; under
+// the cart cards, and above a purchase's Products heading
+export function CartTotalRow({ count, itemsTotal, className }: { count: number; itemsTotal: number; className?: string }) {
+  const t = useTranslations("transactions.sale");
+  return (
+    <div className={cn("tabular grid shrink-0 grid-cols-[auto_minmax(0,1fr)] rounded-control bg-chestnut text-ivory", className)}>
+      <p className="flex items-baseline gap-3 px-2.5 py-2.5">
+        <span className="text-sm font-semibold">{t("items")}</span>
+        <span className="font-heading text-lg font-extrabold">{count.toLocaleString("en-IN")}</span>
+      </p>
+      <p className="flex min-w-0 items-baseline justify-between gap-2 border-l border-ivory/25 px-2.5 py-2.5">
+        <span className="text-sm font-semibold">{t("lineTotal")}</span>
+        <span className="truncate whitespace-nowrap font-heading text-lg font-extrabold">{rupees(itemsTotal)}</span>
+      </p>
     </div>
   );
 }

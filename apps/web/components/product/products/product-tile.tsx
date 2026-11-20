@@ -36,7 +36,9 @@ export function ProductImage({
   return (
     <div
       className={cn(
-        "grid aspect-square place-items-center overflow-hidden rounded-control bg-current/6",
+        // a soft fill behind the initials only; a photo sits on the card itself
+        "grid aspect-square place-items-center overflow-hidden rounded-control",
+        !imageUrl && "bg-current/6",
         className,
       )}
     >
@@ -60,6 +62,7 @@ export function TileTop({
   onPack,
   onChestnut = false,
   short = false,
+  phoneShort = false,
   photoButton,
   onAdd,
 }: {
@@ -70,6 +73,8 @@ export function TileTop({
   onPack: (productId: string) => void;
   onChestnut?: boolean;
   short?: boolean;
+  // a shorter photo on a phone only, so a whole row of tiles fits on the screen
+  phoneShort?: boolean;
   // a button floating on the photo's top-right corner
   photoButton?: React.ReactNode;
 }) {
@@ -115,7 +120,11 @@ export function TileTop({
           group={group}
           imageUrl={packImage(group, pack)}
           // short: the box's own height wins over the square, and the photo fills its height (kept whole)
-          className={cn("w-full", short && "h-[110px] grid-rows-[100%] aspect-auto!")}
+          className={cn(
+            "w-full",
+            short && "h-[110px] grid-rows-[100%] aspect-auto!",
+            phoneShort && "max-sm:h-24 max-sm:grid-rows-[100%] max-sm:aspect-auto!",
+          )}
         />
         {photoButton}
       </div>

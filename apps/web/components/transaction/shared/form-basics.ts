@@ -17,7 +17,8 @@ export const REFERENCE_MAX = 30;
 
 // a summary line: words, or a name with its amount on the right (an order's item: a small photo before the name and
 // its quantity on the right); a step can have several, one under another
-export type SummaryLine = string | { name: string; amount: string; image?: ReactNode };
+// `middle`: a muted figure right after the name (a purchase item's ×quantity)
+export type SummaryLine = string | { name: string; amount: string; middle?: string; image?: ReactNode };
 
 // another bank account taking part of the bank's share: which account, its amount as typed, and how it went
 export type MorePart = {

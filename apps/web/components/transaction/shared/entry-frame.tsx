@@ -284,7 +284,11 @@ export function SummaryLines<S extends string>({
                   {/* a small square photo first, when the line has one (an order's item) */}
                   {line.image && <span className="shrink-0">{line.image}</span>}
                   {/* the place (cash, a bank account) smaller; its amount as it is */}
-                  <span className="min-w-0 flex-1 truncate text-sm">{line.name}</span>
+                  <span className="flex min-w-0 flex-1 items-baseline gap-1.5 text-sm">
+                    <span className="min-w-0 truncate">{line.name}</span>
+                    {/* right after the name, muted, when the line has one (a purchase item's ×quantity) */}
+                    {line.middle && <span className="tabular shrink-0 font-normal opacity-60">{line.middle}</span>}
+                  </span>
                   <span className="tabular shrink-0">{line.amount}</span>
                 </span>
               ),

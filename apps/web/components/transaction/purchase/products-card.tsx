@@ -1,7 +1,7 @@
 "use client";
 
-import { Check, ChevronDown, Plus } from "lucide-react";
-import { useState } from "react";
+import { Check, ChevronDown, ChevronLeft, Plus } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { Menu, MenuItem } from "~/components/ui/menu";
 import { FILTER_TRIGGER } from "~/components/ui/page-styles";
@@ -11,7 +11,8 @@ import { cn } from "~/lib/utils";
 import { type ProductGroup, TileTop } from "../../product/products/product-tile";
 import { NewProductCard } from "../order/new/new-product-card";
 import { SCROLL_BOX, TILE_GRID } from "../shared/cart-button";
-import { PurchaseCartButton } from "./cart-button";
+import { CartTotalRow } from "../shared/cart-cards";
+import { PurchaseCartButton, PurchaseCartCards } from "./cart-button";
 import { ProductCard } from "./product-card";
 import { usePurchaseEntry } from "./state";
 
@@ -24,11 +25,30 @@ const heading = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
 // on a purchase order: first a From order part (the pack sizes the order still waits for, each with what's left to
 // arrive), then Show other products, which opens the rest below it
 export function ProductsCard() {
-  const { t, ts, isAdmin, products, categories, lines, setCardFor, buyable, order, orderLeft } =
+  const { t, ts, isAdmin, products, categories, lines, itemsTotal, setCardFor, buyable, order, orderLeft } =
     usePurchaseEntry();
   const [adding, setAdding] = useState(false);
   // the other products, opened from the button (always there on a purchase of its own)
   const [othersOpen, setOthersOpen] = useState(false);
+
+  // the two panels, as in the line card: the products, and the cart to their right (the cart's › slides to it, its
+  // ‹ back); as tall as the one showing, the other kept out of reach. The last item taken out: back to the products
+  const [pane, setPane] = useState<"products" | "cart">("products");
+  const productsRef = useRef<HTMLDivElement>(null);
+  const cartRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | undefined>(undefined);
+  useLayoutEffect(() => {
+    const shown = pane === "products" ? productsRef.current : cartRef.current;
+    if (!shown) return;
+    const fit = () => setHeight(shown.offsetHeight);
+    fit();
+    const watch = new ResizeObserver(fit);
+    watch.observe(shown);
+    return () => watch.disconnect();
+  }, [pane]);
+  useEffect(() => {
+    if (lines.length === 0) setPane("products");
+  }, [lines.length]);
 
   // the filters for the products below
   const [categoryId, setCategoryId] = useState<string | null>(null);
@@ -60,15 +80,15 @@ export function ProductsCard() {
     }))
     .filter((g) => g.packs.length > 0);
 
-  // the filters: category, then its sub-categories
+  // the filters: category, then its sub-categories; an open list sits under its filter and pushes the products down
   const filters = (
-    <div className="flex items-center gap-2 overflow-x-auto [scrollbar-width:none]">
+    <div className="flex items-start gap-2 overflow-x-auto [scrollbar-width:none]">
       <Menu
         label={ts("category")}
         surface="ivory"
         align="left"
         boxed
-        floating
+        inFlow
         triggerClassName={cn(
           FILTER_TRIGGER,
           "min-h-10 shrink-0 rounded-control",
@@ -108,7 +128,7 @@ export function ProductsCard() {
         surface="ivory"
         align="left"
         boxed
-        floating
+        inFlow
         disabled={subs.length === 0}
         triggerClassName={cn(
           FILTER_TRIGGER,
@@ -188,71 +208,92 @@ export function ProductsCard() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* the top, which stays put: the heading (From order with which order, or Products with + New product), the cart
-          button, and on a purchase of its own the filters */}
-      {order ? (
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 flex-col">
-            <h3 className={heading}>{ts("fromOrder")}</h3>
-            <span className="tabular truncate text-sm font-semibold">{order.orderId}</span>
-          </div>
-          <PurchaseCartButton />
-        </div>
-      ) : (
-        <>
-          <div className="-mb-2 flex items-center justify-between gap-2">
-            <h3 className={cn(heading, "min-w-0 truncate")}>{ts("products")}</h3>
-            <div className="flex shrink-0 items-center gap-2">
-              {newProduct}
-              <PurchaseCartButton />
-            </div>
-          </div>
-          {filters}
-        </>
-      )}
+      {/* the top, which stays put: the Total row (Items | Total), and beside it the cart icon with its › (slides to the
+          cart), or while the cart shows ‹ Products in its place (slides back) */}
+      <div className="-mb-2 flex items-center gap-3">
+        <CartTotalRow count={lines.length} itemsTotal={itemsTotal} className="flex-1" />
+        {pane === "products" ? (
+          <PurchaseCartButton onSlide={() => setPane("cart")} />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPane("products")}
+            // as quiet as the cart button it stands in for
+            className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-control border border-chestnut/60 px-3 text-sm font-semibold transition-colors hover:border-chestnut"
+          >
+            <ChevronLeft className="-ml-1 size-4.5 shrink-0" aria-hidden />
+            {ts("products")}
+          </button>
+        )}
+      </div>
 
-      {/* the products, scrolled up and down between the top and Next */}
-      <div className={SCROLL_BOX}>
-        {order ? (
-          <>
-            {/* what the order still waits for, then the button that opens the other products */}
-            {fromOrder.length === 0 ? (
-              <p className="py-6 text-center text-sm opacity-70">{t("noMoreFromOrder")}</p>
-            ) : (
-              <ul className={TILE_GRID}>
-                {fromOrder.map((group) => (
-                  <PurchaseTile key={group.key} group={group} ordered />
-                ))}
-              </ul>
-            )}
-            {!othersOpen ? (
-              <button
-                type="button"
-                onClick={() => setOthersOpen(true)}
-                // small, with ⌄ (they open below): the full width on a phone, its own width wider
-                className="flex min-h-10 w-full shrink-0 items-center justify-center gap-1.5 rounded-control border border-chestnut/35 px-4 text-xs font-semibold hover:bg-chestnut/[0.06] sm:w-auto sm:self-center"
-              >
-                <ChevronDown className="size-4 shrink-0" aria-hidden />
-                {ts("showOthers")}
-              </button>
+      {/* the panels: the products, and the cart to their right */}
+      <div className="-mx-1 overflow-hidden transition-[height] duration-300 motion-reduce:transition-none" style={{ height }}>
+        <div className={cn("flex w-[200%] items-start transition-transform duration-300 ease-out motion-reduce:transition-none", pane === "cart" && "-translate-x-1/2")}>
+          {/* the products: the heading, the filters, then the tiles */}
+          <div ref={productsRef} inert={pane !== "products"} className="flex w-1/2 min-w-0 flex-col gap-4 px-1">
+            {order ? (
+              <div className="flex min-w-0 flex-col">
+                <h3 className={heading}>{ts("fromOrder")}</h3>
+                <span className="tabular truncate text-sm font-semibold">{order.orderId}</span>
+              </div>
             ) : (
               <>
-                {/* the other products' heading and filters stay at the box's top while their tiles scroll under them
-                    (a line above them, the card's ivory behind them) */}
-                <div className="sticky -top-0.5 z-10 -mx-1 flex flex-col gap-2 border-t border-chestnut/15 bg-ivory px-1 pb-2 pt-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className={cn(heading, "min-w-0 truncate")}>{ts("products")}</h3>
-                    {newProduct}
-                  </div>
-                  {filters}
-                </div>
-                {restGrid}
+                <h3 className={cn(heading, "-mb-2 min-w-0 truncate")}>{ts("products")}</h3>
+                {filters}
               </>
             )}
-          </>
-        ) : (
-          restGrid
-        )}
+
+            {/* the products, scrolled up and down between the top and Next */}
+            <div className={SCROLL_BOX}>
+              {order ? (
+                <>
+                  {/* what the order still waits for, then the button that opens the other products */}
+                  {fromOrder.length === 0 ? (
+                    <p className="py-6 text-center text-sm opacity-70">{t("noMoreFromOrder")}</p>
+                  ) : (
+                    <ul className={TILE_GRID}>
+                      {fromOrder.map((group) => (
+                        <PurchaseTile key={group.key} group={group} ordered />
+                      ))}
+                    </ul>
+                  )}
+                  {!othersOpen ? (
+                    <button
+                      type="button"
+                      onClick={() => setOthersOpen(true)}
+                      // small, with ⌄ (they open below): the full width on a phone, its own width wider
+                      className="flex min-h-10 w-full shrink-0 items-center justify-center gap-1.5 rounded-control border border-chestnut/35 px-4 text-xs font-semibold hover:bg-chestnut/[0.06] sm:w-auto sm:self-center"
+                    >
+                      <ChevronDown className="size-4 shrink-0" aria-hidden />
+                      {ts("showOthers")}
+                    </button>
+                  ) : (
+                    <>
+                      {/* the other products' heading and filters stay at the box's top while their tiles scroll under them
+                          (a line above them, the card's ivory behind them) */}
+                      <div className="sticky -top-0.5 z-10 -mx-1 flex flex-col gap-2 border-t border-chestnut/15 bg-ivory px-1 pb-2 pt-4">
+                        {newProduct && <div className="flex justify-end">{newProduct}</div>}
+                        <h3 className={cn(heading, "min-w-0 truncate")}>{ts("products")}</h3>
+                        {filters}
+                      </div>
+                      {restGrid}
+                    </>
+                  )}
+                </>
+              ) : (
+                restGrid
+              )}
+            </div>
+          </div>
+
+          {/* the cart: its cards, scrolled up and down */}
+          <div ref={cartRef} inert={pane !== "cart"} className="flex w-1/2 min-w-0 flex-col gap-3 px-1">
+            <div className={SCROLL_BOX}>
+              <PurchaseCartCards />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* the product card, over the page, for the pack size being added or changed */}
@@ -269,7 +310,7 @@ function PurchaseTile({ group, ordered = false }: { group: ProductGroup; ordered
   const pack = group.packs.find((p) => p.productId === picked) ?? group.packs[0]!;
   return (
     <li className="flex min-w-0 flex-col gap-2 rounded-control border border-chestnut/15 p-2.5 sm:w-52 sm:p-3.5">
-      <TileTop group={group} pack={pack} onPack={setPicked} />
+      <TileTop group={group} pack={pack} onPack={setPicked} phoneShort />
       {ordered && (
         <div className="mt-auto flex flex-col gap-1">
           <span className="text-xs">{t("leftToArrive")}</span>
