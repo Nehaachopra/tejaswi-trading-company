@@ -27,11 +27,11 @@ export function AmountCard() {
           {tc("q.amount")}
           <RequiredMark />
         </label>
-        {/* chestnut once filled: the money that moves, as a payment's To pay */}
-        <div className={cn("w-[60%] shrink-0 [&_input]:text-right", value > 0 && "[&_button]:text-ivory")}>
+        {/* always chestnut: the money that moves, filled or not */}
+        <div className="w-[60%] shrink-0 [&_button]:text-ivory [&_input]:text-right">
           <MicField onText={(said) => saidAmount(said, setAmount)}>
             <IndianRupee
-              className={cn("pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2", value > 0 && "text-ivory")}
+              className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2 text-ivory"
               aria-hidden
             />
             <NumberInput
@@ -50,7 +50,7 @@ export function AmountCard() {
               className={cn(
                 input(tried && value === 0),
                 "min-h-12 pl-11 pr-12 font-heading text-xl font-bold tabular",
-                value > 0 && "bg-chestnut text-ivory caret-ivory shadow-none",
+                "bg-chestnut text-ivory caret-ivory shadow-none placeholder:text-ivory/60",
               )}
             />
           </MicField>
