@@ -47,6 +47,47 @@ export function FoldGroup({
   );
 }
 
+// the parts a sum splits into, under the row it's in: a curved line from under that row's name into each part (each
+// row 32px, 2px apart), its name on the left and its amount on the right
+export function FlowParts({
+  parts,
+}: {
+  parts: { key: string; label: React.ReactNode; amount: number }[];
+}) {
+  const height = parts.length * 34;
+  return (
+    <div className="tabular grid grid-cols-[1.75rem_minmax(0,1fr)] text-sm">
+      <svg
+        viewBox={`0 0 28 ${height}`}
+        className="w-7 overflow-visible"
+        style={{ height }}
+        aria-hidden
+      >
+        {parts.map((p, i) => {
+          const y = 20 + i * 34;
+          return (
+            <path
+              key={p.key}
+              d={`M8 0 V ${y - 8} Q 8 ${y}, 16 ${y} H 26`}
+              className="fill-none stroke-chestnut/55"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+            />
+          );
+        })}
+      </svg>
+      <div className="flex flex-col gap-0.5 pt-1">
+        {parts.map((p) => (
+          <div key={p.key} className="flex h-8 min-w-0 items-center justify-between gap-3">
+            <span className="flex min-w-0 items-center gap-1">{p.label}</span>
+            <span className="shrink-0 text-base font-semibold">{rupees(p.amount)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // how a payment or receipt splits against what was owed: the whole on top, two curved lines dropping from it into the
 // part towards the due and the advance past it, then the share of what was owed it clears (only when something was)
 export function DueFlow({
@@ -71,10 +112,6 @@ export function DueFlow({
   paidLabel: string;
   owedBefore: number;
 }) {
-  const parts = [
-    { key: "due", label: dueLabel, amount: due },
-    { key: "advance", label: advanceLabel, amount: advance },
-  ];
   return (
     <div className="tabular flex flex-col text-sm">
       {!noWhole && (
@@ -83,31 +120,12 @@ export function DueFlow({
           <span className="font-heading text-lg font-bold">{rupees(whole)}</span>
         </div>
       )}
-      {/* the lines leave from under the whole's name and end at Due and Advance (each row 32px, 2px apart) */}
-      <div className="grid grid-cols-[1.75rem_minmax(0,1fr)]">
-        <svg viewBox="0 0 28 68" className="h-[68px] w-7 overflow-visible" aria-hidden>
-          <path
-            d="M8 0 V 12 Q 8 20, 16 20 H 26"
-            className="fill-none stroke-chestnut/55"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-          />
-          <path
-            d="M8 0 V 46 Q 8 54, 16 54 H 26"
-            className="fill-none stroke-chestnut/55"
-            strokeWidth={1.5}
-            strokeLinecap="round"
-          />
-        </svg>
-        <div className="flex flex-col gap-0.5 pt-1">
-          {parts.map((p) => (
-            <div key={p.key} className="flex h-8 items-center justify-between gap-3">
-              <span>{p.label}</span>
-              <span className="text-base font-semibold">{rupees(p.amount)}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <FlowParts
+        parts={[
+          { key: "due", label: dueLabel, amount: due },
+          { key: "advance", label: advanceLabel, amount: advance },
+        ]}
+      />
       {/* how much of what was owed it clears */}
       {owedBefore > 0 && (
         <div className="mt-1 flex min-h-8 items-center justify-between gap-3 border-t border-chestnut/15 pt-1">

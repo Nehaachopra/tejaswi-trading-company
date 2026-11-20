@@ -98,7 +98,7 @@ export default class SaleEditService {
     // what's been settled on its due (by it and by later receipts that are still in place)
     const settlements = due
       ? await q
-          .select({ id: dueSettlementsTable.id, amount: dueSettlementsTable.amount, transactionId: dueSettlementsTable.transactionId, createdAt: dueSettlementsTable.createdAt })
+          .select({ id: dueSettlementsTable.id, amount: dueSettlementsTable.amount, transactionId: dueSettlementsTable.transactionId, assignedId: transactionsTable.assignedId, createdAt: dueSettlementsTable.createdAt })
           .from(dueSettlementsTable)
           .innerJoin(transactionsTable, eq(transactionsTable.id, dueSettlementsTable.transactionId))
           .where(and(eq(dueSettlementsTable.dueId, due.id), eq(transactionsTable.status, "active")))
@@ -154,6 +154,14 @@ export default class SaleEditService {
       const moneyIn = money.filter((m) => m.ledgerId !== tdsId).reduce((a, m) => a + m.paise, 0);
       // a customer's: what's settled on this bill; a walk-in's: what came in
       const paid = due ? settlements.reduce((a, s) => a + toPaise(s.amount), 0) : moneyIn;
+      // a customer's: what the sale settled on its own past the money and TDS it took (an advance set off), and each
+      // later receipt's part (the oldest first)
+      const ownSettled = settlements.filter((s) => s.transactionId === t.id).reduce((a, s) => a + toPaise(s.amount), 0);
+      const setOff = due ? Math.max(0, ownSettled - moneyIn - tds) : 0;
+      const receipts = settlements
+        .filter((s) => s.transactionId !== t.id)
+        .reverse()
+        .map((s) => ({ assignedId: s.assignedId, amount: Number(s.amount) }));
       const place = (id: string | null, snap: { line1: string | null; line2: string | null; city: string | null; district: string | null; state: string | null; stateCode: string | null; postalCode: string | null; gstin?: string | null }) =>
         id
           ? { addressId: id }
@@ -212,6 +220,8 @@ export default class SaleEditService {
           cash: Math.max(0, moneyIn - bankSum) / 100,
           tds: tds / 100,
           banks: banks.map((b) => ({ bankName: b.bankNameSnapshot, last4: b.bankAccountLast4Snapshot, mode: b.mode, amount: Number(b.amount) })),
+          setOff: setOff / 100,
+          receipts,
         },
         editBlockedBy: await this.blockedBy(tx, t),
       };

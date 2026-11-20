@@ -17,7 +17,6 @@ import { CustomerCard } from "./customer-card";
 import { DetailsCard, SaveBlock } from "./details-card";
 import { MoneyCard } from "./money-card";
 import { ProductsCard } from "./products-card";
-import { EditReceivedCard } from "./edit-received-card";
 import { ReceivedCard } from "./received-card";
 import { type SaleStep, SaleEntryProvider, useSaleEntry, useSaleEntryState } from "./state";
 
@@ -236,7 +235,7 @@ function SaleEntryView() {
         ) : current === "customer" ? (
           <CustomerCard />
         ) : current === "received" ? (
-          isEdit ? <EditReceivedCard /> : <ReceivedCard />
+          <ReceivedCard />
         ) : (
           <DetailsCard />
         )}

@@ -20,7 +20,9 @@ import { type AccountCardsApi } from "../shared/account-cards/types";
 import { DueFlow } from "../shared/fold-group";
 import { input, saidAmount } from "../shared/form-basics";
 import { Meter } from "../shared/meter";
+import { OriginalReceived } from "./original-received";
 import { SALE_TDS_RATE, useSaleEntry } from "./state";
+import { FixedBanner, TypedBanner } from "./to-receive-banner";
 
 // a row: its name on the left (level with the box's first line), its figure or box on the right, as a receipt's
 const underValue = "ml-auto w-[60%]";
@@ -117,10 +119,13 @@ function LeftRow({ label, amount }: { label: string; amount: number }) {
 // due; the amount received taken off it (its ⌄ opening what it goes towards, the old due first) and the TDS they
 // deducted (a switch; the PAN is asked above once TDS is on and none is saved); then what's left on chestnut. A
 // walk-in pays the bill: To receive (the bill), then Left to receive and the cards. A credit sale shows only the three
-// due rows
+// due rows. An edit (cash moving) has the full layout, a walk-in's too: no TDS or set off; the breakup adds Original
+// sale received (its ⌄ opening where it came in) above what's received now, or Refund now when the bill went down
 export function ReceivedCard() {
   const e = useSaleEntry();
   const { t, tc, kind, tried, total, oldDue, dueNow, received, tdsCan, tdsOnIt, panNeeded } = e;
+  const { isEdit, refunding, editPaid, editLeft } = e;
+  const [originalOpen, setOriginalOpen] = useState(false);
   const tr = useTranslations("transactions.receipt.form");
   const tdsLabel = useId();
   const setOffLabel = useId();
@@ -204,13 +209,15 @@ export function ReceivedCard() {
 
   // what's still to place in cash and the bank cards below, filling as they take their parts; green with a tick once
   // nothing is left. Pinned under the header while the cards scroll
+  // its name: an edit's (tried there first) "Remaining", refund or not
+  const leftLabel = isEdit ? t("edit.remaining") : tr("leftToReceive");
   const leftToReceive = filled && (
     <div
       ref={stickyRef}
       className="sticky top-16 z-10 -mx-1 flex flex-col gap-2.5 bg-ivory px-1 pb-1 sm:w-[calc(50%-1rem)]"
     >
       <Line
-        label={tr("leftToReceive")}
+        label={leftLabel}
         value={
           e.gridTotal === received ? (
             <span
@@ -229,7 +236,7 @@ export function ReceivedCard() {
       {/* the slider under it, the full width of the rows above (the mic and arrow column too) */}
       <Meter
         bare
-        label={tr("leftToReceive")}
+        label={leftLabel}
         figure={0}
         share={Math.min(100, (e.gridTotal / received) * 100)}
         done={e.gridTotal === received}
@@ -243,12 +250,27 @@ export function ReceivedCard() {
       className="flex flex-col gap-2.5 border-t border-chestnut/15 pt-4"
       style={{ marginTop: 6 + (phone || !tdsCan ? 0 : beside.push) }}
     >
-      <AccountCards key={received} api={cards} />
+      <AccountCards
+        key={received}
+        // a refund goes out of them: how it was paid, what's left to refund
+        api={
+          refunding
+            ? {
+                ...cards,
+                labels: {
+                  ...cards.labels,
+                  mode: t("edit.paidBy"),
+                  barLeft: t("edit.leftToRefund"),
+                },
+              }
+            : cards
+        }
+      />
     </div>
   );
 
   // a walk-in pays the bill: only what's to be received, then Left to receive and where it came into
-  if (!tdsCan)
+  if (!tdsCan && !isEdit)
     return (
       <div className="flex flex-col gap-1.5 sm:gap-2.5">
         <div className="sm:w-[calc(50%-1.5rem)]">
@@ -272,8 +294,10 @@ export function ReceivedCard() {
   const subTotal = Math.round((oldDue + total) * 100) / 100;
   // what's left: both when both are above nothing (the advance first); otherwise the one that is; neither: ₹0 of what
   // the account had (an advance when it held one and owed nothing, a due otherwise)
-  const left =
-    e.leftDue > 0 && advanceLeft > 0
+  // (an edit leaves only a due: what's received now is capped at what the bill still has owed on it)
+  const left = isEdit
+    ? [{ key: "due", label: t("leftDue"), amount: editLeft }]
+    : e.leftDue > 0 && advanceLeft > 0
       ? [
           { key: "advance", label: t("advanceLeft"), amount: advanceLeft },
           { key: "due", label: t("leftDue"), amount: e.leftDue },
@@ -320,43 +344,75 @@ export function ReceivedCard() {
           />
         ))}
       </button>
-      <Line
-        label={
-          <label htmlFor="received-field" className="flex items-center">
-            {t("toReceiveOnly")}
-            {e.setOff === 0 && <RequiredMark />}
-          </label>
-        }
-        value={
-          <span className="relative block">
-            <IndianRupee
-              className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2 text-ivory"
-              aria-hidden
-            />
-            <NumberInput
-              id="received-field"
-              value={e.receivedText}
-              decimals={2}
-              maxDigits={13}
-              placeholder="0"
-              onChange={e.typeReceived}
-              aria-invalid={amountBad || undefined}
-              // chestnut whether typed or not, as the purchase's To pay; left empty when it's needed, only the card's
-              // message says so
-              className={cn(
-                input(false),
-                "min-h-12 bg-chestnut pl-11 pr-3.5 text-right font-heading text-xl font-bold tabular text-ivory caret-ivory shadow-none placeholder:text-ivory/60",
-              )}
-            />
-          </span>
-        }
-        slot={
-          <MicButton
-            onText={(said) => saidAmount(said, e.typeReceived)}
-            className="rounded-[var(--radius-control)]"
+      {isEdit ? (
+        // an edit (tried here first): To receive as a strip, fixed (a refund, a walk-in's) or typed (a customer's)
+        refunding || e.editWalkIn ? (
+          <FixedBanner
+            label={refunding ? t("edit.refundNow") : t("toReceiveOnly")}
+            amount={received}
           />
-        }
-      />
+        ) : (
+          <TypedBanner
+            id="received-field"
+            label={t("toReceiveOnly")}
+            value={e.receivedText}
+            onChange={e.typeReceived}
+            max={e.editDueLeft}
+            invalid={amountBad}
+          />
+        )
+      ) : refunding || e.editWalkIn ? (
+        // shown, not typed: a refund (the bill went below what was paid: what's paid over goes back at once), or a
+        // walk-in's edit (it pays all that's left, as a cash sale's walk-in)
+        <Line
+          label={refunding ? t("edit.refundNow") : t("toReceiveOnly")}
+          value={
+            <span className="tabular flex min-h-12 items-center justify-end rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
+              {rupees(received)}
+            </span>
+          }
+        />
+      ) : (
+        <Line
+          label={
+            <label htmlFor="received-field" className="flex items-center">
+              {t("toReceiveOnly")}
+              {e.setOff === 0 && <RequiredMark />}
+            </label>
+          }
+          value={
+            <span className="relative block">
+              <IndianRupee
+                className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2 text-ivory"
+                aria-hidden
+              />
+              <NumberInput
+                id="received-field"
+                value={e.receivedText}
+                decimals={2}
+                maxDigits={13}
+                // an edit takes no more than the bill still has owed on it
+                max={isEdit ? e.editDueLeft : undefined}
+                placeholder="0"
+                onChange={e.typeReceived}
+                aria-invalid={amountBad || undefined}
+                // chestnut whether typed or not, as the purchase's To pay; left empty when it's needed, only the card's
+                // message says so
+                className={cn(
+                  input(false),
+                  "min-h-12 bg-chestnut pl-11 pr-3.5 text-right font-heading text-xl font-bold tabular text-ivory caret-ivory shadow-none placeholder:text-ivory/60",
+                )}
+              />
+            </span>
+          }
+          slot={
+            <MicButton
+              onText={(said) => saidAmount(said, e.typeReceived)}
+              className="rounded-[var(--radius-control)]"
+            />
+          }
+        />
+      )}
     </div>
   );
 
@@ -373,7 +429,8 @@ export function ReceivedCard() {
           className="mb-3.5 border-b border-chestnut/30 pb-2"
         />
       )}
-      <Figure label={t("oldDue")} amount={rupees(oldDue)} />
+      {/* (a walk-in's edit has no account, so no old due) */}
+      {!(isEdit && !e.editing?.customer) && <Figure label={t("oldDue")} amount={rupees(oldDue)} />}
       <Figure label={t("thisBill")} amount={rupees(total)} />
       {e.heldAdvance > 0 && (
         <>
@@ -390,39 +447,77 @@ export function ReceivedCard() {
         </>
       )}
       <Figure label={tr("due")} amount={rupees(dueNow)} strong />
+      {/* an edit: what the original sale received taken off, its ⌄ opening where it came in; then what's received now
+          taken off, or what's refunded added back */}
+      {isEdit && (
+        <>
+          <Figure
+            label={
+              <>
+                {t("edit.originalReceived")}
+                {/* (its ⌄ only when something was received) */}
+                {editPaid > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setOriginalOpen((o) => !o)}
+                    aria-expanded={originalOpen}
+                    aria-label={t("edit.originalBreakdown")}
+                    className="ml-1 grid size-8 shrink-0 place-items-center rounded-control hover:bg-chestnut/8"
+                  >
+                    <ChevronDown
+                      className={cn("size-4 transition-transform", originalOpen && "rotate-180")}
+                      aria-hidden
+                    />
+                  </button>
+                )}
+              </>
+            }
+            amount={`− ${rupees(editPaid)}`}
+          />
+          {originalOpen && editPaid > 0 && <OriginalReceived />}
+          <Figure
+            label={refunding ? t("edit.refundNow") : t("edit.received")}
+            amount={refunding ? `+ ${rupees(received)}` : `− ${rupees(received)}`}
+          />
+        </>
+      )}
       {/* the amount received taken off, its ⌄ opening what it goes towards */}
-      <Figure
-        label={
-          <>
-            {tr("receiptGroup")}
-            <button
-              type="button"
-              onClick={() => setTowardsOpen((o) => !o)}
-              aria-expanded={towardsOpen}
-              aria-label={tr("towardsGroup")}
-              className="ml-1 grid size-8 shrink-0 place-items-center rounded-control hover:bg-chestnut/8"
-            >
-              <ChevronDown
-                className={cn("size-4 transition-transform", towardsOpen && "rotate-180")}
-                aria-hidden
-              />
-            </button>
-          </>
-        }
-        amount={`− ${rupees(received)}`}
-      />
-      {/* the TDS they deducted: a switch, its rate once on */}
-      <Figure
-        label={
-          <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span id={tdsLabel}>{tc("sum.tds")}</span>
-            <Switch small on={tdsOnIt} onFlip={e.flipTds} labelledBy={tdsLabel} />
-            {tdsOnIt && <span className="tabular text-xs font-semibold">{SALE_TDS_RATE}%</span>}
-          </span>
-        }
-        amount={e.tdsAmount > 0 ? `− ${rupees(e.tdsAmount)}` : rupees(0)}
-      />
-      {towardsOpen && (
+      {!isEdit && (
+        <Figure
+          label={
+            <>
+              {tr("receiptGroup")}
+              <button
+                type="button"
+                onClick={() => setTowardsOpen((o) => !o)}
+                aria-expanded={towardsOpen}
+                aria-label={tr("towardsGroup")}
+                className="ml-1 grid size-8 shrink-0 place-items-center rounded-control hover:bg-chestnut/8"
+              >
+                <ChevronDown
+                  className={cn("size-4 transition-transform", towardsOpen && "rotate-180")}
+                  aria-hidden
+                />
+              </button>
+            </>
+          }
+          amount={`− ${rupees(received)}`}
+        />
+      )}
+      {/* the TDS they deducted: a switch, its rate once on (not in an edit) */}
+      {!isEdit && (
+        <Figure
+          label={
+            <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <span id={tdsLabel}>{tc("sum.tds")}</span>
+              <Switch small on={tdsOnIt} onFlip={e.flipTds} labelledBy={tdsLabel} />
+              {tdsOnIt && <span className="tabular text-xs font-semibold">{SALE_TDS_RATE}%</span>}
+            </span>
+          }
+          amount={e.tdsAmount > 0 ? `− ${rupees(e.tdsAmount)}` : rupees(0)}
+        />
+      )}
+      {!isEdit && towardsOpen && (
         <DueFlow
           wholeLabel={tr("receiptGroup")}
           whole={e.settles}

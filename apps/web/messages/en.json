@@ -2212,21 +2212,18 @@
         "title": "Edit sale",
         "noRemove": "An item can't be taken off in an edit. Use a sale return.",
         "total": "Total",
-        "walkInAll": "A walk-in pays all of {amount}.",
-        "billAmount": "Bill amount",
         "received": "Received",
         "belowSaved": "To reduce quantity, record <link>return</link>.",
         "lessThanBefore": "A quantity can't go below what was sold. Use a sale return.",
         "save": "Save changes",
         "amountPaid": "Amount paid",
         "balanceLeft": "Balance left",
-        "amountReceived": "To receive",
         "refundNow": "Refund now",
-        "billAfter": "Bill after this edit",
-        "back": "Back",
-        "leftToReceive": "Left to receive",
+        "remaining": "Remaining",
         "leftToRefund": "Left to refund",
-        "paidBy": "Paid by"
+        "paidBy": "Paid by",
+        "originalReceived": "Original sale received",
+        "originalBreakdown": "Where the original sale's money came in"
       }
     },
     "drawing": {

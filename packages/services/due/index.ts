@@ -145,7 +145,14 @@ export default class DueService {
     for (const due of await this.open(tx, and(eq(duesTable.kind, DUE_KIND_DB[input.kind]), eq(duesTable.partyId, input.partyId)), true)) {
       if (rest <= 0) break;
       const take = Math.min(rest, toPaise(due.left));
-      await tx.insert(dueSettlementsTable).values({ dueId: due.id, transactionId: input.transactionId, amount: fromPaise(take) });
+      // (a transaction that already settled part of this due, as an edited sale, adds to its own settlement)
+      await tx
+        .insert(dueSettlementsTable)
+        .values({ dueId: due.id, transactionId: input.transactionId, amount: fromPaise(take) })
+        .onConflictDoUpdate({
+          target: [dueSettlementsTable.dueId, dueSettlementsTable.transactionId],
+          set: { amount: sql`${dueSettlementsTable.amount} + excluded.amount`, updatedAt: new Date() },
+        });
       rest -= take;
     }
     return Number(fromPaise(rest));

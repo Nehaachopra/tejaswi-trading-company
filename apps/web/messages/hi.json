@@ -2212,21 +2212,18 @@
         "title": "बिक्री बदलें",
         "noRemove": "बदलाव में कोई सामान हटाया नहीं जा सकता। बिक्री वापसी करें।",
         "total": "कुल",
-        "walkInAll": "बिना खाते वाला ग्राहक पूरे {amount} देता है।",
-        "billAmount": "बिल राशि",
         "received": "मिला",
         "belowSaved": "मात्रा कम करने के लिए <link>वापसी</link> दर्ज करें।",
         "lessThanBefore": "मात्रा बेची गई से कम नहीं हो सकती। बिक्री वापसी करें।",
         "save": "बदलाव सहेजें",
         "amountPaid": "भुगतान हुई राशि",
         "balanceLeft": "बाकी शेष",
-        "amountReceived": "लेना है",
         "refundNow": "अभी वापस करें",
-        "billAfter": "इस बदलाव के बाद बिल",
-        "back": "वापस",
-        "leftToReceive": "प्राप्त करना बाकी",
+        "remaining": "बाकी",
         "leftToRefund": "वापस करना बाकी",
-        "paidBy": "भुगतान का तरीका"
+        "paidBy": "भुगतान का तरीका",
+        "originalReceived": "मूल बिक्री में प्राप्त",
+        "originalBreakdown": "मूल बिक्री का पैसा कहाँ आया"
       }
     },
     "drawing": {

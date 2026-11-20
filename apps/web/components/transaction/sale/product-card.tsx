@@ -11,7 +11,12 @@ import { asField, parseAmount, unitsIn } from "~/lib/price";
 import { cn } from "~/lib/utils";
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 
-import { type Pack, type ProductGroup, ProductImage, productTitle } from "../../product/products/product-tile";
+import {
+  type Pack,
+  type ProductGroup,
+  ProductImage,
+  productTitle,
+} from "../../product/products/product-tile";
 import { FiguresTable, MoneyBox } from "../shared/figures-table";
 import { GodownStepper, QuantityBox, SackMeter } from "../shared/pack-parts";
 import { type CartLine, lineFigures, placedOf, priceOf, useSaleEntry } from "./state";
@@ -33,7 +38,8 @@ export function ProductCard() {
 }
 
 function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
-  const { t, lines, putLine, removeLine, setCardFor, freeOf, orderPrice, order, editQty } = useSaleEntry();
+  const { t, lines, putLine, removeLine, setCardFor, freeOf, orderPrice, order, editQty } =
+    useSaleEntry();
   const units = useTranslations("products.items.form.units");
   // a dispatch on a sale order: this pack's line on the order (how many were ordered, how many have gone out), while
   // the order still waits for some of it
@@ -49,7 +55,8 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
     () =>
       saved ?? {
         productId: pack.productId,
-        newPrice: orderPrice(pack) || (pack.priceAfterGst != null ? asField(pack.priceAfterGst) : ""),
+        newPrice:
+          orderPrice(pack) || (pack.priceAfterGst != null ? asField(pack.priceAfterGst) : ""),
         quantity: orderedLeft > 0 ? String(Math.min(orderedLeft, freeOf(pack))) : "",
         godowns: {},
       },
@@ -72,26 +79,31 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   const placed = placedOf(draft);
   const { rate, total } = lineFigures(price, quantity, gst);
   // a new price below what a pack costs us can't be saved
-  const belowCost = pack.weightedAverageCost != null && rate < Math.round(pack.weightedAverageCost * 100);
+  const belowCost =
+    pack.weightedAverageCost != null && rate < Math.round(pack.weightedAverageCost * 100);
   // a unit's price with GST: "Price / kg"
   const rateLabel = t("pricePer", { unit: units(pack.packSizeCode) });
   const typedPrice = parseAmount(draft.newPrice);
-  const rateValue = rateText ?? (typedPrice === null ? "" : asField(round2(typedPrice / unitsIn(pack))));
+  const rateValue =
+    rateText ?? (typedPrice === null ? "" : asField(round2(typedPrice / unitsIn(pack))));
   const ok = price > 0 && quantity >= fewest && quantity <= available && placed === quantity;
   // below cost: Add asks first whether to sell it that low (a pack's cost with GST, to set against the price)
   const [askBelow, setAskBelow] = useState(false);
   const costGst = round2((pack.weightedAverageCost ?? 0) * (1 + gst / 100));
   // what still holds Add back, said just above it
-  const hint = price <= 0
-    ? t("hintPrice")
-    : belowCost
-    ? t("belowCost")
-    : quantity < 1
-      ? t("hintQuantity")
-
-      : placed !== quantity
-        ? t("hintGodowns")
-        : null;
+  const hint =
+    price <= 0
+      ? t("hintPrice")
+      : belowCost
+        ? t("belowCost")
+        : quantity < 1
+          ? t("hintQuantity")
+          : // an edit, a smaller number typed (raised back on leaving the box)
+            quantity < fewest
+            ? t("edit.lessThanBefore")
+            : placed !== quantity
+              ? t("hintGodowns")
+              : null;
 
   // the page behind doesn't scroll, and Escape closes
   useEffect(() => {
@@ -117,7 +129,9 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
     putLine({
       ...draft,
       belowCostOk: belowCost,
-      godowns: Object.fromEntries(Object.entries(draft.godowns).filter(([, v]) => (Number(v) || 0) > 0)),
+      godowns: Object.fromEntries(
+        Object.entries(draft.godowns).filter(([, v]) => (Number(v) || 0) > 0),
+      ),
     });
     close();
   }
@@ -141,7 +155,14 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   const godownRow = useRef<HTMLButtonElement>(null);
   const slide = (to: "main" | "godowns") => {
     setPane(to);
-    setTimeout(() => (to === "main" ? godownRow : back).current?.focus({ preventScroll: true, focusVisible: false } as FocusOptions), 320);
+    setTimeout(
+      () =>
+        (to === "main" ? godownRow : back).current?.focus({
+          preventScroll: true,
+          focusVisible: false,
+        } as FocusOptions),
+      320,
+    );
   };
   // from an order: whether the stock rows under Ordered show
   const [stockOpen, setStockOpen] = useState(false);
@@ -154,7 +175,10 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
       belowNote={t.rich("edit.belowSaved", {
         // the sale return form (built next)
         link: (words) => (
-          <Link href="/transaction/sale-return" className="font-semibold underline underline-offset-2">
+          <Link
+            href="/transaction/sale-return"
+            className="font-semibold underline underline-offset-2"
+          >
             {words}
           </Link>
         ),
@@ -170,7 +194,10 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   return createPortal(
     // the dim, blurred page; a tap on it closes. The card sits in the middle, and scrolls with the page when taller
     <div className="fixed inset-0 z-50 animate-fade-in overflow-y-auto bg-[rgba(30,12,6,0.62)] backdrop-blur-[3px]">
-      <div onClick={(e) => e.target === e.currentTarget && close()} className="flex min-h-full items-center justify-center p-4">
+      <div
+        onClick={(e) => e.target === e.currentTarget && close()}
+        className="flex min-h-full items-center justify-center p-4"
+      >
         <section
           role="dialog"
           aria-modal="true"
@@ -185,29 +212,36 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
             <span className="flex items-center">
               {/* (not for an item the edited sale already had: taking it off is a sale return) */}
               {saved && editQty(pack.productId) === 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    removeLine(pack.productId);
+                    close();
+                  }}
+                  aria-label={t("removeFromCart")}
+                  title={t("removeFromCart")}
+                  className="grid place-items-center rounded-control p-2 text-danger hover:bg-danger/[0.08]"
+                >
+                  <Trash2 className="size-5" aria-hidden />
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => {
-                  removeLine(pack.productId);
-                  close();
-                }}
-                aria-label={t("removeFromCart")}
-                title={t("removeFromCart")}
-                className="grid place-items-center rounded-control p-2 text-danger hover:bg-danger/[0.08]"
+                onClick={close}
+                aria-label={t("close")}
+                className="grid place-items-center rounded-control p-2 hover:bg-chestnut/8"
               >
-                <Trash2 className="size-5" aria-hidden />
-              </button>
-            )}
-              <button type="button" onClick={close} aria-label={t("close")} className="grid place-items-center rounded-control p-2 hover:bg-chestnut/8">
                 <X className="size-5" aria-hidden />
               </button>
             </span>
           </div>
 
           {/* this pack size's chip, the name, category | sub-category, then the square photo in the middle */}
-          
+
           <div className="min-w-0">
-            <p className="break-words font-heading text-base font-bold leading-6">{productTitle(group)}</p>
+            <p className="break-words font-heading text-base font-bold leading-6">
+              {productTitle(group)}
+            </p>
             <p className="truncate text-xs opacity-70">
               {titleCase(group.categoryName)} | {titleCase(group.subCategoryName)}
             </p>
@@ -215,7 +249,11 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
           <ProductImage group={group} imageUrl={pack.imageUrl} className="size-40 self-center" />
 
           {/* the panels: the first, and the godowns to its right */}
-          <div ref={box} className="overflow-hidden transition-[height] duration-300 motion-reduce:transition-none" style={{ height }}>
+          <div
+            ref={box}
+            className="overflow-hidden transition-[height] duration-300 motion-reduce:transition-none"
+            style={{ height }}
+          >
             <div
               className={cn(
                 "flex w-[200%] items-start transition-transform duration-300 ease-out motion-reduce:transition-none",
@@ -223,19 +261,31 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
               )}
             >
               {/* the first panel: the saved figures beside this sale's (room at the sides for the boxes' soft edges) */}
-              <div ref={mainRef} inert={pane !== "main"} className="flex w-1/2 min-w-0 flex-col gap-3 px-1 py-1">
+              <div
+                ref={mainRef}
+                inert={pane !== "main"}
+                className="flex w-1/2 min-w-0 flex-col gap-3 px-1 py-1"
+              >
                 <FiguresTable
                   headings={{ basis: t("basis"), current: t("current"), new: t("new") }}
                   rows={[
                     // no saved price: what a pack costs us with GST, to price above it (first, above the rate)
                     ...(pack.priceAfterGst == null && pack.weightedAverageCost != null
-                      ? [{ key: "cost", label: t("costGst"), current: rupees(round2(pack.weightedAverageCost * (1 + gst / 100))), input: <span /> }]
+                      ? [
+                          {
+                            key: "cost",
+                            label: t("costGst"),
+                            current: rupees(round2(pack.weightedAverageCost * (1 + gst / 100))),
+                            input: <span />,
+                          },
+                        ]
                       : []),
                     // the rate for one unit, with GST: typing it fills the price
                     {
                       key: "rate",
                       label: rateLabel,
-                      current: pack.priceAfterGst != null ? rupees(round2(list / unitsIn(pack))) : "–",
+                      current:
+                        pack.priceAfterGst != null ? rupees(round2(list / unitsIn(pack))) : "–",
                       input: (
                         // quiet: the price is the one to type; the rate follows it (and can still be typed)
                         <MoneyBox
@@ -246,7 +296,10 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                           onChange={(v) => {
                             setRateText(v);
                             const r = parseAmount(v);
-                            setDraft((d) => ({ ...d, newPrice: r === null ? "" : asField(round2(r * unitsIn(pack))) }));
+                            setDraft((d) => ({
+                              ...d,
+                              newPrice: r === null ? "" : asField(round2(r * unitsIn(pack))),
+                            }));
                           }}
                         />
                       ),
@@ -285,7 +338,10 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                               >
                                 {t("ordered")}
                                 <ChevronDown
-                                  className={cn("size-4 shrink-0 transition-transform", stockOpen && "rotate-180")}
+                                  className={cn(
+                                    "size-4 shrink-0 transition-transform",
+                                    stockOpen && "rotate-180",
+                                  )}
                                   aria-hidden
                                 />
                               </button>
@@ -305,7 +361,12 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                                       },
                                     ]
                                   : []),
-                                { key: "available", label: t("quantity"), current: available.toLocaleString("en-IN"), input: <span /> },
+                                {
+                                  key: "available",
+                                  label: t("quantity"),
+                                  current: available.toLocaleString("en-IN"),
+                                  input: <span />,
+                                },
                               ]
                             : []),
                         ]
@@ -323,7 +384,11 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
               </div>
 
               {/* the second panel: the godowns */}
-              <div ref={sideRef} inert={pane === "main"} className="flex w-1/2 min-w-0 flex-col gap-2 px-4 pb-1">
+              <div
+                ref={sideRef}
+                inert={pane === "main"}
+                className="flex w-1/2 min-w-0 flex-col gap-2 px-4 pb-1"
+              >
                 <button
                   ref={back}
                   type="button"
@@ -338,7 +403,9 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                   quantity={quantity}
                   parts={draft.godowns}
                   name={name}
-                  onPart={(godownId, v) => setDraft((d) => ({ ...d, godowns: { ...d.godowns, [godownId]: v } }))}
+                  onPart={(godownId, v) =>
+                    setDraft((d) => ({ ...d, godowns: { ...d.godowns, [godownId]: v } }))
+                  }
                 />
               </div>
             </div>
@@ -369,7 +436,9 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
           {/* the line's total: Price + GST × quantity */}
           <div className="flex items-baseline justify-between border-t border-chestnut/15 pt-2.5">
             <span className="text-sm">{t("lineTotal")}</span>
-            <b className="tabular font-heading text-2xl font-extrabold leading-[1.15]">{total > 0 ? rupees(total / 100) : "–"}</b>
+            <b className="tabular font-heading text-2xl font-extrabold leading-[1.15]">
+              {total > 0 ? rupees(total / 100) : "–"}
+            </b>
           </div>
 
           {/* Add to cart, or Save and Remove from cart for one already in it */}
@@ -397,7 +466,9 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
         body={
           <>
             <p>{t("sellBelowFact", { price: rupees(price), cost: rupees(costGst) })}</p>
-            <p className="mt-2 font-semibold text-chestnut">{t("sellBelowAsk", { loss: rupees(round2((costGst - price) * quantity)) })}</p>
+            <p className="mt-2 font-semibold text-chestnut">
+              {t("sellBelowAsk", { loss: rupees(round2((costGst - price) * quantity)) })}
+            </p>
           </>
         }
         confirmLabel={t("yes")}
@@ -435,7 +506,12 @@ function GodownRows({
   const left = quantity - placedNow;
   return (
     <div className="flex flex-col gap-1">
-      <SackMeter label={t("leftToPlace")} left={left} share={quantity > 0 ? (placedNow / quantity) * 100 : 0} done={quantity > 0 && left === 0} />
+      <SackMeter
+        label={t("leftToPlace")}
+        left={left}
+        share={quantity > 0 ? (placedNow / quantity) * 100 : 0}
+        done={quantity > 0 && left === 0}
+      />
       {/* the column names, then a row each: name left, what it holds in the middle, how many leave it right */}
       <div className="grid grid-cols-[minmax(0,1fr)_3.5rem_7.5rem] items-center gap-3 px-0.5 text-xs font-semibold opacity-60">
         <span>{t("godown")}</span>
@@ -454,7 +530,10 @@ function GodownRows({
           return (
             <div
               key={g.godownId}
-              className={cn("tabular grid min-h-12 grid-cols-[minmax(0,1fr)_3.5rem_7.5rem] items-center gap-3 px-0.5 py-1", g.counting && "opacity-40")}
+              className={cn(
+                "tabular grid min-h-12 grid-cols-[minmax(0,1fr)_3.5rem_7.5rem] items-center gap-3 px-0.5 py-1",
+                g.counting && "opacity-40",
+              )}
             >
               <span className="min-w-0">
                 <span className="block truncate text-sm font-semibold" title={g.name}>
@@ -462,7 +541,9 @@ function GodownRows({
                 </span>
                 {g.counting && <span className="block truncate text-xs">{t("beingCounted")}</span>}
               </span>
-              <span className="text-center text-sm font-semibold">{g.held.toLocaleString("en-IN")}</span>
+              <span className="text-center text-sm font-semibold">
+                {g.held.toLocaleString("en-IN")}
+              </span>
               <GodownStepper
                 value={parts[g.godownId] ?? ""}
                 max={most}

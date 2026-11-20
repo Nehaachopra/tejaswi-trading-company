@@ -111,6 +111,9 @@ export const saleForEditModel = z.object({
     cash: z.number(),
     tds: z.number(),
     banks: z.array(z.object({ bankName: z.string(), last4: z.string(), mode: z.string(), amount: z.number() })),
+    // a customer's: an advance set off against the bill when it was saved, and each later receipt's part of it
+    setOff: z.number(),
+    receipts: z.array(z.object({ assignedId: z.string(), amount: z.number() })),
   }),
   editBlockedBy: z.enum(["cancelled", "gstFiled"]).nullable(),
 });
