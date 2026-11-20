@@ -7,8 +7,21 @@ import { useId, useState } from "react";
 import { NumberInput } from "~/components/ui/number-input";
 import { cn } from "~/lib/utils";
 
-// how many: − and + at the two ends, the number between, chestnut (empty until typed; never above `max`)
-export function QuantityBox({ value, onChange, max, label }: { value: string; onChange: (v: string) => void; max: number; label: string }) {
+// how many: − and + at the two ends, the number between, chestnut (empty until typed; never above `max`); `autoFocus`:
+// the cursor starts in it when its card opens
+export function QuantityBox({
+  value,
+  onChange,
+  max,
+  label,
+  autoFocus = false,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  max: number;
+  label: string;
+  autoFocus?: boolean;
+}) {
   const t = useTranslations("transactions.sale");
   const quantity = Number(value) || 0;
   const set = (n: number) => onChange(String(Math.min(max, Math.max(1, n))));
@@ -21,6 +34,7 @@ export function QuantityBox({ value, onChange, max, label }: { value: string; on
           <Minus className="size-4" aria-hidden />
         </button>
         <NumberInput
+          autoFocus={autoFocus}
           value={value}
           maxDigits={5}
           placeholder="0"

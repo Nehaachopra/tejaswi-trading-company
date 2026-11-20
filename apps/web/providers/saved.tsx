@@ -30,6 +30,11 @@ export function useSavedOther(transactionId: string, enabled: boolean) {
   return trpc.transactions.other.get.useQuery({ transactionId }, { enabled });
 }
 
+// a drawing (money or goods)
+export function useSavedDrawing(transactionId: string, enabled: boolean) {
+  return trpc.transactions.drawing.get.useQuery({ transactionId }, { enabled });
+}
+
 // a salary or advance
 export function useSavedSalary(transactionId: string, enabled: boolean) {
   return trpc.transactions.salary.get.useQuery({ transactionId }, { enabled });

@@ -67,6 +67,9 @@ export const LEDGERS = {
   scrapSale: { group: "income", name: "scrap sale" },
   insuranceClaim: { group: "income", name: "insurance claim" },
   interestReceived: { group: "income", name: "interest received" },
+  // goods the owner takes home leave at cost through here (a drawing); kept under Income and listed under Expense too
+  // (counted once, in Income)
+  trading: { group: "income", name: "trading", alsoIn: "expense" },
 
   salary: { group: "expense", name: "salary" },
   purchase: { group: "expense", name: "purchase" },
@@ -89,6 +92,6 @@ export const LEDGERS = {
   interestPaid: { group: "expense", name: "interest paid" },
   // what a debtor or a borrower will never pay, written off from /dues
   badDebts: { group: "expense", name: "bad debts" },
-} as const satisfies Record<string, { group: GroupType; name: string; was?: string }>;
+} as const satisfies Record<string, { group: GroupType; name: string; was?: string; alsoIn?: GroupType }>;
 
 export type LedgerKey = keyof typeof LEDGERS;

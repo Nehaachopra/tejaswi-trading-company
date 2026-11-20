@@ -437,7 +437,11 @@ export default class AccountsService {
         head,
         total: asBalance(mine.reduce((sum, l) => sum + signed(l), 0)),
         masters,
-        ledgers: mine.filter((l) => l.masterKey === null && !(l.key !== null && GST_PAYABLE_KEYS.includes(l.key))),
+        // its own ledgers, then any kept under another head that it lists too (Trading under Expense), not in its total
+        ledgers: [
+          ...mine.filter((l) => l.masterKey === null && !(l.key !== null && GST_PAYABLE_KEYS.includes(l.key))),
+          ...ledgers.filter((l) => l.head !== head && l.key !== null && (LEDGERS[l.key as LedgerKey] as { alsoIn?: GroupType }).alsoIn === head),
+        ],
       };
     });
 

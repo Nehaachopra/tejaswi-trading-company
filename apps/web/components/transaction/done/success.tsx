@@ -14,6 +14,7 @@ import { usePickableBanks } from "~/providers/accounts";
 import {
   useMoneyHeld,
   useSavedDeposit,
+  useSavedDrawing,
   useSavedOther,
   useSavedPayment,
   useSavedReceipt,
@@ -34,7 +35,7 @@ export function ReceiptSuccess({
   also = [],
 }: {
   id: string;
-  flow?: "receipt" | "payment" | "deposit" | "withdrawal" | "transfer" | "other" | "salary";
+  flow?: "receipt" | "payment" | "deposit" | "withdrawal" | "transfer" | "other" | "salary" | "drawing";
   // salary paid to many in one save: the other payments' ids
   also?: string[];
 }) {
@@ -48,8 +49,12 @@ export function ReceiptSuccess({
   const ownTransfer = useTranslations("transactions.transfer.success");
   const ownOther = useTranslations("transactions.other.success");
   const ownSalary = useTranslations("transactions.salary.success");
+  const ownDrawing = useTranslations("transactions.drawing.success");
+  const tdr = useTranslations("transactions.drawing");
   const own =
-    flow === "deposit"
+    flow === "drawing"
+      ? ownDrawing
+      : flow === "deposit"
       ? ownDeposit
       : flow === "withdrawal"
         ? ownWithdrawal
@@ -81,6 +86,10 @@ export function ReceiptSuccess({
     isSalary && also.length > 0 && salaryGet.data && salaryMany.every((m) => m.data)
       ? [salaryGet.data, ...salaryMany.map((m) => m.data!)]
       : null;
+  // a drawing: money out of cash or one bank account, or goods at cost (no cash or bank: its cost and GST reversed)
+  const isDrawing = flow === "drawing";
+  const drawingGet = useSavedDrawing(id, isDrawing);
+  const dr = drawingGet.data;
   const receiptGet = useSavedReceipt(id, flow === "receipt");
   const paymentGet = useSavedPayment(id, isPayment);
   const depositGet = useSavedDeposit(id, flow === "deposit");
@@ -88,7 +97,9 @@ export function ReceiptSuccess({
   const transferGet = useSavedTransfer(id, flow === "transfer");
   const contraGet =
     flow === "withdrawal" ? withdrawalGet : flow === "transfer" ? transferGet : depositGet;
-  const asked = isSalary
+  const asked = isDrawing
+    ? drawingGet
+    : isSalary
     ? salaryGet
     : isOther
       ? otherGet
@@ -104,7 +115,16 @@ export function ReceiptSuccess({
   const receipt = {
     isPending: asked.isPending,
     isError: asked.isError,
-    data: isSalary
+    data: isDrawing
+      ? dr && {
+          assignedId: dr.assignedId,
+          bankDetailsId: dr.bank?.id ?? "",
+          // goods touch no cash or bank: nothing to show (as Others)
+          settledIn: dr.kind === "goods" ? ("none" as const) : dr.bank ? ("bank" as const) : ("cash" as const),
+          moreBankParts: [] as { bankDetailsId: string }[],
+          split: null,
+        }
+      : isSalary
       ? salaryGet.data && {
           assignedId: salaryGet.data.assignedId,
           bankDetailsId: salaryGet.data.bankDetailsId ?? "",
@@ -232,7 +252,7 @@ export function ReceiptSuccess({
                   <CopyButton value={receipt.data.assignedId} />
                 </span>
               </p>
-              {!isDeposit && !isOther && !isSalary && (
+              {!isDeposit && !isOther && !isSalary && !isDrawing && (
                 <Link
                   href={`/transaction/${flow}/${id}/voucher`}
                   className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-chestnut/50 px-4 text-sm font-semibold sm:w-auto"
@@ -260,6 +280,20 @@ export function ReceiptSuccess({
                 <span className="font-heading text-xl font-bold">
                   {rupees(receipt.data.split.advance)}
                 </span>
+              </p>
+            </div>
+          )}
+
+          {/* goods drawn: their cost and the GST reversed on them, a row each in one box */}
+          {dr && dr.kind === "goods" && (
+            <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
+              <p className="flex items-baseline justify-between gap-4 border-b border-chestnut/15 py-3">
+                <span className="text-sm font-semibold">{tdr("cost")}</span>
+                <span className="font-heading text-xl font-bold">{rupees(dr.cost)}</span>
+              </p>
+              <p className="flex items-baseline justify-between gap-4 py-3">
+                <span className="text-sm font-semibold">{tdr("gstReversed")}</span>
+                <span className="font-heading text-xl font-bold">{rupees(dr.itcReversal)}</span>
               </p>
             </div>
           )}

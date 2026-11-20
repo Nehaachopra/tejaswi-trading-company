@@ -46,10 +46,11 @@ import {
 } from "@repo/services/due/model";
 import { contraIdInputModel, contraModel, type ContraKind, createContraInputModel, createTransferInputModel, savedContraModel } from "@repo/services/contra/model";
 import { createOtherInputModel, otherIdInputModel, otherModel, savedOtherModel } from "@repo/services/other/model";
+import { createDrawingInputModel, drawingIdInputModel, drawingModel, savedDrawingModel } from "@repo/services/drawing/model";
 import { paySalariesInputModel, paySalaryInputModel, salaryEmployeeModel, salaryIdInputModel, salaryPaymentModel } from "@repo/services/salary/model";
 import { opensSale, opensVoucher, saleKey, voucherKey } from "@repo/services/transaction/share-link";
 
-import { accountsService, contraService, documentService, dueService, otherService, paymentService, purchaseService, receiptService, salaryService, saleService, settingService, transactionService } from "../../services";
+import { accountsService, contraService, documentService, drawingService, dueService, otherService, paymentService, purchaseService, receiptService, salaryService, saleService, settingService, transactionService } from "../../services";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 import { checkDate, limitSaves, onceFor } from "../../guards";
 
@@ -419,6 +420,29 @@ const transferRouter = router({
   ...contraReads("transfer"),
 });
 
+// drawings: what the owner takes out for themselves, money (cash or a bank account) or goods (from the godowns at
+// cost); the admin's only. Dated today or before, within the user's saves a minute, once per form
+const drawingRouter = router({
+  create: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/drawings", tags: ["transactions"] } })
+    .input(createDrawingInputModel)
+    .output(savedDrawingModel)
+    .mutation(({ ctx, input }) => {
+      checkDate(input.dateTime, ctx.session.user.role);
+      const save = () => {
+        limitSaves(ctx.session.user.id);
+        return drawingService.create(input, ctx.session.user);
+      };
+      return input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save();
+    }),
+
+  get: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/drawings/{transactionId}", tags: ["transactions"] } })
+    .input(drawingIdInputModel)
+    .output(drawingModel)
+    .query(({ input }) => drawingService.get(input)),
+});
+
 // Others: a journal entry for anything no other page covers; the admin's only
 const otherRouter = router({
   create: adminProcedure
@@ -498,6 +522,7 @@ export const transactionsRouter = router({
   deposit: contraRouter("deposit"),
   withdrawal: contraRouter("withdrawal"),
   transfer: transferRouter,
+  drawing: drawingRouter,
   other: otherRouter,
   salary: salaryRouter,
   due: dueRouter,

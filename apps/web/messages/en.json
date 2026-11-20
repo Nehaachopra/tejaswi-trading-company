@@ -780,7 +780,8 @@
       "wifi": "Wifi expense",
       "scrapSale": "Scrap sale",
       "insuranceClaim": "Insurance claim",
-      "interestReceived": "Interest received"
+      "interestReceived": "Interest received",
+      "trading": "Trading"
     },
     "party": {
       "titles": {
@@ -1311,6 +1312,7 @@
         "capital": "Capital introduced",
         "refund": "Refund received",
         "interestReceived": "Interest received",
+        "trading": "Trading",
         "advance": "Advance received",
         "scrap": "Dust from cleaning rice (scrap)"
       },
@@ -2206,6 +2208,48 @@
       "advanceLeft": "Advance left",
       "rate": "Rate",
       "pricePer": "Price / {unit}"
+    },
+    "drawing": {
+      "title": "Drawing",
+      "loadFailed": "Couldn't load the products and accounts. Check your connection and try again.",
+      "steps": {
+        "kind": "What",
+        "amount": "Amount",
+        "products": "Products",
+        "details": "Details"
+      },
+      "kinds": {
+        "money": "Money",
+        "goods": "Goods"
+      },
+      "missing": {
+        "kind": "Pick money or goods.",
+        "amount": "Enter the amount.",
+        "from": "Pick where it's taken from.",
+        "products": "Add a product."
+      },
+      "takenFrom": "Taken from",
+      "capOnly": "Only {amount} can be taken.",
+      "cost": "Cost",
+      "costPer": "Cost / pack",
+      "gstPer": "GST reversed / pack",
+      "gstReversed": "GST reversed",
+      "lineTotal": "Total",
+      "inStock": "In stock",
+      "hintQuantity": "Enter how many.",
+      "hintGodowns": "Pick the godowns they leave from.",
+      "noCost": "No cost yet",
+      "saving": "Saving…",
+      "save": "Save drawing",
+      "errors": {
+        "cash": "That's more than there is now. Check the amount.",
+        "failed": "Couldn't save the drawing. Try again."
+      },
+      "success": {
+        "title": "Drawing successfully created",
+        "loading": "Loading the drawing…",
+        "loadError": "Couldn't load the drawing. Check your connection and try again."
+      }
     }
   },
   "dues": {

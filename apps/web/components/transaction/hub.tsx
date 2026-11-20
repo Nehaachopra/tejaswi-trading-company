@@ -54,7 +54,7 @@ const GROUPS: { key: string; kinds: Kind[] }[] = [
   {
     key: "admin",
     kinds: [
-      { key: "drawing", icon: HandCoins, adminOnly: true },
+      { key: "drawing", icon: HandCoins, adminOnly: true, href: "/transaction/drawing" },
       { key: "others", icon: BookOpen, adminOnly: true, href: "/transaction/other" },
     ],
   },
