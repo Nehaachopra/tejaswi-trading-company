@@ -142,7 +142,8 @@ export default class SaleOrderService {
           subtotal: fromPaise(p.subtotal),
           discountAmount: fromPaise(p.off),
           gstAmount: fromPaise(p.gst),
-          totalAmount: fromPaise(p.total),
+          // rounded to the rupee, as a sale's (the round off is the difference, worked out where it's shown)
+          totalAmount: fromPaise(Math.round(p.total / 100) * 100),
         })
         .returning({ id: saleOrdersTable.id });
       await tx.insert(saleOrderProductsTable).values(
@@ -212,7 +213,8 @@ export default class SaleOrderService {
           subtotal: fromPaise(p.subtotal),
           discountAmount: fromPaise(p.off),
           gstAmount: fromPaise(p.gst),
-          totalAmount: fromPaise(p.total),
+          // rounded to the rupee, as a sale's (the round off is the difference, worked out where it's shown)
+          totalAmount: fromPaise(Math.round(p.total / 100) * 100),
           // already all gone out (items cut to what went): done
           status: input.lines.every((l) => (went.get(l.productId) ?? 0) >= l.quantity) ? "completed" : "pending",
         })

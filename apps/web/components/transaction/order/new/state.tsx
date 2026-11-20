@@ -147,8 +147,11 @@ export function useOrderEntryState({
   // before the discount
   const withGst = (subtotal + tax) / 100;
   const discountValue = off / 100;
-  // what the order comes to
-  const total = (subtotal + tax - off) / 100;
+  // what the order comes to, rounded to the rupee (the difference is Round off), as the server does
+  const figured = subtotal + tax - off;
+  const totalPaise = Math.round(figured / 100) * 100;
+  const roundOff = (totalPaise - figured) / 100;
+  const total = totalPaise / 100;
   // the table's total: the items with GST, before the discount
   const linesTotal = figures.reduce((a, f) => a + f.total, 0) / 100;
   const lineOk = (l: OrderLine) => (Number(l[l.from]) || 0) > 0 && (Number(l.quantity) || 0) >= 1;
@@ -362,6 +365,7 @@ export function useOrderEntryState({
     discountValue,
     gstValue,
     withGst,
+    roundOff,
     total,
     linesTotal,
     supplierPick,

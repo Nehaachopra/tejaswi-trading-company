@@ -1731,7 +1731,8 @@
         "repaid": "Repaid",
         "expense": "Expense",
         "gstRow": "GST {rate}%",
-        "expenseWithGst": "Expense + GST"
+        "expenseWithGst": "Expense + GST",
+        "summaryType": "Type"
       }
     },
     "tdsTypes": {
@@ -2067,6 +2068,7 @@
       "change": "Change",
       "close": "Close",
       "belowCost": "This is below what a pack costs.",
+      "roundOff": "Round off",
       "sellBelowTitle": "Sell at a loss?",
       "sellBelowFact": "Price {price} is less than cost {cost}.",
       "sellBelowAsk": "Do you want to sell at a loss of {loss}?",
@@ -2201,7 +2203,9 @@
       "current": "Current",
       "new": "New",
       "leftDue": "Due left",
-      "advanceLeft": "Advance left"
+      "advanceLeft": "Advance left",
+      "rate": "Rate",
+      "pricePer": "Price / {unit}"
     }
   },
   "dues": {
@@ -2410,7 +2414,8 @@
       "items": "Price before GST",
       "discount": "Discount",
       "gst": "Total GST",
-      "total": "Price after GST"
+      "total": "Price after GST",
+      "roundOff": "Round off"
     },
     "searchSupplier": "Search supplier",
     "noSupplierMatch": "No supplier matches.",
@@ -2489,7 +2494,8 @@
       "computerGenerated": "This is a computer generated order.",
       "signatory": "Authorised Signatory",
       "titleSale": "Sale Order",
-      "whatsAppMessageSale": "Sale order {number} for ₹{amount} from {company}: {url}"
+      "whatsAppMessageSale": "Sale order {number} for ₹{amount} from {company}: {url}",
+      "roundOff": "Round off"
     },
     "available": "Available quantity",
     "onlyAvailable": "Only {n} are free to order.",
@@ -2571,8 +2577,13 @@
       "discount": "Discount",
       "gst": "GST",
       "total": "Total",
-      "edited": "Edited by {name}"
+      "edited": "Edited by {name}",
+      "roundOff": "Round off"
     },
-    "newProduct": "New product"
+    "newProduct": "New product",
+    "rate": "Rate",
+    "pricePer": "Price / {unit}",
+    "typePurchase": "Purchase order",
+    "typeSale": "Sale order"
   }
 }

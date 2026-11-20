@@ -223,10 +223,14 @@ export function useSaleEntryState({
   const itemsTotal = itemsPaise / 100;
   const paise = (v: string) => Math.round((parseAmount(v) ?? 0) * 100);
   const chargesPaise = paise(transport) + paise(packing) + paise(loadingCharges);
-  // the bill before the cash discount, the discount (never more than the bill) and what's to be received
+  // the bill before the cash discount, the discount (never more than the bill), then what's to be received rounded to
+  // the rupee (the difference is Round off), as the server does
   const grossPaise = itemsPaise + chargesPaise;
   const offPaise = Math.min(paise(discount), grossPaise);
-  const total = (grossPaise - offPaise) / 100;
+  const figuredPaise = grossPaise - offPaise;
+  const totalPaise = Math.round(figuredPaise / 100) * 100;
+  const roundOff = (totalPaise - figuredPaise) / 100;
+  const total = totalPaise / 100;
 
   // a dispatch on a sale order: the order's discount for what goes now (each item's share, by the part of it that
   // goes) fills the Discount box, again whenever the cart changes, until a discount is typed: then it's left as typed
@@ -706,6 +710,7 @@ export function useSaleEntryState({
     loadingCharges,
     setLoadingCharges,
     grossTotal: grossPaise / 100,
+    roundOff,
     total,
     taxable,
     buyerNeeded,

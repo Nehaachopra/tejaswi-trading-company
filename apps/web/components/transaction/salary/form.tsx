@@ -92,6 +92,7 @@ function SalaryEntryView() {
 
   const lines = (
     <SummaryLines<SalaryStep>
+      type={t("title")}
       items={summary}
       current={current}
       reachable={reachable}

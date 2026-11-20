@@ -53,6 +53,7 @@ function ContraEntryView() {
 
   const lines = (
     <SummaryLines<ContraStep>
+      type={t("title")}
       items={summary}
       current={current}
       reachable={reachable}

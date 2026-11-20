@@ -7,7 +7,7 @@ import { dayInWords } from "~/components/ui/date-input";
 import { PurchaseOrderDataProvider } from "~/providers/purchase-order";
 
 import { partyLabel } from "../../../account/party/party-kinds";
-import { packLabel, titleCase } from "~/lib/format";
+import { packLabel, rupees, titleCase } from "~/lib/format";
 import { ProductImage, productTitle } from "../../../product/products/product-tile";
 import {
   EntryNote,
@@ -93,6 +93,7 @@ function OrderEntryView() {
     show,
     next,
     editing,
+    figures,
   } = useOrderEntry();
   // an order being changed says so
   const title = editing ? t("edit.title") : t(kind === "sale" ? "titleSale" : "titlePurchase");
@@ -117,13 +118,15 @@ function OrderEntryView() {
       key: "products",
       step: "products",
       heading: stepName("products"),
-      value: lines.flatMap((l) => {
+      // each item: its name with ×quantity beside it (muted), its total (price × quantity, with GST) at the end
+      value: lines.flatMap((l, i) => {
         const found = packOf(l.productId);
         if (!found) return [];
         return [
           {
             name: `${productTitle(found.group)} ${packLabel(found.pack.packSize, found.pack.packSizeCode, found.pack.packCount)}`,
-            amount: Number(l.quantity || 0).toLocaleString("en-IN"),
+            middle: `×${Number(l.quantity || 0).toLocaleString("en-IN")}`,
+            amount: rupees((figures[i]?.total ?? 0) / 100),
             image: <ProductImage group={found.group} imageUrl={found.pack.imageUrl} className="size-8 rounded-md text-xs" />,
           },
         ];
@@ -142,6 +145,7 @@ function OrderEntryView() {
   ];
   const linesView = (
     <SummaryLines<OrderStep>
+      type={t(kind === "sale" ? "typeSale" : "typePurchase")}
       items={summary}
       current={current}
       reachable={reachable}

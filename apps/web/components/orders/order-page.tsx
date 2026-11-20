@@ -49,6 +49,10 @@ const timeOf = (d: Date, locale: string) =>
 // sizes, Remaining over a bar, and a History fold of each sale or purchase that moved it); the address (name, phone, address);
 // the amount; the history, newest first (each sale or purchase, each edit, the order placed, a cancel); and Cancel order for the admin while
 // it's pending. Each dispatch is its own sale (or arrival its own purchase), so there's no amount here
+// what rounding an order's total to the rupee added (+) or took off (−): the total less the items, discount and GST
+const roundOffOf = (o: { subtotal: number; orderDiscount: number; gstAmount: number; totalAmount: number }) =>
+  Math.round((o.totalAmount - (o.subtotal - o.orderDiscount + o.gstAmount)) * 100) / 100;
+
 export function OrderPage({
   kind,
   id,
@@ -310,6 +314,13 @@ export function OrderPage({
               <span className="opacity-70">{t("gst")}</span>
               <span className="font-semibold">{rupees(o.gstAmount)}</span>
             </p>
+            {/* the total is rounded to the rupee: what that added or took off */}
+            {roundOffOf(o) !== 0 && (
+              <p className="flex items-baseline justify-between gap-3">
+                <span className="opacity-70">{t("roundOff")}</span>
+                <span className="font-semibold">{roundOffOf(o) > 0 ? "+" : "−"} {rupees(Math.abs(roundOffOf(o)))}</span>
+              </p>
+            )}
             <p className="flex items-baseline justify-between gap-3 border-t border-chestnut/15 pt-2.5">
               <span className="font-semibold">{t("total")}</span>
               <span className="font-heading text-lg font-bold">{rupees(o.totalAmount)}</span>

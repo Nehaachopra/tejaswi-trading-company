@@ -102,6 +102,7 @@ function ReceiptEntryView() {
 
   const lines = (
     <SummaryLines
+      type={tr("title")}
       items={summary}
       current={current}
       reachable={reachable}

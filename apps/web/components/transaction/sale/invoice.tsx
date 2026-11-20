@@ -78,13 +78,16 @@ export function SaleInvoice({ id, shareKey }: { id: string; shareKey?: string })
   const chargeSum = (pick: (c: (typeof charges)[number]) => number) => charges.reduce((a, c) => add(a, pick(c)), 0);
   // the table's Total: the items and the charges, with their GST
   const tableTotal = add(itemsTotal, chargeSum((c) => c.total));
-  // under the table: the cash discount off (after GST, which stays on the full value); the amount closes it. Total
-  // first, when something comes off
+  // under the table: the cash discount off (after GST, which stays on the full value), then the round off (the amount
+  // rounded to the rupee); the amount closes it. Total first, when either changes it
   const breakup =
-    d.discount > 0
+    d.discount > 0 || d.roundOff !== 0
       ? [
           { key: "total", label: t("total"), value: `₹${money(tableTotal)}` },
-          { key: "discount", label: ts("discount"), value: `− ₹${money(d.discount)}` },
+          ...(d.discount > 0 ? [{ key: "discount", label: ts("discount"), value: `− ₹${money(d.discount)}` }] : []),
+          ...(d.roundOff !== 0
+            ? [{ key: "roundOff", label: ts("roundOff"), value: `${d.roundOff > 0 ? "+" : "−"} ₹${money(Math.abs(d.roundOff))}` }]
+            : []),
         ]
       : [];
 

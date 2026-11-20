@@ -73,9 +73,7 @@ export const purchaseOrdersTable = pgTable(
       "purchase_orders_total_consistent",
       sql`
         ${table.totalAmount} =
-        ${table.subtotal}
-        - ${table.discountAmount}
-        + ${table.gstAmount}
+        ROUND(${table.subtotal} - ${table.discountAmount} + ${table.gstAmount})
       `,
     ),
   ],

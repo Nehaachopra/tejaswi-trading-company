@@ -1731,7 +1731,8 @@
         "repaid": "ಮರುಪಾವತಿಸಿದ್ದು",
         "expense": "ವೆಚ್ಚ",
         "gstRow": "GST {rate}%",
-        "expenseWithGst": "GST ಸಹಿತ ವೆಚ್ಚ"
+        "expenseWithGst": "GST ಸಹಿತ ವೆಚ್ಚ",
+        "summaryType": "ಪ್ರಕಾರ"
       }
     },
     "tdsTypes": {
@@ -2067,6 +2068,7 @@
       "change": "ಬದಲಿಸಿ",
       "close": "ಮುಚ್ಚಿ",
       "belowCost": "ಇದು ಒಂದು ಪ್ಯಾಕ್‌ನ ವೆಚ್ಚಕ್ಕಿಂತ ಕಡಿಮೆ.",
+      "roundOff": "ರೌಂಡ್ ಆಫ್",
       "sellBelowTitle": "ನಷ್ಟಕ್ಕೆ ಮಾರಬೇಕೆ?",
       "sellBelowFact": "ಬೆಲೆ {price} ವೆಚ್ಚ {cost} ಗಿಂತ ಕಡಿಮೆ.",
       "sellBelowAsk": "{loss} ನಷ್ಟಕ್ಕೆ ಮಾರಬೇಕೆ?",
@@ -2201,7 +2203,9 @@
       "current": "ಈಗಿನ",
       "new": "ಹೊಸ",
       "leftDue": "ಉಳಿದ ಬಾಕಿ",
-      "advanceLeft": "ಉಳಿದ ಮುಂಗಡ"
+      "advanceLeft": "ಉಳಿದ ಮುಂಗಡ",
+      "rate": "ದರ",
+      "pricePer": "ಬೆಲೆ / {unit}"
     }
   },
   "dues": {
@@ -2410,7 +2414,8 @@
       "items": "GST ಮೊದಲು ಬೆಲೆ",
       "discount": "ರಿಯಾಯಿತಿ",
       "gst": "ಒಟ್ಟು GST",
-      "total": "GST ನಂತರ ಬೆಲೆ"
+      "total": "GST ನಂತರ ಬೆಲೆ",
+      "roundOff": "ರೌಂಡ್ ಆಫ್"
     },
     "searchSupplier": "ಸರಬರಾಜುದಾರರನ್ನು ಹುಡುಕಿ",
     "noSupplierMatch": "ಯಾವ ಸರಬರಾಜುದಾರರೂ ಸಿಗಲಿಲ್ಲ.",
@@ -2489,7 +2494,8 @@
       "computerGenerated": "ಇದು ಕಂಪ್ಯೂಟರ್‌ನಿಂದ ತಯಾರಾದ ಆರ್ಡರ್.",
       "signatory": "ಅಧಿಕೃತ ಸಹಿದಾರ",
       "titleSale": "ಮಾರಾಟ ಆರ್ಡರ್",
-      "whatsAppMessageSale": "{company} ಅವರ ಮಾರಾಟ ಆರ್ಡರ್ {number}, ₹{amount}: {url}"
+      "whatsAppMessageSale": "{company} ಅವರ ಮಾರಾಟ ಆರ್ಡರ್ {number}, ₹{amount}: {url}",
+      "roundOff": "ರೌಂಡ್ ಆಫ್"
     },
     "available": "ಲಭ್ಯ ಪ್ರಮಾಣ",
     "onlyAvailable": "ಕೇವಲ {n} ಆರ್ಡರ್‌ಗೆ ಲಭ್ಯವಿದೆ.",
@@ -2571,8 +2577,13 @@
       "discount": "ರಿಯಾಯಿತಿ",
       "gst": "GST",
       "total": "ಒಟ್ಟು",
-      "edited": "{name} ತಿದ್ದಿದ್ದು"
+      "edited": "{name} ತಿದ್ದಿದ್ದು",
+      "roundOff": "ರೌಂಡ್ ಆಫ್"
     },
-    "newProduct": "ಹೊಸ ಉತ್ಪನ್ನ"
+    "newProduct": "ಹೊಸ ಉತ್ಪನ್ನ",
+    "rate": "ದರ",
+    "pricePer": "ಬೆಲೆ / {unit}",
+    "typePurchase": "ಖರೀದಿ ಆರ್ಡರ್",
+    "typeSale": "ಮಾರಾಟ ಆರ್ಡರ್"
   }
 }

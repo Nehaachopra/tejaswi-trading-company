@@ -223,6 +223,7 @@ export const saleInvoiceModel = z.object({
   sgst: z.number(),
   igst: z.number(),
   discount: z.number(),
+  roundOff: z.number(),
   total: z.number(),
   createdByName: z.string(),
 });

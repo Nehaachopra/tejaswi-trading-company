@@ -200,13 +200,15 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                     key: "rate",
                     label: rateLabel,
                     current: onOrder ? rupees(Math.round((Number(orderCost(pack.productId)) / unitsIn(pack)) * 100) / 100) : "",
-                    input: <MoneyBox autoFocus={!saved} value={draft.unitGst} maxDigits={6} onChange={(v) => setFigure("unitGst", v)} label={rateLabel} />,
+                    // quiet: Cost + GST is the one to type; the rate follows it (and can still be typed)
+                    input: <MoneyBox quiet value={draft.unitGst} maxDigits={6} onChange={(v) => setFigure("unitGst", v)} label={rateLabel} />,
                   },
                   {
                     key: "price",
                     label: t("costGst"),
                     current: onOrder ? rupees(Number(orderCost(pack.productId))) : "",
-                    input: <MoneyBox value={draft.priceGst} maxDigits={7} onChange={(v) => setFigure("priceGst", v)} label={t("costGst")} />,
+                    // the cursor starts here whenever the card opens
+                    input: <MoneyBox autoFocus value={draft.priceGst} maxDigits={7} onChange={(v) => setFigure("priceGst", v)} label={t("costGst")} />,
                   },
                   // from an order: Ordered, how many it still waits for beside the box (it starts at 0); its ⌄
                   // shows what's in stock now. Otherwise just Quantity

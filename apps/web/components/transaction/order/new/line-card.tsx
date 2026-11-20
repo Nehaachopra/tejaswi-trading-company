@@ -1,7 +1,7 @@
 "use client";
 import { unitsIn } from "~/lib/price";
 
-import { X } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -71,7 +71,8 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   const [over, setOver] = useState(false);
   const close = () => setCardFor(null);
   const name = `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}`;
-  const rateLabel = t(sale ? "ratePer" : "costPer", { unit: units(pack.packSizeCode) });
+  // a unit's price (a sale order) or cost (a purchase order) with GST: "Price / kg", "Cost / kg"
+  const rateLabel = t(sale ? "pricePer" : "costPer", { unit: units(pack.packSizeCode) });
 
   // the page behind doesn't scroll, and Escape closes
   useEffect(() => {
@@ -102,8 +103,9 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
 
   // the New column: the two ₹ boxes (rate or cost per unit, price or cost + GST) and the quantity
   const rateBox = (
+    // quiet: the price is the one to type; the rate follows it (and can still be typed)
     <MoneyBox
-      autoFocus={!saved && !sale}
+      quiet
       value={draft.unitGst}
       maxDigits={6}
       onChange={(v) => setFigure("unitGst", v)}
@@ -111,7 +113,9 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
     />
   );
   const priceBox = (
+    // the cursor starts here whenever the card opens
     <MoneyBox
+      autoFocus
       value={draft.priceGst}
       maxDigits={7}
       onChange={(v) => setFigure("priceGst", v)}
@@ -157,19 +161,31 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
         aria-label={name}
         className="on-ivory flex w-[min(340px,100%)] animate-zoom-in flex-col gap-2 rounded-control bg-ivory p-4 text-chestnut shadow-[0_12px_40px_rgba(0,0,0,0.4)]"
       >
-        {/* pack quantity and ✕ on top*/}
+        {/* pack chip on top; on the right, for one already on the order (none of it moved yet) a bin (takes it off),
+            then ✕ */}
         <div className="flex justify-between">
           <span className="tabular inline-flex min-h-8 w-fit items-center rounded-control border border-chestnut bg-chestnut px-2.5 text-xs font-semibold text-ivory">
             {packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}
           </span>
-          <button
-            type="button"
-            onClick={close}
-            aria-label={t("close")}
-            className="grid place-items-center rounded-control hover:bg-chestnut/8 p-2"
-          >
-            <X className="size-5" aria-hidden />
-          </button>
+          <span className="flex items-center">
+            {saved && moved === 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  removeLine(pack.productId);
+                  close();
+                }}
+                aria-label={t("removeFromOrder")}
+                title={t("removeFromOrder")}
+                className="grid place-items-center rounded-control p-2 text-danger hover:bg-danger/[0.08]"
+              >
+                <Trash2 className="size-5" aria-hidden />
+              </button>
+            )}
+            <button type="button" onClick={close} aria-label={t("close")} className="grid place-items-center rounded-control p-2 hover:bg-chestnut/8">
+              <X className="size-5" aria-hidden />
+            </button>
+          </span>
         </div>
 
         {/* the product card's top: the name, category | sub-category, the photo */}
@@ -239,19 +255,6 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
           >
             {saved ? t("saveLine") : t("addToOrder")}
           </button>
-          {/* (not for one with some already moved) */}
-          {saved && moved === 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                removeLine(pack.productId);
-                close();
-              }}
-              className="min-h-11 w-full rounded-control border border-chestnut/35 text-sm font-semibold text-danger hover:bg-chestnut/[0.06]"
-            >
-              {t("removeFromOrder")}
-            </button>
-          )}
         </div>
       </section>
     </div>,

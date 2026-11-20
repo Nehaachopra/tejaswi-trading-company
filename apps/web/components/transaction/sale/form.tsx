@@ -166,6 +166,7 @@ function SaleEntryView() {
   ];
   const linesView = (
     <SummaryLines<SaleStep>
+      type={t("title")}
       items={summary}
       current={current}
       reachable={reachable}

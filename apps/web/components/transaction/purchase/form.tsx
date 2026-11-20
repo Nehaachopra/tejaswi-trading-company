@@ -153,6 +153,7 @@ function PurchaseEntryView() {
   ];
   const linesView = (
     <SummaryLines<PurchaseStep>
+      type={t("title")}
       items={summary}
       current={current}
       reachable={reachable}

@@ -169,7 +169,10 @@ export default class SaleService {
       const gross = priced.subtotal + priced.gst + charges;
       const off = toPaise(input.discount);
       if (off > gross) throw new TRPCError({ code: "BAD_REQUEST", message: "The discount can't be more than the bill." });
-      const total = gross - off;
+      // the total, rounded to the rupee (as a purchase's): the difference is the round off, which goes into Sale
+      const figured = gross - off;
+      const total = Math.round(figured / 100) * 100;
+      const roundOff = total - figured;
       // a cash sale from ₹50,000 taxable value names its buyer (name and phone)
       if (input.kind === "cash" && input.customerLedgerId === null && priced.subtotal + chargeTaxable >= NAMED_BUYER_FROM * 100 && (!input.buyer?.name || !input.buyer.phone)) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Give the buyer's name and phone from ₹50,000." });
@@ -244,10 +247,10 @@ export default class SaleService {
       } else {
         lines.push({ ledgerId: customer!.ledgerId, side: "debit", amount: total / 100 });
       }
-      // Sale up by the items' and charges' value before GST, the GST owed up by the rest; the cash discount given is
-      // an expense
+      // Sale up by the items' and charges' value before GST and the round off (the GST stays exact), the GST owed up by
+      // the rest; the cash discount given is an expense
       if (off > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "discountGiven"), side: "debit", amount: off / 100 });
-      lines.push({ ledgerId: await this.accounts.ledgerId(tx, "sale"), side: "credit", amount: (priced.subtotal + chargeTaxable) / 100 });
+      lines.push({ ledgerId: await this.accounts.ledgerId(tx, "sale"), side: "credit", amount: (priced.subtotal + chargeTaxable + roundOff) / 100 });
       if (cgst > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "outputCgst"), side: "credit", amount: cgst / 100 });
       if (sgst > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "outputSgst"), side: "credit", amount: sgst / 100 });
       if (igst > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "outputIgst"), side: "credit", amount: igst / 100 });
@@ -535,6 +538,9 @@ export default class SaleService {
       sgst: (intra ? gstAll - cgst : 0) / 100,
       igst: (intra ? 0 : gstAll) / 100,
       discount: Number(s.discountAmount),
+      // what rounding the total to the rupee added (+) or took off (−): the total less the items (value and GST), the
+      // charges (GST in them) and the discount
+      roundOff: (toPaise(Number(t.amount)) - (toPaise(Number(s.subtotal)) + chargesAll + gstAll - chargeGst - toPaise(Number(s.discountAmount)))) / 100,
       total: Number(t.amount),
       createdByName: t.createdByName ?? "",
     };

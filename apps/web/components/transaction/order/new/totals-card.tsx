@@ -13,7 +13,7 @@ const figure = "shrink-0 whitespace-nowrap text-base font-semibold";
 // the Amount card: the items' price before GST, the discount (typed, never more than that price), the GST, and the
 // price after GST
 export function TotalsCard() {
-  const { t, itemsValue, discount, setDiscount, gstValue, total } = useOrderEntry();
+  const { t, itemsValue, discount, setDiscount, gstValue, roundOff, total } = useOrderEntry();
 
   // the discount, cut at the items' price while typing
   const typeDiscount = (v: string) => setDiscount(Number(v) > itemsValue ? String(itemsValue) : v);
@@ -46,6 +46,14 @@ export function TotalsCard() {
         <span className="min-w-0">{t("totals.gst")}</span>
         <span className={figure}>{rupees(gstValue)}</span>
       </div>
+
+      {/* the total is rounded to the rupee: what that adds or takes off */}
+      {roundOff !== 0 && (
+        <div className={row}>
+          <span className="min-w-0">{t("totals.roundOff")}</span>
+          <span className={figure}>{roundOff > 0 ? `+ ${rupees(roundOff)}` : `− ${rupees(-roundOff)}`}</span>
+        </div>
+      )}
 
       {/* the price after GST: a line above, as under a sum; bold and larger */}
       <div className={cn(row, "border-t border-chestnut/30 pt-3")}>

@@ -243,22 +243,30 @@ export function SummaryCard({
 // a line for each card answered (one left empty has none); a line goes back to its card, up to the first one not yet
 // filled in
 export function SummaryLines<S extends string>({
+  type,
   items,
   current,
   reachable,
   onPick,
 }: {
+  // what kind of transaction it is ("Sale", "Purchase order"): the first line, Type over it
+  type: string;
   items: SummaryItem<S>[];
   current: S;
   reachable: (s: S) => boolean;
   onPick: (s: S) => void;
 }) {
+  const t = useTranslations("transactions.payment.form");
   const lines = items.filter(
     (l) => l.value !== null && l.value !== "" && !(Array.isArray(l.value) && l.value.length === 0),
   );
-  if (lines.length === 0) return null;
   return (
     <dl className="flex flex-col border-t border-chestnut/15">
+      {/* the transaction's type, always first: Type, and under it what it is, as the other lines */}
+      <div className="flex flex-col items-start gap-0.5 border-b border-chestnut/15 py-2">
+        <dt className="text-[0.65rem] font-semibold uppercase tracking-[0.08em] opacity-60">{t("summaryType")}</dt>
+        <dd className="w-full truncate font-semibold">{type}</dd>
+      </div>
       {lines.map((l) => (
         <button
           key={l.key}

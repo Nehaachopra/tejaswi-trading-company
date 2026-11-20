@@ -185,22 +185,21 @@ export default class PurchaseService {
     const gross = itemsValue + charges + priced.reduce((a, p) => a + p.gst, 0);
     const off = toPaise(input.discount);
     if (off > gross) throw new TRPCError({ code: "BAD_REQUEST", message: "The discount can't be more than the bill." });
-    // the total, rounded to the rupee: the difference to Round off
+    // the total, rounded to the rupee: the difference is the round off, which goes into Purchase (the GST stays exact)
     const figured = gross - off;
     const total = Math.round(figured / 100) * 100;
     const roundOff = total - figured;
 
-    // what it posts: Purchase up by the items' and charges' value, the GST we can claim up, the cash discount as
-    // income, the round off; the supplier owed the total. Cash: what's paid now off the supplier, out of cash and banks
+    // what it posts: Purchase up by the items' and charges' value and the round off, the GST we can claim up, the cash
+    // discount as income; the supplier owed the total. Cash: what's paid now off the supplier, out of cash and banks
     const lines: PostingLine[] = [
-      { ledgerId: await this.accounts.ledgerId(tx, "purchase"), side: "debit", amount: (itemsValue + chargeTaxable) / 100 },
+      { ledgerId: await this.accounts.ledgerId(tx, "purchase"), side: "debit", amount: (itemsValue + chargeTaxable + roundOff) / 100 },
       { ledgerId: supplier.ledgerId, side: "credit", amount: total / 100 },
     ];
     if (cgst > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "inputCgst"), side: "debit", amount: cgst / 100 });
     if (sgst > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "inputSgst"), side: "debit", amount: sgst / 100 });
     if (igst > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "inputIgst"), side: "debit", amount: igst / 100 });
     if (off > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "discountReceived"), side: "credit", amount: off / 100 });
-    if (roundOff !== 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "roundOff"), side: roundOff > 0 ? "debit" : "credit", amount: Math.abs(roundOff) / 100 });
 
     // cash: what's paid now (an advance with them set off first, as much as the bill takes): any part of what's due,
     // this bill and their older dues, or more (an advance with them), each part no more than cash or that account holds

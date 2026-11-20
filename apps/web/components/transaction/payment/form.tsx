@@ -145,6 +145,7 @@ function PaymentEntryView() {
     }));
   const lines = (
     <SummaryLines
+      type={tp("title")}
       items={items}
       current={current}
       reachable={reachable}

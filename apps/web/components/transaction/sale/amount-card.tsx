@@ -20,7 +20,7 @@ const amountBox = "min-h-12 pl-11 font-heading text-xl font-bold tabular text-ri
 // transport, packing and loading charges, then To receive / Total in the chestnut box right under them. Half the card
 // wide on a wider screen, as a payment's amount
 export function AmountCard() {
-  const { t, itemsTotal, discount, setDiscount, transport, setTransport, packing, setPacking, loadingCharges, setLoadingCharges, grossTotal, total } =
+  const { t, itemsTotal, discount, setDiscount, transport, setTransport, packing, setPacking, loadingCharges, setLoadingCharges, grossTotal, roundOff, total } =
     useSaleEntry();
   // the discount cut at the bill: it says so (until typed again)
   const [cut, setCut] = useState(false);
@@ -68,6 +68,13 @@ export function AmountCard() {
           )}
         </div>
       ))}
+      {/* the total is rounded to the rupee: what that adds or takes off */}
+      {roundOff !== 0 && (
+        <div className="tabular flex items-baseline justify-between gap-3 text-sm">
+          <span className="min-w-0">{t("roundOff")}</span>
+          <span className="shrink-0 whitespace-nowrap font-semibold">{roundOff > 0 ? `+ ${rupees(roundOff)}` : `− ${rupees(-roundOff)}`}</span>
+        </div>
+      )}
       {/* what's to be received, in the chestnut box, under a line */}
       <div className={cn(row, "mt-1 border-t border-chestnut/30 pt-2.5")}>
         <span className="min-w-0 text-sm font-bold">{t("toReceive")}</span>

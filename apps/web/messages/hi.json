@@ -1731,7 +1731,8 @@
         "repaid": "चुकाया",
         "expense": "खर्च",
         "gstRow": "GST {rate}%",
-        "expenseWithGst": "GST सहित खर्च"
+        "expenseWithGst": "GST सहित खर्च",
+        "summaryType": "प्रकार"
       }
     },
     "tdsTypes": {
@@ -2067,6 +2068,7 @@
       "change": "बदलें",
       "close": "बंद करें",
       "belowCost": "यह एक पैक की लागत से कम है।",
+      "roundOff": "राउंड ऑफ",
       "sellBelowTitle": "घाटे में बेचें?",
       "sellBelowFact": "कीमत {price} लागत {cost} से कम है।",
       "sellBelowAsk": "क्या आप {loss} के घाटे में बेचना चाहते हैं?",
@@ -2201,7 +2203,9 @@
       "current": "अभी",
       "new": "नया",
       "leftDue": "बाकी बकाया",
-      "advanceLeft": "बचा एडवांस"
+      "advanceLeft": "बचा एडवांस",
+      "rate": "दर",
+      "pricePer": "दाम / {unit}"
     }
   },
   "dues": {
@@ -2410,7 +2414,8 @@
       "items": "GST से पहले कीमत",
       "discount": "छूट",
       "gst": "कुल GST",
-      "total": "GST के बाद कीमत"
+      "total": "GST के बाद कीमत",
+      "roundOff": "राउंड ऑफ"
     },
     "searchSupplier": "सप्लायर खोजें",
     "noSupplierMatch": "कोई सप्लायर नहीं मिला।",
@@ -2489,7 +2494,8 @@
       "computerGenerated": "यह कंप्यूटर से बना ऑर्डर है।",
       "signatory": "अधिकृत हस्ताक्षरकर्ता",
       "titleSale": "बिक्री ऑर्डर",
-      "whatsAppMessageSale": "{company} का बिक्री ऑर्डर {number}, ₹{amount}: {url}"
+      "whatsAppMessageSale": "{company} का बिक्री ऑर्डर {number}, ₹{amount}: {url}",
+      "roundOff": "राउंड ऑफ"
     },
     "available": "उपलब्ध मात्रा",
     "onlyAvailable": "सिर्फ़ {n} ऑर्डर के लिए खाली हैं।",
@@ -2571,8 +2577,13 @@
       "discount": "छूट",
       "gst": "GST",
       "total": "कुल",
-      "edited": "{name} ने बदला"
+      "edited": "{name} ने बदला",
+      "roundOff": "राउंड ऑफ"
     },
-    "newProduct": "नया उत्पाद"
+    "newProduct": "नया उत्पाद",
+    "rate": "दर",
+    "pricePer": "दाम / {unit}",
+    "typePurchase": "खरीद ऑर्डर",
+    "typeSale": "बिक्री ऑर्डर"
   }
 }

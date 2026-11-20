@@ -122,7 +122,8 @@ export default class PurchaseOrderService {
         gstAmount: fromPaise(p.priced[i]!.gst),
       })),
     );
-    return { subtotal: fromPaise(p.subtotal), discountAmount: fromPaise(p.off), gstAmount: fromPaise(p.gst), totalAmount: fromPaise(p.total) };
+    // the total rounded to the rupee, as a purchase's (the round off is the difference, worked out where it's shown)
+    return { subtotal: fromPaise(p.subtotal), discountAmount: fromPaise(p.off), gstAmount: fromPaise(p.gst), totalAmount: fromPaise(Math.round(p.total / 100) * 100) };
   }
 
   // what has arrived for each order and item, from its purchases that still stand (a cancelled one doesn't count)

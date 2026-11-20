@@ -95,8 +95,9 @@ export function OrderDocument({
   });
   const gstTotal = Math.round(o.lines.reduce((sum, l) => sum + l.gstAmount, 0) * 100) / 100;
   const quantity = o.lines.reduce((sum, l) => sum + l.quantity, 0);
-  // the items with GST, before the order's discount
-  const withGst = Math.round((o.totalAmount + o.orderDiscount) * 100) / 100;
+  // the items with GST, before the order's discount; then what rounding the total to the rupee added (+) or took off (−)
+  const withGst = Math.round(rows.reduce((sum, r) => sum + r.total, 0) * 100) / 100;
+  const roundOff = Math.round((o.totalAmount - (withGst - o.orderDiscount)) * 100) / 100;
 
   return (
     <main className="mx-auto max-w-4xl px-4 pb-28 pt-6 sm:px-6">
@@ -273,10 +274,11 @@ export function OrderDocument({
             <span aria-hidden className="hidden sm:block" />
             <Breakup
               rows={
-                o.orderDiscount > 0
+                o.orderDiscount > 0 || roundOff !== 0
                   ? [
                       { key: "total", label: t("total"), value: `₹${money(withGst)}` },
-                      { key: "discount", label: t("lessDiscount"), value: `− ₹${money(o.orderDiscount)}` },
+                      ...(o.orderDiscount > 0 ? [{ key: "discount", label: t("lessDiscount"), value: `− ₹${money(o.orderDiscount)}` }] : []),
+                      ...(roundOff !== 0 ? [{ key: "roundOff", label: t("roundOff"), value: `${roundOff > 0 ? "+" : "−"} ₹${money(Math.abs(roundOff))}` }] : []),
                     ]
                   : []
               }

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -70,7 +70,8 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   const { rate, total } = lineFigures(price, quantity, gst);
   // a new price below what a pack costs us can't be saved
   const belowCost = pack.weightedAverageCost != null && rate < Math.round(pack.weightedAverageCost * 100);
-  const rateLabel = t("ratePer", { unit: units(pack.packSizeCode) });
+  // a unit's price with GST: "Price / kg"
+  const rateLabel = t("pricePer", { unit: units(pack.packSizeCode) });
   const typedPrice = parseAmount(draft.newPrice);
   const rateValue = rateText ?? (typedPrice === null ? "" : asField(round2(typedPrice / unitsIn(pack))));
   const ok = price > 0 && quantity >= 1 && quantity <= available && placed === quantity;
@@ -162,14 +163,30 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
           aria-label={name}
           className="on-ivory flex w-[min(360px,100%)] min-w-0 animate-zoom-in flex-col gap-2 rounded-control bg-ivory p-4 text-chestnut shadow-[0_12px_40px_rgba(0,0,0,0.4)]"
         >
-          {/* ✕ and pack chip on top, no border */}
+          {/* pack chip on top; on the right, for one already in the cart a bin (takes it out), then ✕ */}
           <div className="flex justify-between">
             <span className="tabular inline-flex min-h-8 w-fit items-center rounded-control border border-chestnut bg-chestnut px-2.5 text-xs font-semibold text-ivory">
-            {packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}
-          </span>
-            <button type="button" onClick={close} aria-label={t("close")} className="grid p-2 place-items-center rounded-control hover:bg-chestnut/8">
-              <X className="size-5" aria-hidden />
-            </button>
+              {packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}
+            </span>
+            <span className="flex items-center">
+              {saved && (
+              <button
+                type="button"
+                onClick={() => {
+                  removeLine(pack.productId);
+                  close();
+                }}
+                aria-label={t("removeFromCart")}
+                title={t("removeFromCart")}
+                className="grid place-items-center rounded-control p-2 text-danger hover:bg-danger/[0.08]"
+              >
+                <Trash2 className="size-5" aria-hidden />
+              </button>
+            )}
+              <button type="button" onClick={close} aria-label={t("close")} className="grid place-items-center rounded-control p-2 hover:bg-chestnut/8">
+                <X className="size-5" aria-hidden />
+              </button>
+            </span>
           </div>
 
           {/* this pack size's chip, the name, category | sub-category, then the square photo in the middle */}
@@ -351,18 +368,6 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
             >
               {saved ? t("saveLine") : t("addToCart")}
             </button>
-            {saved && (
-              <button
-                type="button"
-                onClick={() => {
-                  removeLine(pack.productId);
-                  close();
-                }}
-                className="min-h-11 w-full rounded-control border border-chestnut/35 text-sm font-semibold text-danger hover:bg-chestnut/[0.06]"
-              >
-                {t("removeFromCart")}
-              </button>
-            )}
           </div>
         </section>
       </div>

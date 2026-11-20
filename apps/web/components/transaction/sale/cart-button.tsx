@@ -2,9 +2,9 @@
 
 import { CartButton } from "../shared/cart-button";
 import { CartCards } from "../shared/cart-cards";
-import { priceOf, useSaleEntry } from "./state";
+import { useSaleEntry } from "./state";
 
-// the sale's cart, a row for each line: its price with GST, quantity and total
+// the sale's cart, a row for each line: a pack's rate before GST (as a purchase's), quantity and total
 function useCartRows() {
   const { lines, figures, packOf } = useSaleEntry();
   return lines.flatMap((l, i) => {
@@ -13,7 +13,7 @@ function useCartRows() {
       ? [
           {
             productId: l.productId,
-            price: priceOf(l, p),
+            price: figures[i]!.rate / 100,
             quantity: Number(l.quantity) || 0,
             total: figures[i]!.total / 100,
           },
@@ -29,7 +29,7 @@ export function SaleCartButton({ onSlide }: { onSlide: () => void }) {
     <CartButton
       rows={useCartRows()}
       packOf={packOf}
-      priceLabel={t("priceGst")}
+      priceLabel={t("rate")}
       itemsTotal={itemsTotal}
       onOpen={setCardFor}
       onRemove={removeLine}
@@ -47,7 +47,7 @@ export function SaleCartCards() {
     <CartCards
       lines={useCartRows()}
       packOf={packOf}
-      priceLabel={t("priceGst")}
+      priceLabel={t("rate")}
       itemsTotal={itemsTotal}
       onOpen={setCardFor}
       onRemove={removeLine}

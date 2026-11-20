@@ -51,6 +51,7 @@ function OtherEntryView() {
 
   const lines = (
     <SummaryLines<OtherStep>
+      type={t("title")}
       items={summary}
       current={current}
       reachable={reachable}
