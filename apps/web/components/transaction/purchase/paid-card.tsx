@@ -1,12 +1,10 @@
 "use client";
 
-import { Check, ChevronDown, ChevronLeft, ChevronRight, IndianRupee } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 
 import { FieldMessage } from "~/components/ui/field-message";
-import { MicButton } from "~/components/ui/mic-button";
 import { NumberInput } from "~/components/ui/number-input";
-import { RequiredMark } from "~/components/ui/required-mark";
 import { Switch } from "~/components/ui/switch";
 import { rupees } from "~/lib/format";
 import { usePhone } from "~/lib/use-phone";
@@ -18,11 +16,20 @@ import { DueFlow } from "../shared/fold-group";
 import { Meter } from "../shared/meter";
 import { AutoSwitch } from "../shared/split-grid";
 import { UpiIdField } from "../shared/upi-id-field";
-import { input, saidAmount } from "../shared/form-basics";
+import { TypedBanner } from "../shared/amount-banner";
+import { input } from "../shared/form-basics";
 import { usePurchaseEntry } from "./state";
 
 // a row: its name on the left (level with the box's first line), its figure or box on the right
-function Row({ label, htmlFor, children }: { label: React.ReactNode; htmlFor?: string; children: React.ReactNode }) {
+function Row({
+  label,
+  htmlFor,
+  children,
+}: {
+  label: React.ReactNode;
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex min-w-0 items-start justify-between gap-3">
       <label htmlFor={htmlFor} className="flex min-h-11 min-w-0 items-center text-sm">
@@ -34,18 +41,46 @@ function Row({ label, htmlFor, children }: { label: React.ReactNode; htmlFor?: s
 }
 
 // a figure that isn't typed: its name on the left, the figure on the right; `strong` closes a part with a line above
-function Figure({ label, amount, strong = false, className }: { label: React.ReactNode; amount: string; strong?: boolean; className?: string }) {
+function Figure({
+  label,
+  amount,
+  strong = false,
+  className,
+}: {
+  label: React.ReactNode;
+  amount: string;
+  strong?: boolean;
+  className?: string;
+}) {
   return (
-    <div className={cn("tabular flex items-center justify-between gap-3 text-sm", strong && "border-t border-chestnut/30 pt-2 font-semibold", className)}>
+    <div
+      className={cn(
+        "tabular flex items-center justify-between gap-3 text-sm",
+        strong && "border-t border-chestnut/30 pt-2 font-semibold",
+        className,
+      )}
+    >
       <span className="flex min-w-0 items-center">{label}</span>
-      <span className={cn("shrink-0 whitespace-nowrap text-base font-semibold", strong && "font-bold")}>{amount}</span>
+      <span
+        className={cn("shrink-0 whitespace-nowrap text-base font-semibold", strong && "font-bold")}
+      >
+        {amount}
+      </span>
     </div>
   );
 }
 
 // a row on the left: its name, its figure or box (ending at the same edge in every row), then a slot for the mic or the
 // arrow at the right end (empty for a plain figure)
-function Line({ label, value, slot }: { label?: React.ReactNode; value: React.ReactNode; slot?: React.ReactNode }) {
+function Line({
+  label,
+  value,
+  slot,
+}: {
+  label?: React.ReactNode;
+  value: React.ReactNode;
+  slot?: React.ReactNode;
+}) {
   return (
     <div className="flex min-w-0 items-center gap-2">
       <span className="flex min-h-11 min-w-0 flex-1 items-center text-sm">{label}</span>
@@ -79,7 +114,20 @@ function LeftRow({ label, amount }: { label: string; amount: number }) {
 // period in days (optional)
 export function PaidCard() {
   const e = usePurchaseEntry();
-  const { t, tpf, kind, tried, total, oldDue, dueNow, paid, setOff, heldAdvance, dueLeft, advance } = e;
+  const {
+    t,
+    tpf,
+    kind,
+    tried,
+    total,
+    oldDue,
+    dueNow,
+    paid,
+    setOff,
+    heldAdvance,
+    dueLeft,
+    advance,
+  } = e;
   const setOffLabel = useId();
   const daysBad = tried && Number(e.creditDays) > 365;
   const cards = usePaidCards();
@@ -115,12 +163,18 @@ export function PaidCard() {
     const fit = () => {
       const breakupH = breakupRef.current?.offsetHeight ?? 0;
       // where the cards' line falls on its own: the amounts, a gap, Left to pay, a gap, its own 6px
-      const natural = (amountsRef.current?.offsetHeight ?? 0) + 10 + (stickyRef.current?.offsetHeight ?? 0) + 10 + 6;
+      const natural =
+        (amountsRef.current?.offsetHeight ?? 0) +
+        10 +
+        (stickyRef.current?.offsetHeight ?? 0) +
+        10 +
+        6;
       setBeside({ breakup: breakupH, push: breakupH ? Math.max(0, breakupH + 16 - natural) : 0 });
     };
     fit();
     const watch = new ResizeObserver(fit);
-    for (const el of [amountsRef.current, breakupRef.current, stickyRef.current]) if (el) watch.observe(el);
+    for (const el of [amountsRef.current, breakupRef.current, stickyRef.current])
+      if (el) watch.observe(el);
     return () => watch.disconnect();
   }, [phone, breakupOpen, paid > 0, kind]);
   // on sliding, the cursor goes to the back arrow (or back to the arrow that opened it)
@@ -128,7 +182,14 @@ export function PaidCard() {
   const arrowRow = useRef<HTMLButtonElement>(null);
   const slide = (to: boolean) => {
     setSlid(to);
-    setTimeout(() => (to ? back : arrowRow).current?.focus({ preventScroll: true, focusVisible: false } as FocusOptions), 320);
+    setTimeout(
+      () =>
+        (to ? back : arrowRow).current?.focus({
+          preventScroll: true,
+          focusVisible: false,
+        } as FocusOptions),
+      320,
+    );
   };
   // typed past what cash and the banks hold: cut to it, and it says so (until typed again)
   const [cut, setCut] = useState(false);
@@ -152,9 +213,14 @@ export function PaidCard() {
                 onChange={e.setCreditDays}
                 aria-invalid={daysBad || undefined}
                 // as the Amount card's figure boxes
-                className={cn(input(daysBad), "min-h-12 pr-14 text-right font-heading text-xl font-bold tabular")}
+                className={cn(
+                  input(daysBad),
+                  "min-h-12 pr-14 text-right font-heading text-xl font-bold tabular",
+                )}
               />
-              <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-chestnut/70">{t("days")}</span>
+              <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-chestnut/70">
+                {t("days")}
+              </span>
             </span>
           </Row>
         </div>
@@ -180,190 +246,208 @@ export function PaidCard() {
           ? [{ key: "advance", label: tpf("advanceLeft"), amount: advanceLeft }]
           : [{ key: "due", label: tpf("leftDue"), amount: 0 }];
   // on the left: Due left always, ₹0 too (with an advance left, under it)
-  const leftSide = left.some((l) => l.key === "due") ? left : [...left, { key: "due", label: tpf("leftDue"), amount: 0 }];
+  const leftSide = left.some((l) => l.key === "due")
+    ? left
+    : [...left, { key: "due", label: tpf("leftDue"), amount: 0 }];
 
   // the amounts: each row its name, the figure ending at the same edge in every row, then the mic or the arrow in a slot
   // of its own at the right end
   const amounts = (
-        <div className="flex min-w-0 flex-col gap-2.5">
-          {/* on top: what's left (the due, the advance, or both), an arrow on each line: opens the breakup (beside on a
+    <div className="flex min-w-0 flex-col gap-2.5">
+      {/* on top: what's left (the due, the advance, or both), an arrow on each line: opens the breakup (beside on a
               computer; on a phone the card slides to it) */}
-          <button
-            ref={arrowRow}
-            type="button"
-            onClick={() => (phone ? slide(true) : setBreakupOpen((o) => !o))}
-            aria-expanded={shown}
-            aria-controls="purchase-breakup"
-            aria-label={t("breakup")}
-            className="group flex w-full flex-col gap-1 text-left"
-          >
-            {leftSide.map((l) => (
-              <Line
-                key={l.key}
-                label={<span className="font-semibold">{l.label}</span>}
-                value={<span className={cn(figure, "font-bold")}>{rupees(l.amount)}</span>}
-                // an arrow on each line (both open the breakup), as the mic above: a soft-cornered tile, filled on hover
-                slot={
-                  <span className="grid size-9 place-items-center rounded-control transition-colors group-hover:bg-chestnut/10">
-                    <ChevronRight
-                      // right, left once open beside; on a phone always right (it slides there)
-                      className={cn("size-5 transition-transform", !phone && breakupOpen && "rotate-180")}
-                      aria-hidden
-                    />
-                  </span>
-                }
-              />
-            ))}
-          </button>
+      <button
+        ref={arrowRow}
+        type="button"
+        onClick={() => (phone ? slide(true) : setBreakupOpen((o) => !o))}
+        aria-expanded={shown}
+        aria-controls="purchase-breakup"
+        aria-label={t("breakup")}
+        className="group flex w-full flex-col gap-1 text-left"
+      >
+        {leftSide.map((l) => (
           <Line
-            label={
-              <label htmlFor="paid-field" className="flex items-center">
-                {t("toPayAmount")}
-                {setOff === 0 && <RequiredMark />}
-              </label>
-            }
-            value={
-              <span className="relative block">
-                <IndianRupee className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2 text-ivory" aria-hidden />
-                <NumberInput
-                  id="paid-field"
-                  value={e.paidText}
-                  decimals={2}
-                  maxDigits={13}
-                  // never more than cash and the banks hold together; typing past it is cut there, with a warning
-                  max={e.payCap ?? undefined}
-                  onCapped={() => setCut(true)}
-                  placeholder="0"
-                  onChange={(v) => {
-                    setCut(false);
-                    e.typePaid(v);
-                  }}
-                  aria-invalid={amountBad || undefined}
-                  // chestnut whether typed or not; left empty when it's needed, only the card's message says so
+            key={l.key}
+            label={<span className="font-semibold">{l.label}</span>}
+            value={<span className={cn(figure, "font-bold")}>{rupees(l.amount)}</span>}
+            // an arrow on each line (both open the breakup), as the mic above: a soft-cornered tile, filled on hover
+            slot={
+              <span className="grid size-9 place-items-center rounded-control transition-colors group-hover:bg-chestnut/10">
+                <ChevronRight
+                  // right, left once open beside; on a phone always right (it slides there)
                   className={cn(
-                    input(false),
-                    "min-h-12 bg-chestnut pl-11 pr-3.5 text-right font-heading text-xl font-bold tabular text-ivory caret-ivory shadow-none placeholder:text-ivory/60",
+                    "size-5 transition-transform",
+                    !phone && breakupOpen && "rotate-180",
                   )}
+                  aria-hidden
                 />
               </span>
             }
-            // the soft corner of every control (not a circle), filled on hover as the arrow below
-            slot={<MicButton onText={(said) => saidAmount(said, e.typePaid)} className="rounded-[var(--radius-control)]" />}
           />
-          {cut && e.payCap !== null && (
-            <Line
-              value={
-                <FieldMessage tone="warning" className="mt-0">
-                  {tpf("capOnly", { amount: rupees(e.payCap) })}
-                </FieldMessage>
-              }
-            />
-          )}
-        </div>
+        ))}
+      </button>
+      {/* To pay: name on the left, a chestnut frame around the ivory box, the mic beside (as a sale's To receive);
+              never more than cash and the banks hold together, typing past it is cut there with a warning */}
+      <TypedBanner
+        id="paid-field"
+        label={t("toPayAmount")}
+        value={e.paidText}
+        onChange={(v) => {
+          setCut(false);
+          e.typePaid(v);
+        }}
+        max={e.payCap ?? undefined}
+        onCapped={() => setCut(true)}
+        invalid={amountBad}
+        required={setOff === 0}
+      />
+      {cut && e.payCap !== null && (
+        <Line
+          value={
+            <FieldMessage tone="warning" className="mt-0">
+              {tpf("capOnly", { amount: rupees(e.payCap) })}
+            </FieldMessage>
+          }
+        />
+      )}
+    </div>
   );
 
   // what's still to place in cash and the bank cards below, filling as they take their parts; green with a tick once
   // nothing is left
   const leftToPay = (
-            <>
-              <Line
-                label={tpf("leftToPay")}
-                value={
-                  e.splitTotal === paid ? (
-                    <span className={cn(figure, "flex items-center justify-end text-success")} aria-label={tpf("nothingLeft")}>
-                      <Check className="size-5" strokeWidth={2.5} aria-hidden />
-                    </span>
-                  ) : (
-                    <span className={cn(figure, "font-bold")}>{rupees(Math.max(0, Math.round((paid - e.splitTotal) * 100) / 100))}</span>
-                  )
-                }
-                // Auto beside the figure, as the mic beside To pay: the word over its switch (it fills the cards from what
-                // each holds)
-                slot={<AutoSwitch stacked on={e.splitAuto} set={e.setSplitAuto} />}
-              />
-              {/* the slider under it, the full width of the rows above (the mic and arrow column too) */}
-              <Meter
-                bare
-                label={tpf("leftToPay")}
-                figure={0}
-                share={Math.min(100, (e.splitTotal / paid) * 100)}
-                done={e.splitTotal === paid}
-                className="-mt-1"
-              />
-            </>
+    <>
+      <Line
+        label={tpf("leftToPay")}
+        value={
+          e.splitTotal === paid ? (
+            <span
+              className={cn(figure, "flex items-center justify-end text-success")}
+              aria-label={tpf("nothingLeft")}
+            >
+              <Check className="size-5" strokeWidth={2.5} aria-hidden />
+            </span>
+          ) : (
+            <span className={cn(figure, "font-bold")}>
+              {rupees(Math.max(0, Math.round((paid - e.splitTotal) * 100) / 100))}
+            </span>
+          )
+        }
+        // Auto beside the figure, as the mic beside To pay: the word over its switch (it fills the cards from what
+        // each holds)
+        slot={<AutoSwitch stacked on={e.splitAuto} set={e.setSplitAuto} />}
+      />
+      {/* the slider under it, the full width of the rows above (the mic and arrow column too) */}
+      <Meter
+        bare
+        label={tpf("leftToPay")}
+        figure={0}
+        share={Math.min(100, (e.splitTotal / paid) * 100)}
+        done={e.splitTotal === paid}
+        className="-mt-1"
+      />
+    </>
   );
 
   // the breakup
   const breakup = (
-          <div id="purchase-breakup" className="flex min-w-0 flex-col gap-2.5 rounded-control bg-chestnut/[0.04] p-3">
-            {heldAdvance > 0 && <Figure label={tpf("advancePart")} amount={rupees(heldAdvance)} className="mb-3.5 border-b border-chestnut/30 pb-2" />}
-            <Figure label={t("oldDue")} amount={rupees(oldDue)} />
-            <Figure label={t("billAmount")} amount={rupees(total)} />
-            {heldAdvance > 0 && (
-              <>
-                <Figure label={t("subTotal")} amount={rupees(subTotal)} strong />
-                <Figure
-                  label={
-                    <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                      <span id={setOffLabel}>{e.ts("setOff")}</span>
-                      <Switch small on={e.setOffOn} onFlip={e.setSetOffOn} labelledBy={setOffLabel} />
-                    </span>
-                  }
-                  amount={setOff > 0 ? `− ${rupees(setOff)}` : rupees(0)}
-                />
-              </>
-            )}
-            <Figure label={tpf("due")} amount={rupees(dueNow)} strong />
-            {/* the payment taken off, its ⌄ opening what it goes to */}
-            <Figure
-              label={
-                <>
-                  {tpf("payGroup")}
-                  <button
-                    type="button"
-                    onClick={() => setTowardsOpen((o) => !o)}
-                    aria-expanded={towardsOpen}
-                    aria-label={tpf("towardsGroup")}
-                    className="ml-1 grid size-8 shrink-0 place-items-center rounded-control hover:bg-chestnut/8"
-                  >
-                    <ChevronDown className={cn("size-4 transition-transform", towardsOpen && "rotate-180")} aria-hidden />
-                  </button>
-                </>
-              }
-              amount={`− ${rupees(paid)}`}
-            />
-            {towardsOpen && (
-              <DueFlow
-                wholeLabel={tpf("payGroup")}
-                whole={paid}
-                dueLabel={t("oldDue")}
-                due={e.towardsOld}
-                advanceLabel={t("billAmount")}
-                advance={e.towardsBill}
-                paidLabel={tpf("paidShare")}
-                owedBefore={0}
-                noWhole
+    <div
+      id="purchase-breakup"
+      className="flex min-w-0 flex-col gap-2.5 rounded-control bg-chestnut/[0.04] p-3"
+    >
+      {heldAdvance > 0 && (
+        <Figure
+          label={tpf("advancePart")}
+          amount={rupees(heldAdvance)}
+          className="mb-3.5 border-b border-chestnut/30 pb-2"
+        />
+      )}
+      <Figure label={t("oldDue")} amount={rupees(oldDue)} />
+      <Figure label={t("billAmount")} amount={rupees(total)} />
+      {heldAdvance > 0 && (
+        <>
+          <Figure label={t("subTotal")} amount={rupees(subTotal)} strong />
+          <Figure
+            label={
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span id={setOffLabel}>{e.ts("setOff")}</span>
+                <Switch small on={e.setOffOn} onFlip={e.setSetOffOn} labelledBy={setOffLabel} />
+              </span>
+            }
+            amount={setOff > 0 ? `− ${rupees(setOff)}` : rupees(0)}
+          />
+        </>
+      )}
+      <Figure label={tpf("due")} amount={rupees(dueNow)} strong />
+      {/* the payment taken off, its ⌄ opening what it goes to */}
+      <Figure
+        label={
+          <>
+            {tpf("payGroup")}
+            <button
+              type="button"
+              onClick={() => setTowardsOpen((o) => !o)}
+              aria-expanded={towardsOpen}
+              aria-label={tpf("towardsGroup")}
+              className="ml-1 grid size-8 shrink-0 place-items-center rounded-control hover:bg-chestnut/8"
+            >
+              <ChevronDown
+                className={cn("size-4 transition-transform", towardsOpen && "rotate-180")}
+                aria-hidden
               />
-            )}
-            {left.map((l) => (
-              <LeftRow key={l.key} label={l.label} amount={l.amount} />
-            ))}
-          </div>
+            </button>
+          </>
+        }
+        amount={`− ${rupees(paid)}`}
+      />
+      {towardsOpen && (
+        <DueFlow
+          wholeLabel={tpf("payGroup")}
+          whole={paid}
+          dueLabel={t("oldDue")}
+          due={e.towardsOld}
+          advanceLabel={t("billAmount")}
+          advance={e.towardsBill}
+          paidLabel={tpf("paidShare")}
+          owedBefore={0}
+          noWhole
+        />
+      )}
+      {left.map((l) => (
+        <LeftRow key={l.key} label={l.label} amount={l.amount} />
+      ))}
+    </div>
   );
 
   return (
     // with the breakup beside on a computer, at least as tall as it
-    <div className="relative flex flex-col gap-1.5 sm:gap-2.5" style={{ minHeight: phone ? undefined : beside.breakup || undefined }}>
+    <div
+      className="relative flex flex-col gap-1.5 sm:gap-2.5"
+      style={{ minHeight: phone ? undefined : beside.breakup || undefined }}
+    >
       {phone ? (
         // on a phone, as the product card's godowns: the amounts, and the breakup to their right; the arrow slides the
         // card to it, its ‹ Breakup back. As tall as the panel showing (room at the sides for the boxes' soft edges)
-        <div className="-mx-1 overflow-hidden transition-[height] duration-300 motion-reduce:transition-none" style={{ height }}>
-          <div className={cn("flex w-[200%] items-start transition-transform duration-300 ease-out motion-reduce:transition-none", slid && "-translate-x-1/2")}>
+        <div
+          className="-mx-1 overflow-hidden transition-[height] duration-300 motion-reduce:transition-none"
+          style={{ height }}
+        >
+          <div
+            className={cn(
+              "flex w-[200%] items-start transition-transform duration-300 ease-out motion-reduce:transition-none",
+              slid && "-translate-x-1/2",
+            )}
+          >
             <div ref={mainRef} inert={slid} className="w-1/2 min-w-0 p-1">
               {amounts}
             </div>
             <div ref={sideRef} inert={!slid} className="flex w-1/2 min-w-0 flex-col gap-1 p-1">
-              <button ref={back} type="button" onClick={() => slide(false)} className="flex min-h-11 w-full items-center gap-1.5 text-left text-sm font-semibold">
+              <button
+                ref={back}
+                type="button"
+                onClick={() => slide(false)}
+                className="flex min-h-11 w-full items-center gap-1.5 text-left text-sm font-semibold"
+              >
                 <ChevronLeft className="size-5 shrink-0" aria-hidden />
                 {t("breakup")}
               </button>
@@ -390,10 +474,16 @@ export function PaidCard() {
           wide as the amounts), then a card for each place it's paid from (on a computer, starting below the breakup) */}
       {paid > 0 && (
         <>
-          <div ref={stickyRef} className="sticky top-16 z-10 -mx-1 flex flex-col gap-2.5 bg-ivory px-1 pb-1 sm:w-[calc(50%-1rem)]">
+          <div
+            ref={stickyRef}
+            className="sticky top-16 z-10 -mx-1 flex flex-col gap-2.5 bg-ivory px-1 pb-1 sm:w-[calc(50%-1rem)]"
+          >
             {leftToPay}
           </div>
-          <div className="flex flex-col gap-2.5 border-t border-chestnut/15 pt-4" style={{ marginTop: 6 + (phone ? 0 : beside.push) }}>
+          <div
+            className="flex flex-col gap-2.5 border-t border-chestnut/15 pt-4"
+            style={{ marginTop: 6 + (phone ? 0 : beside.push) }}
+          >
             <AccountCards key={paid} api={cards} />
           </div>
         </>
@@ -433,7 +523,9 @@ function usePaidCards(): AccountCardsApi {
     qrId: () => ({ hideId: e.upiId.editing, onEdit: () => e.upiId.setEditing(true) }),
     // by UPI: the supplier's UPI ID box while there's none kept, once (in the first card paying by UPI)
     upiPart: (place) =>
-      place.id === e.places.find((p) => p.amount > 0 && p.mode === "upi")?.id ? <UpiIdField row show={e.asksUpi && !e.upiKept} label={tpf("supplierUpi")} state={e.upiId} /> : null,
+      place.id === e.places.find((p) => p.amount > 0 && p.mode === "upi")?.id ? (
+        <UpiIdField row show={e.asksUpi && !e.upiKept} label={tpf("supplierUpi")} state={e.upiId} />
+      ) : null,
     refs,
     setRefs: (update) => {
       const next = typeof update === "function" ? update(refs) : update;

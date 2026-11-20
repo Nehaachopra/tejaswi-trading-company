@@ -8,9 +8,9 @@ import { RequiredMark } from "~/components/ui/required-mark";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
-import { saidAmount } from "../shared/form-basics";
+import { saidAmount } from "./form-basics";
 
-// To receive on a sale's Received card (new and edit): its name on the left, the amount in a chestnut box as wide as the
+// To receive (a sale's Received card, new and edit) and To pay (a purchase's Paid card): its name on the left, the amount in a chestnut box as wide as the
 // rows' figures, the mic/arrow column at the right end (the mic for a typed one, empty for a fixed one). Fixed (a
 // walk-in's, a refund): the amount itself on chestnut, nothing to tap. Typed (a customer's): an ivory box to type in
 // inside the chestnut, so what's typed reads apart from what's given at a glance; both the same size
@@ -39,6 +39,7 @@ export function TypedBanner({
   max,
   invalid,
   required = true,
+  onCapped,
 }: {
   id: string;
   label: string;
@@ -48,6 +49,8 @@ export function TypedBanner({
   invalid: boolean;
   // its * (a new sale's drops it once an advance is set off)
   required?: boolean;
+  // typing past `max` (a purchase's cash and banks) cut there, to warn
+  onCapped?: (most: number) => void;
 }) {
   return (
     // its name on the left, as any row's; the chestnut frame around the box only, as wide as the rows' figures (a tap
@@ -76,6 +79,7 @@ export function TypedBanner({
             decimals={2}
             maxDigits={13}
             max={max}
+            onCapped={onCapped}
             placeholder="0"
             onChange={onChange}
             aria-invalid={invalid || undefined}

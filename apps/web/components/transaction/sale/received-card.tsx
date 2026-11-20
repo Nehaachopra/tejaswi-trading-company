@@ -19,7 +19,7 @@ import { DueFlow } from "../shared/fold-group";
 import { Meter } from "../shared/meter";
 import { OriginalReceived } from "./original-received";
 import { SALE_TDS_RATE, useSaleEntry } from "./state";
-import { FixedBanner, TypedBanner } from "./to-receive-banner";
+import { FixedBanner, TypedBanner } from "../shared/amount-banner";
 
 // a row: its name on the left (level with the box's first line), its figure or box on the right, as a receipt's
 const underValue = "ml-auto w-[60%]";
