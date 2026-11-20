@@ -78,7 +78,7 @@ function Figure({
 
 // a row on the left, as the purchase's Paid card: its name, its figure or box (ending at the same edge in every row),
 // then a slot for the mic or the arrow at the right end (empty for a plain figure)
-function Line({
+export function Line({
   label,
   value,
   slot,
@@ -97,7 +97,7 @@ function Line({
 }
 
 // a figure on the left: at the right of its space, where a box's typed number ends
-const figure = "tabular block pr-3.5 text-right text-base font-semibold";
+export const figure = "tabular block pr-3.5 text-right text-base font-semibold";
 
 // what's left, on chestnut: the amount that closes the breakup
 function LeftRow({ label, amount }: { label: string; amount: number }) {
@@ -549,7 +549,7 @@ export function ReceivedCard() {
 // the bank cards with a receipt's words and parts, laid out as a payment's (every field a row): no cap at what a place
 // holds and no balances shown (money comes in), no Auto; Left to receive and its slider sit above them. An account by
 // UPI with no UPI ID of ours says to add one
-function useSaleCards(): AccountCardsApi {
+export function useSaleCards(): AccountCardsApi {
   const e = useSaleEntry();
   const t = useTranslations("transactions.receipt.form");
   const tpf = useTranslations("transactions.payment.form");

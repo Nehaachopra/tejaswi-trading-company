@@ -2,8 +2,9 @@
 
 import { Check, Minus, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useId, useState } from "react";
+import { useId } from "react";
 
+import { FieldMessage, useNudge } from "~/components/ui/field-message";
 import { NumberInput } from "~/components/ui/number-input";
 import { cn } from "~/lib/utils";
 
@@ -15,22 +16,50 @@ export function QuantityBox({
   max,
   label,
   autoFocus = false,
+  min = 1,
+  belowNote,
 }: {
   value: string;
   onChange: (v: string) => void;
   max: number;
   label: string;
   autoFocus?: boolean;
+  // the fewest it can be (an edit: what the sale had), and the warning when it's pushed under that
+  min?: number;
+  belowNote?: React.ReactNode;
 }) {
   const t = useTranslations("transactions.sale");
   const quantity = Number(value) || 0;
-  const set = (n: number) => onChange(String(Math.min(max, Math.max(1, n))));
-  // more typed than is free: cut to it, and it says so (until changed again)
-  const [over, setOver] = useState(false);
+  const set = (n: number) => onChange(String(Math.min(max, Math.max(min, n))));
+  // the amber warnings, each gone after a while: pushed past what's free (+ at it, or more typed: cut to it), and
+  // pushed under the fewest (− at it, or less typed: raised to it)
+  const over = useNudge();
+  const below = useNudge();
+  const warnBelow = () => {
+    over.clear();
+    if (belowNote) below.nudge();
+  };
+  const warnOver = () => {
+    below.clear();
+    over.nudge();
+  };
+  // with a warning to give, − stays live at the fewest and + at the most, to give it
+  const lessOff = belowNote ? quantity < 1 : quantity <= min;
+  const moreOff = max <= 0;
   return (
     <span className="flex w-full min-w-0 flex-col gap-1">
       <span className="flex min-h-11 w-full items-center justify-between rounded-control bg-chestnut text-ivory">
-        <button type="button" aria-label={`${t("less")}: ${label}`} disabled={quantity <= 1} onClick={() => (setOver(false), set(quantity - 1))} className="grid h-11 w-8 shrink-0 place-items-center disabled:opacity-40">
+        <button
+          type="button"
+          aria-label={`${t("less")}: ${label}`}
+          disabled={lessOff}
+          onClick={() => {
+            over.clear();
+            if (quantity <= min) warnBelow();
+            else set(quantity - 1);
+          }}
+          className="grid h-11 w-8 shrink-0 place-items-center disabled:opacity-40"
+        >
           <Minus className="size-4" aria-hidden />
         </button>
         <NumberInput
@@ -40,17 +69,31 @@ export function QuantityBox({
           placeholder="0"
           onChange={(v) => {
             const typed = v.replace(/^0+/, "");
-            setOver(Number(typed) > max);
-            onChange(Number(typed) > max ? String(max) : typed);
+            if (Number(typed) > max) warnOver();
+            // under the fewest (an edit's): rewritten to it, with the warning
+            const under = typed !== "" && Number(typed) < min && !!belowNote;
+            if (under) warnBelow();
+            onChange(Number(typed) > max ? String(max) : under ? String(min) : typed);
           }}
+          // left empty in an edit: back to the fewest
+          onBlur={() => belowNote && quantity < min && set(min)}
           aria-label={label}
           className="tabular w-full min-w-0 flex-1 bg-transparent text-center text-base font-bold caret-ivory outline-none placeholder:text-ivory/45"
         />
-        <button type="button" aria-label={`${t("more")}: ${label}`} disabled={quantity >= max} onClick={() => (setOver(false), set(quantity + 1))} className="grid h-11 w-9 shrink-0 place-items-center disabled:opacity-40">
+        <button type="button" aria-label={`${t("more")}: ${label}`} disabled={moreOff} onClick={() => (quantity >= max ? warnOver() : (below.clear(), set(quantity + 1)))} className="grid h-11 w-9 shrink-0 place-items-center disabled:opacity-40">
           <Plus className="size-4" aria-hidden />
         </button>
       </span>
-      {over && <span className="text-xs text-danger">{t("onlyAvailable", { n: max.toLocaleString("en-IN") })}</span>}
+      {over.shown > 0 && (
+        <FieldMessage key={`over${over.shown}`} tone="warning" className="mt-0">
+          {t("onlyAvailable", { n: max.toLocaleString("en-IN") })}
+        </FieldMessage>
+      )}
+      {below.shown > 0 && (
+        <FieldMessage key={`below${below.shown}`} tone="warning" className="mt-0">
+          {belowNote}
+        </FieldMessage>
+      )}
     </span>
   );
 }

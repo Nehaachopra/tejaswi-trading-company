@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { FieldMessage } from "~/components/ui/field-message";
+import { FieldMessage, useNudge } from "~/components/ui/field-message";
 import { packLabel, rupees, titleCase } from "~/lib/format";
 import { unitsIn } from "~/lib/price";
 import { cn } from "~/lib/utils";
@@ -52,7 +52,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
         : { ...emptyLine(pack.productId), quantity: "0", godowns: {} }),
   );
   // typed past what the order still waits for: cut to it, and it says so (until changed again)
-  const [cutQty, setCutQty] = useState(false);
+  const cutQty = useNudge();
   // what's in stock now, in every godown together (Quantity's Current)
   const inStock = spotsOf(pack.productId).reduce((a, g) => a + g.held, 0);
   // from an order: whether the Quantity row (what's in stock now) under Ordered shows
@@ -121,13 +121,13 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
         value={draft.quantity}
         max={left > 0 ? left : undefined}
         onChange={(v, cut) => {
-          setCutQty(cut);
-          setDraft((d) => ({ ...d, quantity: v }));
+          if (cut) cutQty.nudge();
+          setDraft((d) => (d.quantity === v ? d : { ...d, quantity: v, godowns: {} }));
         }}
         name={name}
       />
-      {cutQty && (
-        <FieldMessage tone="warning" className="mt-0">
+      {cutQty.shown > 0 && (
+        <FieldMessage key={cutQty.shown} tone="warning" className="mt-0">
           {tp("orderCap", { n: left.toLocaleString("en-IN") })}
         </FieldMessage>
       )}

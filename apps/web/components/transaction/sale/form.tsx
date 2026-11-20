@@ -17,6 +17,7 @@ import { CustomerCard } from "./customer-card";
 import { DetailsCard, SaveBlock } from "./details-card";
 import { MoneyCard } from "./money-card";
 import { ProductsCard } from "./products-card";
+import { EditReceivedCard } from "./edit-received-card";
 import { ReceivedCard } from "./received-card";
 import { type SaleStep, SaleEntryProvider, useSaleEntry, useSaleEntryState } from "./state";
 
@@ -24,11 +25,12 @@ import { type SaleStep, SaleEntryProvider, useSaleEntry, useSaleEntryState } fro
 // Back and Next, and a summary on the right (a bar above the card on a phone) that goes back to any card. 1 Products:
 // the cart above every pack size that can be sold; 2 Amount: the charges and a cash discount; 3 Cash or credit; 4
 // Customer; 5 Received (cash only): what came in and where; 6 Details: the day, vehicle, remarks and Save. A save goes to the sale's success page. Discarding to open a menu
-// starts the form again
-export function SaleForm({ isAdmin, orderId = null }: { isAdmin: boolean; orderId?: string | null }) {
+// starts the form again. With `editId` it edits that sale (the admin's), opened as it was saved, and goes back to it in
+// History once saved
+export function SaleForm({ isAdmin, orderId = null, editId = null }: { isAdmin: boolean; orderId?: string | null; editId?: string | null }) {
   const [round, setRound] = useState(0);
   return (
-    <SaleDataProvider orderId={orderId}>
+    <SaleDataProvider orderId={orderId} editId={editId}>
       <SaleEntry key={round} isAdmin={isAdmin} onDiscard={() => setRound((r) => r + 1)} />
     </SaleDataProvider>
   );
@@ -88,19 +90,22 @@ function SaleEntryView() {
     show,
     next,
     figures,
+    isEdit,
   } = useSaleEntry();
+  // an edit's page is named for it
+  const title = isEdit ? t("edit.title") : t("title");
   const locale = useLocale();
   const tr = useTranslations("transactions.receipt.form");
 
   if (loading)
     return (
-      <EntryNote title={t("title")} loading>
+      <EntryNote title={title} loading>
         {t("loading")}
       </EntryNote>
     );
   if (loadFailed)
     return (
-      <EntryNote title={t("title")} failed onRetry={retryLoad}>
+      <EntryNote title={title} failed onRetry={retryLoad}>
         {t("loadFailed")}
       </EntryNote>
     );
@@ -166,7 +171,7 @@ function SaleEntryView() {
   ];
   const linesView = (
     <SummaryLines<SaleStep>
-      type={t("title")}
+      type={title}
       items={summary}
       current={current}
       reachable={reachable}
@@ -179,7 +184,7 @@ function SaleEntryView() {
 
   return (
     <EntryPage
-      title={t("title")}
+      title={title}
       summaryLabel={t("summary")}
       showBar={lines.length > 0}
       bar={
@@ -231,7 +236,7 @@ function SaleEntryView() {
         ) : current === "customer" ? (
           <CustomerCard />
         ) : current === "received" ? (
-          <ReceivedCard />
+          isEdit ? <EditReceivedCard /> : <ReceivedCard />
         ) : (
           <DetailsCard />
         )}

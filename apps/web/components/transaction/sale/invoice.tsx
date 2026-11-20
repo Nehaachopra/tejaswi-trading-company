@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Ban, CircleAlert, Download, Flag, Mail, Phone } from "lucide-react";
+import { ArrowLeft, Ban, CircleAlert, Download, Flag, Mail, Pencil, Phone } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -163,6 +163,17 @@ export function SaleInvoice({
           <button type="button" onClick={() => window.print()} className={pill}>
             <Download className="size-4" aria-hidden /> {t("download")}
           </button>
+          {/* Edit sale: greyed once its GSTR-1 month is filed */}
+          {canAsk &&
+            (blocked === "gstFiled" ? (
+              <button type="button" disabled className={pill}>
+                <Pencil className="size-4" aria-hidden /> {th("editSale")}
+              </button>
+            ) : (
+              <Link href={`/history/${id}/edit`} className={pill}>
+                <Pencil className="size-4" aria-hidden /> {th("editSale")}
+              </Link>
+            ))}
           {/* Cancel sale: greyed when it can't be */}
           {canAsk && (
             <button type="button" disabled={!!blocked} onClick={() => setAsking(true)} className={cn(pill, "text-danger")}>

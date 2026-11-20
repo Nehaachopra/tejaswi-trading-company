@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { isValidElement, type ReactNode } from "react";
 
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
@@ -18,7 +18,7 @@ export type FigureRow = {
   // an icon before the current figure (the sack beside how many are free)
   icon?: ReactNode;
   input: ReactNode;
-  // a row whose box carries notes under it: label and current sit at the box's top, not its middle
+  // (kept for callers; every row with a box now sits at its top)
   top?: boolean;
 };
 
@@ -36,7 +36,7 @@ export function FiguresTable({
   return (
     <div
       className={cn(
-        "grid items-center gap-x-3 gap-y-3 text-sm",
+        "grid items-start gap-x-3 gap-y-3 text-sm",
         withCurrent
           ? "grid-cols-[minmax(4.5rem,1fr)_minmax(0,max-content)_7rem]"
           : "grid-cols-[minmax(4.5rem,1fr)_8rem]",
@@ -63,10 +63,14 @@ export function FiguresTable({
   );
 }
 
+// rows sit at their top, so a note appearing under a box (a warning, a cut) pushes only what's below it. Label and
+// current are as tall as a box and centred in that, so they still line up with the box's middle; a row with no box
+// (a plain figure, or an empty span) keeps its own height
 function Row({ row, withCurrent }: { row: FigureRow; withCurrent: boolean }) {
+  const boxed = row.top || !(isValidElement(row.input) && row.input.type === "span");
   return (
     <>
-      <span className={cn("min-w-0 break-words", row.top && "self-start pt-3")}>{row.label}</span>
+      <span className={cn("min-w-0 break-words", boxed && "flex min-h-11 items-center")}>{row.label}</span>
       {/* the current figure: smaller when long, cut (whole on hover) only if it still can't fit */}
       {withCurrent && (
         <span
@@ -74,7 +78,7 @@ function Row({ row, withCurrent }: { row: FigureRow; withCurrent: boolean }) {
           className={cn(
             "tabular flex min-w-0 items-center justify-end gap-1.5 font-bold",
             fitText(row.current ?? ""),
-            row.top && "min-h-11 self-start",
+            boxed && "min-h-11",
           )}
         >
           {row.icon}

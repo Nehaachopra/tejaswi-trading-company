@@ -4,6 +4,8 @@ import { unitsIn } from "~/lib/price";
 import { Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
+
+import { FieldMessage, useNudge } from "~/components/ui/field-message";
 import { createPortal } from "react-dom";
 
 import { packLabel, rupees, titleCase } from "~/lib/format";
@@ -67,8 +69,8 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   const least = Math.max(1, moved);
   // a sale: the pack's saved price with GST
   const listPrice = pack.priceAfterGst;
-  // more than that was typed: cut to it, and it says so (until the quantity is changed again)
-  const [over, setOver] = useState(false);
+  // more than that was typed: cut to it, and it says so for a while
+  const over = useNudge();
   const close = () => setCardFor(null);
   const name = `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}`;
   // a unit's price (a sale order) or cost (a purchase order) with GST: "Price / kg", "Cost / kg"
@@ -128,17 +130,17 @@ function LineCardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
       <QuantityBox
         value={draft.quantity}
         onChange={(v, cut) => {
-          setOver(cut);
+          if (cut) over.nudge();
           setDraft((d) => ({ ...d, quantity: v }));
         }}
         name={name}
         max={most}
         min={moved}
       />
-      {sale && over && (
-        <span className="text-xs text-danger">
+      {sale && over.shown > 0 && (
+        <FieldMessage key={over.shown} tone="warning" className="mt-0">
           {t("onlyAvailable", { n: most.toLocaleString("en-IN") })}
-        </span>
+        </FieldMessage>
       )}
       {moved > 0 && (
         <span className="text-xs opacity-70">

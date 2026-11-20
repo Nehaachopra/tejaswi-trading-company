@@ -15,6 +15,7 @@ import {
 
 import { ledgerSummaryModel } from "@repo/services/accounts/model";
 import { attachBillInputModel, createPurchaseInputModel, purchaseIdInputModel, purchaseModel, savedPurchaseModel } from "@repo/services/purchase/model";
+import { editSaleInputModel, saleForEditModel } from "@repo/services/sale/edit-model";
 import { createSaleInputModel, saleIdInputModel, saleInvoiceModel, saleShareKeyModel, saleSummaryModel, savedSaleModel, sharedSaleInputModel } from "@repo/services/sale/model";
 import { placeOfBusinessModel } from "@repo/services/setting/model";
 import { createReceiptInputModel, receiptIdInputModel, receiptModel, receiptShareKeyModel, savedReceiptModel, sharedReceiptInputModel } from "@repo/services/receipt/model";
@@ -51,7 +52,7 @@ import { createDrawingInputModel, drawingIdInputModel, drawingModel, savedDrawin
 import { paySalariesInputModel, paySalaryInputModel, salaryEmployeeModel, salaryIdInputModel, salaryPaymentModel } from "@repo/services/salary/model";
 import { opensSale, opensVoucher, saleKey, voucherKey } from "@repo/services/transaction/share-link";
 
-import { accountsService, contraService, documentService, drawingService, dueService, otherService, paymentService, purchaseService, receiptService, salaryService, saleService, settingService, transactionService } from "../../services";
+import { accountsService, contraService, documentService, drawingService, dueService, otherService, paymentService, purchaseService, receiptService, salaryService, saleEditService, saleService, settingService, transactionService } from "../../services";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 import { checkDate, limitSaves, onceFor } from "../../guards";
 
@@ -110,6 +111,27 @@ const saleRouter = router({
       const save = () => {
         limitSaves(ctx.session.user.id);
         return saleService.create(input, ctx.session.user);
+      };
+      return input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save();
+    }),
+
+  // a sale as its edit form opens it (the admin's)
+  forEdit: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/sales/{transactionId}/edit", tags: ["transactions"] } })
+    .input(saleIdInputModel)
+    .output(saleForEditModel)
+    .query(({ input }) => saleEditService.forEdit(input)),
+
+  // an edit saved (the admin's): dated today or before, within the saves a minute, once per form
+  edit: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/sales/{transactionId}/edit", tags: ["transactions"] } })
+    .input(editSaleInputModel)
+    .output(savedSaleModel)
+    .mutation(({ ctx, input }) => {
+      checkDate(input.dateTime, ctx.session.user.role);
+      const save = () => {
+        limitSaves(ctx.session.user.id);
+        return saleEditService.edit(input, ctx.session.user);
       };
       return input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save();
     }),

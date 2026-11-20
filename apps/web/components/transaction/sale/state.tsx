@@ -7,6 +7,7 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 import { bankNameIn } from "~/lib/bank-names";
 import { packLabel, rupees } from "~/lib/format";
+import { toast } from "~/components/ui/toast";
 import { parseAmount } from "~/lib/price";
 import { useLeaveGuard } from "~/lib/use-leave-guard";
 import { useSaleData } from "~/providers/sale";
@@ -103,9 +104,14 @@ export function useSaleEntryState({
     loadFailed,
     retryLoad,
     saveSale,
+    editing,
+    editLedger,
+    saveEdit,
     saving: creating,
     saved,
   } = useSaleData();
+  // editing a saved sale: its items kept (quantities only up), its customer fixed, what was paid towards it known
+  const isEdit = editing !== null;
 
   // the answers
   const [lines, setLines] = useState<CartLine[]>([]);
@@ -165,6 +171,71 @@ export function useSaleEntryState({
   const [saveError, setSaveError] = useState<string | null>(null);
   // Next or Save was tapped with something missing: what's missing shows in red
   const [tried, setTried] = useState(false);
+  // a cash sale under 50,000 taxable value (not on an order): no search, the buyer's address is asked straight away
+  // (Change brings the search back)
+  const [searchSaved, setSearchSaved] = useState(false);
+
+  // an edit opens with the sale as it was saved, once everything it needs is in hand: its items (each at the price it
+  // sold at, with GST), charges and discount, cash or credit, its customer (or a walk-in's name, phone and addresses),
+  // the day, vehicle and remarks
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (!editing || prefilled.current || !products || (editing.customer && !editLedger)) return;
+    prefilled.current = true;
+    const packAt = new Map<string, Pack>();
+    for (const g of products) for (const p of g.packs) packAt.set(p.productId, p);
+    setLines(
+      editing.lines.map((l) => {
+        const pack = packAt.get(l.productId);
+        const withGst = round2(l.rateBeforeGst * (1 + (pack?.gstPercent ?? 0) / 100));
+        return {
+          productId: l.productId,
+          newPrice: pack && withGst === pack.priceAfterGst ? "" : String(withGst),
+          quantity: String(l.quantity),
+          godowns: Object.fromEntries(l.godowns.map((g) => [g.godownId, String(g.quantity)])),
+          belowCostOk: true,
+        };
+      }),
+    );
+    const text = (n: number) => (n > 0 ? String(n) : "");
+    setDiscount(text(editing.discount));
+    setDiscountTyped(true);
+    setTransport(text(editing.transportCharges));
+    setPacking(text(editing.packingCharges));
+    setLoadingCharges(text(editing.loadingCharges));
+    setKind(editing.kind);
+    setDay(indiaDay(new Date(editing.dateTime)));
+    setVehicle(editing.vehicleNumber ?? "");
+    setRemarks(editing.remarks ?? "");
+    if (editing.customer && editLedger) setCustomer({ kind: "ledger", ledger: editLedger });
+    else {
+      setCustomer({ kind: "party" });
+      setBuyerName(editing.buyer?.name ?? "");
+      setBuyerPhone(editing.buyer?.phone ?? "");
+      // a walk-in's typed addresses: billed at the first, sent to the second when it went elsewhere
+      const draft = (a: { addressLine1: string; landmark: string; city: string; district: string; state: string; stateCode: string; postalCode: string; gstin: string | null }): AddressDraft => ({
+        ...emptyAddress(true),
+        addressLine1: a.addressLine1,
+        landmark: a.landmark,
+        city: a.city,
+        district: a.district,
+        state: a.state,
+        stateCode: a.stateCode as StateCode,
+        postalCode: a.postalCode,
+        gstin: a.gstin ?? "",
+      });
+      const ship = "address" in editing.shipTo ? draft(editing.shipTo.address) : null;
+      const bill = editing.billTo && "address" in editing.billTo ? draft(editing.billTo.address) : null;
+      const first = bill ?? ship;
+      const second = bill && ship && JSON.stringify(bill) !== JSON.stringify(ship) ? { ...ship, isDefault: false } : null;
+      const both = [first, second].filter((a): a is AddressDraft => a !== null);
+      if (both.length > 0) setAddresses(both);
+    }
+  }, [editing, editLedger, products]);
+  // what an edit started from: each item's quantity, and each godown's part of it
+  const editQty = (productId: string) => editing?.lines.find((l) => l.productId === productId)?.quantity ?? 0;
+  const editPart = (productId: string, godownId: string) =>
+    editing?.lines.find((l) => l.productId === productId)?.godowns.find((g) => g.godownId === godownId)?.quantity ?? 0;
 
   // each pack size with its product, to find a line's name, photo, price and GST %
   const packs = new Map<string, { group: ProductGroup; pack: Pack }>();
@@ -192,7 +263,24 @@ export function useSaleEntryState({
               counting: g.beingCounted,
             },
           ]);
-  const godownsOf = (productId: string) => holds.get(productId) ?? [];
+  // an edit: what the sale took from each godown is its own to keep, on top of what the godown holds now
+  const godownsOf = (productId: string): GodownHold[] => {
+    const now = holds.get(productId) ?? [];
+    if (!editing) return now;
+    const mine = editing.lines.find((l) => l.productId === productId)?.godowns ?? [];
+    const named = new Map((stock ?? []).map((g) => [g.godownId, g]));
+    return [
+      ...now.map((h) => ({ ...h, held: h.held + editPart(productId, h.godownId) })),
+      ...mine
+        .filter((m) => !now.some((h) => h.godownId === m.godownId))
+        .map((m) => ({
+          godownId: m.godownId,
+          name: named.get(m.godownId)?.godownName ?? "",
+          held: m.quantity,
+          counting: named.get(m.godownId)?.beingCounted ?? false,
+        })),
+    ];
+  };
   // a dispatch on a sale order: how many of a pack size the order still waits for (what it holds back from stock)
   const orderLine = (productId: string) =>
     order?.lines.find((l) => l.productId === productId) ?? null;
@@ -201,7 +289,7 @@ export function useSaleEntryState({
     return l ? Math.max(0, l.quantity - l.delivered) : 0;
   };
   // what of a pack size this sale can take: the free stock, and what its order holds back for it
-  const freeOf = (p: Pack) => p.unreservedQuantity + orderLeft(p.productId);
+  const freeOf = (p: Pack) => p.unreservedQuantity + orderLeft(p.productId) + editQty(p.productId);
   // the price a pack was ordered at (with GST, before the order's discount, which goes in the Discount box instead),
   // as a new price to start from; "" when it's the saved price, or the pack isn't waited for
   const orderPrice = (p: Pack) => {
@@ -265,8 +353,14 @@ export function useSaleEntryState({
         ? all.map((l) => (l.productId === line.productId ? line : l))
         : [...all, line],
     );
-  const removeLine = (productId: string) =>
+  // an edit keeps every item it was saved with: taking one off is a sale return
+  const removeLine = (productId: string) => {
+    if (editQty(productId) > 0) {
+      toast.error(t("edit.noRemove"));
+      return;
+    }
     setLines((all) => all.filter((l) => l.productId !== productId));
+  };
   // the product card over the page: the pack size being added or changed
   const [cardFor, setCardFor] = useState<string | null>(null);
 
@@ -276,7 +370,8 @@ export function useSaleEntryState({
   // advance is worked out for them
   const picked = customer?.kind === "ledger" ? customer.ledger : null;
   const pickedId = picked?.id ?? null;
-  const tdsCan = kind === "cash" && !!picked?.party;
+  // (an edit takes no TDS and sets off no advance)
+  const tdsCan = !isEdit && kind === "cash" && !!picked?.party;
   const tdsIs = tdsCan && tdsOnIt;
   const owedBefore = picked?.balance?.today.side === "debit" ? picked.balance.today.amount : 0;
   // what a saved customer owes from before, for cash and credit alike
@@ -288,8 +383,21 @@ export function useSaleEntryState({
   const setOff = setOffOn ? Math.min(heldAdvance, total) : 0;
   const billLeft = round2(total - setOff);
   const dueNow = round2(oldDue + billLeft);
+  // an edit: what was paid towards the bill, and what the edit leaves: more owed (plus) or paid over (minus). Cash takes
+  // it now (a walk-in all of it, a customer any part) or refunds what's paid over at once; credit leaves it owed, or as
+  // their advance
+  const editPaid = editing?.paid ?? 0;
+  const balance = round2(total - editPaid);
+  const editDueLeft = Math.max(0, balance);
+  const editAdvanceLeft = Math.max(0, -balance);
+  const refunding = isEdit && kind === "cash" && balance < 0;
+  // (what's received is always typed, never filled in: a customer any part of it, a walk-in all of it)
+  const editMoving =
+    kind !== "cash" ? 0 : balance < 0 ? -balance : Math.min(parseAmount(receivedText) ?? 0, balance);
+  // a walk-in leaves nothing owed: what's typed must be the whole of it
+  const editShort = isEdit && kind === "cash" && balance > 0 && !picked && editMoving > 0 && editMoving < balance;
   // a saved customer's is typed: any part of what's due (the rest stays owed) or more; a walk-in pays the bill
-  const received = tdsCan ? (parseAmount(receivedText) ?? 0) : total;
+  const received = isEdit ? editMoving : tdsCan ? (parseAmount(receivedText) ?? 0) : total;
   // the TDS on it; a paisa off the bill or the whole due from rounding is taken as exactly that (as the server does)
   let tdsAmount = tdsIs && received > 0 ? tdsOn(received, SALE_TDS_RATE) : 0;
   if (tdsIs && received > 0)
@@ -416,14 +524,16 @@ export function useSaleEntryState({
     lines.every((l) => {
       const p = packOf(l.productId)?.pack;
       const q = Number(l.quantity) || 0;
-      return !!p && q >= 1 && q <= freeOf(p) && placedOf(l) === q;
+      return !!p && q >= 1 && q >= editQty(l.productId) && q <= freeOf(p) && placedOf(l) === q;
     });
   const complete: Record<SaleStep, boolean> = {
     products: linesOk,
     amount: total > 0,
     money: kind !== null,
     // nothing came in (the advance set off covers it): no account to place it in
-    received: kind === "credit" || (receivedOk && (received === 0 || intoOk)),
+    received: isEdit
+      ? kind === "credit" || balance === 0 || (received > 0 && !editShort && intoOk)
+      : kind === "credit" || (receivedOk && (received === 0 || intoOk)),
     customer:
       customer?.kind === "ledger" ||
       (customer?.kind === "party" &&
@@ -432,7 +542,10 @@ export function useSaleEntryState({
   };
   // a credit sale takes no money now: its card after the customer only shows what they'll owe (the old due, this
   // bill and the two together), and only when they owe from before
-  const STEPS = ALL_STEPS.filter((s) => s !== "received" || kind !== "credit" || oldDue > 0);
+  // an edit asks for money only when cash moves (taken now or refunded)
+  const STEPS = ALL_STEPS.filter((s) =>
+    s !== "received" ? true : isEdit ? kind === "cash" && balance !== 0 : kind !== "credit" || oldDue > 0,
+  );
   const [at, setAt] = useState<SaleStep>("products");
   const current = STEPS.includes(at) ? at : "customer";
   const index = STEPS.indexOf(current);
@@ -481,7 +594,9 @@ export function useSaleEntryState({
       setKind(next);
       setGridTexts({});
       setGridModes({});
-      setCustomer(orderCustomer(next));
+      // an edit keeps its customer; a walk-in put on credit picks or adds one (back to cash: the walk-in again)
+      if (!isEdit) setCustomer(orderCustomer(next));
+      else if (!editing?.customer) setCustomer(next === "credit" ? null : { kind: "party" });
     }
     show("customer");
   }
@@ -489,7 +604,7 @@ export function useSaleEntryState({
   // theirs). A name kept on the order: someone new with the name, phone and address from the order filled in, for cash
   // as the buyer, on credit as a new customer (the admin's to add); the name stays the order's, the rest can be
   // changed, and one of ours with that phone can be used instead (the same person)
-  const orderLocked = !!order?.customer.partyId && !!orderLedger;
+  const orderLocked = (!!order?.customer.partyId && !!orderLedger) || (isEdit && !!editing?.customer);
   const orderBuyer = !!order && !order.customer.partyId;
   function orderCustomer(next: "cash" | "credit"): LedgerChoice {
     if (!order) return null;
@@ -522,9 +637,6 @@ export function useSaleEntryState({
     }
     return { kind: "party" };
   }
-  // a cash sale under ₹50,000 taxable value (not on an order): no search, the buyer's address is asked straight away
-  // (Change brings the search back)
-  const [searchSaved, setSearchSaved] = useState(false);
   const walkIn = kind === "cash" && !buyerNeeded && !order && !searchSaved;
   function findSaved() {
     setSearchSaved(true);
@@ -539,7 +651,9 @@ export function useSaleEntryState({
     s === "products"
       ? lines.length === 0
         ? t("missing.products")
-        : t("missing.lines")
+        : isEdit && lines.some((l) => (Number(l.quantity) || 0) < editQty(l.productId))
+          ? t("edit.lessThanBefore")
+          : t("missing.lines")
       : s === "amount"
         ? t("missing.amount")
         : s === "money"
@@ -547,6 +661,8 @@ export function useSaleEntryState({
           : s === "received"
             ? received === 0
               ? t("missing.received")
+              : editShort
+                ? t("edit.walkInAll", { amount: rupees(balance) })
               : !panOk
                 ? t("missing.pan")
                 : // what's still to be placed, or (all placed) how an account got its part
@@ -604,6 +720,51 @@ export function useSaleEntryState({
     // a cash buyer's addresses: billed at the first, and sent to the second when there is one
     const billAt = addresses[0]!;
     const shipAt = addresses[1] ?? billAt;
+    if (isEdit) {
+      try {
+        const sale = await saveEdit({
+          transactionId: editing!.transactionId,
+          saveKey,
+          dateTime: momentOf(day),
+          remarks: remarks.trim() || null,
+          vehicleNumber: vehicle || null,
+          lines: items,
+          discount: offPaise / 100,
+          transportCharges: paise(transport) / 100,
+          packingCharges: paise(packing) / 100,
+          loadingCharges: paise(loadingCharges) / 100,
+          kind: kind!,
+          cashAmount: kind === "cash" && received > 0 ? gridPlaces[0]!.amount : 0,
+          bankParts:
+            kind === "cash" && received > 0
+              ? gridAccs.map((p) => ({ bankDetailsId: p.id, amount: p.amount, mode: p.mode!, referenceNumber: refOf(p.id, p.mode).trim() || null }))
+              : [],
+          // a walk-in put on credit: the customer picked or added now
+          customerLedgerId: !editing!.customer && customer?.kind === "ledger" ? customer.ledger.id : null,
+          newCustomer: !editing!.customer && kind === "credit" && customer?.kind === "party" ? partyInput(newParty) : null,
+          // a customer's sale keeps its addresses; a walk-in's are as typed
+          ...(editing!.customer
+            ? {
+                billToAddressId: editing!.billTo && "addressId" in editing!.billTo ? editing!.billTo.addressId : null,
+                shipTo: editing!.shipTo,
+              }
+            : customer?.kind === "party" && kind === "cash"
+              ? {
+                  buyer: { name: buyerName.trim(), phone: buyerPhone },
+                  shipTo: { address: typedAddress(shipAt) },
+                  billToAddress: typedAddress(billAt),
+                }
+              : {}),
+        });
+        // back to the sale in History; replace, so going back doesn't land on the filled form
+        router.replace(`/history/${sale.transactionId}`);
+      } catch (err) {
+        setSaving(false);
+        const e = err as { data?: { code?: string }; message?: string };
+        setSaveError(e?.data?.code === undefined ? t("errors.network") : e.message || t("errors.failed"));
+      }
+      return;
+    }
     try {
       const sale = await saveSale({
         saveKey,
@@ -685,6 +846,7 @@ export function useSaleEntryState({
     packOf,
     nameOf,
     godownsOf,
+    editQty,
     sellable,
     order,
     orderLocked,
@@ -789,6 +951,13 @@ export function useSaleEntryState({
     saveError,
     saving: saving || creating,
     save,
+    isEdit,
+    editing,
+    editPaid,
+    balance,
+    editDueLeft,
+    editAdvanceLeft,
+    refunding,
   };
 }
 

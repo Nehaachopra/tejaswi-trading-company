@@ -20,7 +20,7 @@ const amountBox = "min-h-12 pl-11 font-heading text-xl font-bold tabular text-ri
 // transport, packing and loading charges, then To receive / Total in the chestnut box right under them. Half the card
 // wide on a wider screen, as a payment's amount
 export function AmountCard() {
-  const { t, itemsTotal, discount, setDiscount, transport, setTransport, packing, setPacking, loadingCharges, setLoadingCharges, grossTotal, roundOff, total } =
+  const { t, itemsTotal, discount, setDiscount, transport, setTransport, packing, setPacking, loadingCharges, setLoadingCharges, grossTotal, roundOff, total, isEdit, editPaid, balance } =
     useSaleEntry();
   // the discount cut at the bill: it says so (until typed again)
   const [cut, setCut] = useState(false);
@@ -75,13 +75,28 @@ export function AmountCard() {
           <span className="shrink-0 whitespace-nowrap font-semibold">{roundOff > 0 ? `+ ${rupees(roundOff)}` : `− ${rupees(-roundOff)}`}</span>
         </div>
       )}
-      {/* what's to be received, in the chestnut box, under a line */}
+      {/* what's to be received (an edit: just the Total), in the chestnut box, under a line */}
       <div className={cn(row, "mt-1 border-t border-chestnut/30 pt-2.5")}>
-        <span className="min-w-0 text-sm font-bold">{t("toReceive")}</span>
+        <span className="min-w-0 text-sm font-bold">{t(isEdit ? "edit.total" : "toReceive")}</span>
         <span className="tabular flex min-h-12 w-[60%] shrink-0 items-center justify-end break-all rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
           {rupees(total)}
         </span>
       </div>
+      {/* an edit: what was paid towards the bill (taken off, so with a minus), and what's left either way (paid over shows with a minus) */}
+      {isEdit && (
+        <>
+          <div className="tabular flex items-baseline justify-between gap-3 text-sm">
+            <span className="min-w-0">{t("edit.amountPaid")}</span>
+            <span className="shrink-0 whitespace-nowrap text-base font-semibold">− {rupees(editPaid)}</span>
+          </div>
+          <div className="tabular flex items-baseline justify-between gap-3 border-t border-chestnut/30 pt-2.5 text-sm">
+            <span className="min-w-0 font-bold">{t("edit.balanceLeft")}</span>
+            <span className="shrink-0 whitespace-nowrap font-heading text-lg font-bold">
+              {balance < 0 ? `− ${rupees(-balance)}` : rupees(balance)}
+            </span>
+          </div>
+        </>
+      )}
     </div>
   );
 }

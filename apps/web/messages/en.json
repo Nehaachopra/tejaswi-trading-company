@@ -2207,7 +2207,27 @@
       "leftDue": "Due left",
       "advanceLeft": "Advance left",
       "rate": "Rate",
-      "pricePer": "Price / {unit}"
+      "pricePer": "Price / {unit}",
+      "edit": {
+        "title": "Edit sale",
+        "noRemove": "An item can't be taken off in an edit. Use a sale return.",
+        "total": "Total",
+        "walkInAll": "A walk-in pays all of {amount}.",
+        "billAmount": "Bill amount",
+        "received": "Received",
+        "belowSaved": "To reduce quantity, record <link>return</link>.",
+        "lessThanBefore": "A quantity can't go below what was sold. Use a sale return.",
+        "save": "Save changes",
+        "amountPaid": "Amount paid",
+        "balanceLeft": "Balance left",
+        "amountReceived": "To receive",
+        "refundNow": "Refund now",
+        "billAfter": "Bill after this edit",
+        "back": "Back",
+        "leftToReceive": "Left to receive",
+        "leftToRefund": "Left to refund",
+        "paidBy": "Paid by"
+      }
     },
     "drawing": {
       "title": "Drawing",
@@ -2669,6 +2689,7 @@
       "purchasePaid": "Can't cancel: the supplier has been paid towards this purchase. Cancel that payment first.",
       "rcmPaid": "Can't cancel: its reverse-charge GST is already paid. Cancel that Tax paid payment first.",
       "openingBalance": "Opening balances are changed on the Opening balances page."
-    }
+    },
+    "editSale": "Edit sale"
   }
 }

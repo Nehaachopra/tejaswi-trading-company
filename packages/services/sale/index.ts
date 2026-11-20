@@ -29,7 +29,6 @@ import DueService from "../due";
 import PartyService from "../party";
 import ProductService from "../product";
 import { BANK_MODE_DB } from "../payment/model";
-import { priceLines } from "../purchase-order";
 import SettingService from "../setting";
 import StockEngine, { type Tx } from "../stock/engine";
 import { productNameSnapshot } from "../stock/index";
@@ -37,6 +36,7 @@ import TransactionService from "../transaction";
 import { settleLedger } from "../transaction/settle";
 import { tdsOn } from "../receipt/model";
 import { saleOrderDelivered } from "../sale-order/delivered";
+import { figureSale } from "./figures";
 import { type CreateSaleInputModel, createSaleInputModel, NAMED_BUYER_FROM, SALE_TDS_RATE, type SaleAddressInputModel, type SaleIdInputModel, type SaleInvoiceModel, type SaleSummaryModel, type SavedSaleModel } from "./model";
 
 // the day a moment falls on in India, as YYYY-MM-DD
@@ -76,7 +76,7 @@ export default class SaleService {
   ) {}
 
   // a party's saved address, which must be theirs and in use
-  private async addressOf(tx: Tx, partyId: string, addressId: string): Promise<Place> {
+  async addressOf(tx: Tx, partyId: string, addressId: string): Promise<Place> {
     const [a] = await tx
       .select()
       .from(partyAddressesTable)
@@ -86,7 +86,7 @@ export default class SaleService {
   }
 
   // a party's default address, if it has one
-  private async defaultAddressOf(tx: Tx, partyId: string) {
+  async defaultAddressOf(tx: Tx, partyId: string) {
     const [a] = await tx
       .select({ id: partyAddressesTable.id })
       .from(partyAddressesTable)
@@ -95,7 +95,7 @@ export default class SaleService {
   }
 
   // the credit sale's customer: their ledger picked (a party's, active), or a party added now; either way a customer
-  private async customerIn(tx: Tx, input: CreateSaleInputModel) {
+  async customerIn(tx: Tx, input: Pick<CreateSaleInputModel, "customerLedgerId" | "newCustomer">) {
     let ledgerId = input.customerLedgerId;
     if (input.newCustomer) ledgerId = (await this.parties.createIn(tx, input.newCustomer, "customer")).ledgerId;
     const [ledger] = await tx.select().from(ledgersTable).where(eq(ledgersTable.id, ledgerId!));
@@ -112,7 +112,7 @@ export default class SaleService {
   }
 
   // each item's product, active and priced, with its GST %, cost and name as the sale keeps it
-  private async productsIn(tx: Tx, input: CreateSaleInputModel) {
+  async productsIn(tx: Tx, input: Pick<CreateSaleInputModel, "lines">) {
     const ids = input.lines.map((l) => l.productId);
     const rows = await tx
       .select({
@@ -151,28 +151,9 @@ export default class SaleService {
       const company = await this.settings.get("company", tx);
       const products = await this.productsIn(tx, input);
 
-      // each godown's part of each item is a line of its own, so the discount's share and GST fall on each part
-      const parts = input.lines.flatMap((l, i) => l.godowns.map((g) => ({ line: l, product: products[i]!, godownId: g.godownId, quantity: g.quantity })));
-      // the items' value and GST (the cash discount doesn't lower either)
-      const priced = priceLines(
-        parts.map((p) => ({ quantity: p.quantity, rate: p.line.rateBeforeGst, discount: 0, gstRate: p.product.gstRate })),
-        0,
-      );
-      // the charges, each typed with GST in it. Packing, transport and loading are part of the supply (composite), so
-      // their GST is taken out at the highest GST rate among the bill's items
-      const charges = toPaise(input.transportCharges) + toPaise(input.packingCharges) + toPaise(input.loadingCharges);
-      const chargeRate = Math.max(...parts.map((p) => p.product.gstRate));
-      const chargeTaxable = Math.round((charges * 100) / (100 + chargeRate));
-      const chargeGst = charges - chargeTaxable;
-      const gstAll = priced.gst + chargeGst;
-      // the cash discount: never more than the bill
-      const gross = priced.subtotal + priced.gst + charges;
-      const off = toPaise(input.discount);
-      if (off > gross) throw new TRPCError({ code: "BAD_REQUEST", message: "The discount can't be more than the bill." });
-      // the total, rounded to the rupee (as a purchase's): the difference is the round off, which goes into Sale
-      const figured = gross - off;
-      const total = Math.round(figured / 100) * 100;
-      const roundOff = total - figured;
+      // the bill: each godown's part a line of its own, the charges' GST at the items' highest rate, the cash discount,
+      // the total rounded to the rupee (the round off goes into Sale)
+      const { parts, priced, chargeTaxable, gstAll, off, total, roundOff } = figureSale(input, products);
       // a cash sale from ₹50,000 taxable value names its buyer (name and phone)
       if (input.kind === "cash" && input.customerLedgerId === null && priced.subtotal + chargeTaxable >= NAMED_BUYER_FROM * 100 && (!input.buyer?.name || !input.buyer.phone)) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Give the buyer's name and phone from ₹50,000." });

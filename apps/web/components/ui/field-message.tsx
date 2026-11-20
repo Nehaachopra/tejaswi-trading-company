@@ -73,3 +73,15 @@ export function FieldMessage({
     </div>
   );
 }
+
+// a warning that comes for a while: `nudge` shows it (again, afresh, each time), `clear` takes it off; `shown` is a
+// counter, to use as the message's key so each nudge starts its own while
+export function useNudge() {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    if (!shown) return;
+    const timer = setTimeout(() => setShown(0), ERROR_MS);
+    return () => clearTimeout(timer);
+  }, [shown]);
+  return { shown, nudge: () => setShown((n) => n + 1), clear: () => setShown(0) };
+}

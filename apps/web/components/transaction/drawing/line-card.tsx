@@ -151,7 +151,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                           value={draft.quantity}
                           max={available}
                           label={`${ts("quantity")}: ${name}`}
-                          onChange={(v) => setDraft((d) => ({ ...d, quantity: v }))}
+                          onChange={(v) => setDraft((d) => (d.quantity === v ? d : { ...d, quantity: v, godowns: {} }))}
                         />
                       ),
                     },

@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown, ChevronLeft, ChevronRight, Trash2, X } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -32,7 +33,7 @@ export function ProductCard() {
 }
 
 function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
-  const { t, lines, putLine, removeLine, setCardFor, freeOf, orderPrice, order } = useSaleEntry();
+  const { t, lines, putLine, removeLine, setCardFor, freeOf, orderPrice, order, editQty } = useSaleEntry();
   const units = useTranslations("products.items.form.units");
   // a dispatch on a sale order: this pack's line on the order (how many were ordered, how many have gone out), while
   // the order still waits for some of it
@@ -66,6 +67,8 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   const price = priceOf(draft, pack);
   const quantity = Number(draft.quantity) || 0;
   const available = freeOf(pack);
+  // an edit: never fewer than the sale had (fewer is a sale return)
+  const fewest = Math.max(1, editQty(pack.productId));
   const placed = placedOf(draft);
   const { rate, total } = lineFigures(price, quantity, gst);
   // a new price below what a pack costs us can't be saved
@@ -74,7 +77,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   const rateLabel = t("pricePer", { unit: units(pack.packSizeCode) });
   const typedPrice = parseAmount(draft.newPrice);
   const rateValue = rateText ?? (typedPrice === null ? "" : asField(round2(typedPrice / unitsIn(pack))));
-  const ok = price > 0 && quantity >= 1 && quantity <= available && placed === quantity;
+  const ok = price > 0 && quantity >= fewest && quantity <= available && placed === quantity;
   // below cost: Add asks first whether to sell it that low (a pack's cost with GST, to set against the price)
   const [askBelow, setAskBelow] = useState(false);
   const costGst = round2((pack.weightedAverageCost ?? 0) * (1 + gst / 100));
@@ -85,6 +88,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
     ? t("belowCost")
     : quantity < 1
       ? t("hintQuantity")
+
       : placed !== quantity
         ? t("hintGodowns")
         : null;
@@ -146,8 +150,18 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
     <QuantityBox
       value={draft.quantity}
       max={available}
+      min={fewest}
+      belowNote={t.rich("edit.belowSaved", {
+        // the sale return form (built next)
+        link: (words) => (
+          <Link href="/transaction/sale-return" className="font-semibold underline underline-offset-2">
+            {words}
+          </Link>
+        ),
+      })}
       label={`${t("quantity")}: ${name}`}
-      onChange={(v) => setDraft((d) => ({ ...d, quantity: v }))}
+      // a new quantity clears the godowns, to be placed again
+      onChange={(v) => setDraft((d) => (d.quantity === v ? d : { ...d, quantity: v, godowns: {} }))}
     />
   );
   // a quantity typed with packs still to dispatch: the Godowns arrow is highlighted, to say where to go next
@@ -169,7 +183,8 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
               {packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}
             </span>
             <span className="flex items-center">
-              {saved && (
+              {/* (not for an item the edited sale already had: taking it off is a sale return) */}
+              {saved && editQty(pack.productId) === 0 && (
               <button
                 type="button"
                 onClick={() => {
@@ -342,7 +357,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
               <span>{t("godowns")}</span>
               <span
                 className={cn(
-                  "grid size-8 shrink-0 place-items-center rounded-full transition-colors",
+                  "grid size-8 shrink-0 place-items-center rounded-control transition-colors",
                   toDispatch && "animate-pulse bg-chestnut text-ivory motion-reduce:animate-none",
                 )}
               >
