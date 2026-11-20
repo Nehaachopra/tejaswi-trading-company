@@ -2629,5 +2629,26 @@
     "pricePer": "Price / {unit}",
     "typePurchase": "Purchase order",
     "typeSale": "Sale order"
+  },
+  "history": {
+    "title": "History",
+    "type": "Type",
+    "allTypes": "All types",
+    "month": "Month",
+    "allMonths": "All months",
+    "amount": "Amount",
+    "anyAmount": "Any amount",
+    "search": "Search ID or remarks",
+    "amounts": {
+      "upTo10k": "Up to ₹10,000",
+      "to50k": "₹10,000 – ₹50,000",
+      "to1l": "₹50,000 – ₹1 lakh",
+      "to5l": "₹1 lakh – ₹5 lakh",
+      "above5l": "Above ₹5 lakh"
+    },
+    "cancelled": "Cancelled",
+    "loading": "Loading…",
+    "loadError": "Couldn't load the transactions. Try again.",
+    "empty": "No transactions found."
   }
 }

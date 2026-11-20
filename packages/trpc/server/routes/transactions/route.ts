@@ -10,6 +10,7 @@ import {
   transactionIdInputModel,
   transactionModel,
   transactionSummaryModel,
+  historyMonthModel,
 } from "@repo/services/transaction/model";
 
 import { ledgerSummaryModel } from "@repo/services/accounts/model";
@@ -54,19 +55,27 @@ import { accountsService, contraService, documentService, drawingService, dueSer
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 import { checkDate, limitSaves, onceFor } from "../../guards";
 
-// History: every past transaction of every type, one in full, and cancelling one; the admin only
+// History: every past transaction of every type (staff: only their own), one in full, and cancelling one (the admin
+// only)
 const historyRouter = router({
-  list: adminProcedure
+  list: protectedProcedure
     .meta({ openapi: { method: "GET", path: "/transactions", tags: ["transactions"] } })
     .input(listTransactionsInputModel)
     .output(z.array(transactionSummaryModel))
-    .query(({ input }) => transactionService.list(input)),
+    .query(({ ctx, input }) => transactionService.list(input, ctx.session.user)),
 
-  get: adminProcedure
+  // the months it can be narrowed to
+  months: protectedProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/months", tags: ["transactions"] } })
+    .input(z.void())
+    .output(z.array(historyMonthModel))
+    .query(({ ctx }) => transactionService.months(ctx.session.user)),
+
+  get: protectedProcedure
     .meta({ openapi: { method: "GET", path: "/transactions/{id}", tags: ["transactions"] } })
     .input(transactionIdInputModel)
     .output(transactionModel)
-    .query(({ input }) => transactionService.get(input)),
+    .query(({ ctx, input }) => transactionService.get(input, ctx.session.user)),
 
   // reverses it with entries dated today; the number is kept and it's marked cancelled with the reason
   cancel: adminProcedure

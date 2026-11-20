@@ -25,9 +25,14 @@ export const listTransactionsInputModel = z.object({
   minAmount: z.number().nonnegative().max(9_999_999_999_999).nullable().default(null),
   maxAmount: z.number().nonnegative().max(9_999_999_999_999).nullable().default(null),
   search: z.string().trim().max(50).default(""),
-  // the next page: rows older than the last one shown (its date and id); flat, so it fits a GET query
-  beforeDateTime: z.coerce.date().nullable().default(null),
-  beforeId: idModel.nullable().default(null),
+  // the next page: rows older than the last one shown, as "<its date, ISO>|<its id>"; one value, so it fits a GET query
+  // and a paged list
+  cursor: z
+    .string()
+    .max(80)
+    .regex(/^[^|]+\|[0-9a-f-]{36}$/)
+    .nullable()
+    .default(null),
   limit: z.number().int().min(1).max(100).default(50),
 });
 
@@ -47,6 +52,11 @@ export const transactionSummaryModel = z.object({
 });
 
 export type TransactionSummaryModel = z.infer<typeof transactionSummaryModel>;
+
+// the months /history can be narrowed to: each month (in India) holding a transaction the viewer can see, newest first
+export const historyMonthModel = z.object({ year: z.number().int(), month: z.number().int().min(1).max(12) });
+
+export type HistoryMonthModel = z.infer<typeof historyMonthModel>;
 
 export const transactionIdInputModel = z.object({ id: idModel });
 

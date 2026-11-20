@@ -14,6 +14,7 @@ import AssignedIdCounter, { type Prefix } from "./assigned-id";
 import SettingService from "../setting";
 import {
   type CancelTransactionInputModel,
+  type HistoryMonthModel,
   cancelTransactionInputModel,
   type ListTransactionsInputModel,
   listTransactionsInputModel,
@@ -54,6 +55,9 @@ const RCM_PAYABLES = [LEDGERS.rcmCgstPayable.name, LEDGERS.rcmSgstPayable.name, 
 
 // a built-in ledger's key from its stored name, so screens can show it in the reader's language
 const LEDGER_KEY = new Map<string, string>(Object.entries(LEDGERS).map(([key, l]) => [l.name, key]));
+
+// who is looking: the admin sees every transaction, staff only their own
+type Viewer = { id: string; role: string };
 
 const notFound = () => new TRPCError({ code: "NOT_FOUND", message: "Transaction not found." });
 
@@ -251,15 +255,20 @@ export default class TransactionService {
     await tx.delete(duesTable).where(eq(duesTable.transactionId, transactionId));
   }
 
-  // /history: newest first, a page at a time
-  async list(rawInput: ListTransactionsInputModel): Promise<TransactionSummaryModel[]> {
+  // /history: newest first, a page at a time. Staff see only what they made; opening balances stay on their own page
+  async list(rawInput: ListTransactionsInputModel, viewer: Viewer): Promise<TransactionSummaryModel[]> {
     const input = listTransactionsInputModel.parse(rawInput);
     const search = input.search ? `%${input.search.replace(/[%_\\]/g, "\\$&")}%` : null;
+    // the last row shown: its date and id
+    const [beforeAt, beforeId] = input.cursor?.split("|") ?? [];
+    const before = beforeAt && beforeId && !Number.isNaN(Date.parse(beforeAt)) ? { dateTime: new Date(beforeAt), id: beforeId } : null;
     const rows = await db
       .select()
       .from(transactionsTable)
       .where(
         and(
+          ne(transactionsTable.type, "opening_balance"),
+          viewer.role === "admin" ? undefined : eq(transactionsTable.createdById, viewer.id),
           input.types.length ? inArray(transactionsTable.type, input.types) : undefined,
           input.status ? eq(transactionsTable.status, input.status) : undefined,
           input.from ? gte(transactionsTable.dateTime, input.from) : undefined,
@@ -268,9 +277,7 @@ export default class TransactionService {
           input.maxAmount !== null ? lte(transactionsTable.amount, String(input.maxAmount)) : undefined,
           search ? or(ilike(transactionsTable.assignedId, search), ilike(transactionsTable.remarks, search)) : undefined,
           // the page after the last one shown
-          input.beforeDateTime && input.beforeId
-            ? or(lt(transactionsTable.dateTime, input.beforeDateTime), and(eq(transactionsTable.dateTime, input.beforeDateTime), lt(transactionsTable.id, input.beforeId)))
-            : undefined,
+          before ? or(lt(transactionsTable.dateTime, before.dateTime), and(eq(transactionsTable.dateTime, before.dateTime), lt(transactionsTable.id, before.id))) : undefined,
         ),
       )
       .orderBy(desc(transactionsTable.dateTime), desc(transactionsTable.id))
@@ -288,10 +295,21 @@ export default class TransactionService {
     }));
   }
 
-  // one transaction in full, with every line it posted
-  async get(input: TransactionIdInputModel): Promise<TransactionModel> {
+  // the months holding a transaction the viewer can see (in India), newest first: what /history's Month filter offers
+  async months(viewer: Viewer): Promise<HistoryMonthModel[]> {
+    const ym = sql<string>`to_char(${transactionsTable.dateTime} at time zone 'Asia/Kolkata', 'YYYY-MM')`;
+    const rows = await db
+      .selectDistinct({ ym })
+      .from(transactionsTable)
+      .where(and(ne(transactionsTable.type, "opening_balance"), viewer.role === "admin" ? undefined : eq(transactionsTable.createdById, viewer.id)))
+      .orderBy(desc(ym));
+    return rows.map((r) => ({ year: Number(r.ym.slice(0, 4)), month: Number(r.ym.slice(5, 7)) }));
+  }
+
+  // one transaction in full, with every line it posted; staff only one they made (anyone else's reads as not found)
+  async get(input: TransactionIdInputModel, viewer?: Viewer): Promise<TransactionModel> {
     const [t] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, input.id));
-    if (!t) throw notFound();
+    if (!t || (viewer && viewer.role !== "admin" && t.createdById !== viewer.id)) throw notFound();
     const lines = await db
       .select({ entry: ledgerEntriesTable, ledgerName: ledgersTable.name, referenceId: ledgersTable.referenceId })
       .from(ledgerEntriesTable)
