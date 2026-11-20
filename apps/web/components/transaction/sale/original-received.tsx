@@ -45,5 +45,10 @@ export function OriginalReceived() {
     })),
   ];
   if (parts.length === 0) return null;
-  return <FlowParts parts={parts} />;
+  // on beige, apart from the breakup's own rows
+  return (
+    <div className="rounded-control bg-[#ede3d0] px-2 py-1.5">
+      <FlowParts parts={parts} />
+    </div>
+  );
 }

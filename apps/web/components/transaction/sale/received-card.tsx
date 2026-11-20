@@ -1,14 +1,12 @@
 "use client";
 
-import { Check, ChevronDown, ChevronLeft, ChevronRight, IndianRupee } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 
 import { fieldClass } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
-import { MicButton } from "~/components/ui/mic-button";
 import { Note } from "~/components/ui/note";
-import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { Switch } from "~/components/ui/switch";
 import { rupees } from "~/lib/format";
@@ -18,7 +16,6 @@ import { cn } from "~/lib/utils";
 import { AccountCards } from "../shared/account-cards/account-cards";
 import { type AccountCardsApi } from "../shared/account-cards/types";
 import { DueFlow } from "../shared/fold-group";
-import { input, saidAmount } from "../shared/form-basics";
 import { Meter } from "../shared/meter";
 import { OriginalReceived } from "./original-received";
 import { SALE_TDS_RATE, useSaleEntry } from "./state";
@@ -197,8 +194,9 @@ export function ReceivedCard() {
     );
   };
 
-  // a credit sale: only what they'll owe, nothing to type
-  if (kind === "credit")
+  // a credit sale: only what they'll owe, nothing to type (an edit's: Due left on the left, the breakup on the right)
+  const credit = kind === "credit";
+  if (credit && !isEdit)
     return (
       <div className="flex flex-col gap-2 sm:max-w-80">
         <Figure label={t("thisBill")} amount={rupees(total)} />
@@ -274,14 +272,7 @@ export function ReceivedCard() {
     return (
       <div className="flex flex-col gap-1.5 sm:gap-2.5">
         <div className="sm:w-[calc(50%-1.5rem)]">
-          <Line
-            label={t("toReceiveOnly")}
-            value={
-              <span className="tabular flex min-h-12 items-center justify-end rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
-                {rupees(received)}
-              </span>
-            }
-          />
+          <FixedBanner label={t("toReceiveOnly")} amount={received} />
         </div>
         {leftToReceive}
         {accountCards}
@@ -296,7 +287,12 @@ export function ReceivedCard() {
   // the account had (an advance when it held one and owed nothing, a due otherwise)
   // (an edit leaves only a due: what's received now is capped at what the bill still has owed on it)
   const left = isEdit
-    ? [{ key: "due", label: t("leftDue"), amount: editLeft }]
+    ? credit && e.editAdvanceLeft > 0
+      ? [
+          { key: "advance", label: t("advanceLeft"), amount: e.editAdvanceLeft },
+          { key: "due", label: t("leftDue"), amount: editLeft },
+        ]
+      : [{ key: "due", label: t("leftDue"), amount: editLeft }]
     : e.leftDue > 0 && advanceLeft > 0
       ? [
           { key: "advance", label: t("advanceLeft"), amount: advanceLeft },
@@ -344,73 +340,22 @@ export function ReceivedCard() {
           />
         ))}
       </button>
-      {isEdit ? (
-        // an edit (tried here first): To receive as a strip, fixed (a refund, a walk-in's) or typed (a customer's)
-        refunding || e.editWalkIn ? (
-          <FixedBanner
-            label={refunding ? t("edit.refundNow") : t("toReceiveOnly")}
-            amount={received}
-          />
-        ) : (
-          <TypedBanner
-            id="received-field"
-            label={t("toReceiveOnly")}
-            value={e.receivedText}
-            onChange={e.typeReceived}
-            max={e.editDueLeft}
-            invalid={amountBad}
-          />
-        )
-      ) : refunding || e.editWalkIn ? (
-        // shown, not typed: a refund (the bill went below what was paid: what's paid over goes back at once), or a
-        // walk-in's edit (it pays all that's left, as a cash sale's walk-in)
-        <Line
+      {/* To receive: fixed (a refund, a walk-in's edit) or typed (a customer's); none on an edit to credit */}
+      {isEdit && credit ? null : refunding || e.editWalkIn ? (
+        <FixedBanner
           label={refunding ? t("edit.refundNow") : t("toReceiveOnly")}
-          value={
-            <span className="tabular flex min-h-12 items-center justify-end rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
-              {rupees(received)}
-            </span>
-          }
+          amount={received}
         />
       ) : (
-        <Line
-          label={
-            <label htmlFor="received-field" className="flex items-center">
-              {t("toReceiveOnly")}
-              {e.setOff === 0 && <RequiredMark />}
-            </label>
-          }
-          value={
-            <span className="relative block">
-              <IndianRupee
-                className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2 text-ivory"
-                aria-hidden
-              />
-              <NumberInput
-                id="received-field"
-                value={e.receivedText}
-                decimals={2}
-                maxDigits={13}
-                // an edit takes no more than the bill still has owed on it
-                max={isEdit ? e.editDueLeft : undefined}
-                placeholder="0"
-                onChange={e.typeReceived}
-                aria-invalid={amountBad || undefined}
-                // chestnut whether typed or not, as the purchase's To pay; left empty when it's needed, only the card's
-                // message says so
-                className={cn(
-                  input(false),
-                  "min-h-12 bg-chestnut pl-11 pr-3.5 text-right font-heading text-xl font-bold tabular text-ivory caret-ivory shadow-none placeholder:text-ivory/60",
-                )}
-              />
-            </span>
-          }
-          slot={
-            <MicButton
-              onText={(said) => saidAmount(said, e.typeReceived)}
-              className="rounded-[var(--radius-control)]"
-            />
-          }
+        <TypedBanner
+          id="received-field"
+          label={t("toReceiveOnly")}
+          value={e.receivedText}
+          onChange={e.typeReceived}
+          // an edit takes no more than the bill still has owed on it
+          max={isEdit ? e.editDueLeft : undefined}
+          invalid={amountBad}
+          required={e.setOff === 0}
         />
       )}
     </div>
@@ -475,10 +420,13 @@ export function ReceivedCard() {
             amount={`− ${rupees(editPaid)}`}
           />
           {originalOpen && editPaid > 0 && <OriginalReceived />}
-          <Figure
-            label={refunding ? t("edit.refundNow") : t("edit.received")}
-            amount={refunding ? `+ ${rupees(received)}` : `− ${rupees(received)}`}
-          />
+          {/* (credit takes nothing now) */}
+          {!credit && (
+            <Figure
+              label={refunding ? t("edit.refundNow") : t("edit.received")}
+              amount={refunding ? `+ ${rupees(received)}` : `− ${rupees(received)}`}
+            />
+          )}
         </>
       )}
       {/* the amount received taken off, its ⌄ opening what it goes towards */}

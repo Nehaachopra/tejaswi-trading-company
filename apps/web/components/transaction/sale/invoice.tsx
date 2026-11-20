@@ -145,7 +145,13 @@ export function SaleInvoice({
             <ArrowLeft className="size-4" aria-hidden /> {history ? th("title") : t("back")}
           </Link>
         )}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        {/* (from History, on a phone the buttons sit two to a row) */}
+        <div
+          className={cn(
+            history ? "grid grid-cols-2" : "flex flex-col",
+            "gap-2 sm:flex sm:flex-row sm:items-center",
+          )}
+        >
           {/* WhatsApp only when the buyer's phone is kept, and never once cancelled */}
           {!shared && !cancelled && d.buyer.phone && (
             <button
