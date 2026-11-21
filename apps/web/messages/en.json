@@ -2398,7 +2398,8 @@
       "bill": "Bill",
       "lessItemsReturned": "Items returned",
       "newBill": "New bill",
-      "lessAmountPaid": "Amount paid"
+      "lessAmountPaid": "Amount paid",
+      "received": "Received"
     }
   },
   "dues": {

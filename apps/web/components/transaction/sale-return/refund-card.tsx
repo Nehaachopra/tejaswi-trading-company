@@ -20,28 +20,27 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 // the Refund card, as the sale's Received card: on the left what's left on their account once it's paid back (Advance
 // left and / or Due left, an arrow on each opening the breakup) and To pay back (fixed: what the return has over all
 // they owe, now); the breakup on the right on a computer (it starts open), or slid to on a phone (‹ Breakup back), as
-// the sale's: an advance they hold (over a line), the old due, this bill (as returned, less what was paid on it: paid
-// over shows with a minus), with an advance their sub total and what of it is set off, the due, what's paid back, then
-// what's left on chestnut. Then, with money to pay back, Left to refund with its slider, pinned while the cards below
-// scroll, and a card for each place it's paid back from, none past what it holds
+// the sale's: an advance they hold (over a line), the old due, this bill (the new bill), with an advance their sub
+// total and what of it is set off, the due, what was received on the bill (taken off), what's paid back now (added),
+// then what's left on chestnut. Then, with money to pay back, Left to refund with its slider, pinned while the cards
+// below scroll, and a card for each place it's paid back from, none past what it holds
 export function RefundCard() {
-  const { t, sale, customer, payBack, splitTotal, balance } = useReturnEntry();
+  const { t, sale, customer, billAfter, payBack, splitTotal } = useReturnEntry();
   const ts = useTranslations("transactions.sale");
   const tr = useTranslations("transactions.receipt.form");
   const cards = useRefundCards();
   const done = splitTotal === payBack;
-  // the account: an advance they hold, what they owe on other bills, this bill as returned (less what was paid on it),
-  // with an advance their sub total and what of it is set off, then the due; what's paid back adds to it, and what's
-  // left is a due and / or an advance
+  // the account: an advance they hold, what they owe on other bills, this bill as returned, with an advance their sub
+  // total and what of it is set off (only against what's still owed once what was received is taken off), the due; then
+  // what was received taken off and what's paid back added; what's left is a due and / or an advance
   const held = customer?.held ?? 0;
   const oldDue = customer ? Math.max(0, round2(customer.owed - (sale.billNow - sale.paid))) : 0;
-  const thisBill = balance;
+  const thisBill = billAfter;
   const subTotal = round2(oldDue + thisBill);
-  const setOff = held > 0 ? Math.min(held, Math.max(0, subTotal)) : 0;
+  const setOff = held > 0 ? Math.min(held, Math.max(0, round2(subTotal - sale.paid))) : 0;
   const due = round2(subTotal - setOff);
-  const dueLeft = Math.max(0, round2(due + payBack));
+  const dueLeft = Math.max(0, round2(due - sale.paid + payBack));
   const advanceLeft = round2(held - setOff);
-  const minus = (n: number) => (n < 0 ? `− ${rupees(-n)}` : rupees(n));
   // on the left: Due left always (₹0 too), an advance left above it
   const leftSide = [
     ...(advanceLeft > 0 ? [{ key: "advance", label: ts("advanceLeft"), amount: advanceLeft }] : []),
@@ -126,14 +125,15 @@ export function RefundCard() {
     <div id="return-breakup" className="flex min-w-0 flex-col gap-2.5 rounded-control bg-chestnut/[0.04] p-3">
       {held > 0 && <Figure label={tr("advancePart")} amount={rupees(held)} className="mb-3.5 border-b border-chestnut/30 pb-2" />}
       {customer && <Figure label={ts("oldDue")} amount={rupees(oldDue)} />}
-      <Figure label={ts("thisBill")} amount={minus(thisBill)} />
+      <Figure label={ts("thisBill")} amount={rupees(thisBill)} />
       {held > 0 && (
         <>
-          <Figure label={ts("subTotal")} amount={minus(subTotal)} strong />
+          <Figure label={ts("subTotal")} amount={rupees(subTotal)} strong />
           <Figure label={ts("setOff")} amount={setOff > 0 ? `− ${rupees(setOff)}` : rupees(0)} />
         </>
       )}
-      <Figure label={tr("due")} amount={minus(due)} strong />
+      <Figure label={tr("due")} amount={rupees(due)} strong />
+      <Figure label={t("received")} amount={`− ${rupees(sale.paid)}`} />
       <Figure label={t("paidBack")} amount={`+ ${rupees(payBack)}`} />
       {advanceLeft > 0 && <LeftRow label={ts("advanceLeft")} amount={advanceLeft} />}
       {(dueLeft > 0 || advanceLeft <= 0) && <LeftRow label={ts("leftDue")} amount={dueLeft} />}

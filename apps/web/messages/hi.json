@@ -2398,7 +2398,8 @@
       "bill": "बिल",
       "lessItemsReturned": "वापस आइटम",
       "newBill": "नया बिल",
-      "lessAmountPaid": "दी गई राशि"
+      "lessAmountPaid": "दी गई राशि",
+      "received": "प्राप्त"
     }
   },
   "dues": {
