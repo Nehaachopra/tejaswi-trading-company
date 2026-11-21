@@ -169,6 +169,20 @@ export function useSaleEntryState({
   // cash, to a customer with an advance with us: whether it's set off against this bill (on unless switched off, as a
   // purchase's)
   const [setOffOn, setSetOffOn] = useState(true);
+  // a first address in our place of business's town, district, state and PIN (empty until that's in hand)
+  function placeAddress(): AddressDraft {
+    const a = emptyAddress(true);
+    return placeOfBusiness
+      ? {
+          ...a,
+          city: placeOfBusiness.city,
+          district: placeOfBusiness.district,
+          state: placeOfBusiness.state,
+          stateCode: placeOfBusiness.stateCode as StateCode,
+          postalCode: placeOfBusiness.postalCode,
+        }
+      : a;
+  }
   // the place of business fills the first address's town, district, state and PIN once it's in hand (only while
   // nothing's been typed in it); its line and landmark are left to type
   useEffect(() => {
@@ -646,7 +660,16 @@ export function useSaleEntryState({
       // (an exchange keeps its buyer)
       if (exchange) {
         // nothing to change
-      } else if (!isEdit) setCustomer(orderCustomer(next));
+      } else if (!isEdit) {
+        // a new sale: the customer stage starts again, nothing kept from before (only what an order gives)
+        setNewParty(emptyParty());
+        setEditingCustomer(false);
+        setSearchSaved(false);
+        setBuyerName("");
+        setBuyerPhone("");
+        setAddresses([placeAddress()]);
+        setCustomer(orderCustomer(next));
+      }
       else if (!editing?.customer) {
         if (next === "credit" && isAdmin) {
           setNewParty(walkInParty());

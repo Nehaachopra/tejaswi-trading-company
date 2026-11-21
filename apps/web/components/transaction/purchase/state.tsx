@@ -380,14 +380,20 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
       setPaidText("");
       setTypedSplit({});
       setSetOffOn(true);
+      // the supplier stage starts again, nothing kept from before (an arrival keeps the order's supplier)
+      if (!orderLocked) {
+        setEditingSupplier(false);
+        setCashSearch(false);
+        // cash, the admin's: no search, a new supplier's details straight away, in our town until changed
+        if (next === "cash" && isAdmin) {
+          setSupplier({ kind: "party" });
+          setNewSupplier(cashSupplierDraft());
+        } else {
+          setSupplier(null);
+          setNewSupplier(emptyParty());
+        }
+      }
     }
-    // cash, the admin's (not an arrival): no search, a new supplier's details straight away, in our town until changed
-    if (next === "cash" && isAdmin && !orderLocked && !cashSearch && supplier === null) {
-      setSupplier({ kind: "party" });
-      setNewSupplier(cashSupplierDraft());
-    }
-    // back to credit with that new supplier still untyped: the search again
-    if (next === "credit" && supplier?.kind === "party" && newSupplier.phone === "" && newSupplier.name.trim() === "") setSupplier(null);
     show("supplier");
   }
   // a cash purchase's new supplier: empty, its address in our place of business's town, district, state and PIN

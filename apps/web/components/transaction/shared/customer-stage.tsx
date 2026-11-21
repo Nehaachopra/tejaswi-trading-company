@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ComponentProps, type Dispatch, type ReactNode, type SetStateAction, useState } from "react";
 
@@ -8,7 +8,7 @@ import { fieldClass } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
 import { RequiredMark } from "~/components/ui/required-mark";
-import { noDigits, titleCase } from "~/lib/format";
+import { noDigits } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 import { type AddressDraft, AddressFields, emptyAddress, FieldRows, SECTION_TITLE } from "../../account/party/party-fields";
@@ -248,21 +248,13 @@ export function AddressOnlyView({
   const setAddress = (key: string, patch: Partial<AddressDraft>) => setAddresses((all) => all.map((a) => (a.key === key ? { ...a, ...patch } : a)));
   const ships = addresses.length > 1;
   const [formOpen, setFormOpen] = useState(() => !complete);
-  // back on the stage with the address complete: just where it is, with Edit and Change
+  // back on the stage with the address complete: shown as a picked party is, with Edit and Change
   const first = addresses[0];
   if (complete && !formOpen && first)
     return (
       <PickedCard onEdit={() => setFormOpen(true)} onChange={onChange}>
-        <span className="flex min-w-0 flex-1 items-start gap-2">
-          <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <span className="flex min-w-0 flex-col gap-0.5">
-            <span className="font-heading text-base font-bold">{titleCase(first.city)}</span>
-            {first.addressLine1.trim() !== "" && <span className="text-sm">{first.addressLine1}</span>}
-            <span className="tabular text-xs">
-              {titleCase(first.district)}, {titleCase(first.state)} {first.postalCode}
-            </span>
-          </span>
-        </span>
+        {/* as a picked party shows: no name yet (–), Customer, and the town entered */}
+        <PartyFace name="–" shortName={null} types={["customer"]} phone={null} city={first.city || null} />
       </PickedCard>
     );
   return (
