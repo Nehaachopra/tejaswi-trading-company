@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, db, desc, eq, gte, ilike, inArray, lt, lte, ne, or, sql } from "@repo/database";
-import { dueSettlementsTable, duesTable, gstReturnFilingsTable, ledgerEntriesTable, ledgersTable, productGodownsTable, receiptsTable, saleOrderProductsTable, saleOrdersTable, saleProductsTable, saleReturnProductsTable, saleReturnsTable, salesTable, transactionsTable } from "@repo/database/schema";
+import { dueSettlementsTable, duesTable, gstReturnFilingsTable, ledgerEntriesTable, ledgersTable, productGodownsTable, receiptsTable, saleOrderProductsTable, saleOrdersTable, saleProductsTable, saleReturnProductsTable, saleReturnsTable, salesTable, transactionEditLogsTable, transactionsTable } from "@repo/database/schema";
 
 import LedgerEngine from "../accounts/engine";
 import type { ActorModel, PostingLine } from "../accounts/model";
@@ -348,6 +348,7 @@ export default class TransactionService {
       )
       .orderBy(desc(transactionsTable.dateTime), desc(transactionsTable.id))
       .limit(input.limit);
+    const edits = await this.lastEdits(rows.map((t) => t.id));
     return rows.map((t) => ({
       id: t.id,
       type: t.type,
@@ -358,7 +359,24 @@ export default class TransactionService {
       status: t.status,
       createdByName: t.createdByName,
       createdAt: t.createdAt,
+      lastEditedAt: edits.get(t.id)?.at ?? null,
+      lastEditedByName: edits.get(t.id)?.by ?? null,
     }));
+  }
+
+  // each transaction's last edit (the newest edit log row): when and by whom
+  private async lastEdits(ids: string[]) {
+    if (ids.length === 0) return new Map<string, { at: Date; by: string }>();
+    const rows = await db
+      .selectDistinctOn([transactionEditLogsTable.transactionId], {
+        transactionId: transactionEditLogsTable.transactionId,
+        at: transactionEditLogsTable.createdAt,
+        by: transactionEditLogsTable.editedByName,
+      })
+      .from(transactionEditLogsTable)
+      .where(inArray(transactionEditLogsTable.transactionId, ids))
+      .orderBy(transactionEditLogsTable.transactionId, desc(transactionEditLogsTable.createdAt));
+    return new Map(rows.map((r) => [r.transactionId, { at: r.at, by: r.by }]));
   }
 
   // the months holding a transaction the viewer can see (in India), newest first: what /history's Month filter offers
@@ -382,6 +400,7 @@ export default class TransactionService {
       .innerJoin(ledgersTable, eq(ledgersTable.id, ledgerEntriesTable.ledgerId))
       .where(eq(ledgerEntriesTable.transactionId, t.id))
       .orderBy(asc(ledgerEntriesTable.createdAt), sql`${ledgerEntriesTable.transactionType} desc`);
+    const edit = (await this.lastEdits([t.id])).get(t.id);
     return {
       id: t.id,
       type: t.type,
@@ -392,6 +411,8 @@ export default class TransactionService {
       status: t.status,
       createdByName: t.createdByName,
       createdAt: t.createdAt,
+      lastEditedAt: edit?.at ?? null,
+      lastEditedByName: edit?.by ?? null,
       cancelledAt: t.cancelledAt,
       cancelledByName: t.cancelledByName,
       cancelReason: t.cancelReason,

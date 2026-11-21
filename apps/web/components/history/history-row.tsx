@@ -18,7 +18,7 @@ const when = (at: Date, locale: string) => {
 };
 
 // one transaction: its type on top, its ID and when under it side by side, the amount and an arrow on the right; the
-// whole row opens it. Cancelled: faded, the amount struck through
+// whole row opens it. Cancelled: faded, the amount struck through; edited: a small Edited badge beside the type
 export function HistoryRow({ row }: { row: HistoryRowData }) {
   const t = useTranslations("history");
   const tt = useTranslations("accounts.types");
@@ -35,6 +35,10 @@ export function HistoryRow({ row }: { row: HistoryRowData }) {
           <span className="flex items-baseline gap-2 text-[0.9375rem] font-semibold">
             {tt(row.type)}
             {cancelled && <span className="text-xs font-semibold text-chestnut/60">{t("cancelled")}</span>}
+            {/* edited since it was saved: a small badge */}
+            {!cancelled && row.lastEditedAt && (
+              <span className="rounded-control bg-chestnut/10 px-2 py-1 text-[0.75rem] font-semibold leading-none">{t("edited")}</span>
+            )}
           </span>
           <span className="tabular flex flex-wrap gap-x-3.5 gap-y-1 text-xs text-chestnut/60">
             <span className="flex items-center gap-1">

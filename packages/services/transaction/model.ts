@@ -38,7 +38,7 @@ export const listTransactionsInputModel = z.object({
 
 export type ListTransactionsInputModel = z.infer<typeof listTransactionsInputModel>;
 
-// a row in /history: when, what, how much, and whether it was cancelled
+// a row in /history: when, what, how much, whether it was cancelled, and its last edit
 export const transactionSummaryModel = z.object({
   id: idModel,
   type: transactionTypeModel,
@@ -49,6 +49,9 @@ export const transactionSummaryModel = z.object({
   status: z.enum(["active", "cancelled"]),
   createdByName: z.string(),
   createdAt: z.date(),
+  // the last edit, when it was edited (none: never)
+  lastEditedAt: z.date().nullable(),
+  lastEditedByName: z.string().nullable(),
 });
 
 export type TransactionSummaryModel = z.infer<typeof transactionSummaryModel>;
