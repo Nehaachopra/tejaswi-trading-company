@@ -47,11 +47,7 @@ export function CartCard() {
         <ProductCard />
       </div>
       <div className="flex min-w-0 flex-col gap-2.5">
-        {/* how many items, then (after a gap) the cart's total as the Amount */}
-        <div className="tabular mb-2 flex items-baseline justify-between gap-3 text-sm">
-          <span className="min-w-0">{t("items")}</span>
-          <span className="shrink-0 whitespace-nowrap text-base font-semibold">{lines.length.toLocaleString("en-IN")}</span>
-        </div>
+        {/* the cart's total as the Amount: room under it */}
         <div className="tabular mb-2 flex items-baseline justify-between gap-3 text-sm">
           <span className="min-w-0">{t("amount")}</span>
           <span className="shrink-0 whitespace-nowrap text-base font-semibold">{rupees(itemsTotal)}</span>
