@@ -13,7 +13,6 @@ import { usePurchaseData } from "~/providers/purchase";
 
 import { indiaDay } from "../../account/balance";
 import { draftInput as partyInput, draftOk as partyOk, emptyDraft as emptyParty, type PartyDraft } from "../../account/party/party-fields";
-import { type StateCode } from "../../account/party/party-kinds";
 import { useSameNameConfirm } from "../../account/party/same-name";
 import type { Pack, ProductGroup } from "../../product/products/product-tile";
 import { productTitle } from "../../product/products/product-tile";
@@ -56,7 +55,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   const locale = useLocale();
   const router = useRouter();
   const sameName = useSameNameConfirm();
-  const { products, categories, godowns, stock, sources, placeOfBusiness, order, orderLedger, loading, loadFailed, retryLoad, savePurchase, saving: creating, saved } = usePurchaseData();
+  const { products, categories, godowns, stock, sources, order, orderLedger, loading, loadFailed, retryLoad, savePurchase, saving: creating, saved } = usePurchaseData();
 
   // the answers
   const [lines, setLines] = useState<CartLine[]>([]);
@@ -384,10 +383,10 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
       if (!orderLocked) {
         setEditingSupplier(false);
         setCashSearch(false);
-        // cash, the admin's: no search, a new supplier's details straight away, in our town until changed
+        // cash, the admin's: no search, a new supplier's details straight away (nothing filled in)
         if (next === "cash" && isAdmin) {
           setSupplier({ kind: "party" });
-          setNewSupplier(cashSupplierDraft());
+          setNewSupplier(emptyParty());
         } else {
           setSupplier(null);
           setNewSupplier(emptyParty());
@@ -396,28 +395,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     }
     show("supplier");
   }
-  // a cash purchase's new supplier: empty, its address in our place of business's town, district, state and PIN
-  function cashSupplierDraft(): PartyDraft {
-    const d = emptyParty();
-    if (!placeOfBusiness) return d;
-    const [first, ...rest] = d.addresses;
-    return {
-      ...d,
-      addresses: first
-        ? [
-            {
-              ...first,
-              city: placeOfBusiness.city,
-              district: placeOfBusiness.district,
-              state: placeOfBusiness.state,
-              stateCode: placeOfBusiness.stateCode as StateCode,
-              postalCode: placeOfBusiness.postalCode,
-            },
-            ...rest,
-          ]
-        : d.addresses,
-    };
-  }
+
   // cash, the admin's: the supplier stage is only the new supplier's details (no search)
   const cashNew = kind === "cash" && isAdmin && !orderLocked && !cashSearch;
 

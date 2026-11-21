@@ -18,8 +18,6 @@ function usePurchaseDataState(orderId: string | null) {
   const godowns = trpc.inventory.godown.list.useQuery({ includeInactive: false });
   const stock = trpc.inventory.stock.byGodown.useQuery();
   const sources = trpc.transactions.payment.sources.useQuery();
-  // our place of business: a cash purchase's new supplier starts in its town
-  const place = trpc.transactions.sale.placeOfBusiness.useQuery();
   const order = trpc.orders.purchase.get.useQuery({ id: orderId ?? "" }, { enabled: orderId !== null });
   // the order's supplier as the Supplier card picks one (their ledger, with what we owe them), while it's pending
   const orderPartyId = order.data?.status === "pending" ? order.data.party.id : null;
@@ -51,7 +49,6 @@ function usePurchaseDataState(orderId: string | null) {
     godowns: godowns.data,
     stock: stock.data,
     sources: sources.data,
-    placeOfBusiness: place.data,
     loading: reads.some((r) => r.isPending),
     loadFailed: reads.some((r) => r.isError),
     retryLoad: () => reads.forEach((r) => r.isError && void r.refetch()),

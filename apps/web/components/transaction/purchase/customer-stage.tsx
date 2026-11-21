@@ -7,7 +7,7 @@ import { usePurchaseEntry } from "./state";
 // a purchase's customer stage (its supplier), on the shared one: a search over the suppliers; picking one with an
 // address moves on (the bill is from their default address; one with none says to add it, Edit for the admin). + New
 // party (the admin's) asks their details right here: the phone first (needed), then the name and the rest, no email.
-// Cash (the admin's): no search, those details straight away, the address in our town until changed
+// Cash (the admin's): no search, those details straight away
 export function CustomerStage() {
   const { t, tc, isAdmin, complete, supplier, setSupplier, newSupplier, setNewSupplier, editingSupplier, setEditingSupplier, matched, tried, setTried, show, orderLocked, cashNew, setCashSearch } = usePurchaseEntry();
   const picked = supplier?.kind === "ledger" ? supplier.ledger : null;
