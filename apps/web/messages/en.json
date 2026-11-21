@@ -2386,7 +2386,12 @@
       "returnQuantity": "Return quantity",
       "leftToRefund": "Left to refund",
       "toPay": "To pay",
-      "toReceive": "To receive"
+      "toReceive": "To receive",
+      "cartPane": "Cart",
+      "returnedPane": "Returned",
+      "soldWord": "sold",
+      "allComingBack": "Everything is coming back.",
+      "quantityReturned": "Quantity returned"
     }
   },
   "dues": {

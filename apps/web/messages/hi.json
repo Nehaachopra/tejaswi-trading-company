@@ -2386,7 +2386,12 @@
       "returnQuantity": "वापसी मात्रा",
       "leftToRefund": "लौटाना बाकी",
       "toPay": "देना है",
-      "toReceive": "लेना है"
+      "toReceive": "लेना है",
+      "cartPane": "कार्ट",
+      "returnedPane": "वापस",
+      "soldWord": "बेचा",
+      "allComingBack": "सब कुछ वापस आ रहा है।",
+      "quantityReturned": "वापस मात्रा"
     }
   },
   "dues": {

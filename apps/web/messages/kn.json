@@ -2386,7 +2386,12 @@
       "returnQuantity": "ವಾಪಸಾತಿ ಪ್ರಮಾಣ",
       "leftToRefund": "ಹಿಂತಿರುಗಿಸಲು ಬಾಕಿ",
       "toPay": "ಕೊಡಬೇಕು",
-      "toReceive": "ಬರಬೇಕು"
+      "toReceive": "ಬರಬೇಕು",
+      "cartPane": "ಕಾರ್ಟ್",
+      "returnedPane": "ಹಿಂತಿರುಗಿದ್ದು",
+      "soldWord": "ಮಾರಾಟ",
+      "allComingBack": "ಎಲ್ಲವೂ ಹಿಂತಿರುಗುತ್ತಿದೆ.",
+      "quantityReturned": "ಹಿಂತಿರುಗಿದ ಪ್ರಮಾಣ"
     }
   },
   "dues": {
