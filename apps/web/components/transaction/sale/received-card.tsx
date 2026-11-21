@@ -46,7 +46,7 @@ function Row({
 const partHeading = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
 
 // a figure that isn't typed: its name on the left, the figure on the right; `strong` closes a part with a line above
-function Figure({
+export function Figure({
   label,
   amount,
   strong = false,
@@ -99,7 +99,7 @@ export function Line({
 export const figure = "tabular block pr-3.5 text-right text-base font-semibold";
 
 // what's left, on chestnut: the amount that closes the breakup
-function LeftRow({ label, amount }: { label: string; amount: number }) {
+export function LeftRow({ label, amount }: { label: string; amount: number }) {
   return (
     <div className="tabular flex items-center justify-between gap-3 rounded-control bg-chestnut px-3 py-2 text-ivory">
       <span className="text-sm font-semibold">{label}</span>
