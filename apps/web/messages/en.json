@@ -2294,6 +2294,7 @@
       },
       "summary": "Summary",
       "steps": {
+        "cart": "Cart",
         "items": "Items",
         "amount": "Amount",
         "settle": "Exchange or refund",
@@ -2337,7 +2338,7 @@
       "onAccount": "On their account",
       "reason": "Reason",
       "reasons": {
-        "damaged": "Damaged",
+        "damaged": "Spoiled",
         "shortage": "Shortage",
         "wrong_item": "Wrong item",
         "other": "Other"
@@ -2354,7 +2355,9 @@
         "left": "{amount} is still to be placed.",
         "into": "Say how each account paid.",
         "reason": "Pick why it came back.",
-        "date": "Pick the date."
+        "date": "Pick the date.",
+        "refundIn": "Pick cash or credit.",
+        "quantity": "Say how many come back."
       },
       "errors": {
         "network": "Can't reach the server. Check your connection.",
@@ -2375,6 +2378,7 @@
         "loadError": "Couldn't load the return.",
         "number": "Transaction ID",
         "creditNote": "Credit note",
+        "items": "Items",
         "total": "Total",
         "onAccount": "Off their account",
         "refunded": "Paid back",
@@ -2388,7 +2392,11 @@
         "invoice": "Against invoice",
         "invoiceDate": "Invoice date",
         "to": "To",
-        "amount": "Amount credited"
+        "amount": "Amount credited",
+        "settled": "Settled",
+        "paidBack": "Paid back ₹{amount}",
+        "onAccount": "Adjusted in account ₹{amount}",
+        "exchanged": "Exchanged against {number}"
       },
       "rate": "Rate",
       "returnQuantity": "Return quantity",
@@ -2407,7 +2415,10 @@
       "lessItemsReturned": "Items returned",
       "newBill": "New bill",
       "lessAmountPaid": "Amount paid",
-      "received": "Received"
+      "received": "Received",
+      "returnTotal": "Return total",
+      "removeFromReturn": "Take off the return",
+      "toRefund": "To refund"
     }
   },
   "dues": {
@@ -2831,9 +2842,27 @@
       "purchasePaid": "Can't cancel: the supplier has been paid towards this purchase. Cancel that payment first.",
       "rcmPaid": "Can't cancel: its reverse-charge GST is already paid. Cancel that Tax paid payment first.",
       "openingBalance": "Opening balances are changed on the Opening balances page.",
-      "saleReturned": "Can't cancel: goods came back on this sale. Cancel that sale return first.",
-      "exchangeSale": "Can't cancel: this sale was an exchange. Cancel its sale return; this sale is cancelled with it."
+      "saleReturned": "Can't cancel: goods came back on this sale.",
+      "exchangeSale": "Can't cancel: this sale was an exchange."
     },
-    "editSale": "Edit sale"
+    "editSale": "Edit sale",
+    "returns": "Returns",
+    "returned": "Returned",
+    "partReturned": "Part returned",
+    "open": "Open",
+    "returnItems": "{count, plural, =1 {1 item} other {# items}}",
+    "settledIn": {
+      "cash": "paid back",
+      "credit": "adjusted in account",
+      "both": "paid back and adjusted in account",
+      "exchange": "exchanged"
+    },
+    "editLog": {
+      "title": "Edits",
+      "fields": {
+        "date": "Date",
+        "total": "Total"
+      }
+    }
   }
 }

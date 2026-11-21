@@ -198,6 +198,8 @@ export default class TransactionService {
     await db.transaction(async (tx) => {
       const [t] = await tx.select().from(transactionsTable).where(eq(transactionsTable.id, input.id)).for("update");
       if (!t) throw notFound();
+      // a sale return stands: it's never cancelled
+      if (t.type === "sale_return") throw new TRPCError({ code: "BAD_REQUEST", message: "A sale return can't be cancelled." });
       const blocked = await this.cancelBlockedBy(tx, t);
       if (blocked === "cancelled") throw new TRPCError({ code: "CONFLICT", message: "This transaction is already cancelled." });
       if (blocked === "openingBalance") throw new TRPCError({ code: "BAD_REQUEST", message: "Change opening balances on the Opening balances page." });
@@ -205,34 +207,10 @@ export default class TransactionService {
       if (blocked === "rcmPaid") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Its reverse-charge GST is already paid. Cancel that Tax paid payment first." });
       if (blocked === "purchasePaid") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The supplier has been paid towards this purchase. Cancel that payment first." });
       if (blocked === "salePaid") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The customer has paid towards this sale. Cancel that receipt first." });
-      if (blocked === "saleReturned") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Goods came back on this sale. Cancel that sale return first." });
-      if (blocked === "exchangeSale") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "This sale was an exchange. Cancel its sale return; the sale is cancelled with it." });
+      if (blocked === "saleReturned") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Goods came back on this sale, so it can't be cancelled." });
+      if (blocked === "exchangeSale") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "This sale was an exchange, so it can't be cancelled." });
       const now = new Date();
       await this.engine.reverse(tx, { transactionId: t.id, dateTime: now });
-      // a sale return: its packs leave the godowns again and what it settled is owed again. An exchange's new sale is
-      // cancelled with it, when nothing else holds that sale
-      if (t.type === "sale_return") {
-        // the exchange's sale first, so its packs are back before the return's leave again
-        const exchangeSaleTx = await this.exchangeSaleOf(tx, t.id);
-        if (exchangeSaleTx) {
-          const [s] = await tx.select().from(transactionsTable).where(eq(transactionsTable.id, exchangeSaleTx)).for("update");
-          if (s && s.status === "active") {
-            const held = await this.cancelBlockedBy(tx, s);
-            if (held && held !== "exchangeSale") {
-              const why = held === "salePaid" ? "the customer has paid towards it" : held === "gstFiled" ? "that month's GSTR-1 is filed" : "goods came back on it";
-              throw new TRPCError({ code: "PRECONDITION_FAILED", message: `Its exchange sale ${s.assignedId} can't be cancelled: ${why}.` });
-            }
-            await this.engine.reverse(tx, { transactionId: s.id, dateTime: now });
-            await this.undoSale(tx, s.id);
-            await tx
-              .update(transactionsTable)
-              .set({ status: "cancelled", cancelledAt: now, cancelledById: actor.id, cancelledByName: actor.name.slice(0, 30), cancelReason: input.reason })
-              .where(eq(transactionsTable.id, s.id));
-            await queueCancelled(tx, s.id);
-          }
-        }
-        await this.undoSaleReturn(tx, t.id);
-      }
       // a sale: its packs go back into the godowns they left, and what the customer owed for it goes
       if (t.type === "sale") await this.undoSale(tx, t.id);
       // a purchase: its packs leave the godowns they came into, each pack's cost goes back, its due goes and an order
@@ -295,32 +273,6 @@ export default class TransactionService {
     await tx.delete(duesTable).where(eq(duesTable.transactionId, transactionId));
   }
 
-  // a sale return cancelled: each godown gives back what came into it, and what it settled on the customer's dues is
-  // owed again
-  private async undoSaleReturn(tx: Tx, transactionId: string) {
-    const [r] = await tx.select({ id: saleReturnsTable.id }).from(saleReturnsTable).where(eq(saleReturnsTable.transactionId, transactionId));
-    if (!r) return;
-    const lines = await tx
-      .select({ productId: saleProductsTable.productId, quantity: saleReturnProductsTable.quantity, godownId: productGodownsTable.godownId })
-      .from(saleReturnProductsTable)
-      .innerJoin(saleProductsTable, eq(saleProductsTable.id, saleReturnProductsTable.saleProductId))
-      .leftJoin(productGodownsTable, eq(productGodownsTable.id, saleReturnProductsTable.productGodownId))
-      .where(eq(saleReturnProductsTable.returnId, r.id));
-    if (lines.some((l) => !l.godownId)) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A godown this return used is gone." });
-    await this.stock.apply(tx, lines.map((l) => ({ productId: l.productId, godownId: l.godownId!, delta: -l.quantity })));
-    await tx.delete(dueSettlementsTable).where(eq(dueSettlementsTable.transactionId, transactionId));
-  }
-
-  // a sale return's exchange sale (its transaction), if it had one
-  private async exchangeSaleOf(tx: Tx, transactionId: string) {
-    const [s] = await tx
-      .select({ transactionId: salesTable.transactionId })
-      .from(saleReturnsTable)
-      .innerJoin(salesTable, eq(salesTable.id, saleReturnsTable.exchangeSaleId))
-      .where(eq(saleReturnsTable.transactionId, transactionId));
-    return s?.transactionId ?? null;
-  }
-
   // /history: newest first, a page at a time. Staff see only what they made; opening balances stay on their own page
   async list(rawInput: ListTransactionsInputModel, viewer: Viewer): Promise<TransactionSummaryModel[]> {
     const input = listTransactionsInputModel.parse(rawInput);
@@ -334,6 +286,8 @@ export default class TransactionService {
       .where(
         and(
           ne(transactionsTable.type, "opening_balance"),
+          // a sale return shows under its sale (its log), not as a row of its own
+          ne(transactionsTable.type, "sale_return"),
           viewer.role === "admin" ? undefined : eq(transactionsTable.createdById, viewer.id),
           input.types.length ? inArray(transactionsTable.type, input.types) : undefined,
           input.status ? eq(transactionsTable.status, input.status) : undefined,
@@ -349,6 +303,7 @@ export default class TransactionService {
       .orderBy(desc(transactionsTable.dateTime), desc(transactionsTable.id))
       .limit(input.limit);
     const edits = await this.lastEdits(rows.map((t) => t.id));
+    const returned = await this.returnedOf(rows.filter((t) => t.type === "sale").map((t) => t.id));
     return rows.map((t) => ({
       id: t.id,
       type: t.type,
@@ -361,6 +316,62 @@ export default class TransactionService {
       createdAt: t.createdAt,
       lastEditedAt: edits.get(t.id)?.at ?? null,
       lastEditedByName: edits.get(t.id)?.by ?? null,
+      returned: returned.get(t.id) ?? null,
+    }));
+  }
+
+  // each sale's goods come back on it (by returns still in place): all of it, or some of it
+  private async returnedOf(saleTransactionIds: string[]) {
+    const out = new Map<string, "all" | "part">();
+    if (saleTransactionIds.length === 0) return out;
+    const sold = await db
+      .select({ transactionId: salesTable.transactionId, quantity: sql<number>`sum(${saleProductsTable.quantity})::int` })
+      .from(salesTable)
+      .innerJoin(saleProductsTable, eq(saleProductsTable.saleId, salesTable.id))
+      .where(inArray(salesTable.transactionId, saleTransactionIds))
+      .groupBy(salesTable.transactionId);
+    const back = await db
+      .select({ transactionId: salesTable.transactionId, quantity: sql<number>`sum(${saleReturnProductsTable.quantity})::int` })
+      .from(saleReturnProductsTable)
+      .innerJoin(saleReturnsTable, eq(saleReturnsTable.id, saleReturnProductsTable.returnId))
+      .innerJoin(transactionsTable, eq(transactionsTable.id, saleReturnsTable.transactionId))
+      .innerJoin(salesTable, eq(salesTable.id, saleReturnsTable.saleId))
+      .where(and(inArray(salesTable.transactionId, saleTransactionIds), eq(transactionsTable.status, "active")))
+      .groupBy(salesTable.transactionId);
+    for (const b of back) {
+      if (b.quantity <= 0) continue;
+      const s = sold.find((x) => x.transactionId === b.transactionId)?.quantity ?? 0;
+      out.set(b.transactionId, b.quantity >= s ? "all" : "part");
+    }
+    return out;
+  }
+
+  // a sale's returns, oldest first: each one's ID, day, items, total, how it was settled, and status
+  private async returnsOf(saleTransactionId: string): Promise<TransactionModel["returns"]> {
+    const rows = await db
+      .select({
+        transactionId: transactionsTable.id,
+        assignedId: transactionsTable.assignedId,
+        returnDate: saleReturnsTable.returnDate,
+        total: transactionsTable.amount,
+        status: transactionsTable.status,
+        transactedIn: saleReturnsTable.transactedIn,
+        exchangeSaleId: saleReturnsTable.exchangeSaleId,
+        items: sql<number>`(select count(distinct ${saleProductsTable.productId})::int from ${saleReturnProductsTable} inner join ${saleProductsTable} on ${saleProductsTable.id} = ${saleReturnProductsTable.saleProductId} where ${saleReturnProductsTable.returnId} = ${saleReturnsTable.id})`,
+      })
+      .from(saleReturnsTable)
+      .innerJoin(transactionsTable, eq(transactionsTable.id, saleReturnsTable.transactionId))
+      .innerJoin(salesTable, eq(salesTable.id, saleReturnsTable.saleId))
+      .where(eq(salesTable.transactionId, saleTransactionId))
+      .orderBy(asc(transactionsTable.dateTime), asc(transactionsTable.createdAt));
+    return rows.map((r) => ({
+      transactionId: r.transactionId,
+      assignedId: r.assignedId,
+      returnDate: r.returnDate,
+      items: r.items,
+      total: Number(r.total),
+      settledIn: r.exchangeSaleId ? "exchange" : (r.transactedIn as "cash" | "credit" | "both"),
+      status: r.status === "cancelled" ? "cancelled" : "active",
     }));
   }
 
@@ -385,7 +396,7 @@ export default class TransactionService {
     const rows = await db
       .selectDistinct({ ym })
       .from(transactionsTable)
-      .where(and(ne(transactionsTable.type, "opening_balance"), viewer.role === "admin" ? undefined : eq(transactionsTable.createdById, viewer.id)))
+      .where(and(ne(transactionsTable.type, "opening_balance"), ne(transactionsTable.type, "sale_return"), viewer.role === "admin" ? undefined : eq(transactionsTable.createdById, viewer.id)))
       .orderBy(desc(ym));
     return rows.map((r) => ({ year: Number(r.ym.slice(0, 4)), month: Number(r.ym.slice(5, 7)) }));
   }
@@ -413,6 +424,15 @@ export default class TransactionService {
       createdAt: t.createdAt,
       lastEditedAt: edit?.at ?? null,
       lastEditedByName: edit?.by ?? null,
+      returned: t.type === "sale" ? ((await this.returnedOf([t.id])).get(t.id) ?? null) : null,
+      returns: t.type === "sale" ? await this.returnsOf(t.id) : [],
+      edits: (
+        await db
+          .select({ at: transactionEditLogsTable.createdAt, byName: transactionEditLogsTable.editedByName, changes: transactionEditLogsTable.changes })
+          .from(transactionEditLogsTable)
+          .where(eq(transactionEditLogsTable.transactionId, t.id))
+          .orderBy(desc(transactionEditLogsTable.createdAt))
+      ).map((e) => ({ at: e.at, byName: e.byName, changes: e.changes.map((c) => ({ field: c.field, old: c.old, new: c.new })) })),
       cancelledAt: t.cancelledAt,
       cancelledByName: t.cancelledByName,
       cancelReason: t.cancelReason,

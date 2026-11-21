@@ -7,6 +7,7 @@ import { Spinner } from "~/components/ui/icons/spinner";
 import { useHistoryTransaction } from "~/providers/history";
 
 import { SaleInvoice } from "../transaction/sale/invoice";
+import { CreditNoteView } from "../transaction/sale-return/credit-note";
 
 // /history/[id]: one transaction, shown its own way: a sale as its tax invoice (with Cancel for the admin). The other
 // types come one at a time
@@ -28,5 +29,6 @@ export function HistoryDetail({ id, isAdmin }: { id: string; isAdmin: boolean })
     );
 
   if (transaction.type === "sale") return <SaleInvoice id={id} history={{ record: transaction, isAdmin }} />;
+  if (transaction.type === "sale_return") return <CreditNoteView id={id} history={{ record: transaction, isAdmin }} />;
   return <p className="mt-16 text-center text-ivory/70">{t("comingSoon")}</p>;
 }

@@ -17,6 +17,8 @@ import { useSaleInvoice, useSaleShareKey } from "~/providers/sale";
 import { CancelDialog } from "../../history/cancel-dialog";
 import { CancelledNote } from "../../history/cancelled-note";
 import { EditedNote } from "../../history/edited-note";
+import { EditLog } from "../../history/edit-log";
+import { ReturnsLog } from "../../history/returns-log";
 import { ReturnButton } from "../sale-return/return-button";
 
 import { Breakup, DocHead, LAST_COL, Remarks } from "../done/document-parts";
@@ -488,6 +490,12 @@ export function SaleInvoice({
           <p className="font-semibold">{t("signatory")}</p>
         </div>
       </article>
+
+      {/* in History: the sale's returns, under the invoice */}
+      {record && <ReturnsLog returns={record.returns} />}
+
+      {/* and its edits: the date and the total as they changed */}
+      {record && <EditLog edits={record.edits} />}
 
       {/* Cancel sale asks first, with the reason */}
       {canAsk && <CancelDialog open={asking} id={d.transactionId} number={d.assignedId} onClose={() => setAsking(false)} />}

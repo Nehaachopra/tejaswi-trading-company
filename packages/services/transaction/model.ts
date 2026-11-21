@@ -52,6 +52,8 @@ export const transactionSummaryModel = z.object({
   // the last edit, when it was edited (none: never)
   lastEditedAt: z.date().nullable(),
   lastEditedByName: z.string().nullable(),
+  // a sale: whether goods came back on it (all of it, some of it; none: null)
+  returned: z.enum(["all", "part"]).nullable(),
 });
 
 export type TransactionSummaryModel = z.infer<typeof transactionSummaryModel>;
@@ -81,6 +83,26 @@ export const transactionModel = transactionSummaryModel.extend({
       amount: z.number(),
       isReversal: z.boolean(),
       dateTime: z.date(),
+    }),
+  ),
+  // a sale's returns, oldest first: each one's ID, day, how many items, total, how it was settled, and whether cancelled
+  returns: z.array(
+    z.object({
+      transactionId: idModel,
+      assignedId: z.string(),
+      returnDate: z.string(),
+      items: z.number().int(),
+      total: z.number(),
+      settledIn: z.enum(["cash", "credit", "both", "exchange"]),
+      status: z.enum(["active", "cancelled"]),
+    }),
+  ),
+  // its edits, newest first: when, by whom, and each field changed from what to what
+  edits: z.array(
+    z.object({
+      at: z.date(),
+      byName: z.string(),
+      changes: z.array(z.object({ field: z.string(), old: z.unknown(), new: z.unknown() })),
     }),
   ),
   // why it can't be cancelled, if it can't (already cancelled, a filed GST month, reverse-charge GST already paid ...)
