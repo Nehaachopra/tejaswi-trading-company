@@ -143,13 +143,14 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
   const total = f.total / 100;
   const chosen = f.items.length;
 
-  // the bill as if what comes back had never been sold, less what was paid towards it: below nothing, that much is paid
-  // back now on a refund (a walk-in, all of the return; a customer, what's over what they still owed on this bill);
-  // otherwise the return only takes it off what's owed
+  // the bill as if what comes back had never been sold, less what was paid towards it (the Amount card's To pay or To
+  // receive)
   const customer = sale.customer;
   const billAfter = f.after.total / 100;
   const balance = round2(billAfter - sale.paid);
-  const refundDue = Math.max(0, -balance);
+  // what's paid back: a walk-in, all of it; a customer, what the return has over all they owe (this bill and older
+  // ones), the rest coming off it; an advance they hold stays theirs
+  const refundDue = customer ? Math.max(0, round2(total - customer.owed)) : total;
   const payBack = mode === "refund" ? refundDue : 0;
 
   // the places it's paid back from: cash and every bank account, each never past what it holds (staff never get here)
@@ -201,7 +202,7 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
     details: day !== "" && reasonOk,
   };
   // a refund with money to pay back asks where it's paid from; an exchange goes straight to Details
-  const STEPS = ALL_STEPS.filter((s) => s !== "refund" || (mode === "refund" && refundDue > 0));
+  const STEPS = ALL_STEPS.filter((s) => s !== "refund" || mode === "refund");
   const [at, setAt] = useState<ReturnStep>("items");
   const current = STEPS.includes(at) ? at : "details";
   const index = STEPS.indexOf(current);
@@ -241,7 +242,7 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
   // Exchange or Refund picked: moves straight on (a chip-only card)
   function pickMode(m: "exchange" | "refund") {
     setMode(m);
-    show(m === "refund" && refundDue > 0 ? "refund" : "details");
+    show(m === "refund" ? "refund" : "details");
   }
 
   // what each card still needs, once Next or Save was tapped

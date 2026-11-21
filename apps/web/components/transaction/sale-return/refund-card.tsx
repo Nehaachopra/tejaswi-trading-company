@@ -15,19 +15,38 @@ import { FixedBanner } from "../shared/amount-banner";
 import { Meter } from "../shared/meter";
 import { useReturnEntry } from "./state";
 
-// the Refund card, as the sale's Received card (an edit's refund): on the left what's left once it's paid back (Due
-// left, its arrow opening the breakup) and To pay back (fixed: all of it, now); the breakup on the right on a computer
-// (it starts open), or slid to on a phone (‹ Breakup back): the bill, the items returned, the new bill, what was paid
-// towards it, what's paid back now, and Due left on chestnut. Then Left to refund with its slider, pinned while the
-// cards below scroll, and a card for each place it's paid back from, none past what it holds
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+// the Refund card, as the sale's Received card: on the left what's left on their account once it's paid back (Advance
+// left and / or Due left, an arrow on each opening the breakup) and To pay back (fixed: what the return has over all
+// they owe, now); the breakup on the right on a computer (it starts open), or slid to on a phone (‹ Breakup back), as
+// the sale's: an advance they hold (over a line), the old due, this bill (as returned, less what was paid on it: paid
+// over shows with a minus), with an advance their sub total and what of it is set off, the due, what's paid back, then
+// what's left on chestnut. Then, with money to pay back, Left to refund with its slider, pinned while the cards below
+// scroll, and a card for each place it's paid back from, none past what it holds
 export function RefundCard() {
-  const { t, sale, total, billAfter, payBack, splitTotal, balance } = useReturnEntry();
+  const { t, sale, customer, payBack, splitTotal, balance } = useReturnEntry();
   const ts = useTranslations("transactions.sale");
   const tr = useTranslations("transactions.receipt.form");
   const cards = useRefundCards();
   const done = splitTotal === payBack;
-  // what's left on the bill once it's paid back
-  const dueLeft = Math.max(0, Math.round((balance + payBack) * 100) / 100);
+  // the account: an advance they hold, what they owe on other bills, this bill as returned (less what was paid on it),
+  // with an advance their sub total and what of it is set off, then the due; what's paid back adds to it, and what's
+  // left is a due and / or an advance
+  const held = customer?.held ?? 0;
+  const oldDue = customer ? Math.max(0, round2(customer.owed - (sale.billNow - sale.paid))) : 0;
+  const thisBill = balance;
+  const subTotal = round2(oldDue + thisBill);
+  const setOff = held > 0 ? Math.min(held, Math.max(0, subTotal)) : 0;
+  const due = round2(subTotal - setOff);
+  const dueLeft = Math.max(0, round2(due + payBack));
+  const advanceLeft = round2(held - setOff);
+  const minus = (n: number) => (n < 0 ? `− ${rupees(-n)}` : rupees(n));
+  // on the left: Due left always (₹0 too), an advance left above it
+  const leftSide = [
+    ...(advanceLeft > 0 ? [{ key: "advance", label: ts("advanceLeft"), amount: advanceLeft }] : []),
+    { key: "due", label: ts("leftDue"), amount: dueLeft },
+  ];
 
   // on a computer the breakup beside (it starts open); on a phone the card slid to it (it starts on the amounts)
   const phone = usePhone();
@@ -85,29 +104,39 @@ export function RefundCard() {
         aria-label={ts("breakup")}
         className="group flex w-full flex-col gap-1 text-left"
       >
-        <Line
-          label={<span className="font-semibold">{ts("leftDue")}</span>}
-          value={<span className={cn(figure, "font-bold")}>{rupees(dueLeft)}</span>}
-          slot={
-            <span className="grid size-9 place-items-center rounded-control transition-colors group-hover:bg-chestnut/10">
-              <ChevronRight className={cn("size-5 transition-transform", !phone && breakupOpen && "rotate-180")} aria-hidden />
-            </span>
-          }
-        />
+        {leftSide.map((l) => (
+          <Line
+            key={l.key}
+            label={<span className="font-semibold">{l.label}</span>}
+            value={<span className={cn(figure, "font-bold")}>{rupees(l.amount)}</span>}
+            slot={
+              <span className="grid size-9 place-items-center rounded-control transition-colors group-hover:bg-chestnut/10">
+                <ChevronRight className={cn("size-5 transition-transform", !phone && breakupOpen && "rotate-180")} aria-hidden />
+              </span>
+            }
+          />
+        ))}
       </button>
-      <FixedBanner label={t("toPayBack")} amount={payBack} />
+      {payBack > 0 && <FixedBanner label={t("toPayBack")} amount={payBack} />}
     </div>
   );
 
   // the breakup
   const breakup = (
     <div id="return-breakup" className="flex min-w-0 flex-col gap-2.5 rounded-control bg-chestnut/[0.04] p-3">
-      <Figure label={t("bill")} amount={rupees(sale.billNow)} />
-      <Figure label={t("lessItemsReturned")} amount={`− ${rupees(total)}`} />
-      <Figure label={t("newBill")} amount={rupees(billAfter)} strong />
-      <Figure label={t("lessAmountPaid")} amount={`− ${rupees(sale.paid)}`} />
+      {held > 0 && <Figure label={tr("advancePart")} amount={rupees(held)} className="mb-3.5 border-b border-chestnut/30 pb-2" />}
+      {customer && <Figure label={ts("oldDue")} amount={rupees(oldDue)} />}
+      <Figure label={ts("thisBill")} amount={minus(thisBill)} />
+      {held > 0 && (
+        <>
+          <Figure label={ts("subTotal")} amount={minus(subTotal)} strong />
+          <Figure label={ts("setOff")} amount={setOff > 0 ? `− ${rupees(setOff)}` : rupees(0)} />
+        </>
+      )}
+      <Figure label={tr("due")} amount={minus(due)} strong />
       <Figure label={t("paidBack")} amount={`+ ${rupees(payBack)}`} />
-      <LeftRow label={ts("leftDue")} amount={dueLeft} />
+      {advanceLeft > 0 && <LeftRow label={ts("advanceLeft")} amount={advanceLeft} />}
+      {(dueLeft > 0 || advanceLeft <= 0) && <LeftRow label={ts("leftDue")} amount={dueLeft} />}
     </div>
   );
 
@@ -163,11 +192,16 @@ export function RefundCard() {
             )}
           </>
         )}
-        {leftToRefund}
-        {/* where it's paid back from: a card for each place (on a computer, starting below the breakup) */}
-        <div className="flex flex-col gap-2.5 border-t border-chestnut/15 pt-4" style={{ marginTop: 6 + (phone ? 0 : beside.push) }}>
-          <AccountCards key={payBack} api={cards} />
-        </div>
+        {/* with money to pay back: Left to refund, and where it's paid back from (on a computer, starting below the
+            breakup) */}
+        {payBack > 0 && (
+          <>
+            {leftToRefund}
+            <div className="flex flex-col gap-2.5 border-t border-chestnut/15 pt-4" style={{ marginTop: 6 + (phone ? 0 : beside.push) }}>
+              <AccountCards key={payBack} api={cards} />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

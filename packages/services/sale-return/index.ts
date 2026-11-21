@@ -322,8 +322,9 @@ export default class SaleReturnService {
       // an exchange keeps it all on their account (the new sale takes it); a refund first takes it off what's still
       // owed on this bill, and pays back what's over that, all of it, now
       if (exchange && refund.paid > 0) throw new TRPCError({ code: "BAD_REQUEST", message: "An exchange pays nothing back to a customer." });
-      const over = Math.max(0, f.total - f.dueLeft);
-      if (!exchange && refund.paid !== over) throw new TRPCError({ code: "BAD_REQUEST", message: `Pay back ₹${(over / 100).toLocaleString("en-IN")}; the rest comes off what's owed on this bill.` });
+      // (what's paid back: what the return has over all they owe, this bill and older ones; an advance they hold stays)
+      const over = Math.max(0, f.total - customer.owed);
+      if (!exchange && refund.paid !== over) throw new TRPCError({ code: "BAD_REQUEST", message: `Pay back ₹${(over / 100).toLocaleString("en-IN")}; the rest comes off what they owe.` });
       lines.push({ ledgerId: customer.ledgerId, side: "credit", amount: f.total / 100 });
       if (refund.paid > 0) lines.push({ ledgerId: customer.ledgerId, side: "debit", amount: refund.paid / 100 });
       onAccount = f.total - refund.paid;
