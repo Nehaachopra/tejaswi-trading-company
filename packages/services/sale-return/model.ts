@@ -102,8 +102,13 @@ export const saleForReturnModel = z.object({
       rate: z.number(),
       gstRate: z.number(),
       godowns: z.array(z.object({ godownId: idModel, name: z.string(), quantity: z.number().int() })),
+      // in paise, so the form works out a return exactly as the server will: what the item sold for (its value at the
+      // saved price, what came off that, its GST) and how much of each has come back before
+      paise: z.object({ gross: z.number().int(), off: z.number().int(), gst: z.number().int(), grossBack: z.number().int(), offBack: z.number().int(), gstBack: z.number().int() }),
     }),
   ),
+  // the cash discount already taken back on earlier returns
+  discountBack: z.number(),
   // the last day a credit note can be issued for it (30 November after its financial year)
   lastDay: z.string(),
   returnBlockedBy: z.enum(["cancelled", "allReturned", "tooLate"]).nullable(),

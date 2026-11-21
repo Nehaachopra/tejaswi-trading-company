@@ -2224,6 +2224,12 @@
         "paidBy": "Paid by",
         "originalReceived": "Original sale received",
         "originalBreakdown": "Where the original sale's money came in"
+      },
+      "exchange": {
+        "title": "Exchange on {number}",
+        "return": "Return",
+        "bill": "This bill",
+        "payBack": "Pay back in cash"
       }
     },
     "drawing": {
@@ -2266,6 +2272,115 @@
         "title": "Drawing successfully created",
         "loading": "Loading the drawing…",
         "loadError": "Couldn't load the drawing. Check your connection and try again."
+      }
+    },
+    "saleReturn": {
+      "title": "Sale return",
+      "titleFor": "Return on {number}",
+      "loading": "Loading the sale…",
+      "loadFailed": "Couldn't load the sale.",
+      "blocked": {
+        "cancelled": "This sale is cancelled.",
+        "allReturned": "Everything on this sale has come back already.",
+        "tooLate": "A return for this sale can't be made after {day}."
+      },
+      "summary": "Summary",
+      "steps": {
+        "items": "Items",
+        "amount": "Amount",
+        "settle": "Exchange or refund",
+        "refund": "Refund",
+        "details": "Details"
+      },
+      "modes": {
+        "exchange": "Exchange",
+        "refund": "Refund"
+      },
+      "price": "Price + GST",
+      "priceGst": "Price + GST",
+      "sold": "Sold",
+      "canReturn": "Can return",
+      "returning": "Returning",
+      "returnedBefore": "Returned before",
+      "quantity": "Quantity",
+      "godowns": "Godowns",
+      "godown": "Godown",
+      "holds": "Holds",
+      "leftToPutBack": "Left to put back",
+      "beingCounted": "Being counted",
+      "hintQuantity": "Type the quantity.",
+      "hintGodowns": "Put every pack back in a godown.",
+      "doneLine": "Done",
+      "removeLine": "Take it off the return",
+      "close": "Close",
+      "lineTotal": "Total",
+      "items": "Items",
+      "discountBack": "Cash discount taken back",
+      "roundOff": "Round off",
+      "total": "Total",
+      "due": "Due",
+      "advance": "Advance",
+      "return": "Return",
+      "paidBack": "Paid back",
+      "dueLeft": "Due left",
+      "advanceLeft": "Advance left",
+      "payBackNow": "Pay back {amount} now",
+      "toPayBack": "To pay back",
+      "onAccount": "On their account",
+      "reason": "Reason",
+      "reasons": {
+        "damaged": "Damaged",
+        "shortage": "Shortage",
+        "wrong_item": "Wrong item",
+        "other": "Other"
+      },
+      "reasonOther": "What was it?",
+      "saving": "Saving…",
+      "save": "Save return",
+      "toNewSale": "Next: new sale",
+      "missing": {
+        "items": "Pick what's coming back.",
+        "godowns": "Put every pack back in a godown.",
+        "mode": "Pick exchange or refund.",
+        "cap": "Only {amount} can be paid back.",
+        "left": "{amount} is still to be placed.",
+        "into": "Say how each account paid.",
+        "reason": "Pick why it came back.",
+        "date": "Pick the date."
+      },
+      "errors": {
+        "network": "Can't reach the server. Check your connection.",
+        "busy": "Too many saves. Wait a minute and try again.",
+        "failed": "Couldn't save the return. Try again."
+      },
+      "returnSale": "Return",
+      "ask": {
+        "title": "Return this sale?",
+        "body": "It was sold {days, plural, =0 {today} =1 {1 day ago} other {# days ago}}. Do you want to return?",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "done": {
+        "title": "Sale return saved",
+        "exchangeTitle": "Exchange saved",
+        "loading": "Loading…",
+        "loadError": "Couldn't load the return.",
+        "number": "Transaction ID",
+        "creditNote": "Credit note",
+        "total": "Total",
+        "onAccount": "Off their account",
+        "refunded": "Paid back",
+        "newSale": "New sale",
+        "newTransaction": "New transaction"
+      },
+      "note": {
+        "title": "Credit note",
+        "back": "Back",
+        "number": "Credit note no.",
+        "invoice": "Against invoice",
+        "invoiceDate": "Invoice date",
+        "to": "To",
+        "amount": "Amount credited"
       }
     }
   },

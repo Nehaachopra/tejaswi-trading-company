@@ -16,6 +16,7 @@ import { useSaleInvoice, useSaleShareKey } from "~/providers/sale";
 
 import { CancelDialog } from "../../history/cancel-dialog";
 import { CancelledNote } from "../../history/cancelled-note";
+import { ReturnButton } from "../sale-return/return-button";
 
 import { Breakup, DocHead, LAST_COL, Remarks } from "../done/document-parts";
 import { band, cell, dated, Detail, money } from "../done/voucher";
@@ -169,9 +170,11 @@ export function SaleInvoice({
           <button type="button" onClick={() => window.print()} className={pill}>
             <Download className="size-4" aria-hidden /> {t("download")}
           </button>
-          {/* Edit sale: greyed once its GSTR-1 month is filed */}
+          {/* Return: while something of it can still come back */}
+          {canAsk && <ReturnButton id={id} saleDay={d.invoiceDate} className={pill} />}
+          {/* Edit sale: greyed once its GSTR-1 month is filed, goods came back on it, or it's an exchange's sale */}
           {canAsk &&
-            (blocked === "gstFiled" ? (
+            (blocked === "gstFiled" || blocked === "saleReturned" || blocked === "exchangeSale" ? (
               <button type="button" disabled className={pill}>
                 <Pencil className="size-4" aria-hidden /> {th("editSale")}
               </button>

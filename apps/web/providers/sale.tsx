@@ -13,7 +13,7 @@ type EditSaleIn = RouterInputs["transactions"]["sale"]["edit"];
 // for a dispatch on a sale order, that order. Made once for the page; the form reads it with useSaleData(). Every
 // read is tried again by itself before it counts as failed; the save never is. Editing a sale (the admin's): the sale as
 // it was saved, its customer as the Customer card picks one, and the edit's save
-function useSaleDataState(orderId: string | null, editId: string | null) {
+function useSaleDataState(orderId: string | null, editId: string | null, exchangePartyId: string | null) {
   const utils = trpc.useUtils();
   const products = trpc.inventory.product.list.useQuery({ includeInactive: false });
   const categories = trpc.inventory.category.list.useQuery({ includeInactive: false });
@@ -36,6 +36,11 @@ function useSaleDataState(orderId: string | null, editId: string | null) {
     { enabled: !!editPartyId },
   );
   const edit = trpc.transactions.sale.edit.useMutation();
+  // an exchange's new sale to a customer: their ledger, as the Customer card picks one
+  const exchangeLedger = trpc.accounts.ledger.pickable.useQuery(
+    { purpose: "receipt", receiptKind: "customer", partyId: exchangePartyId },
+    { enabled: !!exchangePartyId },
+  );
 
   // saves it; then what it changed is asked again (stock, balances, dues), and the saved sale is put in hand for its
   // success page
@@ -71,6 +76,7 @@ function useSaleDataState(orderId: string | null, editId: string | null) {
     ...(orderPartyId ? [orderLedger] : []),
     ...(editId !== null ? [editing] : []),
     ...(editPartyId ? [editLedger] : []),
+    ...(exchangePartyId ? [exchangeLedger] : []),
   ];
   return {
     // only an order still waiting for goods: a completed or cancelled one makes it a sale of its own
@@ -88,6 +94,7 @@ function useSaleDataState(orderId: string | null, editId: string | null) {
     editing: editId !== null ? (editing.data ?? null) : null,
     editLedger: editPartyId ? (editLedger.data?.[0] ?? null) : null,
     saveEdit,
+    exchangeLedger: exchangePartyId ? (exchangeLedger.data?.[0] ?? null) : null,
     saving: create.isPending || edit.isPending,
     saved: create.isSuccess || edit.isSuccess,
   };
@@ -95,8 +102,18 @@ function useSaleDataState(orderId: string | null, editId: string | null) {
 
 const SaleDataContext = createContext<ReturnType<typeof useSaleDataState> | null>(null);
 
-export function SaleDataProvider({ children, orderId = null, editId = null }: { children: React.ReactNode; orderId?: string | null; editId?: string | null }) {
-  const value = useSaleDataState(orderId, editId);
+export function SaleDataProvider({
+  children,
+  orderId = null,
+  editId = null,
+  exchangePartyId = null,
+}: {
+  children: React.ReactNode;
+  orderId?: string | null;
+  editId?: string | null;
+  exchangePartyId?: string | null;
+}) {
+  const value = useSaleDataState(orderId, editId, exchangePartyId);
   return <SaleDataContext.Provider value={value}>{children}</SaleDataContext.Provider>;
 }
 

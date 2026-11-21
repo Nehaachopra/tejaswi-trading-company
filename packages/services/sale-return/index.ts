@@ -180,6 +180,7 @@ export default class SaleReturnService {
         total: Number(t.amount),
         discount: loaded.discount / 100,
         gross: loaded.gross / 100,
+        discountBack: loaded.discountBack / 100,
         lines: [...items.values()].map((i) => {
           const taxable = i.gross - i.off;
           return {
@@ -192,6 +193,7 @@ export default class SaleReturnService {
             rate: Math.round(taxable / i.sold) / 100,
             gstRate: i.gstRate,
             godowns: i.godowns,
+            paise: { gross: i.gross, off: i.off, gst: i.gst, grossBack: i.returned.gross, offBack: i.returned.off, gstBack: i.returned.gst },
           };
         }),
         lastDay: lastNoteDay(indiaDay(t.dateTime)),

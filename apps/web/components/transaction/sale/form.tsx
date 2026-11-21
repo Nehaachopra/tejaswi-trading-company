@@ -9,6 +9,8 @@ import { dayInWords } from "~/components/ui/date-input";
 import { packLabel, rupees, titleCase } from "~/lib/format";
 import { SaleDataProvider } from "~/providers/sale";
 
+import type { ExchangeHandoff } from "../sale-return/state";
+
 import { partyLabel } from "../../account/party/party-kinds";
 import { ProductImage, productTitle } from "../../product/products/product-tile";
 import { EntryNote, EntryPage, NextButton, StepCard, type SummaryItem, SummaryBar, SummaryCard, SummaryLines } from "../shared/entry-frame";
@@ -25,27 +27,50 @@ import { type SaleStep, SaleEntryProvider, useSaleEntry, useSaleEntryState } fro
 // the cart above every pack size that can be sold; 2 Amount: the charges and a cash discount; 3 Cash or credit; 4
 // Customer; 5 Received (cash only): what came in and where; 6 Details: the day, vehicle, remarks and Save. A save goes to the sale's success page. Discarding to open a menu
 // starts the form again. With `editId` it edits that sale (the admin's), opened as it was saved, and goes back to it in
-// History once saved
-export function SaleForm({ isAdmin, orderId = null, editId = null }: { isAdmin: boolean; orderId?: string | null; editId?: string | null }) {
+// History once saved. With `exchange` it's an exchange's new sale (from a sale return): to the same buyer, the return
+// counted as received, and its Save saves both; Back on its first card goes back to the return
+export function SaleForm({
+  isAdmin,
+  orderId = null,
+  editId = null,
+  exchange = null,
+  onExchangeBack,
+}: {
+  isAdmin: boolean;
+  orderId?: string | null;
+  editId?: string | null;
+  exchange?: ExchangeHandoff | null;
+  onExchangeBack?: () => void;
+}) {
   const [round, setRound] = useState(0);
   return (
-    <SaleDataProvider orderId={orderId} editId={editId}>
-      <SaleEntry key={round} isAdmin={isAdmin} onDiscard={() => setRound((r) => r + 1)} />
+    <SaleDataProvider orderId={orderId} editId={editId} exchangePartyId={exchange?.customer?.partyId ?? null}>
+      <SaleEntry key={round} isAdmin={isAdmin} exchange={exchange} onExchangeBack={onExchangeBack} onDiscard={() => setRound((r) => r + 1)} />
     </SaleDataProvider>
   );
 }
 
-function SaleEntry({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () => void }) {
-  const state = useSaleEntryState({ isAdmin, onDiscard });
+function SaleEntry({
+  isAdmin,
+  exchange,
+  onExchangeBack,
+  onDiscard,
+}: {
+  isAdmin: boolean;
+  exchange: ExchangeHandoff | null;
+  onExchangeBack?: () => void;
+  onDiscard: () => void;
+}) {
+  const state = useSaleEntryState({ isAdmin, exchange, onDiscard });
   return (
     <SaleEntryProvider value={state}>
-      <SaleEntryView />
+      <SaleEntryView onExchangeBack={onExchangeBack} />
     </SaleEntryProvider>
   );
 }
 
 // the page: what shows while it loads or can't, then the card on its own with the summary
-function SaleEntryView() {
+function SaleEntryView({ onExchangeBack }: { onExchangeBack?: () => void }) {
   const {
     t,
     tc,
@@ -90,9 +115,10 @@ function SaleEntryView() {
     next,
     figures,
     isEdit,
+    exchange,
   } = useSaleEntry();
-  // an edit's page is named for it
-  const title = isEdit ? t("edit.title") : t("title");
+  // an edit's page is named for it, and an exchange's for the sale it's against
+  const title = isEdit ? t("edit.title") : exchange ? t("exchange.title", { number: exchange.saleAssignedId }) : t("title");
   const locale = useLocale();
   const tr = useTranslations("transactions.receipt.form");
 
@@ -132,6 +158,8 @@ function SaleEntryView() {
       }),
     },
     { key: "amount", step: "amount", heading: t("steps.amount"), value: complete.amount && index > 0 ? rupees(total) : null },
+    // an exchange: the return, counted as received
+    ...(exchange ? [{ key: "exchange", step: "amount" as const, heading: t("exchange.return"), value: `− ${rupees(exchange.total)}` }] : []),
     { key: "money", step: "money", heading: t("steps.money"), value: kind ? t(`kinds.${kind}`) : null },
     {
       key: "customer",
@@ -218,7 +246,8 @@ function SaleEntryView() {
         name={t(current === "received" && kind === "credit" ? "steps.due" : `steps.${current}`)}
         // Products names its own parts further down; so does Received while it asks a PAN (PAN, then Received)
         hideName={current === "products" || (current === "received" && tdsCan && received > 0 && panNeeded)}
-        onBack={index > 0 ? () => show(steps[index - 1]!) : null}
+        // (an exchange's first card goes back to its return)
+        onBack={index > 0 ? () => show(steps[index - 1]!) : (onExchangeBack ?? null)}
         // someone new being typed in: Change goes back to the search (as a receipt's); not for an order's buyer, who
         // stays the order's
         onChange={current === "customer" && customer?.kind === "party" && !orderBuyer ? (walkIn ? findSaved : () => setCustomer(null)) : null}

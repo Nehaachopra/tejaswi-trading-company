@@ -31,6 +31,8 @@ export function CartCards({
   onOpen,
   onRemove,
   showTotal = true,
+  detailRows,
+  canRemove,
 }: {
   lines: CartRow[];
   packOf: (id: string) => { group: ProductGroup; pack: Pack } | null;
@@ -40,6 +42,10 @@ export function CartCards({
   onRemove: (productId: string) => void;
   // the Total row under the cards (left out where it already shows above them)
   showTotal?: boolean;
+  // the rows under the photo in place of the price and quantity (a sale return's: Sold, Can return, Returning)
+  detailRows?: (line: CartRow) => { key: string; label: string; value: string }[];
+  // whether a card has the bin (a sale return's: only once something of it is coming back)
+  canRemove?: (productId: string) => boolean;
 }) {
   const t = useTranslations("transactions.sale");
   return (
@@ -83,18 +89,20 @@ export function CartCards({
                   >
                     <Pencil className="size-4" aria-hidden />
                   </button>
-                  <button
-                    type="button"
-                    aria-label={`${t("remove")}: ${label}`}
-                    title={t("remove")}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRemove(line.productId);
-                    }}
-                    className="grid size-8 shrink-0 place-items-center rounded-control text-danger hover:bg-danger/[0.08]"
-                  >
-                    <Trash2 className="size-4" aria-hidden />
-                  </button>
+                  {(canRemove?.(line.productId) ?? true) && (
+                    <button
+                      type="button"
+                      aria-label={`${t("remove")}: ${label}`}
+                      title={t("remove")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemove(line.productId);
+                      }}
+                      className="grid size-8 shrink-0 place-items-center rounded-control text-danger hover:bg-danger/[0.08]"
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                    </button>
+                  )}
                 </span>
               </div>
 
@@ -115,14 +123,17 @@ export function CartCards({
 
               {/* the price and how many, a row each under a line: name left, figure right */}
               <div className="tabular mt-auto flex flex-col gap-1 border-t border-chestnut/15 pt-2">
-                <p className="flex items-baseline justify-between gap-2 text-xs">
-                  <span>{priceLabel}</span>
-                  <b className="truncate text-sm font-bold">{rupees(line.price)}</b>
-                </p>
-                <p className="flex items-baseline justify-between gap-2 text-xs">
-                  <span>{t("quantity")}</span>
-                  <b className="text-sm font-bold">{line.quantity.toLocaleString("en-IN")}</b>
-                </p>
+                {(
+                  detailRows?.(line) ?? [
+                    { key: "price", label: priceLabel, value: rupees(line.price) },
+                    { key: "quantity", label: t("quantity"), value: line.quantity.toLocaleString("en-IN") },
+                  ]
+                ).map((r) => (
+                  <p key={r.key} className="flex items-baseline justify-between gap-2 text-xs">
+                    <span>{r.label}</span>
+                    <b className="truncate text-sm font-bold">{r.value}</b>
+                  </p>
+                ))}
               </div>
             </li>
           );

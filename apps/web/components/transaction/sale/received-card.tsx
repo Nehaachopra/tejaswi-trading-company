@@ -267,13 +267,23 @@ export function ReceivedCard() {
     </div>
   );
 
-  // a walk-in pays the bill: only what's to be received, then Left to receive and where it came into
+  // a walk-in pays the bill: only what's to be received, then Left to receive and where it came into. An exchange's: the
+  // bill and the return taken off it first; what the return has over the bill is paid back in cash
   if (!tdsCan && !isEdit)
     return (
       <div className="flex flex-col gap-1.5 sm:gap-2.5">
-        <div className="sm:w-[calc(50%-1.5rem)]">
-          <FixedBanner label={t("toReceiveOnly")} amount={received} />
-        </div>
+        {e.exchange && (
+          <div className="flex flex-col gap-2 sm:w-[calc(50%-1.5rem)]">
+            <Figure label={t("exchange.bill")} amount={rupees(total)} />
+            <Figure label={t("exchange.return")} amount={`− ${rupees(e.exchangeIn)}`} />
+            {e.exchangePayBack > 0 && <Figure strong label={t("exchange.payBack")} amount={rupees(e.exchangePayBack)} />}
+          </div>
+        )}
+        {received > 0 && (
+          <div className="sm:w-[calc(50%-1.5rem)]">
+            <FixedBanner label={t("toReceiveOnly")} amount={received} />
+          </div>
+        )}
         {leftToReceive}
         {accountCards}
       </div>

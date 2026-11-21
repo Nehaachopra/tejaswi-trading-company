@@ -11,6 +11,7 @@ import { toast } from "~/components/ui/toast";
 import { parseAmount } from "~/lib/price";
 import { useLeaveGuard } from "~/lib/use-leave-guard";
 import { useSaleData } from "~/providers/sale";
+import { useSaveReturn } from "~/providers/sale-return";
 
 import { indiaDay } from "../../account/balance";
 
@@ -35,6 +36,7 @@ import { moveCard, useCardHistory } from "../shared/card-steps";
 import { momentOf } from "../shared/form-basics";
 import type { QrItem } from "../shared/qr-spot";
 import type { GridPlace } from "../shared/split-grid";
+import type { ExchangeHandoff } from "../sale-return/state";
 
 // the cards, in order: the cart, the amount (charges and a cash discount), cash or credit, who bought it, what was
 // received and where it came into (cash only), then the day, vehicle, remarks and Save
@@ -82,9 +84,12 @@ export const placedOf = (line: Pick<CartLine, "godowns">) =>
 // everything the sale form holds and works out. Made once in SaleEntry; every card reads it with useSaleEntry()
 export function useSaleEntryState({
   isAdmin,
+  exchange = null,
   onDiscard,
 }: {
   isAdmin: boolean;
+  // an exchange's new sale: the return it goes with (saved together), its total counted as received
+  exchange?: ExchangeHandoff | null;
   onDiscard: () => void;
 }) {
   const t = useTranslations("transactions.sale");
@@ -107,9 +112,11 @@ export function useSaleEntryState({
     editing,
     editLedger,
     saveEdit,
+    exchangeLedger,
     saving: creating,
     saved,
   } = useSaleData();
+  const { saveExchange, saving: exchanging, saved: exchangeSaved } = useSaveReturn();
   // editing a saved sale: its items kept (quantities only up), its customer fixed, what was paid towards it known
   const isEdit = editing !== null;
 
@@ -245,6 +252,25 @@ export function useSaleEntryState({
       if (both.length > 0) setAddresses(both);
     }
   }, [editing, editLedger, products]);
+  // an exchange opens with its buyer: the customer (fixed), or a walk-in's name and phone on a cash sale
+  const exchangeFilled = useRef(false);
+  useEffect(() => {
+    if (!exchange || exchangeFilled.current || (exchange.customer && !exchangeLedger)) return;
+    exchangeFilled.current = true;
+    if (exchange.customer && exchangeLedger) setCustomer({ kind: "ledger", ledger: exchangeLedger });
+    else {
+      setKind("cash");
+      setCustomer({ kind: "party" });
+      setBuyerName(exchange.buyer?.name ?? "");
+      setBuyerPhone(exchange.buyer?.phone ?? "");
+    }
+  }, [exchange, exchangeLedger]);
+  const exchangeWalkIn = !!exchange && !exchange.customer;
+  // what an exchange's return puts back in stock (the new sale can take it), each godown's part
+  const backQty = (productId: string) =>
+    exchange?.saleReturn.lines.find((l) => l.productId === productId)?.quantity ?? 0;
+  const backPart = (productId: string, godownId: string) =>
+    exchange?.saleReturn.lines.find((l) => l.productId === productId)?.godowns.find((g) => g.godownId === godownId)?.quantity ?? 0;
   // what an edit started from: each item's quantity, and each godown's part of it
   const editQty = (productId: string) =>
     editing?.lines.find((l) => l.productId === productId)?.quantity ?? 0;
@@ -282,6 +308,17 @@ export function useSaleEntryState({
   // an edit: what the sale took from each godown is its own to keep, on top of what the godown holds now
   const godownsOf = (productId: string): GodownHold[] => {
     const now = holds.get(productId) ?? [];
+    // an exchange: what its return puts back in each godown counts as there
+    if (exchange) {
+      const back = exchange.saleReturn.lines.find((l) => l.productId === productId)?.godowns ?? [];
+      const named = new Map((stock ?? []).map((g) => [g.godownId, g]));
+      return [
+        ...now.map((h) => ({ ...h, held: h.held + backPart(productId, h.godownId) })),
+        ...back
+          .filter((b) => !now.some((h) => h.godownId === b.godownId))
+          .map((b) => ({ godownId: b.godownId, name: named.get(b.godownId)?.godownName ?? "", held: b.quantity, counting: named.get(b.godownId)?.beingCounted ?? false })),
+      ];
+    }
     if (!editing) return now;
     const mine = editing.lines.find((l) => l.productId === productId)?.godowns ?? [];
     const named = new Map((stock ?? []).map((g) => [g.godownId, g]));
@@ -305,7 +342,7 @@ export function useSaleEntryState({
     return l ? Math.max(0, l.quantity - l.delivered) : 0;
   };
   // what of a pack size this sale can take: the free stock, and what its order holds back for it
-  const freeOf = (p: Pack) => p.unreservedQuantity + orderLeft(p.productId) + editQty(p.productId);
+  const freeOf = (p: Pack) => p.unreservedQuantity + orderLeft(p.productId) + editQty(p.productId) + backQty(p.productId);
   // the price a pack was ordered at (with GST, before the order's discount, which goes in the Discount box instead),
   // as a new price to start from; "" when it's the saved price, or the pack isn't waited for
   const orderPrice = (p: Pack) => {
@@ -389,7 +426,10 @@ export function useSaleEntryState({
   // (an edit takes no TDS and sets off no advance)
   const tdsCan = !isEdit && kind === "cash" && !!picked?.party;
   const tdsIs = tdsCan && tdsOnIt;
-  const owedBefore = picked?.balance?.today.side === "debit" ? picked.balance.today.amount : 0;
+  // an exchange's return goes on the customer's account first (off what they owe, or as advance)
+  const returnCredit = exchange?.customer ? exchange.total : 0;
+  const accountNow = picked?.balance ? round2((picked.balance.today.side === "debit" ? 1 : -1) * picked.balance.today.amount - returnCredit) : 0;
+  const owedBefore = Math.max(0, accountNow);
   // an edit: what was paid towards the bill so far
   const editPaid = editing?.paid ?? 0;
   // what a saved customer owes from before, for cash and credit alike; an edit leaves out what this sale itself still
@@ -406,8 +446,7 @@ export function useSaleEntryState({
       : owedBefore;
   // an advance they already have with us (their account is in credit), and what of it is set off against this bill
   // (as much as the bill takes), once they say so
-  const heldAdvance =
-    tdsCan && picked?.balance?.today.side === "credit" ? picked.balance.today.amount : 0;
+  const heldAdvance = tdsCan && accountNow < 0 ? -accountNow : 0;
   const setOff = setOffOn ? Math.min(heldAdvance, total) : 0;
   const billLeft = round2(total - setOff);
   const dueNow = round2(oldDue + billLeft);
@@ -432,7 +471,11 @@ export function useSaleEntryState({
   // refund gives back only what's paid over, so the old due stays)
   const editLeft = refunding ? oldDue : Math.max(0, round2(oldDue + editDueLeft - editMoving));
   // a saved customer's is typed: any part of what's due (the rest stays owed) or more; a walk-in pays the bill
-  const received = isEdit ? editMoving : tdsCan ? (parseAmount(receivedText) ?? 0) : total;
+  // an exchange's walk-in: the return pays for the bill first; what it doesn't cover is received, what's over it is paid
+  // back in cash with the return
+  const exchangeIn = exchangeWalkIn ? Math.min(exchange!.total, total) : 0;
+  const exchangePayBack = exchangeWalkIn ? Math.max(0, round2(exchange!.total - total)) : 0;
+  const received = isEdit ? editMoving : tdsCan ? (parseAmount(receivedText) ?? 0) : round2(total - exchangeIn);
   // the TDS on it; a paisa off the bill or the whole due from rounding is taken as exactly that (as the server does)
   let tdsAmount = tdsIs && received > 0 ? tdsOn(received, SALE_TDS_RATE) : 0;
   if (tdsIs && received > 0)
@@ -568,7 +611,7 @@ export function useSaleEntryState({
     // nothing came in (the advance set off covers it): no account to place it in
     received: isEdit
       ? kind === "credit" || balance === 0 || (received > 0 && intoOk)
-      : kind === "credit" || (receivedOk && (received === 0 || intoOk)),
+      : kind === "credit" || (exchangeWalkIn && received === 0) || (receivedOk && (received === 0 || intoOk)),
     customer:
       customer?.kind === "ledger" ||
       (customer?.kind === "party" &&
@@ -579,7 +622,10 @@ export function useSaleEntryState({
   // bill and the two together), and only when they owe from before
   // an edit asks for money only when cash moves (taken now or refunded)
   const STEPS = ALL_STEPS.filter((s) =>
-    s !== "received"
+    // an exchange's walk-in is a cash sale: no Cash or credit
+    s === "money" && exchangeWalkIn
+      ? false
+      : s !== "received"
       ? true
       : isEdit
         ? kind === "cash" && balance !== 0
@@ -644,7 +690,10 @@ export function useSaleEntryState({
       setGridModes({});
       // an edit keeps its customer; a walk-in put on credit becomes a new customer with the sale's name, phone and
       // addresses filled in (a saved one can still be picked instead); back to cash: the walk-in again
-      if (!isEdit) setCustomer(orderCustomer(next));
+      // (an exchange keeps its buyer)
+      if (exchange) {
+        // nothing to change
+      } else if (!isEdit) setCustomer(orderCustomer(next));
       else if (!editing?.customer) {
         if (next === "credit" && isAdmin) {
           setNewParty(walkInParty());
@@ -659,7 +708,7 @@ export function useSaleEntryState({
   // as the buyer, on credit as a new customer (the admin's to add); the name stays the order's, the rest can be
   // changed, and one of ours with that phone can be used instead (the same person)
   const orderLocked =
-    (!!order?.customer.partyId && !!orderLedger) || (isEdit && !!editing?.customer);
+    (!!order?.customer.partyId && !!orderLedger) || (isEdit && !!editing?.customer) || !!exchange?.customer;
   const orderBuyer = !!order && !order.customer.partyId;
   function orderCustomer(next: "cash" | "credit"): LedgerChoice {
     if (!order) return null;
@@ -733,7 +782,7 @@ export function useSaleEntryState({
                     : t("missing.address");
 
   // leaving with something entered asks first (not after a save, which goes on to its own page)
-  const { dialog: leaveDialog } = useLeaveGuard(!saved && lines.length > 0, onDiscard);
+  const { dialog: leaveDialog } = useLeaveGuard(!saved && !exchangeSaved && lines.length > 0, onDiscard);
 
   // a cash buyer's typed address as the sale keeps it
   const typedAddress = (a: AddressDraft) => ({
@@ -847,8 +896,8 @@ export function useSaleEntryState({
       }
       return;
     }
-    try {
-      const sale = await saveSale({
+    // the sale as the server takes it
+    const saleInput = {
         saveKey,
         saleOrderId: order?.id ?? null,
         dateTime: momentOf(day),
@@ -891,7 +940,20 @@ export function useSaleEntryState({
               customerLedgerId: customer?.kind === "ledger" ? customer.ledger.id : null,
               newCustomer: customer?.kind === "party" ? partyInput(newParty) : null,
             }),
-      });
+    };
+    try {
+      // an exchange: the return and this sale together (what the return has over the bill paid back in cash), on to
+      // the return's page
+      if (exchange) {
+        const r = await saveExchange({
+          saveKey,
+          saleReturn: { ...exchange.saleReturn, cashAmount: exchangePayBack, bankParts: [] },
+          sale: { ...saleInput, saveKey: null },
+        });
+        router.replace(`/transaction/sale-return/${r.transactionId}`);
+        return;
+      }
+      const sale = await saveSale(saleInput);
       // on to its success page; replace, so going back doesn't land on the filled form
       router.replace(`/transaction/sale/${sale.transactionId}`);
     } catch (err) {
@@ -1019,7 +1081,7 @@ export function useSaleEntryState({
     show,
     next,
     saveError,
-    saving: saving || creating,
+    saving: saving || creating || exchanging,
     save,
     isEdit,
     editing,
@@ -1030,6 +1092,10 @@ export function useSaleEntryState({
     editLeft,
     refunding,
     editWalkIn,
+    exchange,
+    exchangeWalkIn,
+    exchangeIn,
+    exchangePayBack,
   };
 }
 
