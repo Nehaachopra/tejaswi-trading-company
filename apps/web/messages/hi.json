@@ -2101,7 +2101,7 @@
       "allPlaced": "सब भेज दिए",
       "tooMany": "{n} ज़्यादा",
       "items": "सामान",
-      "transport": "परिवहन शुल्क",
+      "transport": "भाड़ा",
       "packing": "पैकिंग शुल्क",
       "loadingCharges": "लोडिंग शुल्क",
       "discountCap": "केवल {amount} की छूट दी जा सकती है।",

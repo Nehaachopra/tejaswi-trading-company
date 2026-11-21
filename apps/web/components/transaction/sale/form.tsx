@@ -14,7 +14,7 @@ import type { ExchangeHandoff } from "../sale-return/state";
 import { partyLabel } from "../../account/party/party-kinds";
 import { ProductImage, productTitle } from "../../product/products/product-tile";
 import { EntryNote, EntryPage, NextButton, StepCard, type SummaryItem, SummaryBar, SummaryCard, SummaryLines } from "../shared/entry-frame";
-import { CartCard } from "./cart-card";
+import { CartStage } from "./cart-stage";
 import { CustomerCard } from "./customer-card";
 import { DetailsCard, SaveBlock } from "./details-card";
 import { MoneyCard } from "./money-card";
@@ -259,7 +259,7 @@ function SaleEntryView({ onExchangeBack }: { onExchangeBack?: () => void }) {
         {current === "products" ? (
           <ProductsStage />
         ) : current === "amount" ? (
-          <CartCard />
+          <CartStage />
         ) : current === "money" ? (
           <MoneyCard />
         ) : current === "customer" ? (

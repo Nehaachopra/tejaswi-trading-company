@@ -23,7 +23,7 @@ import { DetailsCard, SaveBlock } from "./details-card";
 import { ProductsStage } from "./products-stage";
 import { type OrderEditSeed, type OrderStep, OrderEntryProvider, useOrderEntry, useOrderEntryState } from "./state";
 import { SupplierCard } from "./supplier-card";
-import { TotalsCard } from "./totals-card";
+import { CartStage } from "./cart-stage";
 
 // /transaction/purchase-order and /transaction/sale-order (from Home): a purchase or a sale order, laid out like a
 // payment: one card at a time on the left with Back and Next, and a summary on the right (a bar above the card on a
@@ -198,7 +198,7 @@ function OrderEntryView() {
         {current === "products" ? (
           <ProductsStage />
         ) : current === "totals" ? (
-          <TotalsCard />
+          <CartStage />
         ) : current === "supplier" ? (
           <SupplierCard />
         ) : (

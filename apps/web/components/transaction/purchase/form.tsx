@@ -12,7 +12,7 @@ import { partyLabel } from "../../account/party/party-kinds";
 import { ProductImage, productTitle } from "../../product/products/product-tile";
 import { EntryNote, EntryPage, NextButton, StepCard, type SummaryItem, SummaryBar, SummaryCard, SummaryLines } from "../shared/entry-frame";
 import { BillCard } from "./bill-card";
-import { CartCard } from "./cart-card";
+import { CartStage } from "./cart-stage";
 import { DetailsCard, SaveBlock } from "./details-card";
 import { MoneyCard } from "./money-card";
 import { PaidCard } from "./paid-card";
@@ -211,7 +211,7 @@ function PurchaseEntryView() {
         {current === "products" ? (
           <ProductsStage />
         ) : current === "amount" ? (
-          <CartCard />
+          <CartStage />
         ) : current === "money" ? (
           <MoneyCard />
         ) : current === "supplier" ? (

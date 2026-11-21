@@ -2101,7 +2101,7 @@
       "allPlaced": "All dispatched",
       "tooMany": "{n} too many",
       "items": "Items",
-      "transport": "Transport charges",
+      "transport": "Freight charges",
       "packing": "Packing charges",
       "loadingCharges": "Loading charges",
       "discountCap": "Only {amount} can be taken off.",
