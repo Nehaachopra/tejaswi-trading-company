@@ -195,26 +195,30 @@ export function SummaryBar({
   onToggle: () => void;
   children: React.ReactNode;
 }) {
+  // a ticket out of its slot: closed, one row (Summary, the total, ⌄); open, the lines under it
   return (
-    <div className="on-ivory flow-root rounded-2xl bg-ivory text-chestnut">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={onToggle}
-        className="flex min-h-12 w-full items-center justify-between gap-3 px-4"
-      >
-        <span className="text-xs font-semibold uppercase tracking-[0.08em] opacity-60">
-          {label}
-        </span>
-        <span className="flex items-center gap-3">
-          <span className={cn(money, "text-lg")}>{rupees(total)}</span>
-          <ChevronDown
-            className={cn("size-4 transition-transform", open && "rotate-180")}
-            aria-hidden
-          />
-        </span>
-      </button>
-      {open && <div className="px-4 pb-3">{children}</div>}
+    <div>
+      <div className="ticket-slot" aria-hidden />
+      <div className="ticket-paper on-ivory flow-root bg-ivory pt-1 text-chestnut">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={onToggle}
+          className="flex min-h-12 w-full items-center justify-between gap-3 px-4"
+        >
+          <span className="text-xs font-semibold uppercase tracking-[0.08em] opacity-60">
+            {label}
+          </span>
+          <span className="flex items-center gap-3">
+            <span className={cn(money, "text-lg")}>{rupees(total)}</span>
+            <ChevronDown
+              className={cn("size-4 transition-transform", open && "rotate-180")}
+              aria-hidden
+            />
+          </span>
+        </button>
+        {open && <div className="px-4 pb-3">{children}</div>}
+      </div>
     </div>
   );
 }
@@ -229,13 +233,17 @@ export function SummaryCard({
   total: number;
   children: React.ReactNode;
 }) {
+  // a ticket out of its slot
   return (
-    <div className="on-ivory flex flex-col gap-3 rounded-2xl bg-ivory p-4 text-chestnut">
-      <h2 className="-mb-1 text-xs font-semibold uppercase tracking-[0.08em] opacity-60">
-        {label}
-      </h2>
-      <p className={cn(money, "text-3xl")}>{rupees(total)}</p>
-      {children}
+    <div>
+      <div className="ticket-slot" aria-hidden />
+      <div className="ticket-paper on-ivory flex flex-col gap-3 bg-ivory p-4 pt-5 text-chestnut">
+        <h2 className="-mb-1 text-xs font-semibold uppercase tracking-[0.08em] opacity-60">
+          {label}
+        </h2>
+        <p className={cn(money, "text-3xl")}>{rupees(total)}</p>
+        {children}
+      </div>
     </div>
   );
 }
@@ -264,7 +272,9 @@ export function SummaryLines<S extends string>({
     <dl className="flex flex-col border-t border-chestnut/15">
       {/* the transaction's type, always first: Type, and under it what it is, as the other lines */}
       <div className="flex flex-col items-start gap-0.5 border-b border-chestnut/15 py-2">
-        <dt className="text-[0.65rem] font-semibold uppercase tracking-[0.08em] opacity-60">{t("summaryType")}</dt>
+        <dt className="text-[0.65rem] font-semibold uppercase tracking-[0.08em] opacity-60">
+          {t("summaryType")}
+        </dt>
         <dd className="w-full truncate font-semibold">{type}</dd>
       </div>
       {lines.map((l) => (
@@ -295,7 +305,9 @@ export function SummaryLines<S extends string>({
                   <span className="flex min-w-0 flex-1 items-baseline gap-1.5 text-sm">
                     <span className="min-w-0 truncate">{line.name}</span>
                     {/* right after the name, muted, when the line has one (a purchase item's ×quantity) */}
-                    {line.middle && <span className="tabular shrink-0 font-normal opacity-60">{line.middle}</span>}
+                    {line.middle && (
+                      <span className="tabular shrink-0 font-normal opacity-60">{line.middle}</span>
+                    )}
                   </span>
                   <span className="tabular shrink-0">{line.amount}</span>
                 </span>
