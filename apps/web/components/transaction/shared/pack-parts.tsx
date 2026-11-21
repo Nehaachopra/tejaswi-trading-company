@@ -18,12 +18,15 @@ export function QuantityBox({
   autoFocus = false,
   min = 1,
   belowNote,
+  invalid = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   max: number;
   label: string;
   autoFocus?: boolean;
+  // required and not typed (after Add was tapped): a red ring
+  invalid?: boolean;
   // the fewest it can be (an edit: what the sale had), and the warning when it's pushed under that
   min?: number;
   belowNote?: React.ReactNode;
@@ -48,7 +51,7 @@ export function QuantityBox({
   const moreOff = max <= 0;
   return (
     <span className="flex w-full min-w-0 flex-col gap-1">
-      <span className="flex min-h-11 w-full items-center justify-between rounded-control bg-chestnut text-ivory">
+      <span className={cn("flex min-h-11 w-full items-center justify-between rounded-control bg-chestnut text-ivory", invalid && "ring-2 ring-danger")}>
         <button
           type="button"
           aria-label={`${t("less")}: ${label}`}

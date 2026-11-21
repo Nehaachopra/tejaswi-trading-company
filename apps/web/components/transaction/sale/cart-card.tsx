@@ -12,7 +12,7 @@ import { SCROLL_BOX } from "../shared/cart-button";
 import { CartTotalRow } from "../shared/cart-cards";
 import { input } from "../shared/form-basics";
 import { SaleCartCards } from "./cart-button";
-import { ProductCard } from "./product-card";
+import { ProductDetailsCard } from "./product-details-card";
 import { useSaleEntry } from "./state";
 
 // a row of the amount, as a payment's: its name on the left, its box on the right with what's typed at its right end
@@ -44,7 +44,7 @@ export function CartCard() {
           {/* nothing in the cart yet: a note in the cards' place */}
           {lines.length === 0 ? <p className="py-6 text-center text-sm opacity-70">{t("cartEmpty")}</p> : <SaleCartCards />}
         </div>
-        <ProductCard />
+        <ProductDetailsCard />
       </div>
       <div className="flex min-w-0 flex-col gap-4">
         <div className="tabular flex items-baseline justify-between gap-3 text-sm ">

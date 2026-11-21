@@ -98,6 +98,7 @@ export function MoneyBox({
   label,
   autoFocus,
   quiet = false,
+  invalid = false,
   className,
 }: {
   value: string;
@@ -105,6 +106,8 @@ export function MoneyBox({
   maxDigits: number;
   label: string;
   autoFocus?: boolean;
+  // required and not typed (after Add was tapped): a red edge
+  invalid?: boolean;
   // a box that can be typed in but needn't be (it follows another): no soft edge until it has the cursor
   quiet?: boolean;
   className?: string;
@@ -113,7 +116,7 @@ export function MoneyBox({
     <span
       className={cn(
         "flex min-h-11 w-full min-w-0 items-center gap-[3px] rounded-control px-2.5 shadow-[0_0_5px_0] transition-shadow focus-within:shadow-chestnut/80",
-        quiet ? "shadow-transparent" : "shadow-chestnut/40",
+        invalid ? "shadow-danger/80 focus-within:shadow-danger" : quiet ? "shadow-transparent" : "shadow-chestnut/40",
         className,
       )}
     >
@@ -125,6 +128,7 @@ export function MoneyBox({
         maxDigits={maxDigits}
         onChange={onChange}
         aria-label={label}
+        aria-invalid={invalid || undefined}
         className={cn(
           "tabular w-full min-w-0 flex-1 bg-transparent text-right font-bold outline-none",
           fitText(value),

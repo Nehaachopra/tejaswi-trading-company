@@ -9,11 +9,11 @@ import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 import { type ProductGroup, TileTop } from "../../product/products/product-tile";
-import { NewProductCard } from "../order/new/new-product-card";
+import { NewProductCard } from "../shared/new-product-card";
 import { SCROLL_BOX, TILE_GRID } from "../shared/cart-button";
 import { CartTotalRow } from "../shared/cart-cards";
 import { PurchaseCartButton, PurchaseCartCards } from "./cart-button";
-import { ProductCard } from "./product-card";
+import { ProductDetailsCard } from "./product-details-card";
 import { usePurchaseEntry } from "./state";
 
 // a part's small heading on the card
@@ -287,7 +287,7 @@ export function ProductsCard() {
       </div>
 
       {/* the product card, over the page, for the pack size being added or changed */}
-      <ProductCard />
+      <ProductDetailsCard />
     </div>
   );
 }

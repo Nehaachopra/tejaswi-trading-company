@@ -10,7 +10,7 @@ import { cn } from "~/lib/utils";
 import { SCROLL_BOX } from "../../shared/cart-button";
 import { input } from "../../shared/form-basics";
 import { OrderCartCards } from "./cart-button";
-import { LineCard } from "./line-card";
+import { ProductDetailsCard } from "./product-details-card";
 import { useOrderEntry } from "./state";
 
 // a row of the amounts: its name on the left, its figure (or box) on the right
@@ -38,7 +38,7 @@ export function TotalsCard() {
         <div className={SCROLL_BOX}>
           {lines.length === 0 ? <p className="py-6 text-center text-sm opacity-70">{t("cartEmpty")}</p> : <OrderCartCards />}
         </div>
-        <LineCard />
+        <ProductDetailsCard />
       </div>
 
       {/* the amounts */}

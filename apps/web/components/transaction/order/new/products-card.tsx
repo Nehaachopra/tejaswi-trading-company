@@ -10,8 +10,8 @@ import { cn } from "~/lib/utils";
 import { type ProductGroup, TileTop } from "../../../product/products/product-tile";
 import { CartTotalRow } from "../../shared/cart-cards";
 import { SCROLL_BOX, TILE_GRID } from "../../shared/cart-button";
-import { LineCard } from "./line-card";
-import { NewProductCard } from "./new-product-card";
+import { ProductDetailsCard } from "./product-details-card";
+import { NewProductCard } from "../../shared/new-product-card";
 import { useOrderEntry } from "./state";
 
 // a part's small heading on the card
@@ -119,7 +119,7 @@ export function ProductsCard() {
       </button>
 
       {/* the line card, over the page, for the pack size being added or changed */}
-      <LineCard />
+      <ProductDetailsCard />
     </div>
   );
 }

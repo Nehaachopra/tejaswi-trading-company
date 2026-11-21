@@ -11,7 +11,7 @@ import { type ProductGroup, TileTop } from "../../product/products/product-tile"
 import { SCROLL_BOX, TILE_GRID } from "../shared/cart-button";
 import { CartTotalRow } from "../shared/cart-cards";
 import { SaleCartCards } from "./cart-button";
-import { ProductCard } from "./product-card";
+import { ProductDetailsCard } from "./product-details-card";
 import { useSaleEntry } from "./state";
 
 // a part's small heading on the card
@@ -212,8 +212,8 @@ export function ProductsCard() {
         </span>
       </button>
 
-      {/* the product card, over the page, for the pack size being added or changed */}
-      <ProductCard />
+      {/* the product details card, over the page, for the pack size being added or changed */}
+      <ProductDetailsCard />
     </div>
   );
 }

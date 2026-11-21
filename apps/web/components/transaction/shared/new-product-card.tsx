@@ -15,17 +15,17 @@ import { packLabel, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { useProductActions, useProducts } from "~/providers/products";
 
-import { categoryError } from "../../../product/categories/category-errors";
-import { CategoryFields } from "../../../product/products/category-fields";
-import { GstPicker } from "../../../product/products/gst-picker";
-import { CODES, type Code, percent, wholeAbove0 } from "../../../product/products/pack-draft";
-import { brandChars } from "../../../product/products/product-details";
-import { type ProductGroup, productTitle } from "../../../product/products/product-tile";
-import { similarProducts } from "../../../product/products/similar";
-import { PackCountInput } from "../../../product/products/pack-count-input";
-import { PickMenu } from "../../../stock/pick-menu";
+import { categoryError } from "../../product/categories/category-errors";
+import { CategoryFields } from "../../product/products/category-fields";
+import { GstPicker } from "../../product/products/gst-picker";
+import { CODES, type Code, percent, wholeAbove0 } from "../../product/products/pack-draft";
+import { brandChars } from "../../product/products/product-details";
+import { type ProductGroup, productTitle } from "../../product/products/product-tile";
+import { similarProducts } from "../../product/products/similar";
+import { PackCountInput } from "../../product/products/pack-count-input";
+import { PickMenu } from "../../stock/pick-menu";
 import { Reveal } from "~/components/ui/reveal";
-import { fieldRow, pickRow } from "../../shared/form-basics";
+import { fieldRow, pickRow } from "./form-basics";
 
 // a box's value at its right end, as in the New product sheet
 const input = (bad: boolean) =>
