@@ -152,7 +152,7 @@ export function CartCards({
 // the cart cards, and above a purchase's Products heading
 // `hold`: a line card is open over it, so the count rolls only once that's closed
 // `countOnly`: Items alone (the sale's Cart card, whose total shows beside it); `plain`: no chestnut, chestnut words on
-// the card (the sale's Products card, inside its Cart button)
+// the card, the total right after its name as Items' count is (the sale's Products card, inside its Cart button)
 export function CartTotalRow({
   count,
   itemsTotal,
@@ -177,7 +177,7 @@ export function CartTotalRow({
         <SlotNumber value={count} hold={hold} className="font-heading text-lg font-extrabold" />
       </p>
       {!countOnly && (
-        <p className={cn("flex min-w-0 items-baseline justify-between gap-2 border-l px-2.5 py-2.5", plain ? "border-chestnut/25" : "border-ivory/25")}>
+        <p className={cn("flex min-w-0 items-baseline border-l px-2.5 py-2.5", plain ? "gap-3 border-chestnut/25" : "justify-between gap-2 border-ivory/25")}>
           <span className="text-sm font-semibold">{t("lineTotal")}</span>
           <span className="truncate whitespace-nowrap font-heading text-lg font-extrabold">{rupees(itemsTotal)}</span>
         </p>
