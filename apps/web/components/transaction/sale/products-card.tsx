@@ -24,7 +24,7 @@ const heading = "text-xs font-semibold uppercase tracking-[0.08em] opacity-60";
 // dispatch on a sale order: first a From order part (the pack sizes the order still waits for, each with what's left
 // to dispatch in place of its price), then Show other products, which opens the rest below it
 export function ProductsCard() {
-  const { t, products, categories, lines, itemsTotal, cardFor, sellable, order, orderLeft } = useSaleEntry();
+  const { t, products, categories, lines, itemsTotal, cardFor, sellable, order, orderLeft, next } = useSaleEntry();
   // the other products, opened from the button (always there on a sale of its own)
   const [othersOpen, setOthersOpen] = useState(false);
 
@@ -185,24 +185,6 @@ export function ProductsCard() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* the top, which stays put: the Total row (Items | Total), and beside it the cart icon with its › (slides to the
-          cart), or while the cart shows ‹ Products in its place (slides back) */}
-      <div className="-mb-2 flex items-center gap-3">
-        <CartTotalRow count={lines.length} itemsTotal={itemsTotal} hold={cardFor !== null} className="flex-1" />
-        {pane === "products" ? (
-          <SaleCartButton onSlide={() => setPane("cart")} />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setPane("products")}
-            // as quiet as the cart button it stands in for
-            className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-control border border-chestnut/60 px-3 text-sm font-semibold transition-colors hover:border-chestnut"
-          >
-            <ChevronLeft className="-ml-1 size-4.5 shrink-0" aria-hidden />
-            {t("products")}
-          </button>
-        )}
-      </div>
 
       {/* the panels: the products, and the cart to their right */}
       <div className="-mx-1 overflow-hidden transition-[height] duration-300 motion-reduce:transition-none" style={{ height }}>
@@ -275,6 +257,27 @@ export function ProductsCard() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* in Next's place: the Total row (Items | Total; a tap moves on, as Next did), and beside it the cart icon with its
+          › (slides to the cart), or while the cart shows ‹ Products in its place (slides back) */}
+      <div className="mt-2 flex items-center gap-3">
+        <button type="button" data-recheck onClick={() => void next()} className="flex-1 text-left">
+          <CartTotalRow count={lines.length} itemsTotal={itemsTotal} hold={cardFor !== null} />
+        </button>
+        {pane === "products" ? (
+          <SaleCartButton onSlide={() => setPane("cart")} />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPane("products")}
+            // as quiet as the cart button it stands in for
+            className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-control border border-chestnut/60 px-3 text-sm font-semibold transition-colors hover:border-chestnut"
+          >
+            <ChevronLeft className="-ml-1 size-4.5 shrink-0" aria-hidden />
+            {t("products")}
+          </button>
+        )}
       </div>
 
       {/* the product card, over the page, for the pack size being added or changed */}

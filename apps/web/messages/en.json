@@ -2033,7 +2033,7 @@
       "loadFailed": "Couldn't load the products.",
       "steps": {
         "products": "Products",
-        "amount": "Amount",
+        "amount": "Cart",
         "money": "Cash or credit",
         "customer": "Customer",
         "due": "Due",

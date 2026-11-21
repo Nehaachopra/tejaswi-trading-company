@@ -148,29 +148,35 @@ export function CartCards({
 // the Total row: Items with how many (only as wide as it needs), and Total with the cart's total, side by side; under
 // the cart cards, and above a purchase's Products heading
 // `hold`: a line card is open over it, so the count rolls only once that's closed
+// `countOnly`: Items alone (the sale's Cart card, whose total shows beside it)
 export function CartTotalRow({
   count,
   itemsTotal,
   hold = false,
+  countOnly = false,
   className,
 }: {
   count: number;
   itemsTotal: number;
   hold?: boolean;
+  countOnly?: boolean;
   className?: string;
 }) {
   const t = useTranslations("transactions.sale");
   return (
-    <div className={cn("tabular grid shrink-0 grid-cols-[auto_minmax(0,1fr)] rounded-control bg-chestnut text-ivory", className)}>
+    <div className={cn("tabular grid shrink-0 rounded-control bg-chestnut text-ivory", countOnly ? "grid-cols-1" : "grid-cols-[auto_minmax(0,1fr)]", className)}>
       <p className="flex items-baseline gap-3 px-2.5 py-2.5">
         <span className="text-sm font-semibold">{t("items")}</span>
         {/* the count rolls like a slot machine when an item goes in or out */}
         <SlotNumber value={count} hold={hold} className="font-heading text-lg font-extrabold" />
       </p>
-      <p className="flex min-w-0 items-baseline justify-between gap-2 border-l border-ivory/25 px-2.5 py-2.5">
-        <span className="text-sm font-semibold">{t("lineTotal")}</span>
-        <span className="truncate whitespace-nowrap font-heading text-lg font-extrabold">{rupees(itemsTotal)}</span>
-      </p>
+      {!countOnly && (
+        <p className="flex min-w-0 items-baseline justify-between gap-2 border-l border-ivory/25 px-2.5 py-2.5">
+          <span className="text-sm font-semibold">{t("lineTotal")}</span>
+          <span className="truncate whitespace-nowrap font-heading text-lg font-extrabold">{rupees(itemsTotal)}</span>
+        </p>
+      )}
     </div>
   );
 }
+

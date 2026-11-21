@@ -20,11 +20,11 @@ const row = "flex min-w-0 items-center justify-between gap-3";
 // the amount's box: large and bold, ₹ inside on the left
 const amountBox = "min-h-12 pl-11 font-heading text-xl font-bold tabular text-right";
 
-// the Amount card: on the left (first on a phone) the cart, as the Products card's: the Items | Total row, then its
-// cards (a tap opens the product card to change one); on the right the amounts, as a payment's: the cart's total
+// the Cart card: on the left (first on a phone) the cart, as the Products card's: the Items | Total row, then its
+// cards (a tap opens the product card to change one), the row showing Items only; on the right the amounts, as a payment's: the cart's total
 // (worked out, no box), then a ₹ box each for the cash discount and the transport, packing and loading charges, then
 // the Total in the chestnut box right under them
-export function AmountCard() {
+export function CartCard() {
   const { t, lines, cardFor, itemsTotal, discount, setDiscount, transport, setTransport, packing, setPacking, loadingCharges, setLoadingCharges, grossTotal, roundOff, total, isEdit, editPaid, balance } =
     useSaleEntry();
   // the discount cut at the bill: it says so (until typed again)
@@ -38,9 +38,9 @@ export function AmountCard() {
   return (
     // the cart on the left (on a phone, first), the amounts on the right
     <div className="grid items-start gap-6 sm:grid-cols-2 sm:gap-12">
-      {/* the cart: the same Items | Total row, then its cards (a tap opens the product card to change one) */}
+      {/* the cart: Items (the total is beside it), then its cards (a tap opens the product card to change one) */}
       <div className="flex min-w-0 flex-col gap-3">
-        <CartTotalRow count={lines.length} itemsTotal={itemsTotal} hold={cardFor !== null} />
+        <CartTotalRow count={lines.length} itemsTotal={itemsTotal} hold={cardFor !== null} countOnly />
         <div className={SCROLL_BOX}>
           <SaleCartCards />
         </div>

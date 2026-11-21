@@ -14,7 +14,7 @@ import type { ExchangeHandoff } from "../sale-return/state";
 import { partyLabel } from "../../account/party/party-kinds";
 import { ProductImage, productTitle } from "../../product/products/product-tile";
 import { EntryNote, EntryPage, NextButton, StepCard, type SummaryItem, SummaryBar, SummaryCard, SummaryLines } from "../shared/entry-frame";
-import { AmountCard } from "./amount-card";
+import { CartCard } from "./cart-card";
 import { CustomerCard } from "./customer-card";
 import { DetailsCard, SaveBlock } from "./details-card";
 import { MoneyCard } from "./money-card";
@@ -252,13 +252,14 @@ function SaleEntryView({ onExchangeBack }: { onExchangeBack?: () => void }) {
         // stays the order's
         onChange={current === "customer" && customer?.kind === "party" && !orderBuyer ? (walkIn ? findSaved : () => setCustomer(null)) : null}
         missing={tried && !complete[current] ? missingOf(current) : null}
-        // Cash or credit waits for a pick and moves on by itself; Details saves
-        end={current === "details" ? <SaveBlock /> : current === "money" ? null : <NextButton onClick={() => void next()} />}
+        // Cash or credit waits for a pick and moves on by itself; the Products card's Items | Total row moves on; Details
+        // saves
+        end={current === "details" ? <SaveBlock /> : current === "money" || current === "products" ? null : <NextButton onClick={() => void next()} />}
       >
         {current === "products" ? (
           <ProductsCard />
         ) : current === "amount" ? (
-          <AmountCard />
+          <CartCard />
         ) : current === "money" ? (
           <MoneyCard />
         ) : current === "customer" ? (
