@@ -2231,7 +2231,8 @@
         "bill": "This bill",
         "payBack": "Pay back in cash"
       },
-      "amount": "Amount"
+      "amount": "Amount",
+      "cartEmpty": "Nothing in the cart yet."
     },
     "drawing": {
       "title": "Drawing",

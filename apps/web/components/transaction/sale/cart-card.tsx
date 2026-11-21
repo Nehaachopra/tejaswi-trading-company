@@ -42,7 +42,8 @@ export function CartCard() {
       <div className="flex min-w-0 flex-col gap-3">
         <CartTotalRow count={lines.length} itemsTotal={itemsTotal} hold={cardFor !== null} countOnly />
         <div className={SCROLL_BOX}>
-          <SaleCartCards />
+          {/* nothing in the cart yet: a note in the cards' place */}
+          {lines.length === 0 ? <p className="py-6 text-center text-sm opacity-70">{t("cartEmpty")}</p> : <SaleCartCards />}
         </div>
         <ProductCard />
       </div>
