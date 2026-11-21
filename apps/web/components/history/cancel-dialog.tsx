@@ -27,7 +27,7 @@ export function CancelDialog({
   onClose: () => void;
 }) {
   const t = useTranslations("history");
-  const cancel = useCancelTransaction();
+  const { cancel, cancelling } = useCancelTransaction();
   const [reason, setReason] = useState("");
   const [tried, setTried] = useState(false);
   const missing = reason.trim() === "";
@@ -69,19 +69,16 @@ export function CancelDialog({
       }
       confirmLabel={t("cancelSale")}
       cancelLabel={t("keep")}
-      busy={cancel.isPending}
+      busy={cancelling}
       onConfirm={() => {
         setTried(true);
         if (missing) return;
-        cancel.mutate(
-          { id, reason: reason.trim() },
-          {
-            onSuccess: () => {
-              toast.success(t("cancelDone"));
-              close();
-            },
-            onError: (err) => toast.error(err.message),
+        cancel(id, reason.trim()).then(
+          () => {
+            toast.success(t("cancelDone"));
+            close();
           },
+          (err: Error) => toast.error(err.message),
         );
       }}
       onCancel={close}

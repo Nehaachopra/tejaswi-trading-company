@@ -11,6 +11,7 @@ import { WhatsAppIcon } from "~/components/ui/icons/whatsapp-icon";
 import { amountInWords } from "~/lib/amount-words";
 import { packLabel, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
+import type { HistoryTransaction } from "~/providers/history";
 import { useSaleInvoice, useSaleShareKey } from "~/providers/sale";
 
 import { CancelDialog } from "../../history/cancel-dialog";
@@ -21,7 +22,6 @@ import { band, cell, dated, Detail, money } from "../done/voucher";
 
 type Invoice = RouterOutputs["transactions"]["sale"]["invoice"];
 type Place = Invoice["shipTo"];
-type HistoryRecord = RouterOutputs["transactions"]["history"]["get"];
 
 // a button's look on the chestnut page, as on the voucher
 const pill =
@@ -49,7 +49,7 @@ export function SaleInvoice({
 }: {
   id: string;
   shareKey?: string;
-  history?: { record: HistoryRecord; isAdmin: boolean };
+  history?: { record: HistoryTransaction; isAdmin: boolean };
 }) {
   const t = useTranslations("transactions.sale.invoice");
   const ts = useTranslations("transactions.sale");

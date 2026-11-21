@@ -92,8 +92,7 @@ export function HistoryFilters({ value, onChange }: { value: HistoryFilterValues
   const tc = useTranslations("common");
   const tt = useTranslations("accounts.types");
   const locale = useLocale();
-  const months = useHistoryMonths();
-  const monthKeys = (months.data ?? []).map((m) => `${m.year}-${String(m.month).padStart(2, "0")}`);
+  const { months: monthKeys } = useHistoryMonths();
   return (
     <div className={cn(FILTER_BAR, "flex-nowrap overflow-x-auto scrollbar-none")}>
       <FilterMenu

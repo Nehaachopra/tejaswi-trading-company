@@ -61,20 +61,18 @@ export function HistoryList() {
     maxAmount: range?.max ?? null,
     search,
   });
-  const rows = list.data?.pages.flat() ?? [];
-
   // the next page once the end of the list comes near
   const end = useRef<HTMLDivElement>(null);
-  const { hasNextPage, isFetchingNextPage, fetchNextPage } = list;
+  const { rows, hasMore, loadingMore, loadMore } = list;
   useEffect(() => {
     const el = end.current;
-    if (!el || !hasNextPage) return;
+    if (!el || !hasMore) return;
     const seen = new IntersectionObserver(([e]) => {
-      if (e?.isIntersecting && !isFetchingNextPage) void fetchNextPage();
+      if (e?.isIntersecting && !loadingMore) void loadMore();
     }, { rootMargin: "400px" });
     seen.observe(el);
     return () => seen.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [hasMore, loadingMore, loadMore]);
 
   return (
     <main className={`${PAGE} pb-16`}>
@@ -82,18 +80,18 @@ export function HistoryList() {
 
       <HistoryFilters value={filters} onChange={setFilters} />
 
-      {list.isPending ? (
+      {list.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
         </p>
-      ) : list.isError ? (
+      ) : list.loadFailed ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
       ) : rows.length === 0 ? (
         <p className="mt-16 text-center text-ivory/70">{t("empty")}</p>
       ) : (
-        <div className={cn("flex max-w-2xl flex-col", list.isPlaceholderData && "opacity-60")}>
+        <div className={cn("flex max-w-2xl flex-col", list.stale && "opacity-60")}>
           {byMonth(rows).map((g) => (
             <section key={g.month} aria-label={monthName(g.month, locale)}>
               {/* the month, stuck under the filters (the header's 4rem and the filters' 3.25rem) */}
@@ -109,7 +107,7 @@ export function HistoryList() {
           ))}
           {/* where the next page starts loading */}
           <div ref={end} />
-          {isFetchingNextPage && (
+          {loadingMore && (
             <p className="mt-4 flex items-center justify-center gap-2 text-ivory/70">
               <Spinner /> {t("loading")}
             </p>
