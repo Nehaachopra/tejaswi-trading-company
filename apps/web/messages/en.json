@@ -2394,7 +2394,11 @@
       "quantityReturned": "Quantity returned",
       "returnType": "Return type",
       "date": "Date",
-      "remarks": "Remarks"
+      "remarks": "Remarks",
+      "bill": "Bill",
+      "lessItemsReturned": "Less items returned",
+      "newBill": "New bill",
+      "lessAmountPaid": "Less amount paid"
     }
   },
   "dues": {

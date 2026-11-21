@@ -2394,7 +2394,11 @@
       "quantityReturned": "ಹಿಂತಿರುಗಿದ ಪ್ರಮಾಣ",
       "returnType": "ವಾಪಸಾತಿ ಪ್ರಕಾರ",
       "date": "ದಿನಾಂಕ",
-      "remarks": "ಟಿಪ್ಪಣಿ"
+      "remarks": "ಟಿಪ್ಪಣಿ",
+      "bill": "ಬಿಲ್",
+      "lessItemsReturned": "ಕಳೆಯಿರಿ: ಹಿಂತಿರುಗಿದ ಐಟಂಗಳು",
+      "newBill": "ಹೊಸ ಬಿಲ್",
+      "lessAmountPaid": "ಕಳೆಯಿರಿ: ಪಾವತಿಸಿದ ಮೊತ್ತ"
     }
   },
   "dues": {

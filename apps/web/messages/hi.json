@@ -2394,7 +2394,11 @@
       "quantityReturned": "वापस मात्रा",
       "returnType": "वापसी का प्रकार",
       "date": "तारीख",
-      "remarks": "टिप्पणी"
+      "remarks": "टिप्पणी",
+      "bill": "बिल",
+      "lessItemsReturned": "घटाएँ: वापस आइटम",
+      "newBill": "नया बिल",
+      "lessAmountPaid": "घटाएँ: दी गई राशि"
     }
   },
   "dues": {
