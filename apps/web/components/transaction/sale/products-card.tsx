@@ -264,10 +264,11 @@ export function ProductsCard() {
         type="button"
         data-recheck
         onClick={() => void next()}
-        className="mt-2 flex w-full items-stretch rounded-control bg-chestnut text-left text-ivory transition-colors hover:bg-chestnut/90"
+        // Items | Total plain on the card, a soft edge round them; Cart on chestnut
+        className="mt-2 flex w-full items-stretch overflow-hidden rounded-control text-left shadow-[0_0_5px_0] shadow-chestnut/40 transition-colors hover:shadow-chestnut/60"
       >
-        <CartTotalRow count={lines.length} itemsTotal={itemsTotal} hold={cardFor !== null} className="flex-1 bg-transparent" />
-        <span className="flex shrink-0 items-center gap-2 border-l border-ivory/25 px-3 text-sm font-semibold">
+        <CartTotalRow count={lines.length} itemsTotal={itemsTotal} hold={cardFor !== null} plain className="flex-1" />
+        <span className="flex shrink-0 items-center gap-2 bg-chestnut px-3 text-sm font-semibold text-ivory">
           <ShoppingCart className="size-4.5 shrink-0" aria-hidden />
           {t("cart")}
           <ChevronRight className="-ml-1 size-4.5 shrink-0" aria-hidden />
