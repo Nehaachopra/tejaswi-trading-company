@@ -64,13 +64,10 @@ export function DetailsCard() {
 
 // the day as a row (today until changed; staff a week back at most), level with the left column above, then Save with the total on it, and why a save failed
 export function SaveBlock() {
-  const { t, tc, isAdmin, day, setDay, tried, total, saving, save, saveError, editing } = useSaleEntry();
+  const { t, tc, isAdmin, day, setDay, tried, total, saving, save, saveError } = useSaleEntry();
   const today = indiaDay(new Date());
-  // an edit's day stays within the sale's own month (and never after today)
-  const month = editing ? indiaDay(new Date(editing.dateTime)).slice(0, 7) : null;
-  const monthEnd = month ? indiaDay(new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0, 12))) : null;
-  const min = month ? `${month}-01` : earliestDay(isAdmin);
-  const max = monthEnd && monthEnd < today ? monthEnd : today;
+  const min = earliestDay(isAdmin);
+  const max = today;
   return (
     <>
       <label className={cn(fieldRow, "mb-3 sm:w-[calc(50%-0.75rem)]")}>
@@ -104,7 +101,7 @@ export function SaveBlock() {
           </>
         ) : (
           <>
-            <span>{editing ? t("edit.save") : t("save")}</span>
+            <span>{t("save")}</span>
             <span className="tabular">{rupees(total)}</span>
           </>
         )}

@@ -20,13 +20,13 @@ import { DetailsCard, SaveBlock } from "./details-card";
 import { MoneyCard } from "./money-card";
 import { ProductsStage } from "./products-stage";
 import { PaymentStage } from "./payment-stage";
-import { type SaleEdit, type SaleStep, SaleEntryProvider, useSaleEntry, useSaleEntryState } from "./state";
+import { type SaleStep, SaleEntryProvider, useSaleEntry, useSaleEntryState } from "./state";
 
 // /transaction/sale (from the transaction hub): a sale, laid out like a payment: one card at a time on the left with
 // Back and Next, and a summary on the right (a bar above the card on a phone) that goes back to any card. 1 Products:
 // the cart above every pack size that can be sold; 2 Amount: the charges and a cash discount; 3 Cash or credit; 4
 // Customer; 5 Received (cash only): what came in and where; 6 Details: the day, vehicle, remarks and Save. A save goes to the sale's success page. Discarding to open a menu
-// starts the form again. (Editing a saved sale is edit/form.tsx, which opens SaleEntry with the sale.) With `exchange` it's an exchange's new sale (from a sale return): to the same buyer, the return
+// starts the form again. With `exchange` it's an exchange's new sale (from a sale return): to the same buyer, the return
 // counted as received, and its Save saves both; Back on its first card goes back to the return
 export function SaleForm({
   isAdmin,
@@ -47,21 +47,19 @@ export function SaleForm({
   );
 }
 
-// the form itself, inside SaleDataProvider: a new sale, an exchange's, or (with `edit`, from the edit form) a saved one
+// the form itself, inside SaleDataProvider: a new sale, or an exchange's
 export function SaleEntry({
   isAdmin,
   exchange = null,
-  edit = null,
   onExchangeBack,
   onDiscard,
 }: {
   isAdmin: boolean;
   exchange?: ExchangeHandoff | null;
-  edit?: SaleEdit | null;
   onExchangeBack?: () => void;
   onDiscard: () => void;
 }) {
-  const state = useSaleEntryState({ isAdmin, exchange, edit, onDiscard });
+  const state = useSaleEntryState({ isAdmin, exchange, onDiscard });
   return (
     <SaleEntryProvider value={state}>
       <SaleEntryView onExchangeBack={onExchangeBack} />
@@ -109,11 +107,10 @@ function SaleEntryView({ onExchangeBack }: { onExchangeBack?: () => void }) {
     show,
     next,
     figures,
-    isEdit,
     exchange,
   } = useSaleEntry();
-  // an edit's page is named for it, and an exchange's for the sale it's against
-  const title = isEdit ? t("edit.title") : exchange ? t("exchange.title", { number: exchange.saleAssignedId }) : t("title");
+  // an exchange's page is named for the sale it's against
+  const title = exchange ? t("exchange.title", { number: exchange.saleAssignedId }) : t("title");
   const locale = useLocale();
   const tr = useTranslations("transactions.receipt.form");
 
@@ -230,7 +227,7 @@ function SaleEntryView({ onExchangeBack }: { onExchangeBack?: () => void }) {
           <MoneyCard />
         ) : current === "customer" ? (
           <CustomerStage />
-        ) : current === "received" && kind === "credit" && !isEdit ? (
+        ) : current === "received" && kind === "credit" ? (
           <DueStage />
         ) : current === "received" ? (
           <PaymentStage />

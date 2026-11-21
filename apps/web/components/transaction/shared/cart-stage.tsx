@@ -7,6 +7,7 @@ import { type ReactNode, useState } from "react";
 import { FieldMessage } from "~/components/ui/field-message";
 import { NumberInput } from "~/components/ui/number-input";
 import { rupees } from "~/lib/format";
+import { parseAmount } from "~/lib/price";
 import { cn } from "~/lib/utils";
 
 import { SCROLL_BOX } from "./cart-button";
@@ -39,6 +40,7 @@ export function CartStage({
   total,
   totalLabel,
   after,
+  locked = false,
   children,
 }: {
   idPrefix: string;
@@ -56,6 +58,8 @@ export function CartStage({
   totalLabel: string;
   // rows under the total (an edited sale's paid and balance)
   after?: ReactNode;
+  // the discount and charges can't change (an edited sale): plain figures, not boxes
+  locked?: boolean;
   // the product details card
   children?: ReactNode;
 }) {
@@ -87,8 +91,17 @@ export function CartStage({
           <span className={figure}>{rupees(itemsTotal)}</span>
         </div>
 
+        {/* locked: the discount, then the charges, as plain figures */}
+        {locked &&
+          fields.map((f) => (
+            <div key={f.key} className={plainRow}>
+              <span className="min-w-0">{f.label}</span>
+              <span className={figure}>{rupees(parseAmount(f.value) ?? 0)}</span>
+            </div>
+          ))}
+
         {/* the discount, then the charges: a ₹ box each */}
-        {fields.map((f) => (
+        {!locked && fields.map((f) => (
           <div key={f.key} className="flex flex-col gap-1.5">
             <div className={row}>
               <label htmlFor={`${idPrefix}-${f.key}`} className="min-w-0 text-sm">

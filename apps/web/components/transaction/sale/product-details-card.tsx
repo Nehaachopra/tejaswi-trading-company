@@ -1,7 +1,6 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -30,7 +29,7 @@ export function ProductDetailsCard() {
 }
 
 function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
-  const { t, lines, putLine, removeLine, setCardFor, freeOf, orderPrice, order, editQty, editing, godownsOf } =
+  const { t, lines, putLine, removeLine, setCardFor, freeOf, orderPrice, order, godownsOf } =
     useSaleEntry();
   const units = useTranslations("products.items.form.units");
   // a dispatch on a sale order: this pack's line on the order (how many were ordered, how many have gone out), while
@@ -64,8 +63,6 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   const price = priceOf(draft, pack);
   const quantity = Number(draft.quantity) || 0;
   const available = freeOf(pack);
-  // an edit: never fewer than the sale had (fewer is a sale return)
-  const fewest = Math.max(1, editQty(pack.productId));
   const placed = placedOf(draft);
   const { rate, total } = lineFigures(price, quantity, gst);
   // a new price below what a pack costs us can't be saved
@@ -76,25 +73,22 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   const typedPrice = parseAmount(draft.newPrice);
   const rateValue =
     rateText ?? (typedPrice === null ? "" : asField(round2(typedPrice / unitsIn(pack))));
-  const ok = price > 0 && quantity >= fewest && quantity <= available && placed === quantity;
+  const ok = price > 0 && quantity >= 1 && quantity <= available && placed === quantity;
   // below cost: Add asks first whether to sell it that low (a pack's cost with GST, to set against the price)
   const [askBelow, setAskBelow] = useState(false);
   const costGst = round2((pack.weightedAverageCost ?? 0) * (1 + gst / 100));
   // Add tapped with something missing: what's missing is marked red, and said under Add
   const [tried, setTried] = useState(false);
-  const bad = { price: price <= 0, quantity: quantity < fewest || quantity > available, godowns: quantity >= 1 && placed !== quantity };
+  const bad = { price: price <= 0, quantity: quantity < 1 || quantity > available, godowns: quantity >= 1 && placed !== quantity };
   const error = !tried
     ? null
     : bad.price
       ? t("hintPrice")
       : quantity < 1
         ? t("hintQuantity")
-        : // an edit, a smaller number typed (raised back on leaving the box)
-          quantity < fewest
-          ? t("edit.lessThanBefore")
-          : bad.godowns
-            ? t("hintGodowns")
-            : null;
+        : bad.godowns
+          ? t("hintGodowns")
+          : null;
 
   function done(sellBelow = false) {
     if (!ok) {
@@ -126,19 +120,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
       autoFocus
       value={draft.quantity}
       max={available}
-      min={fewest}
-      // only an edit, for an item the sale already had: fewer than it had is a sale return (its own form)
-      belowNote={
-        editing && editQty(pack.productId) > 0
-          ? t.rich("edit.belowSaved", {
-              link: (words) => (
-                <Link href={`/history/${editing.transactionId}/return`} className="font-semibold underline underline-offset-2">
-                  {words}
-                </Link>
-              ),
-            })
-          : undefined
-      }
+      min={1}
       label={`${t("quantity")}: ${name}`}
       invalid={tried && bad.quantity}
       // a new quantity clears the godowns, to be placed again
@@ -150,8 +132,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
       group={group}
       pack={pack}
       onClose={close}
-      // (not for an item the edited sale already had: taking it off is a sale return)
-      onRemove={saved && editQty(pack.productId) === 0 ? () => removeLine(pack.productId) : undefined}
+      onRemove={saved ? () => removeLine(pack.productId) : undefined}
       removeLabel={t("removeFromCart")}
       headings={{ basis: t("basis"), current: t("current"), new: t("new") }}
       rows={[

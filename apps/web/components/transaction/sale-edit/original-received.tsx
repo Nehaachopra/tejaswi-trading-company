@@ -4,18 +4,17 @@ import { useTranslations } from "next-intl";
 
 import { bankNameIn } from "~/lib/bank-names";
 
-import { FlowParts } from "../../shared/fold-group";
-import { useSaleEntry } from "../state";
+import { FlowParts } from "../shared/fold-group";
+import { useSaleEdit } from "./state";
 
 // an edit's breakup, under Original sale received (its ⌄ open): where that money came in when the sale was saved (and
 // at each edit since), read only, as a receipt's Received towards: a line from the row into each part (cash, each bank
 // account with how it came in, the TDS they deducted, an advance set off, each later receipt by its ID)
 export function OriginalReceived() {
-  const { t, editing, locale } = useSaleEntry();
+  const { t, sale: editing, locale } = useSaleEdit();
   const tc = useTranslations("transactions.chat");
   const tm = useTranslations("transactions.payment.form");
   const tr = useTranslations("transactions.receipt.form");
-  if (!editing) return null;
   const { cash, tds, banks, setOff, receipts } = editing.received;
 
   const parts = [

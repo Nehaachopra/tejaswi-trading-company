@@ -9,7 +9,7 @@ import { useSaleEntry } from "./state";
 // payment adds someone (the admin's); for cash the buyer's name, phone and addresses, kept on the sale only. Cash under
 // ₹50,000: only the buyer's address, no search
 export function CustomerStage() {
-  const { t, tc, kind, isAdmin, complete, buyerName, buyerPhone, addresses, findSaved, customer, setCustomer, newParty, setNewParty, editingCustomer, setEditingCustomer, matched, tried, setTried, orderLocked, orderBuyer, walkIn, walkInCredit, walkInParty } =
+  const { t, tc, kind, isAdmin, complete, buyerName, buyerPhone, addresses, findSaved, customer, setCustomer, newParty, setNewParty, editingCustomer, setEditingCustomer, matched, tried, setTried, orderLocked, orderBuyer, walkIn } =
     useSaleEntry();
   const picked = customer?.kind === "ledger" ? customer.ledger : null;
   // (Change: find a saved customer instead)
@@ -24,7 +24,7 @@ export function CustomerStage() {
           setCustomer(c);
           setEditingCustomer(false);
           // (an edited walk-in sale: the sale's name, phone and addresses again)
-          if (c?.kind === "party") setNewParty(walkInCredit ? walkInParty() : emptyDraft());
+          if (c?.kind === "party") setNewParty(emptyDraft());
         },
         // a cash buyer is only kept on the sale, so anyone may type one; a new customer on credit is the admin's
         canAdd: isAdmin || kind === "cash",
@@ -42,7 +42,7 @@ export function CustomerStage() {
           // someone new, for cash: the buyer's details
           <CashBuyer />
         ) : (
-          // someone new, on credit: a new customer's details (an edited walk-in sale: only the name and phone)
+          // someone new, on credit: a new customer's details
           <PartyFields
             draft={newParty}
             onChange={(patch) => setNewParty((d) => ({ ...d, ...patch }))}
@@ -54,9 +54,6 @@ export function CustomerStage() {
             rows
             phoneFirst
             asksEmail={false}
-            asksShortName={!walkInCredit}
-            asksPan={!walkInCredit}
-            asksAddresses={!walkInCredit}
           />
         ))
       }
