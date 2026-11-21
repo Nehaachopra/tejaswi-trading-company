@@ -16,29 +16,44 @@ export const withCode = (phone: string) => `+91 ${phone}`;
 // a party ledger as a pick shows it, to tell people apart: short name (or full name) with its type beside it, the
 // full name under it, then phone and town (never its balance)
 export function PartyPick({ party }: { ledger: Pickable; party: NonNullable<Pickable["party"]> }) {
+  return <PartyFace name={party.name} shortName={party.shortName} types={party.types} phone={party.phone} city={party.city} />;
+}
+
+// a party as a pick shows it, from its details alone (someone new, typed on the form, shows the same)
+export function PartyFace({
+  name,
+  shortName,
+  types,
+  phone,
+  city,
+}: {
+  name: string;
+  shortName: string | null;
+  types: readonly string[];
+  phone: string | null;
+  city: string | null;
+}) {
   const tt = useTranslations("accounts.party.form.types");
   return (
     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
       <span className="flex items-center gap-2">
-        <span className="min-w-0 truncate font-heading text-base font-bold">
-          {partyLabel(party)}
-        </span>
-        {(party.types.length ? party.types : (["none"] as const)).map((r) => (
+        <span className="min-w-0 truncate font-heading text-base font-bold">{partyLabel({ shortName: shortName || null, name })}</span>
+        {(types.length ? types : ["none"]).map((r) => (
           <span key={r} className="shrink-0 rounded-control border border-current/40 px-1.5 py-0.5 text-xs">
-            {tt(r)}
+            {tt(r as "none")}
           </span>
         ))}
       </span>
-      {party.shortName && <span className="truncate text-sm">{titleCase(party.name)}</span>}
+      {shortName && <span className="truncate text-sm">{titleCase(name)}</span>}
       <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-        {party.phone && (
+        {phone && (
           <span className="tabular flex items-center gap-1">
-            <Phone className="size-3.5" aria-hidden /> {withCode(party.phone)}
+            <Phone className="size-3.5" aria-hidden /> {withCode(phone)}
           </span>
         )}
-        {party.city && (
+        {city && (
           <span className="flex items-center gap-1">
-            <MapPin className="size-3.5" aria-hidden /> {titleCase(party.city)}
+            <MapPin className="size-3.5" aria-hidden /> {titleCase(city)}
           </span>
         )}
       </span>

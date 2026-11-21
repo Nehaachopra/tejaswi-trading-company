@@ -71,6 +71,8 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
   const [supplier, setSupplier] = useState<LedgerChoice>(null);
   const [newSupplier, setNewSupplier] = useState<PartyDraft>(() => emptyParty());
   const [editingSupplier, setEditingSupplier] = useState(false);
+  // cash: Change on the new supplier's form turns to the search, to pick one already added
+  const [cashSearch, setCashSearch] = useState(false);
   // an arrival on a purchase order is from the order's supplier: picked already, and kept (the order is theirs)
   const orderLocked = !!order && !!orderLedger;
   useEffect(() => {
@@ -380,7 +382,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
       setSetOffOn(true);
     }
     // cash, the admin's (not an arrival): no search, a new supplier's details straight away, in our town until changed
-    if (next === "cash" && isAdmin && !orderLocked && supplier === null) {
+    if (next === "cash" && isAdmin && !orderLocked && !cashSearch && supplier === null) {
       setSupplier({ kind: "party" });
       setNewSupplier(cashSupplierDraft());
     }
@@ -411,7 +413,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     };
   }
   // cash, the admin's: the supplier stage is only the new supplier's details (no search)
-  const cashNew = kind === "cash" && isAdmin && !orderLocked;
+  const cashNew = kind === "cash" && isAdmin && !orderLocked && !cashSearch;
 
   // what the card still needs, once Next or Save was tapped
   const missingOf = (s: PurchaseStep) =>
@@ -526,6 +528,7 @@ export function usePurchaseEntryState({ isAdmin, onDiscard }: { isAdmin: boolean
     locale,
     isAdmin,
     cashNew,
+    setCashSearch,
     loading,
     loadFailed,
     retryLoad,

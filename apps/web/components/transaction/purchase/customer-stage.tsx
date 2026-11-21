@@ -9,7 +9,7 @@ import { usePurchaseEntry } from "./state";
 // party (the admin's) asks their details right here: the phone first (needed), then the name and the rest, no email.
 // Cash (the admin's): no search, those details straight away, the address in our town until changed
 export function CustomerStage() {
-  const { t, tc, isAdmin, supplier, setSupplier, newSupplier, setNewSupplier, editingSupplier, setEditingSupplier, matched, tried, setTried, show, orderLocked, cashNew } = usePurchaseEntry();
+  const { t, tc, isAdmin, complete, supplier, setSupplier, newSupplier, setNewSupplier, editingSupplier, setEditingSupplier, matched, tried, setTried, show, orderLocked, cashNew, setCashSearch } = usePurchaseEntry();
   const picked = supplier?.kind === "ledger" ? supplier.ledger : null;
   return (
     <PartySearchView
@@ -50,6 +50,21 @@ export function CustomerStage() {
             asksEmail={false}
           />
         )
+      }
+      // someone new: "New party" with Change over their details (cash: Change turns to the search)
+      newPartyCard={supplier?.kind === "party"}
+      onNewChange={() => {
+        if (cashNew) setCashSearch(true);
+        setSupplier(null);
+      }}
+      // someone new, back on the stage with their details complete: shown as picked
+      newDone={
+        supplier?.kind === "party"
+          ? {
+              complete: complete.supplier,
+              face: { name: newSupplier.name, shortName: newSupplier.shortName || null, types: ["supplier"], phone: newSupplier.phone || null, city: newSupplier.addresses[0]?.city || null },
+            }
+          : null
       }
       match={
         supplier?.kind === "party" && matched

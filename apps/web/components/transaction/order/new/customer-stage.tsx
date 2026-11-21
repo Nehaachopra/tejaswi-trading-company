@@ -11,7 +11,7 @@ import { useOrderEntry } from "./state";
 // (needed), the phone (optional), then one address. A sale order keeps someone new on the order (a customer only if
 // the sale turns out to be on credit); a purchase order adds them as a supplier
 export function CustomerStage() {
-  const { kind, supplierPick, setSupplierPick, newSupplier, setNewSupplier, newCustomer, setNewCustomer, supplierMatch, customerMatch, tried } = useOrderEntry();
+  const { kind, complete, supplierPick, setSupplierPick, newSupplier, setNewSupplier, newCustomer, setNewCustomer, supplierMatch, customerMatch, tried } = useOrderEntry();
   const tc = useTranslations("transactions.chat");
   const sale = kind === "sale";
   const isNew = supplierPick?.kind === "party";
@@ -34,6 +34,17 @@ export function CustomerStage() {
         placeholder: tc("hints.from"),
       }}
       newPartyCard={isNew}
+      // someone new, back on the stage with their details complete: shown as picked
+      newDone={
+        isNew
+          ? sale
+            ? { complete: complete.supplier, face: { name: newCustomer.name, shortName: null, types: ["customer"], phone: newCustomer.phone || null, city: newCustomer.address.city || null } }
+            : {
+                complete: complete.supplier,
+                face: { name: newSupplier.name, shortName: null, types: ["supplier"], phone: newSupplier.phone || null, city: newSupplier.addresses[0]?.city || null },
+              }
+          : null
+      }
       form={
         isNew &&
         (sale ? (

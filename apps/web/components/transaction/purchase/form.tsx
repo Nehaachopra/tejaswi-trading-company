@@ -60,7 +60,6 @@ function PurchaseEntryView() {
     advance,
     askingAdvance,
     supplier,
-    setSupplier,
     newSupplier,
     places,
     creditDays,
@@ -203,7 +202,8 @@ function PurchaseEntryView() {
         hideName={current === "products"}
         onBack={index > 0 ? () => show(steps[index - 1]!) : null}
         // someone new being typed in: Change goes back to the search
-        onChange={current === "supplier" && supplier?.kind === "party" ? () => setSupplier(null) : null}
+        // (the supplier stage has its own Change, beside Edit)
+        onChange={null}
         missing={tried && !complete[current] ? missingOf(current) : null}
         // Cash or credit waits for a pick and moves on by itself; Products ends in its own Cart button; Details saves
         end={current === "details" ? <SaveBlock /> : current === "money" || current === "products" ? null : <NextButton onClick={() => void next()} />}

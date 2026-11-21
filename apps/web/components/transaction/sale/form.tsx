@@ -87,10 +87,6 @@ function SaleEntryView({ onExchangeBack }: { onExchangeBack?: () => void }) {
     dueNow,
     gridPlaces,
     customer,
-    setCustomer,
-    orderBuyer,
-    walkIn,
-    findSaved,
     tdsCan,
     received,
     panNeeded,
@@ -250,7 +246,8 @@ function SaleEntryView({ onExchangeBack }: { onExchangeBack?: () => void }) {
         onBack={index > 0 ? () => show(steps[index - 1]!) : (onExchangeBack ?? null)}
         // someone new being typed in: Change goes back to the search (as a receipt's); not for an order's buyer, who
         // stays the order's
-        onChange={current === "customer" && customer?.kind === "party" && !orderBuyer ? (walkIn ? findSaved : () => setCustomer(null)) : null}
+        // (the customer stage has its own Change, beside Edit)
+        onChange={null}
         missing={tried && !complete[current] ? missingOf(current) : null}
         // Cash or credit waits for a pick and moves on by itself; the Products card's Items | Total row moves on; Details
         // saves

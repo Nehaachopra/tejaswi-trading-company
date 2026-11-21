@@ -9,10 +9,11 @@ import { useSaleEntry } from "./state";
 // payment adds someone (the admin's); for cash the buyer's name, phone and addresses, kept on the sale only. Cash under
 // ₹50,000: only the buyer's address, no search
 export function CustomerStage() {
-  const { t, tc, kind, isAdmin, customer, setCustomer, newParty, setNewParty, editingCustomer, setEditingCustomer, matched, tried, setTried, orderLocked, orderBuyer, walkIn, walkInCredit, walkInParty } =
+  const { t, tc, kind, isAdmin, complete, buyerName, buyerPhone, addresses, findSaved, customer, setCustomer, newParty, setNewParty, editingCustomer, setEditingCustomer, matched, tried, setTried, orderLocked, orderBuyer, walkIn, walkInCredit, walkInParty } =
     useSaleEntry();
   const picked = customer?.kind === "ledger" ? customer.ledger : null;
-  if (walkIn) return <CashBuyer />;
+  // (Change: find a saved customer instead)
+  if (walkIn) return <CashBuyer onChange={findSaved} />;
   return (
     <PartySearchView
       search={{
@@ -59,6 +60,20 @@ export function CustomerStage() {
           />
         ))
       }
+      // someone new: "New party" with Change over their details (none for an order's buyer: the order's)
+      newPartyCard={customer?.kind === "party"}
+      onNewChange={orderBuyer ? null : () => setCustomer(null)}
+      // someone new, back on the stage with their details complete: shown as picked
+      newDone={
+        customer?.kind === "party"
+          ? kind === "cash"
+            ? { complete: complete.customer, face: { name: buyerName, shortName: null, types: ["customer"], phone: buyerPhone || null, city: addresses[0]?.city || null } }
+            : {
+                complete: complete.customer,
+                face: { name: newParty.name, shortName: newParty.shortName || null, types: ["customer"], phone: newParty.phone || null, city: newParty.addresses[0]?.city || null },
+              }
+          : null
+      }
       match={
         customer?.kind === "party" && kind === "credit" && matched
           ? { ledger: matched, onUse: () => setCustomer({ kind: "ledger", ledger: matched }), onChangePhone: () => setNewParty((d) => ({ ...d, phone: "" })) }
@@ -70,8 +85,8 @@ export function CustomerStage() {
 
 // for cash: the buyer's name and phone, asked and needed only from ₹50,000 taxable value, while an order's buyer has
 // the order's name and phone shown (never typed); then their address (our place of business, until changed)
-function CashBuyer() {
-  const { t, buyerName, setBuyerName, buyerPhone, setBuyerPhone, phoneOk, buyerNeeded, addresses, setAddresses, sameAddress, tried, setTried, orderBuyer, order } = useSaleEntry();
+function CashBuyer({ onChange }: { onChange?: () => void }) {
+  const { t, complete, buyerName, setBuyerName, buyerPhone, setBuyerPhone, phoneOk, buyerNeeded, addresses, setAddresses, tried, setTried, orderBuyer, order } = useSaleEntry();
   // an order's buyer with a phone on the order: shown, not typed (an older order without one asks it)
   const fixedPhone = orderBuyer && !!order?.customer.phone;
   return (
@@ -96,9 +111,11 @@ function CashBuyer() {
       }
       addresses={addresses}
       setAddresses={setAddresses}
-      sameAddress={sameAddress}
       tried={tried}
       setTried={setTried}
+      // only on its own (a walk-in): under the search, the party card shows them once complete
+      complete={!!onChange && complete.customer}
+      onChange={onChange}
     />
   );
 }

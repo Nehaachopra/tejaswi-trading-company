@@ -1,19 +1,19 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { MapPin, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type ComponentProps, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import { type ComponentProps, type Dispatch, type ReactNode, type SetStateAction, useState } from "react";
 
 import { fieldClass } from "~/components/ui/card-form";
 import { FieldMessage } from "~/components/ui/field-message";
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
 import { RequiredMark } from "~/components/ui/required-mark";
-import { noDigits } from "~/lib/format";
+import { noDigits, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 import { type AddressDraft, AddressFields, emptyAddress, FieldRows, SECTION_TITLE } from "../../account/party/party-fields";
 import { LedgerSearch } from "../pickers/ledger-picker";
-import { PartyPick } from "../pickers/party-finder";
+import { PartyFace, PartyPick } from "../pickers/party-finder";
 import { chip, fieldRow } from "./form-basics";
 import { PartyEditor } from "./party-editor";
 import { PickedCard } from "./picked-card";
@@ -25,7 +25,8 @@ type Ledger = NonNullable<ComponentProps<typeof PartyPick>["ledger"]>;
 // parties (the list, and + New party), the picked one with Edit (the admin changes their details right here) and
 // Change (none on a dispatch or an arrival: the order's party stays); someone new shows "New party" with Change, then
 // their details (the transaction's own form); a phone one of ours already has shows them instead (use them, or change
-// the phone)
+// the phone). Back on the stage once their details are complete (after Next), someone new shows as a picked one does:
+// who they are, with Edit (their form again) and Change (back to the search)
 export function PartySearchView({
   search,
   editor,
@@ -34,6 +35,8 @@ export function PartySearchView({
   form,
   match,
   afterMatch,
+  newDone,
+  onNewChange,
 }: {
   // the search, as LedgerSearch takes it (+ New party always offered where it may add); none: only the new party's
   // details (a cash purchase)
@@ -50,8 +53,34 @@ export function PartySearchView({
   match?: { ledger: Ledger; onUse: () => void; onChangePhone: () => void } | null;
   // what comes after that (an order's customer: where to deliver)
   afterMatch?: ReactNode;
+  // someone new: whether their details are complete, and who they are as a pick shows them
+  newDone?: { complete: boolean; face: ComponentProps<typeof PartyFace> } | null;
+  // someone new: what Change does (back to the search unless given; null: no Change, as an order's buyer)
+  onNewChange?: (() => void) | null;
 }) {
   const tpick = useTranslations("transactions.picker");
+  // the new party's form shows until their details are complete when the stage opens; Edit opens it again
+  const [formOpen, setFormOpen] = useState(() => !newDone?.complete);
+  // Change for someone new: let go of them (and their form shows again for the next one)
+  const changeNew =
+    onNewChange === null
+      ? undefined
+      : () => {
+          setFormOpen(true);
+          if (onNewChange) onNewChange();
+          else search?.onChange(null);
+        };
+  if (newDone && newDone.complete && !formOpen)
+    return (
+      <div className="flex flex-col gap-4">
+        <PickedCard
+          onEdit={() => setFormOpen(true)}
+          onChange={onNewChange || search ? changeNew : undefined}
+        >
+          <PartyFace {...newDone.face} />
+        </PickedCard>
+      </div>
+    );
   return (
     <div className="flex flex-col gap-4">
       {search && <LedgerSearch {...(search as Search)} addParty />}
@@ -67,7 +96,7 @@ export function PartySearchView({
 
       {/* someone new: Change goes back to the search, to pick one already added */}
       {newPartyCard && (
-        <PickedCard oneLine onChange={() => search?.onChange(null)}>
+        <PickedCard oneLine onChange={onNewChange || search ? changeNew : undefined}>
           <span className="min-w-0 flex-1 truncate font-semibold">{tpick("newParty")}</span>
         </PickedCard>
       )}
@@ -195,25 +224,47 @@ export function PersonalRows({
 
 // the customer stage's second view (cash): only the address, our place of business until changed, used for billing
 // and shipping; `personal` above it when the name and phone are needed too. "Ship to a different address" adds a second
-// box for where it goes, which can be removed and can't be the same place as the first
+// box for where it goes, which can be removed and can't be the same place as the first (said once, by Next)
 export function AddressOnlyView({
   personal,
   addresses,
   setAddresses,
-  sameAddress,
   tried,
   setTried,
+  complete,
+  onChange,
 }: {
+  // the stage's answers are complete: back on it, only the location shows (Edit opens the form again)
+  complete: boolean;
+  // Change: from the address alone to the search (a sale: find a saved customer)
+  onChange?: () => void;
   personal?: ReactNode;
   addresses: AddressDraft[];
   setAddresses: Dispatch<SetStateAction<AddressDraft[]>>;
-  sameAddress: boolean;
   tried: boolean;
   setTried: (v: boolean) => void;
 }) {
   const t = useTranslations("transactions.sale");
   const setAddress = (key: string, patch: Partial<AddressDraft>) => setAddresses((all) => all.map((a) => (a.key === key ? { ...a, ...patch } : a)));
   const ships = addresses.length > 1;
+  const [formOpen, setFormOpen] = useState(() => !complete);
+  // back on the stage with the address complete: just where it is, with Edit and Change
+  const first = addresses[0];
+  if (complete && !formOpen && first)
+    return (
+      <PickedCard onEdit={() => setFormOpen(true)} onChange={onChange}>
+        <span className="flex min-w-0 flex-1 items-start gap-2">
+          <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <span className="font-heading text-base font-bold">{titleCase(first.city)}</span>
+            {first.addressLine1.trim() !== "" && <span className="text-sm">{first.addressLine1}</span>}
+            <span className="tabular text-xs">
+              {titleCase(first.district)}, {titleCase(first.state)} {first.postalCode}
+            </span>
+          </span>
+        </span>
+      </PickedCard>
+    );
   return (
     <div className="flex flex-col gap-6">
       {personal}
@@ -249,7 +300,6 @@ export function AddressOnlyView({
               onRemove={() => undefined}
               onMakeDefault={() => undefined}
             />
-            {i === 1 && sameAddress && <FieldMessage className="mt-0">{t("sameAddress")}</FieldMessage>}
           </section>
         ))}
       </FieldRows>
