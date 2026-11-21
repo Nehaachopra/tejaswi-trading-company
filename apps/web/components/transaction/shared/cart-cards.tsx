@@ -33,6 +33,7 @@ export function CartCards({
   showTotal = true,
   detailRows,
   canRemove,
+  twoPerRow = false,
 }: {
   lines: CartRow[];
   packOf: (id: string) => { group: ProductGroup; pack: Pack } | null;
@@ -46,11 +47,13 @@ export function CartCards({
   detailRows?: (line: CartRow) => { key: string; label: string; value: string }[];
   // whether a card has the bin (a sale return's: only once something of it is coming back)
   canRemove?: (productId: string) => boolean;
+  // two to a row at every width (the sale's Cart card, where the cart has half the card)
+  twoPerRow?: boolean;
 }) {
   const t = useTranslations("transactions.sale");
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
-      <ul className={GRID}>
+      <ul className={cn(GRID, twoPerRow && "sm:grid-cols-2")}>
         {lines.map((line) => {
           const found = packOf(line.productId);
           if (!found) return null;

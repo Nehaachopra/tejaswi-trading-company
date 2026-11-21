@@ -53,6 +53,7 @@ export function SaleCartCards() {
       onOpen={setCardFor}
       onRemove={removeLine}
       showTotal={false}
+      twoPerRow
     />
   );
 }
