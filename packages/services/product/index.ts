@@ -243,11 +243,19 @@ export default class ProductService {
   // the price card's change and a sale of a pack size with no price yet both come here
   async setPriceIn(tx: Tx, productId: string, priceAfterGst: number, gstPercent: number, actor: ActorModel) {
     const price = splitPrice(priceAfterGst, gstPercent);
+    // the price it had until now, to log a step only when it changes
+    const [last] = await tx
+      .select({ priceAfterGst: productPricesTable.priceAfterGst, gstPercent: productPricesTable.gstPercent })
+      .from(productPricesTable)
+      .where(eq(productPricesTable.productId, productId));
+    const changed =
+      !last || last.priceAfterGst == null || Number(last.priceAfterGst) !== Number(price.priceAfterGst) || Number(last.gstPercent) !== gstPercent;
     await tx
       .insert(productPricesTable)
       .values({ productId, ...price })
       .onConflictDoUpdate({ target: productPricesTable.productId, set: { ...price, updatedAt: new Date() } });
-    await tx.insert(productPriceHistoryTable).values({ productId, ...price, changedById: actor.id, changedByName: actor.name });
+    // a step on the graph only when the price (or its GST %) differs from the last one set
+    if (changed) await tx.insert(productPriceHistoryTable).values({ productId, ...price, changedById: actor.id, changedByName: actor.name });
     return price;
   }
 
@@ -566,8 +574,8 @@ export default class ProductService {
     };
   }
 
-  // one pack size's last 5 purchases (active ones only), oldest first: each one's cost a pack with GST, after its
-  // discount, dated by the supplier's invoice
+  // one pack size's last 5 cost changes, oldest first: a point only where a purchase's cost a pack with GST (after its
+  // discount) differs from the purchase before it, dated by that purchase's supplier invoice (active purchases only)
   async costHistory(rawInput: CostHistoryInputModel): Promise<CostHistoryModel> {
     const input = costHistoryInputModel.parse(rawInput);
     const rows = await db
@@ -582,13 +590,14 @@ export default class ProductService {
       .innerJoin(purchasesTable, eq(purchasesTable.id, purchaseProductsTable.purchaseId))
       .innerJoin(transactionsTable, eq(transactionsTable.id, purchasesTable.transactionId))
       .where(and(eq(purchaseProductsTable.productId, input.productId), eq(transactionsTable.status, "active")))
-      .orderBy(desc(purchasesTable.invoiceDate), desc(purchaseProductsTable.createdAt))
-      .limit(5);
-    return {
-      costs: rows.reverse().map((r) => ({
-        at: new Date(`${r.at}T00:00:00+05:30`).toISOString(),
-        costAfterGst: round2((Number(r.gross) - Number(r.off) + Number(r.gst)) / r.quantity),
-      })),
-    };
+      .orderBy(asc(purchasesTable.invoiceDate), asc(purchaseProductsTable.createdAt));
+    // every purchase's cost, oldest first, then only those where it changed from the one before
+    const changes: CostHistoryModel["costs"] = [];
+    for (const r of rows) {
+      const costAfterGst = round2((Number(r.gross) - Number(r.off) + Number(r.gst)) / r.quantity);
+      if (changes.at(-1)?.costAfterGst === costAfterGst) continue;
+      changes.push({ at: new Date(`${r.at}T00:00:00+05:30`).toISOString(), costAfterGst });
+    }
+    return { costs: changes.slice(-5) };
   }
 }

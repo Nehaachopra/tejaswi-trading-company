@@ -72,6 +72,8 @@ export function HistoryChart({
 }) {
   const locale = useLocale();
   const fadeId = useId();
+  // one point alone: the mask that fades its short offshoot out to the right
+  const tailId = useId();
   const [tip, setTip] = useState<number | null>(null);
 
   if (pending) {
@@ -111,6 +113,10 @@ export function HistoryChart({
   const base = H - PAD.bottom;
   const last = pts.length - 1;
   const area = pts.length > 1 ? `${line}L${x(last)},${base}L${x(0)},${base}Z` : "";
+  // one point alone: a short flat offshoot to its right, with the fade under it, both fading out at its end, so a
+  // lone dot still reads as a line
+  const TAIL = 40;
+  const lone = pts.length === 1 ? { x: x(0), y: y(pts[0]!.value) } : null;
   const shown = tip == null ? null : pts[tip];
 
   // never wider than on the price card (300px less its padding): the drawing scales with its width, so a wider
@@ -128,6 +134,17 @@ export function HistoryChart({
             <stop offset="0" stopColor="var(--color-chestnut)" stopOpacity={0.32} />
             <stop offset="1" stopColor="var(--color-chestnut)" stopOpacity={0} />
           </linearGradient>
+          {lone && (
+            <linearGradient id={`${tailId}-g`} x1={lone.x} x2={lone.x + TAIL} y1="0" y2="0" gradientUnits="userSpaceOnUse">
+              <stop offset="0" stopColor="white" stopOpacity={1} />
+              <stop offset="1" stopColor="white" stopOpacity={0} />
+            </linearGradient>
+          )}
+          {lone && (
+            <mask id={tailId} maskUnits="userSpaceOnUse" x="0" y="0" width={W} height={H}>
+              <rect x={lone.x} y="0" width={TAIL} height={H} fill={`url(#${tailId}-g)`} />
+            </mask>
+          )}
         </defs>
         <line x1={PAD.left} x2={W - PAD.right} y1={base} y2={base} className="stroke-chestnut/15" />
         {/* the first and last dates only */}
@@ -161,6 +178,13 @@ export function HistoryChart({
           </>
         )}
         {area && <path d={area} fill={`url(#${fadeId})`} />}
+        {/* one point alone: its offshoot and the fade under it */}
+        {lone && (
+          <g mask={`url(#${tailId})`}>
+            <rect x={lone.x} y={lone.y} width={TAIL} height={base - lone.y} fill={`url(#${fadeId})`} />
+            <line x1={lone.x} x2={lone.x + TAIL} y1={lone.y} y2={lone.y} className="stroke-chestnut" strokeWidth={2} strokeLinecap="round" />
+          </g>
+        )}
         <path
           d={line}
           fill="none"
