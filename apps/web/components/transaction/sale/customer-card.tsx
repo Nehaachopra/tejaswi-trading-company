@@ -22,7 +22,7 @@ import { useSaleEntry } from "./state";
 // a payment adds someone (the admin's; a phone someone already has shows them instead: use them, or change the phone);
 // for cash the buyer's name, phone and addresses, kept on the sale only
 export function CustomerCard() {
-  const { t, kind, isAdmin, customer, setCustomer, newParty, setNewParty, editingCustomer, setEditingCustomer, matched, tried, setTried, orderLocked, orderBuyer, walkIn } = useSaleEntry();
+  const { t, kind, isAdmin, customer, setCustomer, newParty, setNewParty, editingCustomer, setEditingCustomer, matched, tried, setTried, orderLocked, orderBuyer, walkIn, walkInCredit, walkInParty } = useSaleEntry();
   const tc = useTranslations("transactions.chat");
   const tpf = useTranslations("transactions.payment.form");
   const picked = customer?.kind === "ledger" ? customer.ledger : null;
@@ -37,7 +37,8 @@ export function CustomerCard() {
         onChange={(c) => {
           setCustomer(c);
           setEditingCustomer(false);
-          if (c?.kind === "party") setNewParty(emptyDraft());
+          // (an edited walk-in sale: the sale's name, phone and addresses again)
+          if (c?.kind === "party") setNewParty(walkInCredit ? walkInParty() : emptyDraft());
         }}
         // a cash buyer is only kept on the sale, so anyone may type one; a new customer on credit is the admin's
         canAdd={isAdmin || kind === "cash"}
@@ -73,6 +74,10 @@ export function CustomerCard() {
             // the phone on top (one of ours with it shows them instead), then the name and short name; no email
             phoneFirst
             asksEmail={false}
+            // an edited walk-in sale: only the name and phone (its addresses are the sale's)
+            asksShortName={!walkInCredit}
+            asksPan={!walkInCredit}
+            asksAddresses={!walkInCredit}
           />
           {matched?.party && (
             <div className="flex flex-col gap-3 rounded-control border border-chestnut/40 bg-chestnut/4 p-3">

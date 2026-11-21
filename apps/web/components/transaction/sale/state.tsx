@@ -627,6 +627,15 @@ export function useSaleEntryState({
     if (current === "received" && !(await confirmAdvance())) return;
     show(STEPS[index + 1]!);
   }
+  // an edited walk-in sale put on credit: a new customer with the sale's name and phone (both can be changed) and its
+  // addresses (kept, not asked again)
+  const walkInCredit = isEdit && !editing?.customer && kind === "credit";
+  const walkInParty = (): PartyDraft => ({
+    ...emptyParty(),
+    name: buyerName,
+    phone: buyerPhone,
+    addresses: addresses.map((a, i) => ({ ...a, isDefault: i === 0 })),
+  });
   // cash or credit picked: either moves straight on to the customer (a chip-only card)
   function pickKind(next: "cash" | "credit") {
     if (next !== kind) {
@@ -638,12 +647,7 @@ export function useSaleEntryState({
       if (!isEdit) setCustomer(orderCustomer(next));
       else if (!editing?.customer) {
         if (next === "credit" && isAdmin) {
-          setNewParty({
-            ...emptyParty(),
-            name: buyerName,
-            phone: buyerPhone,
-            addresses: addresses.map((a, i) => ({ ...a, isDefault: i === 0 })),
-          });
+          setNewParty(walkInParty());
           setCustomer({ kind: "party" });
         } else setCustomer(next === "credit" ? null : { kind: "party" });
       }
@@ -767,8 +771,9 @@ export function useSaleEntryState({
       setAt(STEPS[firstOpen]!);
       return guide();
     }
-    // someone new with the same name in the same town as one already added: asked first
-    if (kind === "credit" && customer?.kind === "party" && !(await sameName.confirm(newParty)))
+    // someone new with the same name in the same town as one already added: asked first (not for an edited walk-in
+    // put on credit: a different phone is a different person, and the same phone already shows them)
+    if (kind === "credit" && customer?.kind === "party" && !walkInCredit && !(await sameName.confirm(newParty)))
       return;
     // an advance not yet said to be one (the amount changed after Next): asked here too
     if (!(await confirmAdvance())) return;
@@ -915,6 +920,8 @@ export function useSaleEntryState({
     orderLocked,
     orderBuyer,
     walkIn,
+    walkInCredit,
+    walkInParty,
     findSaved,
     orderLeft,
     freeOf,

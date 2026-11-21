@@ -75,10 +75,10 @@ export function AmountCard() {
           <span className="shrink-0 whitespace-nowrap font-semibold">{roundOff > 0 ? `+ ${rupees(roundOff)}` : `− ${rupees(-roundOff)}`}</span>
         </div>
       )}
-      {/* what's to be received (an edit: just the Total), in the chestnut box, under a line */}
+      {/* the Total, under a line, in the To receive row's fixed look (chestnut box, large figure), as wide as the boxes above */}
       <div className={cn(row, "mt-1 border-t border-chestnut/30 pt-2.5")}>
-        <span className="min-w-0 text-sm font-bold">{t(isEdit ? "edit.total" : "toReceive")}</span>
-        <span className="tabular flex min-h-12 w-[60%] shrink-0 items-center justify-end break-all rounded-control bg-chestnut px-3.5 font-heading text-xl font-bold text-ivory">
+        <span className="min-w-0 text-sm font-semibold">{t("edit.total")}</span>
+        <span className="tabular flex min-h-14 w-[60%] shrink-0 items-center justify-end break-all rounded-control bg-chestnut px-4 pt-1 font-heading text-2xl font-bold leading-none text-ivory">
           {rupees(total)}
         </span>
       </div>

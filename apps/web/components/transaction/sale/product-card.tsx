@@ -168,7 +168,9 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   const [stockOpen, setStockOpen] = useState(false);
   // how many this sale sends: − and + around the number
   const quantityBox = (
+    // the cursor starts here when the card opens
     <QuantityBox
+      autoFocus
       value={draft.quantity}
       max={available}
       min={fewest}
@@ -310,9 +312,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                       label: t("priceGst"),
                       current: pack.priceAfterGst != null ? rupees(list) : "–",
                       input: (
-                        // the cursor starts here when the card opens
                         <MoneyBox
-                          autoFocus
                           value={draft.newPrice}
                           maxDigits={7}
                           label={`${t("priceGst")}: ${name}`}

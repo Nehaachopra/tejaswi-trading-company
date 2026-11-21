@@ -953,6 +953,7 @@ export function PartyFields({
   photo = !rows,
   fixedName = false,
   phoneFirst = false,
+  asksAddresses = true,
 }: {
   draft: PartyDraft;
   onChange: (patch: Partial<PartyDraft>) => void;
@@ -996,6 +997,8 @@ export function PartyFields({
   fixedName?: boolean;
   // rows: the phone alone on top, then the name and short name side by side (a sale's new customer on credit)
   phoneFirst?: boolean;
+  // the addresses come from elsewhere (a walk-in sale put on credit keeps the sale's): not shown
+  asksAddresses?: boolean;
 }) {
   const t = useTranslations("accounts.party.form");
   const bad = draftProblems(draft, strict, phoneOptional).party;
@@ -1007,7 +1010,7 @@ export function PartyFields({
   useEffect(() => {
     if (nameDone && !bad.phone) setAddressesOpen(true);
   }, [nameDone, bad.phone]);
-  const showAddresses = addressesOpen;
+  const showAddresses = asksAddresses && addressesOpen;
   // on first showing they may open below the screen or the phone keyboard, so the form moves down to them
   const addressesRef = useRef<HTMLElement>(null);
   const wasOpen = useRef(addressesOpen);
