@@ -2571,7 +2571,7 @@
     "tryAgain": "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ",
     "steps": {
       "products": "ಉತ್ಪನ್ನಗಳು",
-      "totals": "ಮೊತ್ತ",
+      "totals": "ಕಾರ್ಟ್",
       "supplier": "ಸರಬರಾಜುದಾರ",
       "details": "ವಿವರಗಳು",
       "customer": "ಗ್ರಾಹಕ"
@@ -2780,7 +2780,9 @@
     "rate": "ದರ",
     "pricePer": "ಬೆಲೆ / {unit}",
     "typePurchase": "ಖರೀದಿ ಪಟ್ಟಿ",
-    "typeSale": "ಮಾರಾಟ ಪಟ್ಟಿ"
+    "typeSale": "ಮಾರಾಟ ಪಟ್ಟಿ",
+    "cart": "ಕಾರ್ಟ್",
+    "cartEmpty": "ಕಾರ್ಟ್‌ನಲ್ಲಿ ಇನ್ನೂ ಏನೂ ಇಲ್ಲ."
   },
   "history": {
     "title": "ಇತಿಹಾಸ",

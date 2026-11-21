@@ -111,8 +111,8 @@ function OrderEntryView() {
       </EntryNote>
     );
 
-  // a line for each card answered: each item (a small photo, its name, its quantity), the supplier, then the dates and
-  // remarks
+  // a line for each card answered: each item (a small photo, its name, its quantity), the supplier, then the order's
+  // date, the expected date and the remarks, each on its own
   const summary: SummaryItem<OrderStep>[] = [
     {
       key: "products",
@@ -134,14 +134,16 @@ function OrderEntryView() {
     },
     // (an order being changed has no Supplier card)
     ...(editing ? [] : [{ key: "supplier", step: "supplier" as const, heading: stepName("supplier"), value: supplier ? (supplier.party ? partyLabel(supplier.party) : supplier.name) : supplierPick?.kind === "party" && (kind === "sale" ? newCustomer.name : newSupplier.name).trim() ? titleCase(kind === "sale" ? newCustomer.name : newSupplier.name) : null }]),
+    // the Details card's answers, each on its own line (no Details heading): the order's date (once Details is reached
+    // or anything on it is filled), when it's expected, and the remarks
     {
-      key: "details",
+      key: "orderDate",
       step: "details",
-      heading: stepName("details"),
-      value: current === "details" || expected || remarks.trim()
-        ? [dayInWords(orderDate, locale), expected ? `${t("expected")}: ${dayInWords(expected, locale)}` : "", remarks.trim()].filter((v) => v !== "")
-        : null,
+      heading: t("orderDate"),
+      value: current === "details" || expected || remarks.trim() ? dayInWords(orderDate, locale) : null,
     },
+    { key: "expected", step: "details", heading: t("expected"), value: expected ? dayInWords(expected, locale) : null },
+    { key: "remarks", step: "details", heading: t("remarks"), value: remarks.trim() || null },
   ];
   const linesView = (
     <SummaryLines<OrderStep>
@@ -183,12 +185,12 @@ function OrderEntryView() {
         onBack={index > 0 ? () => show(steps[index - 1]!) : null}
         onChange={null}
         missing={tried && !complete[current] ? missingOf(current) : null}
-        // Supplier moves on by itself once picked; back on it with one picked (or someone new), Next goes on. Details
+        // the Products card's cart button moves on; Supplier moves on by itself once picked; back on it with one picked (or someone new), Next goes on. Details
         // saves
         end={
           current === "details" ? (
             <SaveBlock />
-          ) : current === "supplier" && supplierPick === null ? null : (
+          ) : current === "products" || (current === "supplier" && supplierPick === null) ? null : (
             <NextButton onClick={next} />
           )
         }

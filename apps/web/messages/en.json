@@ -2571,7 +2571,7 @@
     "tryAgain": "Try again",
     "steps": {
       "products": "Products",
-      "totals": "Amount",
+      "totals": "Cart",
       "supplier": "Supplier",
       "details": "Details",
       "customer": "Customer"
@@ -2780,7 +2780,9 @@
     "rate": "Rate",
     "pricePer": "Price / {unit}",
     "typePurchase": "Purchase order",
-    "typeSale": "Sale order"
+    "typeSale": "Sale order",
+    "cart": "Cart",
+    "cartEmpty": "Nothing in the cart yet."
   },
   "history": {
     "title": "History",

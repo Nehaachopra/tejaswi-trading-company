@@ -2571,7 +2571,7 @@
     "tryAgain": "फिर कोशिश करें",
     "steps": {
       "products": "प्रोडक्ट",
-      "totals": "राशि",
+      "totals": "कार्ट",
       "supplier": "सप्लायर",
       "details": "विवरण",
       "customer": "ग्राहक"
@@ -2780,7 +2780,9 @@
     "rate": "दर",
     "pricePer": "दाम / {unit}",
     "typePurchase": "खरीद पट्टी",
-    "typeSale": "बिक्री पट्टी"
+    "typeSale": "बिक्री पट्टी",
+    "cart": "कार्ट",
+    "cartEmpty": "कार्ट में अभी कुछ नहीं है।"
   },
   "history": {
     "title": "इतिहास",
