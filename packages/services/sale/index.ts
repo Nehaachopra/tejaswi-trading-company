@@ -146,6 +146,16 @@ export default class SaleService {
   async create(rawInput: CreateSaleInputModel, actor: ActorModel): Promise<SavedSaleModel> {
     const input = createSaleInputModel.parse(rawInput);
     return db.transaction(async (tx) => {
+      const { saved } = await this.createIn(tx, input, actor);
+      return saved;
+    });
+  }
+
+  // a sale inside a save. An exchange's walk-in brings `exchangeIn` (paise): what their return came to, counted as
+  // received in cash before any money (as much of it as the bill takes; `exchanged` says how much). A customer's
+  // exchange needs nothing here: the return is already on their account, an advance the sale can set off
+  async createIn(tx: Tx, input: CreateSaleInputModel, actor: ActorModel, opts: { exchangeIn?: number } = {}): Promise<{ saved: SavedSaleModel; saleId: string; exchanged: number }> {
+    {
       // a month whose GSTR-1 is filed takes no more sales
       await this.transactions.assertOpen(tx, "gstr1", input.dateTime);
       const company = await this.settings.get("company", tx);
@@ -195,8 +205,11 @@ export default class SaleService {
       let settles = 0;
       // and what of an advance of theirs is set off against this bill
       let setOff = 0;
+      // a walk-in's exchange: the return's part this bill takes, in cash
+      const exchanged = !customer && input.kind === "cash" ? Math.min(opts.exchangeIn ?? 0, total) : 0;
+      if ((opts.exchangeIn ?? 0) > 0 && customer === null && input.kind !== "cash") throw new TRPCError({ code: "BAD_REQUEST", message: "A walk-in's exchange is a cash sale." });
       if (input.kind === "cash") {
-        const cash = toPaise(input.cashAmount);
+        const cash = toPaise(input.cashAmount) + exchanged;
         const bank = input.bankParts.reduce((a, b) => a + toPaise(b.amount), 0);
         const received = cash + bank;
         if (!customer) {
@@ -417,8 +430,8 @@ export default class SaleService {
         await this.products.setPriceIn(tx, l.productId, priceAfterGst, products[i]!.gstRate, actor);
       }
 
-      return { transactionId: t.id, assignedId: t.assignedId, total: total / 100 };
-    });
+      return { saved: { transactionId: t.id, assignedId: t.assignedId, total: total / 100 }, saleId: sale!.id, exchanged };
+    }
   }
 
   // a sale as its tax invoice: each pack size once (its godown parts added up), the charges with their GST taken out

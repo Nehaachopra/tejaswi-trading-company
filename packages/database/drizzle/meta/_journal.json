@@ -344,6 +344,13 @@
       "when": 1795154238763,
       "tag": "0048_rainy_photon",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1795230224900,
+      "tag": "0049_left_captain_flint",
+      "breakpoints": true
     }
   ]
 }

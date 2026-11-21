@@ -11,6 +11,7 @@ import {
   saleOrderProductsTable,
   saleOrdersTable,
   saleProductsTable,
+  saleReturnsTable,
   salesTable,
   transactionBankDetailsTable,
   transactionEditLogsTable,
@@ -126,9 +127,23 @@ export default class SaleEditService {
   }
 
   // why it can't be edited, if it can't
-  private async blockedBy(q: Tx, t: { status: string; dateTime: Date }) {
+  private async blockedBy(q: Tx, t: { id: string; status: string; dateTime: Date }) {
     if (t.status === "cancelled") return "cancelled" as const;
     if (await this.transactions.filed(q, "gstr1", t.dateTime)) return "gstFiled" as const;
+    // goods came back on a return still in place (its figures rest on the sale's lines as they are), or it's an
+    // exchange's new sale
+    const [sale] = await q.select({ id: salesTable.id }).from(salesTable).where(eq(salesTable.transactionId, t.id));
+    if (sale) {
+      const returned = await q
+        .select({ id: saleReturnsTable.id })
+        .from(saleReturnsTable)
+        .innerJoin(transactionsTable, eq(transactionsTable.id, saleReturnsTable.transactionId))
+        .where(and(eq(saleReturnsTable.saleId, sale.id), eq(transactionsTable.status, "active")))
+        .limit(1);
+      if (returned.length > 0) return "returned" as const;
+      const [exchange] = await q.select({ id: saleReturnsTable.id }).from(saleReturnsTable).where(eq(saleReturnsTable.exchangeSaleId, sale.id));
+      if (exchange) return "exchange" as const;
+    }
     return null;
   }
 
@@ -236,6 +251,8 @@ export default class SaleEditService {
       const blocked = await this.blockedBy(tx, t);
       if (blocked === "cancelled") throw new TRPCError({ code: "CONFLICT", message: "This sale is cancelled." });
       if (blocked === "gstFiled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That month's GSTR-1 is filed. Use a sale return instead." });
+      if (blocked === "returned") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Goods came back on this sale; it can't be edited now." });
+      if (blocked === "exchange") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "An exchange's sale can't be edited." });
       if (indiaMonth(input.dateTime) !== indiaMonth(t.dateTime)) throw new TRPCError({ code: "BAD_REQUEST", message: "The date stays in the sale's own month." });
       if (oldParts.some((p) => !p.godownId)) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A godown this sale used is gone." });
 

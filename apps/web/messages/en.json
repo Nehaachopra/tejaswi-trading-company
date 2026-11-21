@@ -2685,7 +2685,9 @@
       "salePaid": "Can't cancel: the customer has paid towards this sale. Cancel that receipt first.",
       "purchasePaid": "Can't cancel: the supplier has been paid towards this purchase. Cancel that payment first.",
       "rcmPaid": "Can't cancel: its reverse-charge GST is already paid. Cancel that Tax paid payment first.",
-      "openingBalance": "Opening balances are changed on the Opening balances page."
+      "openingBalance": "Opening balances are changed on the Opening balances page.",
+      "saleReturned": "Can't cancel: goods came back on this sale. Cancel that sale return first.",
+      "exchangeSale": "Can't cancel: this sale was an exchange. Cancel its sale return; this sale is cancelled with it."
     },
     "editSale": "Edit sale"
   }

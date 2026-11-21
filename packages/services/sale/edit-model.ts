@@ -115,7 +115,7 @@ export const saleForEditModel = z.object({
     setOff: z.number(),
     receipts: z.array(z.object({ assignedId: z.string(), amount: z.number() })),
   }),
-  editBlockedBy: z.enum(["cancelled", "gstFiled"]).nullable(),
+  editBlockedBy: z.enum(["cancelled", "gstFiled", "returned", "exchange"]).nullable(),
 });
 
 export type SaleForEditModel = z.infer<typeof saleForEditModel>;

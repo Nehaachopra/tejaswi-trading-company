@@ -136,3 +136,6 @@ export const ledgerTransactionTypeEnum = pgEnum("ledger_transaction_type", ["deb
 export const gstReturnTypeEnum = pgEnum("gst_return_type", ["gstr1", "gstr3b"]);
 
 export const salaryKindEnum = pgEnum("salary_kind", ["salary", "advance"]);
+
+// why goods came back on a sale return: damaged, short, the wrong item, or another reason (typed)
+export const saleReturnReasonEnum = pgEnum("sale_return_reason", ["damaged", "shortage", "wrong_item", "other"]);

@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 import { money, timestamps } from "../../../utils/common/column-type";
 import { salesTable } from "../sale/sale";
 import { transactionsTable } from "../transaction";
-import { transactedInEnum } from "../../../utils/common/enum";
+import { saleReturnReasonEnum, transactedInEnum } from "../../../utils/common/enum";
 import { uniqueIndex } from "drizzle-orm/pg-core";
 
 export const saleReturnsTable = pgTable(
@@ -34,9 +34,18 @@ export const saleReturnsTable = pgTable(
 
     gstAmount: money("gst_amount").notNull().default("0.00"),
 
+    // why it came back (chips); `reason` holds only what was typed for Other
+    reasonKind: saleReturnReasonEnum("reason_kind").notNull(),
+
     reason: varchar("reason", { length: 500 }),
 
-    noteUrl: text("note_url").notNull(),
+    // the credit note PDF, once stored (drawn fresh until then, as the sale invoice is)
+    noteUrl: text("note_url"),
+
+    // an exchange: the new sale saved together with this return, the return's total counted as received on it
+    exchangeSaleId: uuid("exchange_sale_id").references(() => salesTable.id, {
+      onDelete: "restrict",
+    }),
 
     remark: varchar("remark", { length: 500 }),
 

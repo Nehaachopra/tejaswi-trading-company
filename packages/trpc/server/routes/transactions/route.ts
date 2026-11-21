@@ -18,6 +18,7 @@ import { attachBillInputModel, createPurchaseInputModel, purchaseIdInputModel, p
 import { editSaleInputModel, saleForEditModel } from "@repo/services/sale/edit-model";
 import { createSaleInputModel, saleIdInputModel, saleInvoiceModel, saleShareKeyModel, saleSummaryModel, savedSaleModel, sharedSaleInputModel } from "@repo/services/sale/model";
 import { placeOfBusinessModel } from "@repo/services/setting/model";
+import { createSaleReturnInputModel, creditNoteModel, exchangeInputModel, saleForReturnModel, saleReturnIdInputModel, savedSaleReturnModel } from "@repo/services/sale-return/model";
 import { createReceiptInputModel, receiptIdInputModel, receiptModel, receiptShareKeyModel, savedReceiptModel, sharedReceiptInputModel } from "@repo/services/receipt/model";
 import {
   cashTodayInputModel,
@@ -52,7 +53,7 @@ import { createDrawingInputModel, drawingIdInputModel, drawingModel, savedDrawin
 import { paySalariesInputModel, paySalaryInputModel, salaryEmployeeModel, salaryIdInputModel, salaryPaymentModel } from "@repo/services/salary/model";
 import { opensSale, opensVoucher, saleKey, voucherKey } from "@repo/services/transaction/share-link";
 
-import { accountsService, contraService, documentService, drawingService, dueService, otherService, paymentService, purchaseService, receiptService, salaryService, saleEditService, saleService, settingService, transactionService } from "../../services";
+import { accountsService, contraService, documentService, drawingService, dueService, otherService, paymentService, purchaseService, receiptService, salaryService, saleEditService, saleReturnService, saleService, settingService, transactionService } from "../../services";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 import { checkDate, limitSaves, onceFor } from "../../guards";
 
@@ -544,9 +545,56 @@ const salaryRouter = router({
     .query(({ input }) => salaryService.get(input)),
 });
 
+// sale returns: goods back against a saved sale, refunded or exchanged for a new sale (the admin's)
+const saleReturnRouter = router({
+  // a sale as the return form opens it
+  forReturn: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/sales/{transactionId}/return", tags: ["transactions"] } })
+    .input(saleIdInputModel)
+    .output(saleForReturnModel)
+    .query(({ input }) => saleReturnService.forReturn(input)),
+
+  // a refund saved: dated today or before, within the saves a minute, once per form
+  create: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/sale-returns", tags: ["transactions"] } })
+    .input(createSaleReturnInputModel)
+    .output(savedSaleReturnModel)
+    .mutation(({ ctx, input }) => {
+      checkDate(input.dateTime, ctx.session.user.role);
+      const save = () => {
+        limitSaves(ctx.session.user.id);
+        return saleReturnService.create(input, ctx.session.user);
+      };
+      return input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save();
+    }),
+
+  // an exchange saved: the return and its new sale together
+  exchange: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/sale-returns/exchange", tags: ["transactions"] } })
+    .input(exchangeInputModel)
+    .output(savedSaleReturnModel)
+    .mutation(({ ctx, input }) => {
+      checkDate(input.saleReturn.dateTime, ctx.session.user.role);
+      checkDate(input.sale.dateTime, ctx.session.user.role);
+      const save = () => {
+        limitSaves(ctx.session.user.id);
+        return saleReturnService.exchange(input, ctx.session.user);
+      };
+      return input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save();
+    }),
+
+  // a return as its credit note
+  creditNote: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/sale-returns/{transactionId}/credit-note", tags: ["transactions"] } })
+    .input(saleReturnIdInputModel)
+    .output(creditNoteModel)
+    .query(({ input }) => saleReturnService.creditNote(input)),
+});
+
 export const transactionsRouter = router({
   history: historyRouter,
   sale: saleRouter,
+  saleReturn: saleReturnRouter,
   purchase: purchaseRouter,
   receipt: receiptRouter,
   payment: paymentRouter,

@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, db, desc, eq, gte, ilike, inArray, lt, lte, ne, or, sql } from "@repo/database";
-import { dueSettlementsTable, duesTable, gstReturnFilingsTable, ledgerEntriesTable, ledgersTable, productGodownsTable, receiptsTable, saleOrderProductsTable, saleOrdersTable, saleProductsTable, salesTable, transactionsTable } from "@repo/database/schema";
+import { dueSettlementsTable, duesTable, gstReturnFilingsTable, ledgerEntriesTable, ledgersTable, productGodownsTable, receiptsTable, saleOrderProductsTable, saleOrdersTable, saleProductsTable, saleReturnProductsTable, saleReturnsTable, salesTable, transactionsTable } from "@repo/database/schema";
 
 import LedgerEngine from "../accounts/engine";
 import type { ActorModel, PostingLine } from "../accounts/model";
@@ -161,6 +161,20 @@ export default class TransactionService {
         .where(and(eq(duesTable.transactionId, t.id), ne(dueSettlementsTable.transactionId, t.id), eq(transactionsTable.status, "active")))
         .limit(1);
       if (paid.length > 0) return "salePaid";
+      // goods came back on a return still in place: that return is cancelled first
+      const [sale] = await q.select({ id: salesTable.id }).from(salesTable).where(eq(salesTable.transactionId, t.id));
+      if (sale) {
+        const returned = await q
+          .select({ id: saleReturnsTable.id })
+          .from(saleReturnsTable)
+          .innerJoin(transactionsTable, eq(transactionsTable.id, saleReturnsTable.transactionId))
+          .where(and(eq(saleReturnsTable.saleId, sale.id), eq(transactionsTable.status, "active")))
+          .limit(1);
+        if (returned.length > 0) return "saleReturned";
+        // an exchange's new sale goes with its return: that return is cancelled instead
+        const [exchange] = await q.select({ id: saleReturnsTable.id }).from(saleReturnsTable).where(eq(saleReturnsTable.exchangeSaleId, sale.id));
+        if (exchange) return "exchangeSale";
+      }
     }
     // a purchase we've since paid towards (a payment settled its due): that payment is cancelled first. What a cash
     // purchase paid itself doesn't count
@@ -191,8 +205,34 @@ export default class TransactionService {
       if (blocked === "rcmPaid") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Its reverse-charge GST is already paid. Cancel that Tax paid payment first." });
       if (blocked === "purchasePaid") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The supplier has been paid towards this purchase. Cancel that payment first." });
       if (blocked === "salePaid") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The customer has paid towards this sale. Cancel that receipt first." });
+      if (blocked === "saleReturned") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Goods came back on this sale. Cancel that sale return first." });
+      if (blocked === "exchangeSale") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "This sale was an exchange. Cancel its sale return; the sale is cancelled with it." });
       const now = new Date();
       await this.engine.reverse(tx, { transactionId: t.id, dateTime: now });
+      // a sale return: its packs leave the godowns again and what it settled is owed again. An exchange's new sale is
+      // cancelled with it, when nothing else holds that sale
+      if (t.type === "sale_return") {
+        // the exchange's sale first, so its packs are back before the return's leave again
+        const exchangeSaleTx = await this.exchangeSaleOf(tx, t.id);
+        if (exchangeSaleTx) {
+          const [s] = await tx.select().from(transactionsTable).where(eq(transactionsTable.id, exchangeSaleTx)).for("update");
+          if (s && s.status === "active") {
+            const held = await this.cancelBlockedBy(tx, s);
+            if (held && held !== "exchangeSale") {
+              const why = held === "salePaid" ? "the customer has paid towards it" : held === "gstFiled" ? "that month's GSTR-1 is filed" : "goods came back on it";
+              throw new TRPCError({ code: "PRECONDITION_FAILED", message: `Its exchange sale ${s.assignedId} can't be cancelled: ${why}.` });
+            }
+            await this.engine.reverse(tx, { transactionId: s.id, dateTime: now });
+            await this.undoSale(tx, s.id);
+            await tx
+              .update(transactionsTable)
+              .set({ status: "cancelled", cancelledAt: now, cancelledById: actor.id, cancelledByName: actor.name.slice(0, 30), cancelReason: input.reason })
+              .where(eq(transactionsTable.id, s.id));
+            await queueCancelled(tx, s.id);
+          }
+        }
+        await this.undoSaleReturn(tx, t.id);
+      }
       // a sale: its packs go back into the godowns they left, and what the customer owed for it goes
       if (t.type === "sale") await this.undoSale(tx, t.id);
       // a purchase: its packs leave the godowns they came into, each pack's cost goes back, its due goes and an order
@@ -253,6 +293,32 @@ export default class TransactionService {
     // what it settled itself (its own bill, and older dues, which are owed again), then its due
     await tx.delete(dueSettlementsTable).where(eq(dueSettlementsTable.transactionId, transactionId));
     await tx.delete(duesTable).where(eq(duesTable.transactionId, transactionId));
+  }
+
+  // a sale return cancelled: each godown gives back what came into it, and what it settled on the customer's dues is
+  // owed again
+  private async undoSaleReturn(tx: Tx, transactionId: string) {
+    const [r] = await tx.select({ id: saleReturnsTable.id }).from(saleReturnsTable).where(eq(saleReturnsTable.transactionId, transactionId));
+    if (!r) return;
+    const lines = await tx
+      .select({ productId: saleProductsTable.productId, quantity: saleReturnProductsTable.quantity, godownId: productGodownsTable.godownId })
+      .from(saleReturnProductsTable)
+      .innerJoin(saleProductsTable, eq(saleProductsTable.id, saleReturnProductsTable.saleProductId))
+      .leftJoin(productGodownsTable, eq(productGodownsTable.id, saleReturnProductsTable.productGodownId))
+      .where(eq(saleReturnProductsTable.returnId, r.id));
+    if (lines.some((l) => !l.godownId)) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A godown this return used is gone." });
+    await this.stock.apply(tx, lines.map((l) => ({ productId: l.productId, godownId: l.godownId!, delta: -l.quantity })));
+    await tx.delete(dueSettlementsTable).where(eq(dueSettlementsTable.transactionId, transactionId));
+  }
+
+  // a sale return's exchange sale (its transaction), if it had one
+  private async exchangeSaleOf(tx: Tx, transactionId: string) {
+    const [s] = await tx
+      .select({ transactionId: salesTable.transactionId })
+      .from(saleReturnsTable)
+      .innerJoin(salesTable, eq(salesTable.id, saleReturnsTable.exchangeSaleId))
+      .where(eq(saleReturnsTable.transactionId, transactionId));
+    return s?.transactionId ?? null;
   }
 
   // /history: newest first, a page at a time. Staff see only what they made; opening balances stay on their own page
