@@ -7,7 +7,8 @@ type Page = RouterOutputs["settings"]["page"];
 
 // the site settings (tax audit, TDS on purchases)
 export function useSettings(enabled = true) {
-  return trpc.settings.page.useQuery(undefined, { enabled });
+  const q = trpc.settings.page.useQuery(undefined, { enabled });
+  return { settings: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
 // the settings page with its two switches. A switch shows flipped at once (turning tax audit off turns TDS on

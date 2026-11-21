@@ -107,8 +107,8 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
   // every order the same way: its number, status, who it's with (their phone and town), when and how many products
   const orders = (
     kind === "purchase"
-      ? (purchases.data ?? []).map((o) => ({ ...o, who: o.party.name, phone: o.phone }))
-      : (sales.data ?? []).map((o) => ({ ...o, who: o.customer.name, phone: o.customer.phone }))
+      ? (purchases.orders ?? []).map((o) => ({ ...o, who: o.party.name, phone: o.phone }))
+      : (sales.orders ?? []).map((o) => ({ ...o, who: o.customer.name, phone: o.customer.phone }))
   ).map((o) => ({
     id: o.id,
     orderId: o.orderId,
@@ -279,11 +279,11 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
         </div>
       )}
 
-      {list.isPending ? (
+      {list.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {tl("loading")}
         </p>
-      ) : list.isError ? (
+      ) : list.loadFailed ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {tl("loadError")}
         </p>
@@ -293,7 +293,7 @@ export function OrdersBoard({ isAdmin, initialKind }: { isAdmin: boolean; initia
         <ul
           className={cn(
             "mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3",
-            list.isPlaceholderData && "opacity-60",
+            list.stale && "opacity-60",
           )}
         >
           {shown.map((o) => (

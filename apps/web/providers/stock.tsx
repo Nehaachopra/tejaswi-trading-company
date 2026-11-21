@@ -7,17 +7,20 @@ type MovesIn = Extract<RouterInputs["inventory"]["stock"]["moves"], object>;
 
 // the godowns: active only, or with the inactive ones
 export function useGodowns(includeInactive: boolean) {
-  return trpc.inventory.godown.list.useQuery({ includeInactive });
+  const q = trpc.inventory.godown.list.useQuery({ includeInactive });
+  return { godowns: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
 // one godown's saved details, for its edit sheet (asked only once a godown is picked)
 export function useGodown(id: string | null) {
-  return trpc.inventory.godown.get.useQuery({ id: id ?? "" }, { enabled: !!id });
+  const q = trpc.inventory.godown.get.useQuery({ id: id ?? "" }, { enabled: !!id });
+  return { godown: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
 // what each godown holds, pack size by pack size
 export function useStockByGodown() {
-  return trpc.inventory.stock.byGodown.useQuery();
+  const q = trpc.inventory.stock.byGodown.useQuery();
+  return { stock: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
 // stock moved between godowns, newest first: the first page, and a way to read the older pages one at a time

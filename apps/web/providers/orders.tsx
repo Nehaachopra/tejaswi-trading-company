@@ -9,11 +9,13 @@ type SaleFilters = RouterInputs["orders"]["sale"]["list"];
 // the Orders page's lists, newest first: purchase orders (the admin's) and sale orders (admin and staff), each by status
 // and the days ordered; the one not on screen isn't asked for. The list just shown stays while new filters load
 export function usePurchaseOrders(filters: PurchaseFilters, enabled: boolean) {
-  return trpc.orders.purchase.list.useQuery(filters, { enabled, placeholderData: (previous) => previous });
+  const q = trpc.orders.purchase.list.useQuery(filters, { enabled, placeholderData: (previous) => previous });
+  return { orders: q.data, loading: q.isPending, loadFailed: q.isError, stale: q.isPlaceholderData };
 }
 
 export function useSaleOrders(filters: SaleFilters, enabled: boolean) {
-  return trpc.orders.sale.list.useQuery(filters, { enabled, placeholderData: (previous) => previous });
+  const q = trpc.orders.sale.list.useQuery(filters, { enabled, placeholderData: (previous) => previous });
+  return { orders: q.data, loading: q.isPending, loadFailed: q.isError, stale: q.isPlaceholderData };
 }
 
 // an order called off (the admin's, while pending): its page, the lists and the products (a sale order's held stock is
@@ -32,5 +34,6 @@ export function useCancelOrder(kind: "purchase" | "sale", id: string) {
 
 // the products, for each order item's photo, category and sub-category
 export function useOrderProducts() {
-  return trpc.inventory.product.list.useQuery({ includeInactive: true });
+  const q = trpc.inventory.product.list.useQuery({ includeInactive: true });
+  return { products: q.data, loading: q.isPending, loadFailed: q.isError };
 }

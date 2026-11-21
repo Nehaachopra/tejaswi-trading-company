@@ -44,9 +44,9 @@ export function LendersManager() {
   // the sheet: a new lender, or the one being edited
   const [open, setOpen] = useState<Lender | "new" | null>(null);
 
-  const lenders = useLenders(showInactive);
+  const list = useLenders(showInactive);
   const needle = search.trim().toLowerCase();
-  const shown = (lenders.data ?? []).filter(
+  const shown = (list.lenders ?? []).filter(
     (l) => needle === "" || lenderLabel(l).toLowerCase().includes(needle),
   );
 
@@ -111,17 +111,17 @@ export function LendersManager() {
         </div>
       </div>
 
-      {lenders.isPending && (
+      {list.loading && (
         <p className="mt-8 flex items-center justify-center gap-2 text-ivory">
           <Spinner className="size-5" /> {t("loading")}
         </p>
       )}
-      {lenders.isError && (
+      {list.loadFailed && (
         <p className="mt-8 flex items-center gap-2 text-ivory">
           <CircleAlert className="size-5 shrink-0" aria-hidden /> {t("failed")}
         </p>
       )}
-      {lenders.data && shown.length === 0 && (
+      {list.lenders && shown.length === 0 && (
         <p className="mt-8 text-center text-ivory/70">{t(needle ? "noMatch" : "empty")}</p>
       )}
 
@@ -176,7 +176,7 @@ export function LendersManager() {
               ? undefined
               : (() => {
                   // gone from the list (inactive ones hidden): it was made inactive
-                  const l = (lenders.data ?? []).find((x) => x.id === open.id);
+                  const l = (list.lenders ?? []).find((x) => x.id === open.id);
                   return { on: l?.isActive ?? false, onFlip: () => void toggleActive(l ?? open) };
                 })()
           }

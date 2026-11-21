@@ -76,7 +76,7 @@ export function PartyDues({ kind, partyId }: { kind: DueKind; partyId: string })
   const tp = useTranslations("dues.party");
   const ti = useTranslations("dues.insights");
   const local = useLocalLetters();
-  const page = usePartyDues({ kind, partyId });
+  const read = usePartyDues({ kind, partyId });
   const BackIcon = TAB_ICON[kind];
 
   const back = (
@@ -89,11 +89,11 @@ export function PartyDues({ kind, partyId }: { kind: DueKind; partyId: string })
     </Link>
   );
 
-  if (page.isPending || page.isError)
+  if (!read.page)
     return (
       <main className={`${PAGE} pb-16`}>
         {back}
-        {page.isPending ? (
+        {read.loading ? (
           <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
             <Spinner /> {t("loading")}
           </p>
@@ -105,7 +105,7 @@ export function PartyDues({ kind, partyId }: { kind: DueKind; partyId: string })
       </main>
     );
 
-  const d = page.data;
+  const d = read.page;
   const name = local(d.party.name);
   const owedToUs = OWED_TO_US.includes(kind);
   const ledger = `${PARTY_KINDS[kindOf(d.party.types)].path}/${d.party.id}`;

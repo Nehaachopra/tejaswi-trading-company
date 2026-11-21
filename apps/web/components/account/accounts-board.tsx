@@ -47,7 +47,7 @@ const MASTER_PAGE: Record<string, string | undefined> = {
 export function AccountsBoard({ only }: { only?: Head["head"] }) {
   const t = useTranslations("accounts.overview");
   const overview = useAccountsOverview();
-  const heads = (overview.data?.heads ?? []).filter((h) => !only || h.head === only);
+  const heads = (overview.heads).filter((h) => !only || h.head === only);
   const soon = () => toast.info(t("comingSoon"));
   const nameOf = useLedgerName();
   const [sheet, setSheet] = useState<LedgerSheetFor | null>(null);
@@ -63,11 +63,11 @@ export function AccountsBoard({ only }: { only?: Head["head"] }) {
     <main className={`${PAGE} pb-16`}>
       <h1 className="sr-only">{only ? t(`heads.${only}`) : t("title")}</h1>
 
-      {overview.isPending ? (
+      {overview.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
         </p>
-      ) : overview.isError ? (
+      ) : overview.loadFailed ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>

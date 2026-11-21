@@ -25,13 +25,13 @@ type Group = "lenders" | "personalLenders" | "agents" | "rentPayable" | "employe
 export function GroupBoard({ master }: { master: Group }) {
   const t = useTranslations("accounts.overview");
   const nameOf = useLedgerName();
-  const ledgers = useLedgerGroup(master);
+  const group = useLedgerGroup(master);
   // every one of these sits under Liability
   const head = "liability" as const;
   // a search over the ledger's name and a party's full name
   const [search, setSearch] = useState("");
   const needle = search.trim().toLowerCase();
-  const shown = (ledgers.data ?? []).filter(
+  const shown = (group.ledgers ?? []).filter(
     (l) =>
       needle === "" || [nameOf(l), l.fullName ?? ""].some((v) => v.toLowerCase().includes(needle)),
   );
@@ -51,11 +51,11 @@ export function GroupBoard({ master }: { master: Group }) {
         <GroupSearch value={search} onChange={setSearch} label={t("searchName")} maxLength={150} />
       </GroupHeader>
 
-      {ledgers.isPending ? (
+      {group.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
         </p>
-      ) : ledgers.isError ? (
+      ) : group.loadFailed ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>

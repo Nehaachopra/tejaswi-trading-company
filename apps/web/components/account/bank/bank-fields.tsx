@@ -172,22 +172,22 @@ export function BankFields({
   const named = useIfsc(draft.ifscCode, ifscValid);
   useEffect(() => {
     if (!ifscValid) return setLookup({ state: "idle" });
-    if (named.isFetching && !named.data) return setLookup({ state: "looking" });
-    if (named.isError || named.data === null) return setLookup({ state: "missing" });
-    if (!named.data) return;
+    if (named.fetching && !named.branch) return setLookup({ state: "looking" });
+    if (named.loadFailed || named.branch === null) return setLookup({ state: "missing" });
+    if (!named.branch) return;
     // the directory writes branches in capitals ("BANGALORE"): read as "Bangalore"
-    const bank = titleCase(named.data.bank.toLowerCase()).slice(0, NAME_MAX);
-    const branch = titleCase(named.data.branch.toLowerCase()).slice(0, NAME_MAX);
+    const bank = titleCase(named.branch.bank.toLowerCase()).slice(0, NAME_MAX);
+    const branch = titleCase(named.branch.branch.toLowerCase()).slice(0, NAME_MAX);
     setLookup({ state: "found", bank, branch });
     onChangeRef.current({ bankName: bank, branchName: branch, bankOther: false });
-  }, [ifscValid, named.data, named.isFetching, named.isError]);
+  }, [ifscValid, named.branch, named.fetching, named.loadFailed]);
 
   const setUpi = (key: string, patch: Partial<UpiDraft>) =>
     onChange({ upiIds: draft.upiIds.map((u) => (u.key === key ? { ...u, ...patch } : u)) });
   // the banks from the branch directory (the built-in list until it has loaded, or if it's empty)
   const directory = useBankDirectory();
   const bankNames: readonly string[] =
-    directory.data && directory.data.length > 0 ? directory.data : BANKS;
+    directory.bankNames && directory.bankNames.length > 0 ? directory.bankNames : BANKS;
   const listed = bankNames.find((n) => n.toLowerCase() === draft.bankName.trim().toLowerCase());
 
   return (

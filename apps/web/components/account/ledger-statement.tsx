@@ -126,7 +126,7 @@ export function LedgerStatement({
   // a month picked from the dropdown, or every entry (null)
   const [month, setMonth] = useState<string | null>(null);
 
-  const statement = useLedgerStatement({
+  const read = useLedgerStatement({
     ledgerId,
     from: month ? startOfIndiaDay(`${month}-01`) : null,
     // up to the last moment of that month
@@ -136,7 +136,7 @@ export function LedgerStatement({
     maxAmount: null,
     search: "",
   });
-  const narrowed = statement.data?.narrowed ?? null;
+  const narrowed = read.statement?.narrowed ?? null;
 
   // "October 2026" over each month's entries, which show only their day
   const monthName = (month: string) =>
@@ -150,7 +150,7 @@ export function LedgerStatement({
   const open = () => toast.info(t("comingSoon"));
 
   // every entry as a row; an opening balance reads as Balance b/f
-  const rows = (statement.data?.lines ?? []).map((l) => {
+  const rows = (read.statement?.lines ?? []).map((l) => {
     const opening = l.type === "opening_balance";
     return {
       key: l.id,
@@ -167,8 +167,8 @@ export function LedgerStatement({
   // the two sides: brought forward on its own side, each entry on its side, and the closing balance carried
   // down on the other side so both sides total the same
   const sides = (() => {
-    if (!statement.data) return null;
-    const { broughtForward: bf, closing } = statement.data;
+    if (!read.statement) return null;
+    const { broughtForward: bf, closing } = read.statement;
     const debit: Row[] = [];
     const credit: Row[] = [];
     if (!narrowed && bf.amount !== 0)
@@ -328,11 +328,11 @@ export function LedgerStatement({
         </div>
       </header>
 
-      {statement.isPending ? (
+      {read.loading ? (
         <p className="flex justify-center py-12 text-chestnut/70">
           <Spinner />
         </p>
-      ) : statement.isError || !sides ? (
+      ) : !read.statement || !sides ? (
         <p role="alert" className="flex items-center justify-center gap-2 py-12 text-sm">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
@@ -352,12 +352,12 @@ export function LedgerStatement({
               <span className="flex justify-end">{sideLabel("credit")}</span>
             </div>
             <ol className="min-h-0 flex-1 divide-y divide-chestnut/10 overflow-y-auto">
-              {!narrowed && statement.data.broughtForward.amount !== 0 && (
+              {!narrowed && read.statement.broughtForward.amount !== 0 && (
                 <li
                   className={cn(
                     phoneCols,
                     "py-2.5",
-                    statement.data.broughtForward.side === "debit" && debitShade,
+                    read.statement.broughtForward.side === "debit" && debitShade,
                   )}
                 >
                   <span />
@@ -367,10 +367,10 @@ export function LedgerStatement({
                   <span
                     className={cn(
                       "tabular text-right text-sm text-chestnut/70",
-                      statement.data.broughtForward.side === "credit" && "col-start-4",
+                      read.statement.broughtForward.side === "credit" && "col-start-4",
                     )}
                   >
-                    {figure(statement.data.broughtForward.amount)}
+                    {figure(read.statement.broughtForward.amount)}
                   </span>
                 </li>
               )}
@@ -444,7 +444,7 @@ export function LedgerStatement({
               <p className="flex shrink-0 items-center justify-between gap-3 border-t-2 border-chestnut/30 bg-chestnut/10 px-4 py-3 font-semibold">
                 <span>{t("closing")}</span>
                 <SignedAmount
-                  balance={statement.data.closing}
+                  balance={read.statement.closing}
                   head={head}
                   className="font-heading text-base font-bold"
                 />

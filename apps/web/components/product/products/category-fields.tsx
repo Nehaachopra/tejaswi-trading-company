@@ -50,10 +50,10 @@ export function CategoryFields({
   const [adding, setAdding] = useState<"category" | "sub" | null>(null);
 
   // none at all yet (once the list has loaded): the first is typed straight in
-  const noCategories = categories.data?.length === 0;
+  const noCategories = categories.categories?.length === 0;
 
   // the picked category's sub-categories
-  const category = categories.data?.find((c) => c.id === categoryId);
+  const category = categories.categories?.find((c) => c.id === categoryId);
   const subs = category?.subCategories ?? [];
 
   // a new category is picked once added, with no sub-category yet, so the sub-category's name box and Add open at
@@ -82,7 +82,7 @@ export function CategoryFields({
         {!noCategories && (
           <PlacePicker
             label={t("category")}
-            places={(categories.data ?? []).map((c) => ({
+            places={(categories.categories ?? []).map((c) => ({
               id: c.id,
               name: titleCase(c.name),
               disabled: false,

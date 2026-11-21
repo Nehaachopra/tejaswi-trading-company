@@ -109,11 +109,11 @@ export function PartiesManager() {
   }, [typed]);
 
   const router = useRouter();
-  const parties = useParties({ type: type ?? undefined, includeInactive: showInactive, search });
+  const list = useParties({ type: type ?? undefined, includeInactive: showInactive, search });
   const cities = [
-    ...new Set((parties.data ?? []).map((p) => p.city).filter((c): c is string => !!c)),
+    ...new Set((list.parties ?? []).map((p) => p.city).filter((c): c is string => !!c)),
   ].sort((a, b) => a.localeCompare(b));
-  const shown = (parties.data ?? []).filter((p) => city === null || p.city === city);
+  const shown = (list.parties ?? []).filter((p) => city === null || p.city === city);
 
   // a party tapped: its form; a landlord is changed in Entities → Landlords
   const edit = (p: { id: string; types: PartyRole[] }) =>
@@ -217,11 +217,11 @@ export function PartiesManager() {
       </div>
 
       {/* the parties */}
-      {parties.isPending ? (
+      {list.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
         </p>
-      ) : parties.isError ? (
+      ) : list.loadFailed ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
@@ -312,7 +312,7 @@ export function PartiesManager() {
           open && open.id !== "new"
             ? (() => {
                 // gone from the list (inactive ones hidden): it was made inactive
-                const p = (parties.data ?? []).find((x) => x.id === open.id);
+                const p = (list.parties ?? []).find((x) => x.id === open.id);
                 return {
                   on: p?.isActive ?? false,
                   onFlip: (on: boolean) => void toggleActive(open.id, p ? partyLabel(p) : "", on),

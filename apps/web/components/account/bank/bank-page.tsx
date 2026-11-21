@@ -22,7 +22,7 @@ export function BankPage({ bankId }: { bankId: string }) {
   const bankName = useBankName();
   const t = useTranslations("accounts.bank");
   const tf = useTranslations("accounts.bank.form");
-  const bank = useBank(bankId);
+  const read = useBank(bankId);
   // its details being changed, in the bank form
   const [editing, setEditing] = useState(false);
 
@@ -36,18 +36,18 @@ export function BankPage({ bankId }: { bankId: string }) {
         <ArrowLeft className="size-4" aria-hidden /> {t("back")}
       </Link>
 
-      {bank.isPending ? (
+      {read.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
         </p>
-      ) : bank.isError ? (
+      ) : !read.bank ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden />{" "}
-          {bank.error.data?.code === "NOT_FOUND" ? t("errors.gone") : t("loadError")}
+          {read.notFound ? t("errors.gone") : t("loadError")}
         </p>
       ) : (
         (() => {
-          const b = bank.data;
+          const b = read.bank;
           const name = `${bankName(b.bankName)} ••${b.last4}`;
           const rows = [
             { label: t("details.accountNumber"), value: b.accountNumber, number: true },

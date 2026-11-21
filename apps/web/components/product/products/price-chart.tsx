@@ -43,10 +43,10 @@ function smoothPath(pts: { x: number; y: number }[]) {
 export function PriceChart({ productId }: { productId: string }) {
   const t = useTranslations("products.items.chart");
   const history = usePriceHistory(productId);
-  const points = (history.data?.prices ?? []).map((p) => ({ at: p.at, value: p.priceAfterGst }));
+  const points = (history.history?.prices ?? []).map((p) => ({ at: p.at, value: p.priceAfterGst }));
   return (
     <HistoryChart
-      pending={history.isPending}
+      pending={history.loading}
       points={points}
       least={2}
       empty={t("empty")}

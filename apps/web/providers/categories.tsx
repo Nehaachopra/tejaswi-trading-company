@@ -9,7 +9,8 @@ export type SubCategory = Category["subCategories"][number];
 
 // the categories with their sub-categories: active only, or with the inactive ones
 export function useCategories(includeInactive: boolean, enabled = true) {
-  return trpc.inventory.category.list.useQuery({ includeInactive }, { enabled });
+  const q = trpc.inventory.category.list.useQuery({ includeInactive }, { enabled });
+  return { categories: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
 // a category's saves: add, rename, make active or inactive, delete

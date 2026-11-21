@@ -95,7 +95,7 @@ export function LedgerPicker({
     open,
     true,
   );
-  const shown = found.data ?? [];
+  const shown = found.ledgers ?? [];
 
   // a tap anywhere else closes it
   useEffect(() => {
@@ -206,7 +206,7 @@ export function LedgerPicker({
                 )}
               </button>
             ))}
-            {found.isPending ? (
+            {found.loading ? (
               <p className="flex items-center gap-2 px-3 py-3 text-sm">
                 <Spinner className="size-4" /> {t("searching")}
               </p>
@@ -339,7 +339,7 @@ export function LedgerSearch({
     true,
   );
   // a tax with nothing owed can't be paid, so it isn't offered (staff see no balances, so they see them all)
-  const shown = (found.data ?? []).filter(
+  const shown = (found.ledgers ?? []).filter(
     (l) => paymentKind !== "taxPaid" || !l.balance || l.balance.today.amount > 0,
   );
 
@@ -455,7 +455,7 @@ export function LedgerSearch({
                   );
                 })
               : shown.map(ledgerRow)}
-            {found.isPending ? (
+            {found.loading ? (
               <p className="flex items-center gap-2 px-1 py-2 text-sm">
                 <Spinner className="size-4" /> {t("searching")}
               </p>

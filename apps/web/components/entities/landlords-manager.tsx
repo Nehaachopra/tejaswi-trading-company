@@ -33,9 +33,9 @@ export function LandlordsManager() {
   // the sheet: a new landlord, or the one being edited
   const [open, setOpen] = useState<string | "new" | null>(null);
 
-  const landlords = useLandlordList(showInactive);
+  const list = useLandlordList(showInactive);
   const needle = search.trim().toLowerCase();
-  const shown = (landlords.data ?? []).filter(
+  const shown = (list.landlords ?? []).filter(
     (l) =>
       needle === "" ||
       [l.shortName ?? "", l.name, l.phone ?? ""].some((v) => v.toLowerCase().includes(needle)),
@@ -112,11 +112,11 @@ export function LandlordsManager() {
       </div>
 
       {/* the landlords */}
-      {landlords.isPending ? (
+      {list.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
         </p>
-      ) : landlords.isError ? (
+      ) : list.loadFailed ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
@@ -193,7 +193,7 @@ export function LandlordsManager() {
           open && open !== "new"
             ? (() => {
                 // gone from the list (inactive ones hidden): it was made inactive
-                const l = (landlords.data ?? []).find((x) => x.id === open);
+                const l = (list.landlords ?? []).find((x) => x.id === open);
                 return {
                   on: l?.isActive ?? false,
                   onFlip: (on: boolean) => void toggleActive(open, l ? partyLabel(l) : "", on),

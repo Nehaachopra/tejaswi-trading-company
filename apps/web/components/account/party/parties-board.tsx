@@ -40,12 +40,12 @@ export function PartiesBoard({ type }: { type: PartyType }) {
     return () => clearTimeout(timer);
   }, [typed]);
 
-  const parties = useParties({ master: kind.master, includeInactive: showInactive, search });
+  const list = useParties({ master: kind.master, includeInactive: showInactive, search });
   // the places these parties are in, and the ones in the picked place
   const cities = [
-    ...new Set((parties.data ?? []).map((p) => p.city).filter((c): c is string => !!c)),
+    ...new Set((list.parties ?? []).map((p) => p.city).filter((c): c is string => !!c)),
   ].sort((a, b) => a.localeCompare(b));
-  const shown = (parties.data ?? []).filter((p) => city === null || p.city === city);
+  const shown = (list.parties ?? []).filter((p) => city === null || p.city === city);
 
   return (
     <main className={`${PAGE} pb-16`}>
@@ -99,11 +99,11 @@ export function PartiesBoard({ type }: { type: PartyType }) {
       </GroupHeader>
 
       {/* the parties */}
-      {parties.isPending ? (
+      {list.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
         </p>
-      ) : parties.isError ? (
+      ) : list.loadFailed ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>

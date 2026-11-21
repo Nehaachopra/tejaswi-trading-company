@@ -101,7 +101,7 @@ export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
     window.history.replaceState(null, "", `/dues?kind=${k}`);
   }
 
-  const board = dues.data;
+  const board = dues.board;
   const towns = [
     ...new Set((board?.list ?? []).map((p) => p.city).filter((c): c is string => !!c)),
   ].sort((a, b) => a.localeCompare(b));
@@ -141,18 +141,18 @@ export function DuesBoard({ initialKind }: { initialKind: DueKind }) {
       {/* + Old due */}
       <OldDueLink kind={kind} />
 
-      {dues.isPending ? (
+      {dues.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
         </p>
-      ) : dues.isError || !board ? (
+      ) : dues.loadFailed || !board ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
       ) : board.list.length === 0 ? (
         <p className="mt-16 text-center text-ivory/70">{t(`empty.${kind}`)}</p>
       ) : (
-        <div className={cn("transition-opacity", dues.isPlaceholderData && "opacity-60")}>
+        <div className={cn("transition-opacity", dues.stale && "opacity-60")}>
           <div className="mt-3">
             <DueOverdueCard
               total={total}

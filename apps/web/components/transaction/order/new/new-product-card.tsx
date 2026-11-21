@@ -115,7 +115,7 @@ export function NewProductCard({
   // a sub-category picked: its usual GST % fills in (changeable)
   function pickSub(id: string | null) {
     setSubCategoryId(id);
-    const usual = id ? usualGst(all.data ?? [], id) : null;
+    const usual = id ? usualGst(all.products ?? [], id) : null;
     if (usual != null) setGst(String(usual));
   }
 
@@ -134,7 +134,7 @@ export function NewProductCard({
     pack: !!subCategoryId && brand.trim() !== "",
     gst: !!subCategoryId && brand.trim() !== "" && wholeAbove0(packSize),
   };
-  const similar = similarProducts(all.data ?? [], { brand, name: "", categoryId });
+  const similar = similarProducts(all.products ?? [], { brand, name: "", categoryId });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();

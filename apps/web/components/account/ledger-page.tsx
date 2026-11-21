@@ -18,7 +18,7 @@ import { LedgerStatement } from "./ledger-statement";
 // /account/ledgers/[id], admin only: one ledger's statement, under its name and today's balance
 export function LedgerPage({ ledgerId }: { ledgerId: string }) {
   const t = useTranslations("accounts.overview");
-  const ledger = useLedger(ledgerId);
+  const { ledger, loading } = useLedger(ledgerId);
   const nameOf = useLedgerName();
   const tm = useTranslations("accounts.ledgerMenu");
   const { setActive, refreshAccounts } = useLedgerActions();
@@ -49,33 +49,33 @@ export function LedgerPage({ ledgerId }: { ledgerId: string }) {
     <main className={`${PAGE} pb-6`}>
       {/* back to the ledger's head */}
       <Link
-        href={ledger.data ? `/account/${ledger.data.head}` : "/account"}
+        href={ledger ? `/account/${ledger.head}` : "/account"}
         className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory"
       >
         <ArrowLeft className="size-4" aria-hidden />{" "}
-        {ledger.data ? t(`heads.${ledger.data.head}`) : t("title")}
+        {ledger ? t(`heads.${ledger.head}`) : t("title")}
       </Link>
 
-      {ledger.isPending ? (
+      {loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner />
         </p>
-      ) : ledger.isError ? (
+      ) : !ledger ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
       ) : (
         <div className="mt-2">
-          <h1 className="sr-only">{nameOf(ledger.data)}</h1>
+          <h1 className="sr-only">{nameOf(ledger)}</h1>
           <LedgerStatement
             ledgerId={ledgerId}
-            name={nameOf(ledger.data)}
-            head={ledger.data.head}
-            balance={ledger.data.balance}
+            name={nameOf(ledger)}
+            head={ledger.head}
+            balance={ledger.balance}
             // a ledger the admin added can be renamed or made inactive; its opening balance, like every other, is set
             // on the Opening balances page
             menu={
-              ledger.data.custom && (
+              ledger.custom && (
                 <Menu
                   plain
                   label={tm("label")}
@@ -89,11 +89,11 @@ export function LedgerPage({ ledgerId }: { ledgerId: string }) {
                           close();
                           setSheet({
                             kind: "rename",
-                            id: ledger.data.id,
-                            head: ledger.data.head,
-                            name: ledger.data.name,
+                            id: ledger.id,
+                            head: ledger.head,
+                            name: ledger.name,
                             tdsType:
-                              ledger.data.tdsType === "professional" ? null : ledger.data.tdsType,
+                              ledger.tdsType === "professional" ? null : ledger.tdsType,
                           });
                         }}
                       >
@@ -101,25 +101,25 @@ export function LedgerPage({ ledgerId }: { ledgerId: string }) {
                       </MenuItem>
                       <MenuItem
                         disabled={
-                          ledger.data.isActive &&
-                          (ledger.data.balance.today.amount !== 0 ||
-                            !!ledger.data.balance.postDated)
+                          ledger.isActive &&
+                          (ledger.balance.today.amount !== 0 ||
+                            !!ledger.balance.postDated)
                         }
                         onClick={() => {
                           close();
                           void toggleActive(
-                            ledger.data.id,
-                            ledger.data.name,
-                            !ledger.data.isActive,
+                            ledger.id,
+                            ledger.name,
+                            !ledger.isActive,
                           );
                         }}
                         className="flex-wrap"
                       >
                         <Power className="size-4" aria-hidden />{" "}
-                        {tm(ledger.data.isActive ? "deactivate" : "reactivate")}
-                        {ledger.data.isActive &&
-                          (ledger.data.balance.today.amount !== 0 ||
-                            !!ledger.data.balance.postDated) && (
+                        {tm(ledger.isActive ? "deactivate" : "reactivate")}
+                        {ledger.isActive &&
+                          (ledger.balance.today.amount !== 0 ||
+                            !!ledger.balance.postDated) && (
                             <span className="w-full pl-6 text-xs">{tm("hasBalance")}</span>
                           )}
                       </MenuItem>

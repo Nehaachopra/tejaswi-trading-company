@@ -155,14 +155,14 @@ export function ReceiptSuccess({
   };
   // what cash and each bank account hold now, asked again so it includes this one (null for staff, who don't see them)
   const sources = useMoneyHeld({ fresh: true });
-  const banks = usePickableBanks();
+  const pickable = usePickableBanks();
   // only once asked again, so it never shows what they held before this one
   const held =
     sources.data && sources.data.cash !== null && !sources.isFetching ? sources.data : null;
   // the account this one went into or out of: its name and what it holds now
   const usedBank = held?.banks.find((b) => b.id === receipt.data?.bankDetailsId);
   const usedBankName = usedBank
-    ? bankName(banks.data?.find((x) => x.id === usedBank.id)?.bankName ?? usedBank.bankName)
+    ? bankName(pickable.banks?.find((x) => x.id === usedBank.id)?.bankName ?? usedBank.bankName)
     : "";
   // the places it used, each with what it holds now: cash, the bank account, or both (a payment from cash and a bank)
   const settledIn = receipt.data?.settledIn;
@@ -189,7 +189,7 @@ export function ReceiptSuccess({
                 {
                   key: b.id,
                   bank: true,
-                  name: `${bankName(banks.data?.find((x) => x.id === b.id)?.bankName ?? b.bankName)} ••${b.last4}`,
+                  name: `${bankName(pickable.banks?.find((x) => x.id === b.id)?.bankName ?? b.bankName)} ••${b.last4}`,
                   held: b.available ?? 0,
                 },
               ]

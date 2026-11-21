@@ -25,7 +25,7 @@ export function CategoriesBoard() {
 
   // the category whose drawer is open; read from the list each time, so the drawer follows every change
   const [openId, setOpenId] = useState<string | null>(null);
-  const opened = list.data?.find((c) => c.id === openId) ?? null;
+  const opened = list.categories?.find((c) => c.id === openId) ?? null;
 
   return (
     <main className={`${PAGE} pb-16`}>
@@ -53,19 +53,19 @@ export function CategoriesBoard() {
       </div>
 
       {/* the list: loading, error, empty, or the categories (rows on phones, tiles from 1024px) */}
-      {list.isPending ? (
+      {list.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
         </p>
-      ) : list.isError ? (
+      ) : !list.categories ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
-      ) : list.data.length === 0 ? (
+      ) : list.categories.length === 0 ? (
         <p className="mt-16 text-center text-ivory/70">{t("empty")}</p>
       ) : (
         <ul className="mt-4 grid gap-2 lg:grid-cols-3 lg:gap-3 xl:grid-cols-4">
-          {list.data.map((category) => (
+          {list.categories.map((category) => (
             <CategoryRow
               key={category.id}
               category={category}

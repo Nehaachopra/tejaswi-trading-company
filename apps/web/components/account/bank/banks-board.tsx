@@ -26,10 +26,10 @@ export function BanksBoard() {
   const bankName = useBankName();
   const t = useTranslations("accounts.bank");
   const [showInactive, setShowInactive] = useState(false);
-  const banks = useBanks(showInactive);
+  const list = useBanks(showInactive);
   const [search, setSearch] = useState("");
   const needle = search.trim().toLowerCase();
-  const shown = (banks.data ?? []).filter(
+  const shown = (list.banks ?? []).filter(
     (b) =>
       needle === "" ||
       [b.bankName, b.branchName, b.ifscCode ?? "", b.accountNumber].some((v) =>
@@ -61,11 +61,11 @@ export function BanksBoard() {
       </GroupHeader>
 
       {/* the accounts */}
-      {banks.isPending ? (
+      {list.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
         </p>
-      ) : banks.isError ? (
+      ) : list.loadFailed ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>

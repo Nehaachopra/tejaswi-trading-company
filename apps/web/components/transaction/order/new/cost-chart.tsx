@@ -10,10 +10,10 @@ import { useCostHistory } from "~/providers/products";
 export function CostChart({ productId }: { productId: string }) {
   const t = useTranslations("orders");
   const history = useCostHistory(productId);
-  const points = (history.data?.costs ?? []).map((c) => ({ at: c.at, value: c.costAfterGst }));
+  const points = (history.history?.costs ?? []).map((c) => ({ at: c.at, value: c.costAfterGst }));
   return (
     <HistoryChart
-      pending={history.isPending}
+      pending={history.loading}
       points={points}
       empty={t("costHistoryEmpty")}
       summary={(price) => t("costHistorySummary", { price })}

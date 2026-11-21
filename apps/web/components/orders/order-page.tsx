@@ -68,7 +68,7 @@ export function OrderPage({
   const doc = useOrderDoc(kind, id);
   // the items row: re-measured as the cards come in
   const side = useSideScroll<HTMLUListElement>(doc.data?.order.lines.length ?? 0);
-  const products = useOrderProducts();
+  const read = useOrderProducts();
   const cancel = useCancelOrder(kind, id);
   const [asking, setAsking] = useState(false);
 
@@ -88,7 +88,7 @@ export function OrderPage({
   const { order: o, toName, to } = doc.data;
   // each pack size with its product, for the photo, category and sub-category
   const packs = new Map<string, { group: ProductGroup; pack: Pack }>();
-  for (const group of products.data ?? [])
+  for (const group of read.products ?? [])
     for (const pack of group.packs) packs.set(pack.productId, { group, pack });
   // the order's lines put together by product, in the order first ordered: one card each
   const byProduct = new Map<

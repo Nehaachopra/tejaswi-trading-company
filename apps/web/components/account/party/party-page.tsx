@@ -78,10 +78,10 @@ function PartyDetails({ party: p }: { party: RouterOutputs["accounts"]["party"][
 export function PartyPage({ partyId, type }: { partyId: string; type: PartyType }) {
   const t = useTranslations("accounts.party");
   const tf = useTranslations("accounts.party.form");
-  const party = useParty(partyId);
+  const read = useParty(partyId);
   // its details being changed, in the card
   const [editing, setEditing] = useState(false);
-  const list = party.data ? kindOf(party.data.types) : type;
+  const list = read.party ? kindOf(read.party.types) : type;
   const kind = PARTY_KINDS[list];
 
   return (
@@ -94,18 +94,18 @@ export function PartyPage({ partyId, type }: { partyId: string; type: PartyType 
         <ArrowLeft className="size-4" aria-hidden /> {t(`titles.${list}`)}
       </Link>
 
-      {party.isPending ? (
+      {read.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner />
         </p>
-      ) : party.isError ? (
+      ) : !read.party ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden />{" "}
-          {party.error.data?.code === "NOT_FOUND" ? t("errors.gone") : t("loadError")}
+          {read.notFound ? t("errors.gone") : t("loadError")}
         </p>
       ) : (
         (() => {
-          const p = party.data;
+          const p = read.party;
           // how it deals with us; a supplier's settling time is how long we take to pay it
           const insights = [
             {

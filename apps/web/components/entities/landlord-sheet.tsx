@@ -352,11 +352,11 @@ export function LandlordAdd({
   const [draft, setDraft] = useState<Draft>(() => ({ ...emptyDraft(), name }));
   const started = useRef(false);
   useEffect(() => {
-    if (!saved.data || started.current) return;
+    if (!saved.landlord || started.current) return;
     started.current = true;
-    const l = saved.data;
+    const l = saved.landlord;
     setDraft(draftOf(l));
-  }, [saved.data]);
+  }, [saved.landlord]);
   const [tried, setTried] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const set = (patch: Partial<Draft>) => {
@@ -437,7 +437,7 @@ export function LandlordSheet({
 }) {
   const t = useTranslations("accounts.party.form");
   const editing = landlordId !== null && landlordId !== "new";
-  const landlord = useLandlord(editing ? landlordId : null);
+  const read = useLandlord(editing ? landlordId : null);
   const { create, update, refreshLandlords } = useLandlordActions();
 
   const [draft, setDraft] = useState<Draft>(emptyDraft);
@@ -448,10 +448,10 @@ export function LandlordSheet({
     setDraft((d) => ({ ...d, ...patch }));
   };
 
-  const loaded = !editing || !!landlord.data;
+  const loaded = !editing || !!read.landlord;
   useEffect(() => {
     if (!landlordId || !loaded) return;
-    const l = editing ? landlord.data : null;
+    const l = editing ? read.landlord : null;
     setDraft(l ? draftOf(l) : emptyDraft());
     setTried(false);
     setError(null);

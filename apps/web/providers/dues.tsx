@@ -7,17 +7,20 @@ type In = RouterInputs["transactions"]["due"];
 
 // who owes us or whom we owe, by kind; the list just shown stays while another kind loads
 export function useDues(kind: In["list"]["kind"]) {
-  return trpc.transactions.due.list.useQuery({ kind }, { placeholderData: (previous) => previous });
+  const q = trpc.transactions.due.list.useQuery({ kind }, { placeholderData: (previous) => previous });
+  return { board: q.data, loading: q.isPending, loadFailed: q.isError, stale: q.isPlaceholderData };
 }
 
 // one party's dues of a kind
 export function usePartyDues(input: In["party"]) {
-  return trpc.transactions.due.party.useQuery(input);
+  const q = trpc.transactions.due.party.useQuery(input);
+  return { page: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
 // the open loans of a kind (taken or given)
 export function useOpenLoansOf(input: In["openLoans"], enabled: boolean) {
-  return trpc.transactions.due.openLoans.useQuery(input, { enabled });
+  const q = trpc.transactions.due.openLoans.useQuery(input, { enabled });
+  return { loans: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
 // a due written off: the page takes what the server sends back, and the lists and balances are read again

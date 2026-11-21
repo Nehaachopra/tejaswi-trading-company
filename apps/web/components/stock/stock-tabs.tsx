@@ -10,13 +10,13 @@ import { useGodowns } from "~/providers/stock";
 export function StockTabs() {
   const t = useTranslations("stock.tabs");
   const pathname = usePathname();
-  const godowns = useGodowns(false);
+  const read = useGodowns(false);
 
   return (
     <PageTabs
       label={t("label")}
       tabs={[
-        { key: "godowns", label: t("godowns"), href: "/stock", current: pathname === "/stock", count: godowns.data?.length ?? null },
+        { key: "godowns", label: t("godowns"), href: "/stock", current: pathname === "/stock", count: read.godowns?.length ?? null },
         { key: "count", label: t("count"), href: "/stock/count", current: pathname === "/stock/count" },
       ]}
     />

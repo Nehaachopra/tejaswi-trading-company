@@ -45,7 +45,7 @@ export function BranchSearch({
     return () => document.removeEventListener("pointerdown", away);
   }, [open]);
 
-  const branches = useBankBranches({ bank, search }, open && bank !== "" && search.length >= 2);
+  const found = useBankBranches({ bank, search }, open && bank !== "" && search.length >= 2);
 
   return (
     <div ref={root} className="relative">
@@ -67,14 +67,14 @@ export function BranchSearch({
       />
       {open && search.length >= 2 && (
         <div className="on-ivory absolute top-full z-40 mt-1 max-h-72 w-full overflow-y-auto rounded-control border border-chestnut/25 bg-ivory p-1.5 text-chestnut">
-          {branches.isFetching && !branches.data ? (
+          {found.fetching && !found.branches ? (
             <p className="flex items-center gap-2 px-3 py-3 text-sm">
               <Spinner className="size-4" /> {t("lookingUp")}
             </p>
-          ) : (branches.data ?? []).length === 0 ? (
+          ) : (found.branches ?? []).length === 0 ? (
             <p className="px-3 py-3 text-sm">{t("noBranch")}</p>
           ) : (
-            branches.data!.map((b) => (
+            found.branches!.map((b) => (
               <button
                 key={b.ifsc}
                 type="button"

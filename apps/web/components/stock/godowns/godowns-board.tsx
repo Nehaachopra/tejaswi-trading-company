@@ -24,9 +24,9 @@ const outline = `flex items-center gap-1.5 ${chip(false)}`;
 export function GodownsBoard({ isAdmin }: { isAdmin: boolean }) {
   const t = useTranslations("stock.godowns");
   const tf = useTranslations("stock.form");
-  const stock = useStockByGodown();
+  const held = useStockByGodown();
   const [showInactive, setShowInactive] = useState(false);
-  const godowns = useGodowns(showInactive);
+  const read = useGodowns(showInactive);
   const { setActive, refreshGodowns } = useGodownActions();
 
   // the open sheets
@@ -36,7 +36,7 @@ export function GodownsBoard({ isAdmin }: { isAdmin: boolean }) {
   const [history, setHistory] = useState(false);
 
   // inactive godowns hold nothing, so they come from the godown list with an empty card
-  const inactive = (godowns.data ?? [])
+  const inactive = (read.godowns ?? [])
     .filter((g) => !g.isActive)
     .map((g) => ({
       godownId: g.id,
@@ -45,7 +45,7 @@ export function GodownsBoard({ isAdmin }: { isAdmin: boolean }) {
       productCount: 0,
       products: [],
     }));
-  const cards = stock.data ?? [];
+  const cards = held.stock ?? [];
 
   // mark a godown inactive or active again
   async function toggleActive(godownId: string, name: string, makeActive: boolean) {
@@ -100,11 +100,11 @@ export function GodownsBoard({ isAdmin }: { isAdmin: boolean }) {
       </div>
 
       {/* the godown cards */}
-      {stock.isPending ? (
+      {held.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
         </p>
-      ) : stock.isError ? (
+      ) : held.loadFailed ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>

@@ -68,7 +68,7 @@ export function PartyEdit({
   const t = useTranslations("accounts.party.form");
   const tc = useTranslations("transactions.chat");
   const sameName = useSameNameConfirm();
-  const party = useParty(partyId);
+  const read = useParty(partyId);
   const { update, refreshAccounts, refreshPayments } = usePartyActions();
   const [draft, setDraft] = useState<PartyDraft | null>(null);
   const [tried, setTried] = useState(false);
@@ -76,9 +76,9 @@ export function PartyEdit({
 
   // starts from the saved details once, so a live refresh doesn't overwrite what's being typed
   useEffect(() => {
-    if (party.data && !draft) setDraft(draftFrom(party.data));
+    if (read.party && !draft) setDraft(draftFrom(read.party));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when it first loads
-  }, [party.data]);
+  }, [read.party]);
 
   async function save() {
     if (!draft) return;
@@ -171,7 +171,7 @@ export function PartySheet({
   const t = useTranslations("accounts.party.form");
   const sameName = useSameNameConfirm();
   const editing = partyId !== null && partyId !== "new";
-  const party = useParty(editing ? partyId : "", editing);
+  const read = useParty(editing ? partyId : "", editing);
   const { create, update, refreshAccounts } = usePartyActions();
 
   const [draft, setDraft] = useState<PartyDraft>(() => emptyDraft());
@@ -183,8 +183,8 @@ export function PartySheet({
   // customer or an employee. A transporter's declaration only for someone with no type
   const taxes = useSettings(!!partyId);
   const paidForWork = draft.types.length === 0 || draft.types.every((r) => r === "agent");
-  const asksTds = paidForWork && !!taxes.data?.taxAudit;
-  const asksPaid = asksTds || (draft.types.includes("supplier") && !!taxes.data?.tds194q);
+  const asksTds = paidForWork && !!taxes.settings?.taxAudit;
+  const asksPaid = asksTds || (draft.types.includes("supplier") && !!taxes.settings?.tds194q);
   const ok = draftOk(draft) && !(asksTds && tdsOver(draft));
   // sent only when asked, so it stays as saved otherwise; a TDS that isn't asked stays within the amount
   const paidBefore = () => {
@@ -199,13 +199,13 @@ export function PartySheet({
       : {};
   };
 
-  const loaded = !editing || !!party.data;
+  const loaded = !editing || !!read.party;
   useEffect(() => {
     if (!partyId || !loaded) return;
     // a new one starts with the types of the list it's added from
     setDraft(
       editing
-        ? draftFrom(party.data!)
+        ? draftFrom(read.party!)
         : {
             ...emptyDraft(),
             types:

@@ -46,17 +46,17 @@ export function BankSheet({
 }) {
   const t = useTranslations("accounts.bank.form");
   const editing = bankId !== null && bankId !== "new";
-  const bank = useBank(editing ? bankId : "", editing);
+  const read = useBank(editing ? bankId : "", editing);
   const { create, update, refreshAccounts } = useBankActions();
 
   const [draft, setDraft] = useState<BankDraft>(emptyDraft);
   const [tried, setTried] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loaded = !editing || !!bank.data;
+  const loaded = !editing || !!read.bank;
   useEffect(() => {
     if (!bankId || !loaded) return;
-    setDraft(editing ? draftFrom(bank.data!) : emptyDraft());
+    setDraft(editing ? draftFrom(read.bank!) : emptyDraft());
     setTried(false);
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when it opens or first loads

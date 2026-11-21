@@ -45,35 +45,35 @@ export function JobsBoard() {
             onClick={() => setState(f)}
             className={`tabular ${chip(state === f)}`}
           >
-            {t(`filters.${f}`)} {jobs.data ? `· ${jobs.data.counts[f]}` : ""}
+            {t(`filters.${f}`)} {jobs.board ? `· ${jobs.board.counts[f]}` : ""}
           </button>
         ))}
         <button
           type="button"
-          onClick={() => void jobs.refetch()}
-          disabled={jobs.isFetching}
-          aria-busy={jobs.isFetching}
+          onClick={() => void jobs.retry()}
+          disabled={jobs.fetching}
+          aria-busy={jobs.fetching}
           className={`ml-auto flex items-center gap-1.5 aria-busy:opacity-80 ${chip(false)}`}
         >
-          {jobs.isFetching ? <Spinner /> : <RefreshCw className="size-4" aria-hidden />}{" "}
+          {jobs.fetching ? <Spinner /> : <RefreshCw className="size-4" aria-hidden />}{" "}
           {t("refresh")}
         </button>
       </div>
 
       {/* the list: loading, error, empty, or the cards */}
-      {jobs.isPending ? (
+      {jobs.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
         </p>
-      ) : jobs.isError ? (
+      ) : !jobs.board ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2 text-ivory">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
-      ) : jobs.data.jobs.length === 0 ? (
+      ) : jobs.board.jobs.length === 0 ? (
         <p className="mt-16 text-center text-ivory/70">{t(`empty.${state}`)}</p>
       ) : (
         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {jobs.data.jobs.map((job) => (
+          {jobs.board.jobs.map((job) => (
             <JobCard key={job.id} job={job} />
           ))}
         </ul>

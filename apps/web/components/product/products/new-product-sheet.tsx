@@ -127,7 +127,7 @@ export function NewProductSheet({
   const update = (patch: Partial<PackDraft>) => setPack((p) => settle({ ...p, ...patch }));
 
   // products already listed that look like this one (not while it's still the product it was opened from)
-  const similar = sameProduct ? [] : similarProducts(all.data ?? [], { brand, name, categoryId });
+  const similar = sameProduct ? [] : similarProducts(all.products ?? [], { brand, name, categoryId });
 
   // opened from a product, and the category, sub-category or brand is no longer that product's
   const moved = !!from && (categoryId !== from.categoryId || subCategoryId !== from.subCategoryId || !same(brand, from.brand));

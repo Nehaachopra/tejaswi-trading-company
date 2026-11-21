@@ -31,7 +31,7 @@ export function AddGodownSheet({ open, onClose }: { open: boolean; onClose: () =
   const t = useTranslations("stock.form");
   const tg = useTranslations("stock.godowns");
   const { create, refreshWithProducts } = useGodownActions();
-  const products = useProducts({ includeInactive: false }, open);
+  const read = useProducts({ includeInactive: false }, open);
   const categories = useCategories(false, open);
 
   const [step, setStep] = useState<"details" | "stock">("details");
@@ -93,13 +93,13 @@ export function AddGodownSheet({ open, onClose }: { open: boolean; onClose: () =
   }
 
   // the products for the picked category and sub-category
-  const subs = categories.data?.find((c) => c.id === categoryId)?.subCategories ?? [];
-  const shown = (products.data ?? []).filter(
+  const subs = categories.categories?.find((c) => c.id === categoryId)?.subCategories ?? [];
+  const shown = (read.products ?? []).filter(
     (g) =>
       (!categoryId || g.categoryId === categoryId) &&
       (!subCategoryId || g.subCategoryId === subCategoryId),
   );
-  const category = categories.data?.find((c) => c.id === categoryId);
+  const category = categories.categories?.find((c) => c.id === categoryId);
   const sub = subs.find((s) => s.id === subCategoryId);
 
   return (
@@ -136,7 +136,7 @@ export function AddGodownSheet({ open, onClose }: { open: boolean; onClose: () =
                 current={category ? titleCase(category.name) : t("allCategories")}
                 options={[
                   { id: null, name: t("allCategories") },
-                  ...(categories.data ?? []).map((c) => ({
+                  ...(categories.categories ?? []).map((c) => ({
                     id: c.id as string | null,
                     name: titleCase(c.name),
                   })),
@@ -165,11 +165,11 @@ export function AddGodownSheet({ open, onClose }: { open: boolean; onClose: () =
 
           {/* the products: each with a quantity box per pack size */}
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 py-4">
-            {products.isPending ? (
+            {read.loading ? (
               <p className="flex items-center justify-center gap-2 py-10 text-chestnut/70">
                 <Spinner />
               </p>
-            ) : (products.data ?? []).length === 0 ? (
+            ) : (read.products ?? []).length === 0 ? (
               <p className="py-10 text-center text-chestnut/70">{t("noProducts")}</p>
             ) : shown.length === 0 ? (
               <p className="py-10 text-center text-chestnut/70">{t("noMatch")}</p>

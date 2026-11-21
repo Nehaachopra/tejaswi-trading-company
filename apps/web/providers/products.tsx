@@ -7,17 +7,20 @@ type ProductFilters = RouterInputs["inventory"]["product"]["list"];
 
 // the products with their pack sizes, for the filters given
 export function useProducts(filters: ProductFilters, enabled = true) {
-  return trpc.inventory.product.list.useQuery(filters, { enabled });
+  const q = trpc.inventory.product.list.useQuery(filters, { enabled });
+  return { products: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
 // one pack size's recent prices, for its chart
 export function usePriceHistory(productId: string) {
-  return trpc.inventory.product.priceHistory.useQuery({ productId, range: "recent" });
+  const q = trpc.inventory.product.priceHistory.useQuery({ productId, range: "recent" });
+  return { history: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
 // one pack size's last purchase costs, for a purchase order's cost chart
 export function useCostHistory(productId: string) {
-  return trpc.inventory.product.costHistory.useQuery({ productId });
+  const q = trpc.inventory.product.costHistory.useQuery({ productId });
+  return { history: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
 // a product's saves (add, details, price, delete) and what is read again after them

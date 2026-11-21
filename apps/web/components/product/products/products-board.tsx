@@ -38,7 +38,7 @@ export function ProductsBoard() {
   const [subCategoryId, setSubCategoryId] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const categories = useCategories(false);
-  const category = categories.data?.find((c) => c.id === categoryId);
+  const category = categories.categories?.find((c) => c.id === categoryId);
   const subs = category?.subCategories ?? [];
   const sub = subs.find((s) => s.id === subCategoryId);
 
@@ -53,8 +53,8 @@ export function ProductsBoard() {
   const [typed, setTyped] = useState("");
   const shown = useMemo(() => {
     const words = typed.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    if (!list.data || words.length === 0) return list.data;
-    return list.data.filter((g) => {
+    if (!list.products || words.length === 0) return list.products;
+    return list.products.filter((g) => {
       const text = [
         g.brand,
         g.name,
@@ -67,14 +67,14 @@ export function ProductsBoard() {
         .toLowerCase();
       return words.every((w) => text.includes(w));
     });
-  }, [list.data, typed]);
+  }, [list.products, typed]);
 
   // the open product sheet, found again on every change: by any of its pack sizes (the key changes when
   // the brand or sub-category is edited), else by the key (when the pack shown was just hidden)
   const [open, setOpen] = useState<{ key: string; packIds: string[]; packId: string } | null>(null);
   const opened =
-    (open && list.data?.find((g) => g.packs.some((p) => open.packIds.includes(p.productId)))) ??
-    list.data?.find((g) => g.key === open?.key) ??
+    (open && list.products?.find((g) => g.packs.some((p) => open.packIds.includes(p.productId)))) ??
+    list.products?.find((g) => g.key === open?.key) ??
     null;
   // keep the remembered key and pack ids current, so the next lookup still finds it
   useEffect(() => {
@@ -85,7 +85,7 @@ export function ProductsBoard() {
   const [pricing, setPricing] = useState<{ packIds: string[]; packId: string } | null>(null);
   const priced =
     (pricing &&
-      list.data?.find((g) => g.packs.some((p) => pricing.packIds.includes(p.productId)))) ??
+      list.products?.find((g) => g.packs.some((p) => pricing.packIds.includes(p.productId)))) ??
     null;
   const closePrice = useCallback(() => setPricing(null), []);
   // the new-product form
@@ -165,7 +165,7 @@ export function ProductsBoard() {
               <>
                 {[
                   { id: null, name: t("allCategories") },
-                  ...(categories.data ?? []).map((c) => ({ id: c.id, name: titleCase(c.name) })),
+                  ...(categories.categories ?? []).map((c) => ({ id: c.id, name: titleCase(c.name) })),
                 ].map((c) => (
                   <MenuItem
                     key={c.id ?? "all"}
@@ -235,11 +235,11 @@ export function ProductsBoard() {
         </div>
 
         {/* the tiles: 2 across on phones, more on wider screens */}
-        {list.isPending ? (
+        {list.loading ? (
           <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
             <Spinner /> {t("loading")}
           </p>
-        ) : list.isError ? (
+        ) : list.loadFailed ? (
           <p role="alert" className="mt-16 flex items-center justify-center gap-2">
             <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
           </p>

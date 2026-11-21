@@ -15,7 +15,7 @@ import { SignedAmount } from "./signed-amount";
 // shows on the sub-group's card
 export function GroupHeader({ title, head, master, children }: { title: string; head: Head; master: string; children?: React.ReactNode }) {
   const overview = useAccountsOverview();
-  const total = overview.data?.heads.find((h) => h.head === head)?.masters.find((m) => m.key === master)?.total;
+  const total = overview.heads.find((h) => h.head === head)?.masters.find((m) => m.key === master)?.total;
   return (
     <header className="sticky top-16 z-10 -mx-4 mt-3 mb-3 flex flex-wrap items-center gap-x-3 gap-y-2.5 border-b border-ivory/20 bg-chestnut px-4 py-3 sm:-mx-6 sm:px-6">
       <div className="flex min-w-0 items-center gap-3">

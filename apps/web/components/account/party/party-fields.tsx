@@ -1038,12 +1038,12 @@ export function PartyFields({
   }, [short]);
   const shortCheck = useShortNameCheck(askedShort, partyId);
   useEffect(() => {
-    const found = shortCheck.data;
+    const found = shortCheck.check;
     if (!found || askedShort !== short) return;
     if (found.shortNameTaken !== draft.shortNameTaken)
       onChange({ shortNameTaken: found.shortNameTaken });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when an answer comes for what's typed now
-  }, [shortCheck.data, askedShort, short]);
+  }, [shortCheck.check, askedShort, short]);
 
   // one address changed, added, removed or made the default
   const setAddress = (key: string, patch: Partial<AddressDraft>) =>

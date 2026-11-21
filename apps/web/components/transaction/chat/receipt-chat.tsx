@@ -979,15 +979,15 @@ function MoneyChat({
       case "loan":
         return (
           <Cards>
-            {loans.isPending && (
+            {loans.loading && (
               <Note>
                 <span className="flex items-center gap-2">
                   <Spinner className="size-4" /> {t("looking")}
                 </span>
               </Note>
             )}
-            {loans.data?.length === 0 && <Note>{t("noLoans")}</Note>}
-            {(loans.data ?? []).map((l) => (
+            {loans.loans?.length === 0 && <Note>{t("noLoans")}</Note>}
+            {(loans.loans ?? []).map((l) => (
               <Card
                 key={l.id}
                 onClick={() => {
@@ -1143,7 +1143,7 @@ function MoneyChat({
   // very bottom, adding someone new: a party for a payment or a loan (what's typed goes into it), a ledger for a refund
   // or other income (the admin only). A match is taken only when tapped; Enter adds someone new
   function fromDropdown() {
-    const list = found.data ?? [];
+    const list = found.ledgers ?? [];
     const partyKind = kind !== null && PARTY_KINDS.includes(kind);
     const canAdd = isAdmin && kind !== null && (partyKind || PLAIN_KINDS.includes(kind));
     return (
@@ -1182,7 +1182,7 @@ function MoneyChat({
           ))}
           {list.length === 0 && (
             <li className="px-4 py-3 text-sm">
-              {found.isPending ? (
+              {found.loading ? (
                 <span className="flex items-center gap-2">
                   <Spinner className="size-4" /> {t("looking")}
                 </span>

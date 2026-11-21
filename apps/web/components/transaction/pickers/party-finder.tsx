@@ -50,7 +50,7 @@ export function PartyPick({ party }: { ledger: Pickable; party: NonNullable<Pick
 export function usePhoneMatches(phone: string, receiptKind: ReceiptKind) {
   const ready = phone.length === 10;
   const found = usePickableLedgers({ purpose: "receipt", receiptKind, search: phone }, ready);
-  return ready ? (found.data ?? []).filter((l) => l.party?.phone === phone) : [];
+  return ready ? (found.ledgers ?? []).filter((l) => l.party?.phone === phone) : [];
 }
 
 // parties with a name like the one typed (3 letters or more, asked once typing pauses): only a suggestion, as two
@@ -63,7 +63,7 @@ export function useNameMatches(name: string, receiptKind: ReceiptKind) {
   }, [name]);
   const ready = asked.length >= 3;
   const found = usePickableLedgers({ purpose: "receipt", receiptKind, search: asked }, ready);
-  return ready ? (found.data ?? []).filter((l) => l.party) : [];
+  return ready ? (found.ledgers ?? []).filter((l) => l.party) : [];
 }
 
 // a dropdown of parties already added, under the phone (who has that number) or the name (similar names, with a way

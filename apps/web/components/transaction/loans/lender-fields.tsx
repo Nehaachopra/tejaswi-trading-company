@@ -93,7 +93,7 @@ export function BankNamePick({
   const tf = useTranslations("accounts.party.form");
   const directory = useBankDirectory(false);
   const names: readonly string[] =
-    directory.data && directory.data.length > 0 ? directory.data : BANKS;
+    directory.bankNames && directory.bankNames.length > 0 ? directory.bankNames : BANKS;
   return (
     <PickMenu
       label={t("name")}
@@ -126,7 +126,7 @@ export function LenderEdit({
   const tf = useTranslations("accounts.party.form");
   const { update, refreshLendersAndDues } = useLenderActions();
   const lenders = useLenders(true);
-  const lender = lenders.data?.find((l) => l.id === lenderId);
+  const lender = lenders.lenders?.find((l) => l.id === lenderId);
   const [edits, setEdits] = useState<{ name?: string; branch?: string; pan?: string }>({});
   const [failed, setFailed] = useState(false);
   if (!lender) return null;
@@ -246,7 +246,7 @@ export function LenderFields({
   const lenders = useLenders(false);
   const [search, setSearch] = useState("");
   const needle = search.trim().toLowerCase();
-  const shown = (lenders.data ?? []).filter(
+  const shown = (lenders.lenders ?? []).filter(
     (l) => l.type === type && (needle === "" || lenderLabel(l).toLowerCase().includes(needle)),
   );
   const noName = tried && draft.adding && draft.name.trim() === "";
@@ -347,7 +347,7 @@ export function LenderFields({
                 <span className="min-w-0 flex-1 truncate font-semibold">{lenderLabel(l)}</span>
               </button>
             ))}
-            {shown.length === 0 && !lenders.isPending && (
+            {shown.length === 0 && !lenders.loading && (
               <p className="col-span-full px-1 py-2 text-sm">{t("none")}</p>
             )}
             <div className={PICK_NEW}>

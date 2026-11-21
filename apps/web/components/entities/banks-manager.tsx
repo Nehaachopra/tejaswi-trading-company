@@ -33,13 +33,13 @@ export function BanksManager() {
   const tb = useTranslations("accounts.bank");
   const { setActive, refreshAccounts } = useBankActions();
   const [showInactive, setShowInactive] = useState(false);
-  const banks = useBanks(showInactive);
+  const list = useBanks(showInactive);
   const [search, setSearch] = useState("");
   // the sheet: a new account, or the one being edited
   const [open, setOpen] = useState<string | "new" | null>(null);
 
   const needle = search.trim().toLowerCase();
-  const shown = (banks.data ?? []).filter(
+  const shown = (list.banks ?? []).filter(
     (b) =>
       needle === "" ||
       [
@@ -122,11 +122,11 @@ export function BanksManager() {
       </div>
 
       {/* the accounts */}
-      {banks.isPending ? (
+      {list.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {tb("loading")}
         </p>
-      ) : banks.isError ? (
+      ) : list.loadFailed ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {tb("loadError")}
         </p>
@@ -194,7 +194,7 @@ export function BanksManager() {
           open && open !== "new"
             ? (() => {
                 // gone from the list (inactive ones hidden): it was made inactive
-                const b = (banks.data ?? []).find((x) => x.id === open);
+                const b = (list.banks ?? []).find((x) => x.id === open);
                 return {
                   on: b?.isActive ?? false,
                   onFlip: (on: boolean) => void toggleActive(open, b ? b.bankName : "", on),

@@ -30,7 +30,7 @@ export function EditGodownSheet({
 }) {
   const t = useTranslations("stock.form");
   const tg = useTranslations("stock.godowns");
-  const godown = useGodown(godownId);
+  const read = useGodown(godownId);
   const { update, refreshGodown } = useGodownActions();
 
   const [draft, setDraft] = useState<GodownDraft>(emptyDraft);
@@ -39,10 +39,10 @@ export function EditGodownSheet({
 
   // start from the saved details each time it opens, once: a live refresh while it's open doesn't
   // overwrite what's being typed
-  const loaded = !!godown.data;
+  const loaded = !!read.godown;
   useEffect(() => {
     if (!godownId || !loaded) return;
-    setDraft(draftFrom(godown.data!));
+    setDraft(draftFrom(read.godown!));
     setTried(false);
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when it opens or first loads
@@ -68,7 +68,7 @@ export function EditGodownSheet({
 
   return (
     <Sheet open={!!godownId} title={t("editTitle")} closeLabel={t("close")} onClose={onClose}>
-      {godown.isPending ? (
+      {read.loading ? (
         <p className="flex justify-center py-16 text-chestnut/70">
           <Spinner />
         </p>
