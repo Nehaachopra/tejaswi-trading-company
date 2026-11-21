@@ -20,7 +20,7 @@ import {
   SummaryLines,
 } from "../../shared/entry-frame";
 import { DetailsCard, SaveBlock } from "./details-card";
-import { ProductsCard } from "./products-card";
+import { ProductsStage } from "./products-stage";
 import { type OrderEditSeed, type OrderStep, OrderEntryProvider, useOrderEntry, useOrderEntryState } from "./state";
 import { SupplierCard } from "./supplier-card";
 import { TotalsCard } from "./totals-card";
@@ -196,7 +196,7 @@ function OrderEntryView() {
         }
       >
         {current === "products" ? (
-          <ProductsCard />
+          <ProductsStage />
         ) : current === "totals" ? (
           <TotalsCard />
         ) : current === "supplier" ? (

@@ -18,7 +18,7 @@ import { CartCard } from "./cart-card";
 import { CustomerCard } from "./customer-card";
 import { DetailsCard, SaveBlock } from "./details-card";
 import { MoneyCard } from "./money-card";
-import { ProductsCard } from "./products-card";
+import { ProductsStage } from "./products-stage";
 import { ReceivedCard } from "./received-card";
 import { type SaleEdit, type SaleStep, SaleEntryProvider, useSaleEntry, useSaleEntryState } from "./state";
 
@@ -257,7 +257,7 @@ function SaleEntryView({ onExchangeBack }: { onExchangeBack?: () => void }) {
         end={current === "details" ? <SaveBlock /> : current === "money" || current === "products" ? null : <NextButton onClick={() => void next()} />}
       >
         {current === "products" ? (
-          <ProductsCard />
+          <ProductsStage />
         ) : current === "amount" ? (
           <CartCard />
         ) : current === "money" ? (
