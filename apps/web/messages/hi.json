@@ -2391,7 +2391,10 @@
       "returnedPane": "वापस",
       "soldWord": "बेचा",
       "allComingBack": "सब कुछ वापस आ रहा है।",
-      "quantityReturned": "वापस मात्रा"
+      "quantityReturned": "वापस मात्रा",
+      "returnType": "वापसी का प्रकार",
+      "date": "तारीख",
+      "remarks": "टिप्पणी"
     }
   },
   "dues": {

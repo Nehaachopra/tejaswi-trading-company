@@ -59,7 +59,7 @@ function ReturnEntry({ sale, onExchange }: { sale: SaleForReturn; onExchange: (h
 
 // the page: what shows while its products load or can't, then the card on its own with the summary
 function ReturnEntryView() {
-  const { t, sale, loading, loadFailed, retry, figures, total, chosen, mode, nameOf, packOf, payBack, places, complete, index, current, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, missingOf, leaveDialog, day, reasonKind, remarks } =
+  const { t, sale, loading, loadFailed, retry, figures, total, chosen, mode, nameOf, packOf, payBack, places, complete, index, current, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, missingOf, leaveDialog, day, reasonKind, reason, remarks } =
     useReturnEntry();
   const locale = useLocale();
   // the page names the sale it's against
@@ -96,7 +96,7 @@ function ReturnEntryView() {
       }),
     },
     { key: "amount", step: "amount", heading: t("steps.amount"), value: complete.amount && index > 0 ? rupees(total) : null },
-    { key: "settle", step: "settle", heading: t("steps.settle"), value: mode ? t(`modes.${mode}`) : null },
+    { key: "settle", step: "settle", heading: t("returnType"), value: mode ? t(`modes.${mode}`) : null },
     ...(mode === "refund"
       ? [
           {
@@ -112,12 +112,10 @@ function ReturnEntryView() {
           },
         ]
       : []),
-    {
-      key: "details",
-      step: "details",
-      heading: t("steps.details"),
-      value: current === "details" || reasonKind ? [dayInWords(day, locale), reasonKind ? t(`reasons.${reasonKind}`) : "", remarks.trim()].filter((v) => v !== "") : null,
-    },
+    // the details, each under its own heading: the day (once on Details), why it came back, and any remarks
+    { key: "date", step: "details", heading: t("date"), value: current === "details" || reasonKind ? dayInWords(day, locale) : null },
+    { key: "reason", step: "details", heading: t("reason"), value: reasonKind ? (reasonKind === "other" && reason.trim() ? reason.trim() : t(`reasons.${reasonKind}`)) : null },
+    ...(remarks.trim() ? [{ key: "remarks", step: "details" as const, heading: t("remarks"), value: remarks.trim() }] : []),
   ];
   const linesView = (
     <SummaryLines<ReturnStep>

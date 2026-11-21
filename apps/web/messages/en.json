@@ -2391,7 +2391,10 @@
       "returnedPane": "Returned",
       "soldWord": "sold",
       "allComingBack": "Everything is coming back.",
-      "quantityReturned": "Quantity returned"
+      "quantityReturned": "Quantity returned",
+      "returnType": "Return type",
+      "date": "Date",
+      "remarks": "Remarks"
     }
   },
   "dues": {

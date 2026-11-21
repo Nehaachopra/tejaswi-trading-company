@@ -2391,7 +2391,10 @@
       "returnedPane": "ಹಿಂತಿರುಗಿದ್ದು",
       "soldWord": "ಮಾರಾಟ",
       "allComingBack": "ಎಲ್ಲವೂ ಹಿಂತಿರುಗುತ್ತಿದೆ.",
-      "quantityReturned": "ಹಿಂತಿರುಗಿದ ಪ್ರಮಾಣ"
+      "quantityReturned": "ಹಿಂತಿರುಗಿದ ಪ್ರಮಾಣ",
+      "returnType": "ವಾಪಸಾತಿ ಪ್ರಕಾರ",
+      "date": "ದಿನಾಂಕ",
+      "remarks": "ಟಿಪ್ಪಣಿ"
     }
   },
   "dues": {
