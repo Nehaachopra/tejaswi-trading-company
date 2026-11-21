@@ -98,40 +98,48 @@ export function usePurchaseOrderData() {
 // one order as a document (headed with our details, with the supplier's address and phone), and the key for its link
 // sent to the supplier on WhatsApp; the admin's
 export function usePurchaseOrderDocument(id: string, enabled = true) {
-  return trpc.orders.purchase.document.useQuery({ id }, { enabled });
+  const q = trpc.orders.purchase.document.useQuery({ id }, { enabled });
+  return { doc: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
 export function usePurchaseOrderShareKey(id: string, enabled = true) {
-  return trpc.orders.purchase.shareKey.useQuery({ id }, { enabled });
+  const q = trpc.orders.purchase.shareKey.useQuery({ id }, { enabled });
+  return { key: q.data?.key };
 }
 
 // the supplier's WhatsApp number typed when sharing, kept on the supplier (if they have none); the order's document
 // is read again so it shows
 export function useSaveSupplierPhone(id: string) {
   const utils = trpc.useUtils();
-  return trpc.orders.purchase.saveSupplierPhone.useMutation({ onSuccess: () => void utils.orders.purchase.document.invalidate({ id }) });
+  const m = trpc.orders.purchase.saveSupplierPhone.useMutation({ onSuccess: () => void utils.orders.purchase.document.invalidate({ id }) });
+  return { savePhone: (phone: string) => m.mutateAsync({ id, phone }) };
 }
 
 // the order from a shared link, for the supplier: no login, only with the key from that link
 export function useSharedPurchaseOrder(id: string, key: string, enabled = true) {
-  return trpc.orders.purchase.shared.useQuery({ id, key }, { enabled, retry: false });
+  const q = trpc.orders.purchase.shared.useQuery({ id, key }, { enabled, retry: false });
+  return { doc: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
 // a sale order as a document, the key for its link, the customer's number kept when sharing, and the customer's copy
 // from a shared link; admin and staff
 export function useSaleOrderDocument(id: string, enabled = true) {
-  return trpc.orders.sale.document.useQuery({ id }, { enabled });
+  const q = trpc.orders.sale.document.useQuery({ id }, { enabled });
+  return { doc: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
 export function useSaleOrderShareKey(id: string, enabled = true) {
-  return trpc.orders.sale.shareKey.useQuery({ id }, { enabled });
+  const q = trpc.orders.sale.shareKey.useQuery({ id }, { enabled });
+  return { key: q.data?.key };
 }
 
 export function useSaveCustomerPhone(id: string) {
   const utils = trpc.useUtils();
-  return trpc.orders.sale.saveCustomerPhone.useMutation({ onSuccess: () => void utils.orders.sale.document.invalidate({ id }) });
+  const m = trpc.orders.sale.saveCustomerPhone.useMutation({ onSuccess: () => void utils.orders.sale.document.invalidate({ id }) });
+  return { savePhone: (phone: string) => m.mutateAsync({ id, phone }) };
 }
 
 export function useSharedSaleOrder(id: string, key: string, enabled = true) {
-  return trpc.orders.sale.shared.useQuery({ id, key }, { enabled, retry: false });
+  const q = trpc.orders.sale.shared.useQuery({ id, key }, { enabled, retry: false });
+  return { doc: q.data, loading: q.isPending, loadFailed: q.isError };
 }

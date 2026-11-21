@@ -65,30 +65,30 @@ export function OrderPage({
   const t = useTranslations("orders.page");
   const tl = useTranslations("orders.list");
   const locale = useLocale();
-  const doc = useOrderDoc(kind, id);
+  const read = useOrderDoc(kind, id);
   // the items row: re-measured as the cards come in
-  const side = useSideScroll<HTMLUListElement>(doc.data?.order.lines.length ?? 0);
-  const read = useOrderProducts();
+  const side = useSideScroll<HTMLUListElement>(read.doc?.order.lines.length ?? 0);
+  const catalog = useOrderProducts();
   const cancel = useCancelOrder(kind, id);
   const [asking, setAsking] = useState(false);
 
-  if (doc.isPending)
+  if (read.loading)
     return (
       <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
         <Spinner /> {tl("loading")}
       </p>
     );
-  if (doc.isError || !doc.data)
+  if (read.loadFailed || !read.doc)
     return (
       <p role="alert" className="mt-16 flex items-center justify-center gap-2">
         <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
       </p>
     );
 
-  const { order: o, toName, to } = doc.data;
+  const { order: o, toName, to } = read.doc;
   // each pack size with its product, for the photo, category and sub-category
   const packs = new Map<string, { group: ProductGroup; pack: Pack }>();
-  for (const group of read.products ?? [])
+  for (const group of catalog.products ?? [])
     for (const pack of group.packs) packs.set(pack.productId, { group, pack });
   // the order's lines put together by product, in the order first ordered: one card each
   const byProduct = new Map<
@@ -366,14 +366,11 @@ export function OrderPage({
         body={t(kind === "sale" ? "cancelBodySale" : "cancelBody", { number: o.orderId })}
         confirmLabel={t("cancelOrder")}
         cancelLabel={t("keep")}
-        busy={cancel.isPending}
+        busy={cancel.cancelling}
         onConfirm={() =>
-          cancel.mutate(
-            { id },
-            {
-              onSuccess: () => setAsking(false),
-              onError: (err) => toast.error(err.message),
-            },
+          cancel.cancel().then(
+            () => setAsking(false),
+            (err: Error) => toast.error(err.message),
           )
         }
         onCancel={() => setAsking(false)}

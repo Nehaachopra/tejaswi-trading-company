@@ -83,13 +83,13 @@ export function ReceiptSuccess({
   // salary paid to many: every payment, each with its employee and number
   const salaryMany = useSavedSalaries(isSalary ? also : []);
   const many =
-    isSalary && also.length > 0 && salaryGet.data && salaryMany.every((m) => m.data)
-      ? [salaryGet.data, ...salaryMany.map((m) => m.data!)]
+    isSalary && also.length > 0 && salaryGet.saved && salaryMany.salaries
+      ? [salaryGet.saved, ...salaryMany.salaries]
       : null;
   // a drawing: money out of cash or one bank account, or goods at cost (no cash or bank: its cost and GST reversed)
   const isDrawing = flow === "drawing";
   const drawingGet = useSavedDrawing(id, isDrawing);
-  const dr = drawingGet.data;
+  const dr = drawingGet.saved;
   const receiptGet = useSavedReceipt(id, flow === "receipt");
   const paymentGet = useSavedPayment(id, isPayment);
   const depositGet = useSavedDeposit(id, flow === "deposit");
@@ -110,11 +110,11 @@ export function ReceiptSuccess({
           : receiptGet;
   // what this page shows of it, the same for every flow: a deposit or withdrawal moved cash and one account (shown as
   // cash and a bank), a transfer two accounts (the one it left, then the one it went into)
-  const d = contraGet.data;
+  const d = contraGet.saved;
   const contraBank = d ? (d.from ?? d.to) : null;
   const receipt = {
-    isPending: asked.isPending,
-    isError: asked.isError,
+    loading: asked.loading,
+    loadFailed: asked.loadFailed,
     data: isDrawing
       ? dr && {
           assignedId: dr.assignedId,
@@ -125,16 +125,16 @@ export function ReceiptSuccess({
           split: null,
         }
       : isSalary
-      ? salaryGet.data && {
-          assignedId: salaryGet.data.assignedId,
-          bankDetailsId: salaryGet.data.bankDetailsId ?? "",
-          settledIn: salaryGet.data.settledIn,
+      ? salaryGet.saved && {
+          assignedId: salaryGet.saved.assignedId,
+          bankDetailsId: salaryGet.saved.bankDetailsId ?? "",
+          settledIn: salaryGet.saved.settledIn,
           moreBankParts: [] as { bankDetailsId: string }[],
           split: null,
         }
       : isOther
-        ? otherGet.data && {
-            assignedId: otherGet.data.assignedId,
+        ? otherGet.saved && {
+            assignedId: otherGet.saved.assignedId,
             bankDetailsId: "",
             settledIn: "bank" as const,
             moreBankParts: [] as { bankDetailsId: string }[],
@@ -151,14 +151,14 @@ export function ReceiptSuccess({
               }[],
               split: null,
             }
-          : (isPayment ? paymentGet : receiptGet).data,
+          : (isPayment ? paymentGet : receiptGet).saved,
   };
   // what cash and each bank account hold now, asked again so it includes this one (null for staff, who don't see them)
   const sources = useMoneyHeld({ fresh: true });
   const pickable = usePickableBanks();
   // only once asked again, so it never shows what they held before this one
   const held =
-    sources.data && sources.data.cash !== null && !sources.isFetching ? sources.data : null;
+    sources.money && sources.money.cash !== null && !sources.fetching ? sources.money : null;
   // the account this one went into or out of: its name and what it holds now
   const usedBank = held?.banks.find((b) => b.id === receipt.data?.bankDetailsId);
   const usedBankName = usedBank
@@ -202,11 +202,11 @@ export function ReceiptSuccess({
     <main className={`${PAGE} pb-28`}>
       <h1 className="sr-only">{t("title")}</h1>
 
-      {receipt.isPending ? (
+      {receipt.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
         </p>
-      ) : receipt.isError || !receipt.data ? (
+      ) : receipt.loadFailed || !receipt.data ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>

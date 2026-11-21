@@ -303,23 +303,23 @@ export function ReceiptVoucher({
   const paymentLink = usePaymentShareKey(id, !shared && isPayment);
   const link = isPayment ? paymentLink : receiptLink;
   // a payment under reverse charge has a copy kept as a file, once the job has stored it; the newest version comes first
-  const documents = useStoredCopies(id, !shared && !!paymentOwn.data?.rcm);
-  const storedCopy = documents.data?.[0];
+  const documents = useStoredCopies(id, !shared && !!paymentOwn.saved?.rcm);
+  const storedCopy = documents.copies[0];
 
-  if (receipt.isPending)
+  if (receipt.loading)
     return (
       <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
         <Spinner /> {t("loading")}
       </p>
     );
-  if (receipt.isError)
+  if (receipt.loadFailed)
     return (
       <p role="alert" className="mt-16 flex items-center justify-center gap-2">
         <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
       </p>
     );
 
-  const r = isPayment ? fromPayment(receipt.data as Payment) : fromReceipt(receipt.data as Receipt);
+  const r = isPayment ? fromPayment(receipt.saved as Payment) : fromReceipt(receipt.saved as Receipt);
   const p = r.party;
   // who it was paid to or received from: their full name, never the short name
   const fromName = p ? titleCase(p.name.toLowerCase()) : titleCase(r.counterName);
@@ -415,8 +415,8 @@ export function ReceiptVoucher({
           {!shared && (
             <button
               type="button"
-              disabled={!link.data}
-              onClick={() => window.open(whatsAppLink(r, link.data!.key, t), "_blank", "noopener")}
+              disabled={!link.key}
+              onClick={() => window.open(whatsAppLink(r, link.key!, t), "_blank", "noopener")}
               aria-label={t("whatsApp")}
               className="on-ivory flex min-h-11 items-center justify-center gap-2 rounded-control bg-ivory px-3 text-sm font-semibold text-chestnut disabled:opacity-50 sm:px-4"
             >

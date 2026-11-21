@@ -61,20 +61,20 @@ export function SaleInvoice({
   // the Cancel sale popup
   const [asking, setAsking] = useState(false);
 
-  if (doc.isPending)
+  if (doc.loading)
     return (
       <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
         <Spinner /> {t("loading")}
       </p>
     );
-  if (doc.isError)
+  if (doc.loadFailed)
     return (
       <p role="alert" className="mt-16 flex items-center justify-center gap-2">
         <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
       </p>
     );
 
-  const d = doc.data!;
+  const d = doc.invoice!;
   const c = d.company;
   const cancelled = d.status === "cancelled";
   // the admin's Cancel sale, from History, while it's live; why it can't be, when it can't
@@ -157,8 +157,8 @@ export function SaleInvoice({
           {!shared && !cancelled && d.buyer.phone && (
             <button
               type="button"
-              disabled={!link.data}
-              onClick={() => window.open(whatsApp(link.data!.key), "_blank", "noopener")}
+              disabled={!link.key}
+              onClick={() => window.open(whatsApp(link.key!), "_blank", "noopener")}
               aria-label={t("whatsApp")}
               className={pill}
             >

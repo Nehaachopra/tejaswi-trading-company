@@ -12,11 +12,12 @@ export function useJobs(state: Extract<RouterInputs["jobs"]["list"], object>["st
 // a failed job put back in its queue; the list is read again once it's queued
 export function useRetryJob(after: { onSuccess: () => void; onError: (message: string) => void }) {
   const utils = trpc.useUtils();
-  return trpc.jobs.retry.useMutation({
+  const m = trpc.jobs.retry.useMutation({
     onSuccess: () => {
       after.onSuccess();
       void utils.jobs.list.invalidate();
     },
     onError: (error) => after.onError(error.message),
   });
+  return { retry: (job: { queue: string; id: string }) => m.mutate(job), retrying: m.isPending };
 }

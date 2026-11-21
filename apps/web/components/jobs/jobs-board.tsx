@@ -121,12 +121,12 @@ function JobCard({ job }: { job: Job }) {
       {job.state === "failed" && (
         <button
           type="button"
-          onClick={() => retry.mutate({ queue: job.queue, id: job.id })}
-          disabled={retry.isPending}
-          aria-busy={retry.isPending}
+          onClick={() => retry.retry({ queue: job.queue, id: job.id })}
+          disabled={retry.retrying}
+          aria-busy={retry.retrying}
           className="mt-auto flex min-h-11 w-full sm:w-auto items-center justify-center gap-1.5 rounded-control border border-chestnut/60 px-3 text-sm font-medium hover:border-chestnut aria-busy:opacity-80"
         >
-          {retry.isPending ? <Spinner /> : <RotateCcw className="size-4" aria-hidden />}{" "}
+          {retry.retrying ? <Spinner /> : <RotateCcw className="size-4" aria-hidden />}{" "}
           {t("runAgain")}
         </button>
       )}

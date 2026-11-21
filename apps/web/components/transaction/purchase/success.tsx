@@ -21,18 +21,18 @@ import { BillAttach } from "./bill-attach";
 export function PurchaseSuccess({ id }: { id: string }) {
   const t = useTranslations("transactions.purchase.done");
   const tp = useTranslations("transactions.purchase");
-  const purchase = useSavedPurchase(id);
+  const read = useSavedPurchase(id);
   const attach = useAttachBill();
 
   return (
     <main className={`${PAGE} pb-28`}>
       <h1 className="sr-only">{t("title")}</h1>
 
-      {purchase.isPending ? (
+      {read.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
         </p>
-      ) : purchase.isError || !purchase.data ? (
+      ) : read.loadFailed || !read.purchase ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
@@ -50,16 +50,16 @@ export function PurchaseSuccess({ id }: { id: string }) {
           <p className="flex w-full max-w-lg min-w-0 items-center justify-between gap-4 rounded-control border border-chestnut/25 py-1.5 pl-4 pr-2 text-left">
             <span className="text-sm font-semibold">{t("number")}</span>
             <span className="flex min-w-0 items-center gap-1">
-              <span className="truncate font-heading text-xl font-bold">{purchase.data.assignedId}</span>
-              <CopyButton value={purchase.data.assignedId} />
+              <span className="truncate font-heading text-xl font-bold">{read.purchase.assignedId}</span>
+              <CopyButton value={read.purchase.assignedId} />
             </span>
           </p>
 
           {/* the items and the total, a row each in one box */}
           <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
             {[
-              { key: "items", label: t("items"), value: purchase.data.lines.length.toLocaleString("en-IN") },
-              { key: "total", label: t("total"), value: rupees(purchase.data.total) },
+              { key: "items", label: t("items"), value: read.purchase.lines.length.toLocaleString("en-IN") },
+              { key: "total", label: t("total"), value: rupees(read.purchase.total) },
             ].map((r, i) => (
               <p key={r.key} className={cn("flex items-baseline justify-between gap-4 py-3", i > 0 && "border-t border-chestnut/15")}>
                 <span className="text-sm font-semibold">{r.label}</span>
@@ -72,11 +72,11 @@ export function PurchaseSuccess({ id }: { id: string }) {
           <div className="flex w-full max-w-lg flex-col gap-2 text-left">
             <span className="text-sm font-semibold">{tp("billPhoto")}</span>
             <BillAttach
-              value={purchase.data.invoiceUrl}
-              onChange={(url) => attach.mutate({ transactionId: id, invoiceUrl: url })}
+              value={read.purchase.invoiceUrl}
+              onChange={(url) => attach.attach(id, url)}
               onBusy={() => undefined}
             />
-            {attach.isError && <FieldMessage className="mt-0">{tp("billFailed")}</FieldMessage>}
+            {attach.failed && <FieldMessage className="mt-0">{tp("billFailed")}</FieldMessage>}
           </div>
 
           {/* on to the next one */}

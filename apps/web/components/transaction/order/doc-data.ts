@@ -76,8 +76,8 @@ export function useOrderDoc(kind: OrderKind, id: string, shareKey?: string) {
   const saleOwn = useSaleOrderDocument(id, kind === "sale" && !shared);
   const saleTheirs = useSharedSaleOrder(id, shareKey ?? "", kind === "sale" && shared);
   const q = kind === "purchase" ? (shared ? purchaseTheirs : purchaseOwn) : shared ? saleTheirs : saleOwn;
-  const data = q.data ? (kind === "purchase" ? fromPurchase(q.data as PurchaseDoc) : fromSale(q.data as SaleDoc)) : undefined;
-  return { isPending: q.isPending, isError: q.isError, data };
+  const doc = q.doc ? (kind === "purchase" ? fromPurchase(q.doc as PurchaseDoc) : fromSale(q.doc as SaleDoc)) : undefined;
+  return { doc, loading: q.loading, loadFailed: q.loadFailed };
 }
 
 // the key for the order's link sent on WhatsApp (ours only)

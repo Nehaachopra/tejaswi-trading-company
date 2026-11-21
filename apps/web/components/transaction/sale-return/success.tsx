@@ -40,7 +40,7 @@ export function ReturnSuccess({ id }: { id: string }) {
   const { note, loading, loadFailed } = useCreditNote(id);
   // what cash and the banks hold, asked again so it includes this one (only once it's in hand)
   const sources = useMoneyHeld({ fresh: true, enabled: !!note && note.settled.refunded > 0 });
-  const held = sources.data && sources.data.cash !== null && !sources.isFetching ? sources.data : null;
+  const held = sources.money && sources.money.cash !== null && !sources.fetching ? sources.money : null;
 
   return (
     <main className={`${PAGE} pb-28`}>

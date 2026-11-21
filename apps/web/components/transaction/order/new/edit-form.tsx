@@ -24,22 +24,22 @@ export function OrderEditForm({ kind, id }: { kind: OrderKind; id: string }) {
 
 function EditEntry({ kind, id, onDiscard }: { kind: OrderKind; id: string; onDiscard: () => void }) {
   const t = useTranslations("orders");
-  const doc = useOrderDoc(kind, id);
+  const read = useOrderDoc(kind, id);
 
-  if (doc.isPending)
+  if (read.loading)
     return (
       <EntryNote title={t("edit.title")} loading>
         {t("loading")}
       </EntryNote>
     );
-  if (doc.isError || !doc.data)
+  if (read.loadFailed || !read.doc)
     return (
       <EntryNote title={t("edit.title")} failed onRetry={() => window.location.reload()}>
         {t("loadFailed")}
       </EntryNote>
     );
-  if (doc.data.order.status !== "pending") return <EntryNote title={t("edit.title")}>{t("edit.notPending")}</EntryNote>;
-  return <OrderEntry kind={kind} isAdmin onDiscard={onDiscard} edit={seedOf(kind, doc.data)} />;
+  if (read.doc.order.status !== "pending") return <EntryNote title={t("edit.title")}>{t("edit.notPending")}</EntryNote>;
+  return <OrderEntry kind={kind} isAdmin onDiscard={onDiscard} edit={seedOf(kind, read.doc)} />;
 }
 
 // the form's starting point from the saved order: each item at its rate before GST, how many have moved and (a sale)

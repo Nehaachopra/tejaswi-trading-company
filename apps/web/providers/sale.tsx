@@ -125,7 +125,8 @@ export function useSaleData() {
 
 // a saved sale for its success page: its number, items, total and whether it was cash or credit
 export function useSavedSale(transactionId: string) {
-  return trpc.transactions.sale.get.useQuery({ transactionId });
+  const q = trpc.transactions.sale.get.useQuery({ transactionId });
+  return { sale: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
 // a sale as its tax invoice: ours, or (with the key from a shared link) the customer's copy, opened without a login
@@ -133,10 +134,13 @@ export function useSaleInvoice(transactionId: string, shareKey?: string) {
   const shared = shareKey !== undefined;
   const own = trpc.transactions.sale.invoice.useQuery({ transactionId }, { enabled: !shared });
   const theirs = trpc.transactions.sale.shared.useQuery({ transactionId, key: shareKey ?? "" }, { enabled: shared, retry: false });
-  return shared ? theirs : own;
+  const q = shared ? theirs : own;
+  return { invoice: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
 // the key for the invoice's link, sent to the customer on WhatsApp
+// (undefined until it comes)
 export function useSaleShareKey(transactionId: string, enabled = true) {
-  return trpc.transactions.sale.shareKey.useQuery({ transactionId }, { enabled });
+  const q = trpc.transactions.sale.shareKey.useQuery({ transactionId }, { enabled });
+  return { key: q.data?.key };
 }

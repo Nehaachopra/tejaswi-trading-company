@@ -73,13 +73,15 @@ export function usePurchaseData() {
 
 // a saved purchase as it was recorded, for its success page
 export function useSavedPurchase(transactionId: string) {
-  return trpc.transactions.purchase.get.useQuery({ transactionId });
+  const q = trpc.transactions.purchase.get.useQuery({ transactionId });
+  return { purchase: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
 // the supplier's bill attached after saving
 export function useAttachBill() {
   const utils = trpc.useUtils();
-  return trpc.transactions.purchase.attachBill.useMutation({
+  const m = trpc.transactions.purchase.attachBill.useMutation({
     onSuccess: (purchase) => utils.transactions.purchase.get.setData({ transactionId: purchase.transactionId }, purchase),
   });
+  return { attach: (transactionId: string, invoiceUrl: string | null) => m.mutate({ transactionId, invoiceUrl }), failed: m.isError };
 }

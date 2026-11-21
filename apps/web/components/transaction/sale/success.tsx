@@ -18,17 +18,17 @@ import { NEW_TRANSACTION_HREF } from "../../shell/nav-items";
 // details), and the way to a new transaction
 export function SaleSuccess({ id }: { id: string }) {
   const t = useTranslations("transactions.sale.done");
-  const sale = useSavedSale(id);
+  const read = useSavedSale(id);
 
   return (
     <main className={`${PAGE} pb-28`}>
       <h1 className="sr-only">{t("title")}</h1>
 
-      {sale.isPending ? (
+      {read.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner /> {t("loading")}
         </p>
-      ) : sale.isError || !sale.data ? (
+      ) : read.loadFailed || !read.sale ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
         </p>
@@ -52,9 +52,9 @@ export function SaleSuccess({ id }: { id: string }) {
               <span className="text-sm font-semibold">{t("number")}</span>
               <span className="flex min-w-0 items-center gap-1">
                 <span className="truncate font-heading text-xl font-bold">
-                  {sale.data.assignedId}
+                  {read.sale.assignedId}
                 </span>
-                <CopyButton value={sale.data.assignedId} />
+                <CopyButton value={read.sale.assignedId} />
               </span>
             </p>
             <Link
@@ -68,8 +68,8 @@ export function SaleSuccess({ id }: { id: string }) {
           {/* the items and the total, a row each in one box */}
           <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
             {[
-              { key: "items", label: t("items"), value: sale.data.items.toLocaleString("en-IN") },
-              { key: "total", label: t("total"), value: rupees(sale.data.total) },
+              { key: "items", label: t("items"), value: read.sale.items.toLocaleString("en-IN") },
+              { key: "total", label: t("total"), value: rupees(read.sale.total) },
             ].map((r, i) => (
               <p
                 key={r.key}

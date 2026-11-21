@@ -60,23 +60,23 @@ export function OrderDocument({
 }) {
   const t = useTranslations("orders.doc");
   const shared = shareKey !== undefined;
-  const doc = useOrderDoc(kind, id, shareKey);
+  const read = useOrderDoc(kind, id, shareKey);
   const link = useOrderShareKey(kind, id, !shared);
 
-  if (doc.isPending)
+  if (read.loading)
     return (
       <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
         <Spinner /> {t("loading")}
       </p>
     );
-  if (doc.isError)
+  if (read.loadFailed)
     return (
       <p role="alert" className="mt-16 flex items-center justify-center gap-2">
         <CircleAlert className="size-4" aria-hidden /> {t("loadError")}
       </p>
     );
 
-  const d = doc.data!;
+  const d = read.doc!;
   const { order: o, company: c, to: s } = d;
   const a = s.address;
   // each item, per pack: before GST, its GST and after GST; then the line's total (after GST × quantity)
@@ -121,10 +121,10 @@ export function OrderDocument({
           {!shared && s.phone && (
             <button
               type="button"
-              disabled={!link.data}
+              disabled={!link.key}
               onClick={() =>
                 window.open(
-                  orderWhatsAppLink(d, link.data!.key, (v) =>
+                  orderWhatsAppLink(d, link.key!, (v) =>
                     t(kind === "sale" ? "whatsAppMessageSale" : "whatsAppMessage", v),
                   ),
                   "_blank",

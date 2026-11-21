@@ -51,11 +51,11 @@ export function ProfileMenu({ name, role }: { name: string; role: Role }) {
           {/* log out: stays open with a spinner until the session has ended */}
           <div className="border-t border-chestnut/15 pt-1.5">
             <MenuItem
-              onClick={() => logout.mutate()}
-              disabled={logout.isPending}
-              aria-busy={logout.isPending}
+              onClick={() => logout.logout()}
+              disabled={logout.loggingOut}
+              aria-busy={logout.loggingOut}
             >
-              {logout.isPending ? <Spinner /> : <LogOut className="size-4" aria-hidden />}{" "}
+              {logout.loggingOut ? <Spinner /> : <LogOut className="size-4" aria-hidden />}{" "}
               {t("logout")}
             </MenuItem>
           </div>

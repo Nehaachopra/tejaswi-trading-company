@@ -33,11 +33,11 @@ const row = "flex items-baseline justify-between gap-4 py-3";
 // share goes straight to WhatsApp
 export function OrderDone({ kind, id }: { kind: OrderKind; id: string }) {
   const t = useTranslations("orders");
-  const doc = useOrderDoc(kind, id);
+  const read = useOrderDoc(kind, id);
   const link = useOrderShareKey(kind, id);
   const savePhone = useSaveOrderPhone(kind, id);
   const sale = kind === "sale";
-  const d = doc.data;
+  const d = read.doc;
   // no phone kept: Share first opens the number's box, then sends to it
   const [asking, setAsking] = useState(false);
   const [phone, setPhone] = useState("");
@@ -47,11 +47,11 @@ export function OrderDone({ kind, id }: { kind: OrderKind; id: string }) {
   return (
     <main className={`${PAGE} pb-28`}>
       <h1 className="sr-only">{t("done.title")}</h1>
-      {doc.isPending ? (
+      {read.loading ? (
         <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
           <Spinner />
         </p>
-      ) : doc.isError || !d ? (
+      ) : read.loadFailed || !d ? (
         <p role="alert" className="mt-16 flex items-center justify-center gap-2">
           <CircleAlert className="size-4" aria-hidden /> {t("done.loadFailed")}
         </p>
@@ -126,14 +126,14 @@ export function OrderDone({ kind, id }: { kind: OrderKind; id: string }) {
           {/* the one action: WhatsApp opened on the supplier's chat with the order's link ready to send */}
           <button
             type="button"
-            disabled={!link.data || (asking && !phoneOk)}
+            disabled={!link.key || (asking && !phoneOk)}
             onClick={() => {
               if (!d.to.phone && !asking) return setAsking(true);
               // WhatsApp first (a window opened after waiting is blocked), then the number kept on the supplier
               window.open(
                 orderWhatsAppLink(
                   d,
-                  link.data!.key,
+                  link.key!,
                   (v) => t(sale ? "doc.whatsAppMessageSale" : "doc.whatsAppMessage", v),
                   d.to.phone ?? phone,
                 ),
@@ -141,12 +141,9 @@ export function OrderDone({ kind, id }: { kind: OrderKind; id: string }) {
                 "noopener",
               );
               if (!d.to.phone) {
-                savePhone.mutate(
-                  { id, phone },
-                  {
-                    onSuccess: () => setAsking(false),
-                    onError: (err) => toast.error(err.message || t("done.phoneNotSaved")),
-                  },
+                savePhone.savePhone(phone).then(
+                  () => setAsking(false),
+                  (err: Error) => toast.error(err.message || t("done.phoneNotSaved")),
                 );
               }
             }}

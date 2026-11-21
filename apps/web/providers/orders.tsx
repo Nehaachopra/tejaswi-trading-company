@@ -29,7 +29,8 @@ export function useCancelOrder(kind: "purchase" | "sale", id: string) {
   };
   const purchase = trpc.orders.purchase.cancel.useMutation({ onSuccess: done });
   const sale = trpc.orders.sale.cancel.useMutation({ onSuccess: done });
-  return kind === "purchase" ? purchase : sale;
+  const m = kind === "purchase" ? purchase : sale;
+  return { cancel: () => m.mutateAsync({ id }), cancelling: m.isPending };
 }
 
 // the products, for each order item's photo, category and sub-category

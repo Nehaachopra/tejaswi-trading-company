@@ -13,7 +13,8 @@ export function useLoginCalls() {
 
 // logging out; the page says what happens after it worked or failed
 export function useLogout(after: { onSuccess: () => void; onError: () => void }) {
-  return trpc.auth.logout.useMutation(after);
+  const m = trpc.auth.logout.useMutation(after);
+  return { logout: () => m.mutate(), loggingOut: m.isPending };
 }
 
 // what other people (and this tab's jobs) change, as it happens: `onStarted` on every connect, `onData` with the
