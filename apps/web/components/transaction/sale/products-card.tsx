@@ -266,7 +266,7 @@ export function ProductsCard() {
           <CartTotalRow count={lines.length} itemsTotal={itemsTotal} hold={cardFor !== null} />
         </button>
         {pane === "products" ? (
-          <SaleCartButton onSlide={() => setPane("cart")} />
+          <SaleCartButton onSlide={() => void next()} />
         ) : (
           <button
             type="button"
