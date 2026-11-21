@@ -119,7 +119,7 @@ function ReturnEntryView() {
   ];
   const linesView = (
     <SummaryLines<ReturnStep>
-      type={title}
+      type={t("title")}
       items={summary}
       current={current}
       reachable={reachable}
