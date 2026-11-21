@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, ChevronLeft, Plus } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Plus, ShoppingCart } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { Menu, MenuItem } from "~/components/ui/menu";
@@ -11,7 +11,7 @@ import { cn } from "~/lib/utils";
 import { type ProductGroup, TileTop } from "../../product/products/product-tile";
 import { SCROLL_BOX, TILE_GRID } from "../shared/cart-button";
 import { CartTotalRow } from "../shared/cart-cards";
-import { SaleCartButton, SaleCartCards } from "./cart-button";
+import { SaleCartCards } from "./cart-button";
 import { ProductCard } from "./product-card";
 import { useSaleEntry } from "./state";
 
@@ -259,26 +259,20 @@ export function ProductsCard() {
         </div>
       </div>
 
-      {/* in Next's place: the Total row (Items | Total; a tap moves on, as Next did), and beside it the cart icon with its
-          › (slides to the cart), or while the cart shows ‹ Products in its place (slides back) */}
-      <div className="mt-2 flex items-center gap-3">
-        <button type="button" data-recheck onClick={() => void next()} className="flex-1 text-left">
-          <CartTotalRow count={lines.length} itemsTotal={itemsTotal} hold={cardFor !== null} />
-        </button>
-        {pane === "products" ? (
-          <SaleCartButton onSlide={() => void next()} />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setPane("products")}
-            // as quiet as the cart button it stands in for
-            className="flex min-h-10 shrink-0 items-center gap-1.5 rounded-control border border-chestnut/60 px-3 text-sm font-semibold transition-colors hover:border-chestnut"
-          >
-            <ChevronLeft className="-ml-1 size-4.5 shrink-0" aria-hidden />
-            {t("products")}
-          </button>
-        )}
-      </div>
+      {/* in Next's place, one button: Items | Total and Cart; a tap opens the Cart card */}
+      <button
+        type="button"
+        data-recheck
+        onClick={() => void next()}
+        className="mt-2 flex w-full items-stretch rounded-control bg-chestnut text-left text-ivory transition-colors hover:bg-chestnut/90"
+      >
+        <CartTotalRow count={lines.length} itemsTotal={itemsTotal} hold={cardFor !== null} className="flex-1 bg-transparent" />
+        <span className="flex shrink-0 items-center gap-2 border-l border-ivory/25 px-3 text-sm font-semibold">
+          <ShoppingCart className="size-4.5 shrink-0" aria-hidden />
+          {t("cart")}
+          <ChevronRight className="-ml-1 size-4.5 shrink-0" aria-hidden />
+        </span>
+      </button>
 
       {/* the product card, over the page, for the pack size being added or changed */}
       <ProductCard />
