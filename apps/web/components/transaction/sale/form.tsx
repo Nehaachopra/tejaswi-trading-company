@@ -4,23 +4,22 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
-import { dayInWords } from "~/components/ui/date-input";
 
-import { packLabel, rupees, titleCase } from "~/lib/format";
+import { rupees, titleCase } from "~/lib/format";
 import { SaleDataProvider } from "~/providers/sale";
 
 import type { ExchangeHandoff } from "../sale-return/state";
 
 import { partyLabel } from "../../account/party/party-kinds";
-import { ProductImage, productTitle } from "../../product/products/product-tile";
 import { EntryNote, EntryPage, NextButton, StepCard, type SummaryItem, SummaryBar, SummaryCard, SummaryLines } from "../shared/entry-frame";
+import { dateLine, placesLine, productsLine, textLine } from "../shared/summary";
 import { CartStage } from "./cart-stage";
 import { CustomerStage } from "./customer-stage";
 import { DueStage } from "./due-stage";
 import { DetailsCard, SaveBlock } from "./details-card";
 import { MoneyCard } from "./money-card";
 import { ProductsStage } from "./products-stage";
-import { ReceivedCard } from "./received-card";
+import { PaymentStage } from "./payment-stage";
 import { type SaleEdit, type SaleStep, SaleEntryProvider, useSaleEntry, useSaleEntryState } from "./state";
 
 // /transaction/sale (from the transaction hub): a sale, laid out like a payment: one card at a time on the left with
@@ -135,24 +134,7 @@ function SaleEntryView({ onExchangeBack }: { onExchangeBack?: () => void }) {
   // came into) or credit, then who bought it
   const into = gridPlaces.filter((p) => p.amount > 0);
   const summary: SummaryItem<SaleStep>[] = [
-    {
-      key: "products",
-      step: "products",
-      heading: t("steps.products"),
-      // each item: its name with ×quantity beside it (muted), its total (price × quantity, with GST) at the end
-      value: lines.flatMap((l, i) => {
-        const found = packOf(l.productId);
-        if (!found) return [];
-        return [
-          {
-            name: `${productTitle(found.group)} ${packLabel(found.pack.packSize, found.pack.packSizeCode, found.pack.packCount)}`,
-            middle: `×${(Number(l.quantity) || 0).toLocaleString("en-IN")}`,
-            amount: rupees((figures[i]?.total ?? 0) / 100),
-            image: <ProductImage group={found.group} imageUrl={found.pack.imageUrl} className="size-8 rounded-md text-xs" />,
-          },
-        ];
-      }),
-    },
+    productsLine<SaleStep>("products", t("steps.products"), lines, packOf, figures.map((f) => f?.total ?? 0)),
     { key: "amount", step: "amount", heading: t("steps.amount"), value: complete.amount && index > 0 ? rupees(total) : null },
     // an exchange: the return, counted as received
     ...(exchange ? [{ key: "exchange", step: "amount" as const, heading: t("exchange.return"), value: `− ${rupees(exchange.total)}` }] : []),
@@ -172,23 +154,12 @@ function SaleEntryView({ onExchangeBack }: { onExchangeBack?: () => void }) {
               ? titleCase(buyerName)
               : null,
     },
-    // credit, to someone who owes from before: what they'll owe; cash: where it came into, a line each
-    ...(kind === "credit"
-      ? [{ key: "received", step: "received" as const, heading: t("steps.due"), value: current === "received" || current === "details" ? rupees(dueNow) : null }]
-      : [
-          {
-            key: "received",
-            step: "received" as const,
-            heading: t("steps.received"),
-            value: into.length === 0 ? null : into.map((p) => ({ name: p.id === "cash" ? tc("cash") : `${p.name} ${p.sub ?? ""}`.trim(), amount: rupees(p.amount) })),
-          },
-        ]),
-    {
-      key: "details",
-      step: "details",
-      heading: t("steps.details"),
-      value: current === "details" || remarks.trim() || vehicle ? [dayInWords(day, locale), vehicle, remarks.trim()].filter((v) => v !== "") : null,
-    },
+    // credit: what they'll owe; cash: where it came into, a line each
+    kind === "credit"
+      ? textLine<SaleStep>("received", "received", t("steps.due"), current === "received" || current === "details" ? rupees(dueNow) : null)
+      : placesLine<SaleStep>("received", t("steps.received"), into, tc("cash")),
+    // the date only (the vehicle and remarks stay on the Details stage)
+    dateLine<SaleStep>("date", "details", tc("sum.date"), day, locale, current === "details" || !!remarks.trim() || !!vehicle),
   ];
   const linesView = (
     <SummaryLines<SaleStep>
@@ -262,7 +233,7 @@ function SaleEntryView({ onExchangeBack }: { onExchangeBack?: () => void }) {
         ) : current === "received" && kind === "credit" && !isEdit ? (
           <DueStage />
         ) : current === "received" ? (
-          <ReceivedCard />
+          <PaymentStage />
         ) : (
           <DetailsCard />
         )}

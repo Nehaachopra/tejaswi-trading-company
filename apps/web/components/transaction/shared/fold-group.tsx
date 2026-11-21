@@ -113,7 +113,7 @@ export function DueFlow({
   owedBefore: number;
 }) {
   return (
-    <div className="tabular flex flex-col text-sm">
+    <div className="tabular flex flex-col text-sm rounded-control px-2">
       {!noWhole && (
         <div className="flex min-h-8 items-center justify-between gap-3">
           <span>{wholeLabel}</span>

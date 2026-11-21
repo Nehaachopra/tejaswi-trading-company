@@ -8,7 +8,7 @@ import { rupees } from "~/lib/format";
 import { usePhone } from "~/lib/use-phone";
 import { cn } from "~/lib/utils";
 
-import { figure, Figure, LeftRow, Line } from "../sale/received-card";
+import { figure, Figure, LeftRow, Line } from "../shared/payment-stage";
 import { AccountCards } from "../shared/account-cards/account-cards";
 import { type AccountCardsApi } from "../shared/account-cards/types";
 import { FixedBanner } from "../shared/amount-banner";

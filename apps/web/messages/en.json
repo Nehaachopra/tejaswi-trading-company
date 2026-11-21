@@ -1996,7 +1996,7 @@
       "save": "Save purchase",
       "steps": {
         "supplier": "Supplier",
-        "paid": "Paid",
+        "paid": "Payment",
         "due": "Due",
         "bill": "Bill"
       },
@@ -2037,7 +2037,7 @@
         "money": "Cash or credit",
         "customer": "Customer",
         "due": "Due",
-        "received": "Received",
+        "received": "Payment",
         "details": "Details"
       },
       "inCart": "In the cart",

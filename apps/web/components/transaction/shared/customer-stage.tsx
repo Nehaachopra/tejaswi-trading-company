@@ -265,18 +265,8 @@ export function AddressOnlyView({
       <FieldRows>
         {addresses.map((a, i) => (
           <section key={a.key} className="flex flex-col gap-3">
-            <div className="flex min-h-9 items-center justify-between gap-3">
+            <div className="flex min-h-9 items-center">
               <h3 className={SECTION_TITLE}>{t(i === 1 ? "shippingAddress" : ships ? "billingAddress" : "billShipAddress")}</h3>
-              {i === 1 && (
-                <button
-                  type="button"
-                  onClick={() => setAddresses((all) => all.slice(0, 1))}
-                  aria-label={t("removeShipping")}
-                  className="grid size-9 place-items-center rounded-control border border-chestnut/50 hover:border-chestnut"
-                >
-                  <Trash2 className="size-4" aria-hidden />
-                </button>
-              )}
             </div>
             <AddressFields
               address={a}
@@ -292,6 +282,18 @@ export function AddressOnlyView({
               onRemove={() => undefined}
               onMakeDefault={() => undefined}
             />
+            {/* the shipping address: a red bin at its bottom right takes it off, as an account card's */}
+            {i === 1 && (
+              <button
+                type="button"
+                onClick={() => setAddresses((all) => all.slice(0, 1))}
+                aria-label={t("removeShipping")}
+                title={t("removeShipping")}
+                className="grid size-9 shrink-0 place-items-center self-end rounded-control text-danger hover:bg-danger/10"
+              >
+                <Trash2 className="size-4" aria-hidden />
+              </button>
+            )}
           </section>
         ))}
       </FieldRows>

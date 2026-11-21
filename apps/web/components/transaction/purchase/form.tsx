@@ -4,18 +4,17 @@ import { useLocale } from "next-intl";
 import { useState } from "react";
 
 import { ConfirmDialog } from "~/components/ui/confirm-dialog";
-import { dayInWords } from "~/components/ui/date-input";
-import { packLabel, rupees, titleCase } from "~/lib/format";
+import { rupees, titleCase } from "~/lib/format";
 import { PurchaseDataProvider } from "~/providers/purchase";
 
 import { partyLabel } from "../../account/party/party-kinds";
-import { ProductImage, productTitle } from "../../product/products/product-tile";
 import { EntryNote, EntryPage, NextButton, StepCard, type SummaryItem, SummaryBar, SummaryCard, SummaryLines } from "../shared/entry-frame";
+import { dateLine, placesLine, productsLine, textLine } from "../shared/summary";
 import { BillCard } from "./bill-card";
 import { CartStage } from "./cart-stage";
 import { DetailsCard, SaveBlock } from "./details-card";
 import { MoneyCard } from "./money-card";
-import { PaidCard } from "./paid-card";
+import { PaymentStage } from "./payment-stage";
 import { ProductsStage } from "./products-stage";
 import { type PurchaseStep, PurchaseEntryProvider, usePurchaseEntry, usePurchaseEntryState } from "./state";
 import { CustomerStage } from "./customer-stage";
@@ -65,8 +64,6 @@ function PurchaseEntryView() {
     creditDays,
     billNumber,
     billDay,
-    vehicle,
-    remarks,
     tried,
     complete,
     steps,
@@ -99,26 +96,8 @@ function PurchaseEntryView() {
 
   // a line for each card answered: each item, the total, cash or credit, who it's from, where it was paid from (or the
   // credit period), the bill, then the vehicle and remarks
-  const from = places.filter((p) => p.amount > 0);
   const summary: SummaryItem<PurchaseStep>[] = [
-    {
-      key: "products",
-      step: "products",
-      heading: ts("steps.products"),
-      // each item: its name with ×quantity beside it (muted), its total (cost × quantity, with GST) at the end
-      value: lines.flatMap((l, i) => {
-        const found = packOf(l.productId);
-        if (!found) return [];
-        return [
-          {
-            name: `${productTitle(found.group)} ${packLabel(found.pack.packSize, found.pack.packSizeCode, found.pack.packCount)}`,
-            middle: `×${(Number(l.quantity) || 0).toLocaleString("en-IN")}`,
-            amount: rupees((figures[i]?.total ?? 0) / 100),
-            image: <ProductImage group={found.group} imageUrl={found.pack.imageUrl} className="size-8 rounded-md text-xs" />,
-          },
-        ];
-      }),
-    },
+    productsLine<PurchaseStep>("products", ts("steps.products"), lines, packOf, figures.map((f) => f?.total ?? 0)),
     { key: "amount", step: "amount", heading: ts("steps.amount"), value: complete.amount && index > 0 ? rupees(total) : null },
     { key: "money", step: "money", heading: ts("steps.money"), value: kind ? ts(`kinds.${kind}`) : null },
     {
@@ -134,21 +113,13 @@ function PurchaseEntryView() {
             ? titleCase(newSupplier.name)
             : null,
     },
-    {
-      key: "paid",
-      step: "paid",
-      heading: t(kind === "credit" ? "steps.due" : "steps.paid"),
-      value:
-        kind === "credit"
-          ? creditDays
-            ? `${creditDays} ${t("days")}`
-            : null
-          : from.length === 0
-            ? null
-            : from.map((p) => ({ name: p.id === "cash" ? tc("cash") : `${p.name} ${p.sub ?? ""}`.trim(), amount: rupees(p.amount) })),
-    },
-    { key: "bill", step: "bill", heading: t("steps.bill"), value: billNumber ? [billNumber, billDay ? dayInWords(billDay, locale) : ""].filter((v) => v !== "") : null },
-    { key: "details", step: "details", heading: ts("steps.details"), value: remarks.trim() || vehicle ? [vehicle, remarks.trim()].filter((v) => v !== "") : null },
+    // credit: the credit period; cash: where it was paid from, a line each
+    kind === "credit"
+      ? textLine<PurchaseStep>("paid", "paid", t("steps.due"), creditDays ? `${creditDays} ${t("days")}` : null)
+      : placesLine<PurchaseStep>("paid", t("steps.paid"), places, tc("cash")),
+    // the bill: its number and its date, each on its own line (no vehicle or remarks)
+    textLine<PurchaseStep>("billNumber", "bill", t("billNumber"), billNumber || null),
+    dateLine<PurchaseStep>("billDate", "bill", t("billDate"), billDay, locale, !!billNumber || !!billDay),
   ];
   const linesView = (
     <SummaryLines<PurchaseStep>
@@ -217,7 +188,7 @@ function PurchaseEntryView() {
         ) : current === "supplier" ? (
           <CustomerStage />
         ) : current === "paid" ? (
-          <PaidCard />
+          <PaymentStage />
         ) : current === "bill" ? (
           <BillCard />
         ) : (

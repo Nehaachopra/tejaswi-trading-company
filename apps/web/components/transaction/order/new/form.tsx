@@ -3,12 +3,10 @@
 import { useLocale } from "next-intl";
 import { useState } from "react";
 
-import { dayInWords } from "~/components/ui/date-input";
 import { PurchaseOrderDataProvider } from "~/providers/purchase-order";
 
 import { partyLabel } from "../../../account/party/party-kinds";
-import { packLabel, rupees, titleCase } from "~/lib/format";
-import { ProductImage, productTitle } from "../../../product/products/product-tile";
+import { titleCase } from "~/lib/format";
 import {
   EntryNote,
   EntryPage,
@@ -19,6 +17,7 @@ import {
   SummaryCard,
   SummaryLines,
 } from "../../shared/entry-frame";
+import { dateLine, productsLine } from "../../shared/summary";
 import { DetailsCard, SaveBlock } from "./details-card";
 import { ProductsStage } from "./products-stage";
 import { type OrderEditSeed, type OrderStep, OrderEntryProvider, useOrderEntry, useOrderEntryState } from "./state";
@@ -77,7 +76,6 @@ function OrderEntryView() {
     sameNameDialog,
     orderDate,
     expected,
-    remarks,
     total,
     tried,
     complete,
@@ -114,36 +112,13 @@ function OrderEntryView() {
   // a line for each card answered: each item (a small photo, its name, its quantity), the supplier, then the order's
   // date, the expected date and the remarks, each on its own
   const summary: SummaryItem<OrderStep>[] = [
-    {
-      key: "products",
-      step: "products",
-      heading: stepName("products"),
-      // each item: its name with ×quantity beside it (muted), its total (price × quantity, with GST) at the end
-      value: lines.flatMap((l, i) => {
-        const found = packOf(l.productId);
-        if (!found) return [];
-        return [
-          {
-            name: `${productTitle(found.group)} ${packLabel(found.pack.packSize, found.pack.packSizeCode, found.pack.packCount)}`,
-            middle: `×${Number(l.quantity || 0).toLocaleString("en-IN")}`,
-            amount: rupees((figures[i]?.total ?? 0) / 100),
-            image: <ProductImage group={found.group} imageUrl={found.pack.imageUrl} className="size-8 rounded-md text-xs" />,
-          },
-        ];
-      }),
-    },
+    productsLine<OrderStep>("products", stepName("products"), lines, packOf, figures.map((f) => f?.total ?? 0)),
     // (an order being changed has no Supplier card)
     ...(editing ? [] : [{ key: "supplier", step: "supplier" as const, heading: stepName("supplier"), value: supplier ? (supplier.party ? partyLabel(supplier.party) : supplier.name) : supplierPick?.kind === "party" && (kind === "sale" ? newCustomer.name : newSupplier.name).trim() ? titleCase(kind === "sale" ? newCustomer.name : newSupplier.name) : null }]),
-    // the Details card's answers, each on its own line (no Details heading): the order's date (once Details is reached
-    // or anything on it is filled), when it's expected, and the remarks
-    {
-      key: "orderDate",
-      step: "details",
-      heading: t("orderDate"),
-      value: current === "details" || expected || remarks.trim() ? dayInWords(orderDate, locale) : null,
-    },
-    { key: "expected", step: "details", heading: t("expected"), value: expected ? dayInWords(expected, locale) : null },
-    { key: "remarks", step: "details", heading: t("remarks"), value: remarks.trim() || null },
+    // the dates only, each on its own line (no Details heading, no remarks): the order's date (once Details is reached
+    // or the expected day is typed), and when it's expected
+    dateLine<OrderStep>("orderDate", "details", t("orderDate"), orderDate, locale, current === "details" || !!expected),
+    dateLine<OrderStep>("expected", "details", t("expected"), expected, locale, !!expected),
   ];
   const linesView = (
     <SummaryLines<OrderStep>
