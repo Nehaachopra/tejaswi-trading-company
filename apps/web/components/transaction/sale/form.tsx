@@ -16,6 +16,7 @@ import { ProductImage, productTitle } from "../../product/products/product-tile"
 import { EntryNote, EntryPage, NextButton, StepCard, type SummaryItem, SummaryBar, SummaryCard, SummaryLines } from "../shared/entry-frame";
 import { CartStage } from "./cart-stage";
 import { CustomerStage } from "./customer-stage";
+import { DueStage } from "./due-stage";
 import { DetailsCard, SaveBlock } from "./details-card";
 import { MoneyCard } from "./money-card";
 import { ProductsStage } from "./products-stage";
@@ -83,7 +84,6 @@ function SaleEntryView({ onExchangeBack }: { onExchangeBack?: () => void }) {
     kind,
     advance,
     askingAdvance,
-    oldDue,
     dueNow,
     gridPlaces,
     customer,
@@ -174,9 +174,7 @@ function SaleEntryView({ onExchangeBack }: { onExchangeBack?: () => void }) {
     },
     // credit, to someone who owes from before: what they'll owe; cash: where it came into, a line each
     ...(kind === "credit"
-      ? oldDue > 0
-        ? [{ key: "received", step: "received" as const, heading: t("steps.due"), value: current === "received" || current === "details" ? rupees(dueNow) : null }]
-        : []
+      ? [{ key: "received", step: "received" as const, heading: t("steps.due"), value: current === "received" || current === "details" ? rupees(dueNow) : null }]
       : [
           {
             key: "received",
@@ -261,6 +259,8 @@ function SaleEntryView({ onExchangeBack }: { onExchangeBack?: () => void }) {
           <MoneyCard />
         ) : current === "customer" ? (
           <CustomerStage />
+        ) : current === "received" && kind === "credit" && !isEdit ? (
+          <DueStage />
         ) : current === "received" ? (
           <ReceivedCard />
         ) : (

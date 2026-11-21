@@ -4,7 +4,6 @@ import { Check, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 
 import { FieldMessage } from "~/components/ui/field-message";
-import { NumberInput } from "~/components/ui/number-input";
 import { Switch } from "~/components/ui/switch";
 import { rupees } from "~/lib/format";
 import { usePhone } from "~/lib/use-phone";
@@ -17,28 +16,8 @@ import { Meter } from "../shared/meter";
 import { AutoSwitch } from "../shared/split-grid";
 import { UpiIdField } from "../shared/upi-id-field";
 import { TypedBanner } from "../shared/amount-banner";
-import { input } from "../shared/form-basics";
+import { DueStage } from "../shared/due-stage";
 import { usePurchaseEntry } from "./state";
-
-// a row: its name on the left (level with the box's first line), its figure or box on the right
-function Row({
-  label,
-  htmlFor,
-  children,
-}: {
-  label: React.ReactNode;
-  htmlFor?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex min-w-0 items-start justify-between gap-3">
-      <label htmlFor={htmlFor} className="flex min-h-11 min-w-0 items-center text-sm">
-        {label}
-      </label>
-      <div className="w-[60%] shrink-0 [&_input]:text-right">{children}</div>
-    </div>
-  );
-}
 
 // a figure that isn't typed: its name on the left, the figure on the right; `strong` closes a part with a line above
 function Figure({
@@ -129,7 +108,6 @@ export function PaidCard() {
     advance,
   } = e;
   const setOffLabel = useId();
-  const daysBad = tried && Number(e.creditDays) > 365;
   const cards = usePaidCards();
   // on a computer the breakup beside (it starts open); on a phone the card slid to it (it starts on the amounts); and
   // what the payment goes to under it
@@ -194,38 +172,8 @@ export function PaidCard() {
   // typed past what cash and the banks hold: cut to it, and it says so (until typed again)
   const [cut, setCut] = useState(false);
 
-  if (kind === "credit")
-    return (
-      <div className="flex min-w-0 flex-col gap-2.5 sm:w-[calc(50%-1.5rem)]">
-        {/* the bill, the old due (₹0 with none) and the due, whether they owed anything or not */}
-        <Figure label={t("billAmount")} amount={rupees(total)} />
-        <Figure label={t("oldDue")} amount={rupees(oldDue)} />
-        <Figure label={tpf("due")} amount={rupees(dueNow)} strong />
-        <div className="mt-2">
-          <Row htmlFor="credit-days" label={t("creditPeriod")}>
-            <span className="relative block">
-              <NumberInput
-                id="credit-days"
-                value={e.creditDays}
-                maxDigits={3}
-                max={365}
-                placeholder="0"
-                onChange={e.setCreditDays}
-                aria-invalid={daysBad || undefined}
-                // as the Amount card's figure boxes
-                className={cn(
-                  input(daysBad),
-                  "min-h-12 pr-14 text-right font-heading text-xl font-bold tabular",
-                )}
-              />
-              <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-sm text-chestnut/70">
-                {t("days")}
-              </span>
-            </span>
-          </Row>
-        </div>
-      </div>
-    );
+  // credit: the shared due stage (the bill, the old due, the due and the credit period)
+  if (kind === "credit") return <DueStage bill={total} oldDue={oldDue} due={dueNow} days={e.creditDays} setDays={e.setCreditDays} tried={tried} />;
 
   const amountBad = tried && paid === 0 && setOff === 0;
   // what's left of the advance: what wasn't set off, and what's paid past all that's due

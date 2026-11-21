@@ -109,6 +109,8 @@ export function useSaleEntryState({
 }) {
   const t = useTranslations("transactions.sale");
   const tc = useTranslations("transactions.chat");
+  // (the due stage's words are a purchase's)
+  const tp = useTranslations("transactions.purchase");
   const locale = useLocale();
   const router = useRouter();
   const sameName = useSameNameConfirm();
@@ -142,6 +144,8 @@ export function useSaleEntryState({
   const [packing, setPacking] = useState(seed?.packing ?? "");
   const [loadingCharges, setLoadingCharges] = useState(seed?.loadingCharges ?? "");
   const [kind, setKind] = useState<"cash" | "credit" | null>(seed?.kind ?? null);
+  // credit: days until it's due, 30 unless changed (emptied: no set period), as a purchase's
+  const [creditDays, setCreditDays] = useState("30");
   // cash: what came into cash and each bank account (a card each), how each came in and its reference
   const [gridTexts, setGridTexts] = useState<Record<string, string>>({});
   const [gridModes, setGridModes] = useState<Record<string, BankMode | null>>({});
@@ -555,17 +559,20 @@ export function useSaleEntryState({
     amount: total > 0,
     money: kind !== null,
     // nothing came in (the advance set off covers it): no account to place it in
+    // credit: its due stage, the credit period never more than 365 days
     received: isEdit
       ? kind === "credit" || balance === 0 || (received > 0 && intoOk)
-      : kind === "credit" || (exchangeWalkIn && received === 0) || (receivedOk && (received === 0 || intoOk)),
+      : kind === "credit"
+        ? creditDays === "" || Number(creditDays) <= 365
+        : (exchangeWalkIn && received === 0) || (receivedOk && (received === 0 || intoOk)),
     customer:
       customer?.kind === "ledger" ||
       (customer?.kind === "party" &&
         (kind === "credit" ? !matched && partyOk(newParty, true) : buyerOk && addressesOk)),
     details: day !== "",
   };
-  // a credit sale takes no money now: its card after the customer only shows what they'll owe (the old due, this
-  // bill and the two together), and only when they owe from before
+  // a credit sale takes no money now: its stage after the customer is its Due (the bill, the old due, the due and the
+  // credit period), always
   // an edit asks for money only when cash moves (taken now or refunded)
   const STEPS = ALL_STEPS.filter((s) =>
     // an exchange's walk-in is a cash sale: no Cash or credit
@@ -575,7 +582,7 @@ export function useSaleEntryState({
       ? true
       : isEdit
         ? kind === "cash" && balance !== 0
-        : kind !== "credit" || oldDue > 0,
+        : true,
   );
   const [at, setAt] = useState<SaleStep>("products");
   const current = STEPS.includes(at) ? at : "customer";
@@ -709,7 +716,9 @@ export function useSaleEntryState({
         : s === "money"
           ? t("missing.kind")
           : s === "received"
-            ? received === 0
+            ? kind === "credit"
+              ? tp("missing.creditDays")
+              : received === 0
               ? t("missing.received")
               : !panOk
                 ? t("missing.pan")
@@ -858,6 +867,7 @@ export function useSaleEntryState({
           : {
               customerLedgerId: customer?.kind === "ledger" ? customer.ledger.id : null,
               newCustomer: customer?.kind === "party" ? partyInput(newParty) : null,
+              creditPeriodDays: creditDays === "" ? null : Number(creditDays),
             }),
     };
     try {
@@ -928,6 +938,8 @@ export function useSaleEntryState({
     taxable,
     buyerNeeded,
     kind,
+    creditDays,
+    setCreditDays,
     pickKind,
     gridPlaces,
     setGridText: (id: string, text: string) => setGridTexts((all) => ({ ...all, [id]: text })),
