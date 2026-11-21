@@ -2173,6 +2173,10 @@
         "cancelled": "This sale was cancelled.",
         "state": "State",
         "code": "Code",
+        "creditDue": "Credit, due by {date}",
+        "partPaid": "₹{paid} received, ₹{left} due by {date}",
+        "partPaidOpen": "₹{paid} received, ₹{left} due",
+        "partOnAccount": "₹{paid} received, ₹{left} on account",
         "jurisdiction": "Subject to {place} JURISDICTION",
         "number": "Invoice no.",
         "dated": "Dated",
@@ -2223,7 +2227,9 @@
         "leftToRefund": "Left to refund",
         "paidBy": "Paid by",
         "originalReceived": "Original sale received",
-        "originalBreakdown": "Where the original sale's money came in"
+        "originalBreakdown": "Where the original sale's money came in",
+        "done": "Edit successful",
+        "viewSale": "View sale"
       },
       "exchange": {
         "title": "Exchange on {number}",
@@ -2815,6 +2821,8 @@
     "keep": "Keep it",
     "cancelDone": "Sale cancelled.",
     "cancelledOn": "{when} by {name}",
+    "edited": "Edited",
+    "lastEdited": "Last edited {when} by {name}",
     "reasonLine": "Reason: {reason}",
     "stamp": "CANCELLED",
     "blocked": {

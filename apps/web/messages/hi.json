@@ -2173,6 +2173,10 @@
         "cancelled": "यह बिक्री रद्द कर दी गई।",
         "state": "राज्य",
         "code": "कोड",
+        "creditDue": "उधार, {date} तक देय",
+        "partPaid": "₹{paid} प्राप्त, ₹{left} {date} तक देय",
+        "partPaidOpen": "₹{paid} प्राप्त, ₹{left} देय",
+        "partOnAccount": "₹{paid} प्राप्त, ₹{left} खाते में बाकी",
         "jurisdiction": "{place} न्यायक्षेत्र के अधीन",
         "number": "इनवॉइस नं.",
         "dated": "दिनांक",
@@ -2223,7 +2227,9 @@
         "leftToRefund": "वापस करना बाकी",
         "paidBy": "भुगतान का तरीका",
         "originalReceived": "मूल बिक्री में प्राप्त",
-        "originalBreakdown": "मूल बिक्री का पैसा कहाँ आया"
+        "originalBreakdown": "मूल बिक्री का पैसा कहाँ आया",
+        "done": "बदलाव सफल रहा",
+        "viewSale": "बिक्री देखें"
       },
       "exchange": {
         "title": "{number} पर एक्सचेंज",
@@ -2815,6 +2821,8 @@
     "keep": "रहने दें",
     "cancelDone": "बिक्री रद्द हो गई।",
     "cancelledOn": "{when}, {name} द्वारा",
+    "edited": "बदला गया",
+    "lastEdited": "आख़िरी बदलाव {when}, {name} द्वारा",
     "reasonLine": "कारण: {reason}",
     "stamp": "रद्द",
     "blocked": {

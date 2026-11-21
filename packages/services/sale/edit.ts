@@ -11,6 +11,7 @@ import {
   saleOrderProductsTable,
   saleOrdersTable,
   saleProductsTable,
+  salePurchaseCreditDetailsTable,
   saleReturnsTable,
   salesTable,
   transactionBankDetailsTable,
@@ -39,6 +40,8 @@ import type { SaleAddressInputModel, SaleIdInputModel, SavedSaleModel } from "./
 // the day and the month a moment falls in, in India
 const indiaDay = (at: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(at);
 const indiaMonth = (at: Date) => indiaDay(at).slice(0, 7);
+// the day n days after another
+const daysOn = (day: string, n: number) => new Date(new Date(`${day}T12:00:00+05:30`).getTime() + n * 86_400_000).toISOString().slice(0, 10);
 
 // the ledgers a sale posts that aren't money: Sale, the GST owed and the cash discount (the customer's is added per sale)
 const BILL_LEDGERS = ["sale", "outputCgst", "outputSgst", "outputIgst", "discountGiven"] as const;
@@ -173,6 +176,11 @@ export default class SaleEditService {
       // later receipt's part (the oldest first)
       const ownSettled = settlements.filter((s) => s.transactionId === t.id).reduce((a, s) => a + toPaise(s.amount), 0);
       const setOff = due ? Math.max(0, ownSettled - moneyIn - tds) : 0;
+      // credit: the period it was saved with
+      const [credit] = await tx
+        .select({ days: salePurchaseCreditDetailsTable.creditPeriodInDays })
+        .from(salePurchaseCreditDetailsTable)
+        .where(eq(salePurchaseCreditDetailsTable.transactionId, t.id));
       const receipts = settlements
         .filter((s) => s.transactionId !== t.id)
         .reverse()
@@ -197,6 +205,7 @@ export default class SaleEditService {
         assignedId: t.assignedId,
         dateTime: t.dateTime,
         kind: sale.transactedIn as "cash" | "credit",
+        creditPeriodDays: sale.transactedIn === "credit" ? (credit?.days ?? null) : null,
         customer: customer && sale.partyId ? { ledgerId: customer.id, partyId: sale.partyId, name: customer.name } : null,
         buyer: sale.partyId ? null : { name: sale.partyNameSnapshot, phone: sale.partyPhoneSnapshot ?? "" },
         saleOrderId: sale.orderId,
@@ -259,6 +268,9 @@ export default class SaleEditService {
       // every item kept, none fewer than before (fewer is a return)
       const before = new Map<string, number>();
       for (const p of oldParts) before.set(p.productId, (before.get(p.productId) ?? 0) + p.quantity);
+      // each item's rate before GST as it was saved (as the edit form opens it), for the edit log
+      const rateBefore = new Map<string, number>();
+      for (const p of oldParts) rateBefore.set(p.productId, Math.round((toPaise(p.gross) - toPaise(p.discount)) / p.quantity) / 100);
       for (const [productId, qty] of before) {
         const line = input.lines.find((l) => l.productId === productId);
         if (!line) throw new TRPCError({ code: "BAD_REQUEST", message: "An item can't be taken off in an edit. Use a sale return." });
@@ -316,7 +328,9 @@ export default class SaleEditService {
       if (input.kind === "cash") {
         if (balance > 0) {
           if (!customer && moved !== balance) throw new TRPCError({ code: "BAD_REQUEST", message: "Cash and bank must add up to what's left to receive." });
-          if (customer && (moved <= 0 || moved > balance)) throw new TRPCError({ code: "BAD_REQUEST", message: "Receive some of what's left, and no more." });
+          // (a customer's bill left as it was, still cash: nothing need come in now; what's left stays owed)
+          const sameBill = total === toPaise(Number(t.amount)) && sale.transactedIn === input.kind;
+          if (customer && (moved > balance || (moved <= 0 && !sameBill))) throw new TRPCError({ code: "BAD_REQUEST", message: "Receive some of what's left, and no more." });
           received = moved;
         } else if (balance < 0) {
           if (moved !== -balance) throw new TRPCError({ code: "BAD_REQUEST", message: "Refund what was paid over, in full." });
@@ -477,9 +491,11 @@ export default class SaleEditService {
 
       // the due follows the new total: what was settled past it is let go (the newest first: it's their advance, or
       // what was refunded); a walk-in put on credit gets one, what they paid settling it
+      // credit: due after its period (none: no set day); cash: no day
+      const dueOn = input.kind === "credit" && input.creditPeriodDays !== null ? daysOn(indiaDay(input.dateTime), input.creditPeriodDays) : null;
       if (customer) {
         if (due) {
-          await tx.update(duesTable).set({ amount: fromPaise(total) }).where(eq(duesTable.id, due.id));
+          await tx.update(duesTable).set({ amount: fromPaise(total), dueOn }).where(eq(duesTable.id, due.id));
           let over = paid - total;
           for (const s of settlements) {
             if (over <= 0) break;
@@ -494,7 +510,7 @@ export default class SaleEditService {
             party: { id: customer.party.id, name: customer.party.name, phone: customer.party.phone },
             transactionId: t.id,
             amount: total / 100,
-            dueOn: null,
+            dueOn,
             terms: null,
           });
           const settled = Math.min(total, moneyAll);
@@ -504,6 +520,15 @@ export default class SaleEditService {
         if (received > 0) await this.dues.settleOldestIn(tx, { kind: "debtor", partyId: customer.party.id, transactionId: t.id, amount: received / 100 });
       }
 
+      // the credit period kept with the sale: credit with one has it (changed or added), anything else has none
+      const [creditBefore] = await tx
+        .select({ days: salePurchaseCreditDetailsTable.creditPeriodInDays })
+        .from(salePurchaseCreditDetailsTable)
+        .where(eq(salePurchaseCreditDetailsTable.transactionId, t.id));
+      await tx.delete(salePurchaseCreditDetailsTable).where(eq(salePurchaseCreditDetailsTable.transactionId, t.id));
+      if (input.kind === "credit" && input.creditPeriodDays !== null)
+        await tx.insert(salePurchaseCreditDetailsTable).values({ transactionId: t.id, creditPeriodInDays: input.creditPeriodDays });
+
       // a pack size added with no selling price saved: the price it sold at becomes its price, unless sold at a loss
       for (const [i, l] of input.lines.entries()) {
         if (!products[i]!.unpriced || l.belowCostOk || before.has(l.productId)) continue;
@@ -511,11 +536,18 @@ export default class SaleEditService {
         await this.products.setPriceIn(tx, l.productId, priceAfterGst, products[i]!.gstRate, actor);
       }
 
-      // the edit log: what changed, from what to what
+      // the edit log: what changed, from what to what (the items in one order, so the same items read the same)
+      const byId = <T extends { productId: string }>(a: T[]) => [...a].sort((x, y) => x.productId.localeCompare(y.productId));
       const changes = [
         { field: "date", old: indiaDay(t.dateTime), new: indiaDay(input.dateTime) },
+        { field: "kind", old: sale.transactedIn, new: input.kind },
+        { field: "creditPeriodDays", old: creditBefore?.days ?? null, new: input.kind === "credit" ? input.creditPeriodDays : null },
         { field: "total", old: Number(t.amount), new: total / 100 },
-        { field: "items", old: [...before].map(([id, q]) => ({ productId: id, quantity: q })), new: input.lines.map((l) => ({ productId: l.productId, quantity: l.quantity, rate: l.rateBeforeGst })) },
+        {
+          field: "items",
+          old: byId([...before].map(([id, q]) => ({ productId: id, quantity: q, rate: rateBefore.get(id) ?? 0 }))),
+          new: byId(input.lines.map((l) => ({ productId: l.productId, quantity: l.quantity, rate: l.rateBeforeGst }))),
+        },
         { field: "discount", old: Number(sale.discountAmount), new: off / 100 },
         { field: "charges", old: [sale.shippingAmount, sale.packagingAmount, sale.handlingAmount].map(Number), new: [input.transportCharges, input.packingCharges, input.loadingCharges] },
         { field: "shipTo", old: [sale.shipToAddressLine1Snapshot, sale.shipToCitySnapshot, sale.shipToPostalCodeSnapshot].join(", "), new: [shipTo.line1, shipTo.city, shipTo.postalCode].join(", ") },
@@ -525,7 +557,8 @@ export default class SaleEditService {
         ...(received > 0 ? [{ field: "received", old: null, new: received / 100 }] : []),
         ...(refunded > 0 ? [{ field: "refunded", old: null, new: refunded / 100 }] : []),
       ].filter((c) => JSON.stringify(c.old) !== JSON.stringify(c.new));
-      await tx.insert(transactionEditLogsTable).values({ transactionId: t.id, editedById: actor.id, editedByName: actor.name.slice(0, 30), changes });
+      // nothing changed: no edit is recorded
+      if (changes.length > 0) await tx.insert(transactionEditLogsTable).values({ transactionId: t.id, editedById: actor.id, editedByName: actor.name.slice(0, 30), changes });
 
       return { transactionId: t.id, assignedId: t.assignedId, total: total / 100 };
     });

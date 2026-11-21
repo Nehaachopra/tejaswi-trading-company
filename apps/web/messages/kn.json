@@ -2173,6 +2173,10 @@
         "cancelled": "ಈ ಮಾರಾಟವನ್ನು ರದ್ದುಗೊಳಿಸಲಾಗಿದೆ.",
         "state": "ರಾಜ್ಯ",
         "code": "ಕೋಡ್",
+        "creditDue": "ಸಾಲ, {date} ರೊಳಗೆ ಬಾಕಿ",
+        "partPaid": "₹{paid} ಸ್ವೀಕರಿಸಲಾಗಿದೆ, ₹{left} {date} ರೊಳಗೆ ಬಾಕಿ",
+        "partPaidOpen": "₹{paid} ಸ್ವೀಕರಿಸಲಾಗಿದೆ, ₹{left} ಬಾಕಿ",
+        "partOnAccount": "₹{paid} ಸ್ವೀಕರಿಸಲಾಗಿದೆ, ₹{left} ಖಾತೆಯಲ್ಲಿ ಬಾಕಿ",
         "jurisdiction": "{place} ನ್ಯಾಯವ್ಯಾಪ್ತಿಗೆ ಒಳಪಟ್ಟಿದೆ",
         "number": "ಇನ್‌ವಾಯ್ಸ್ ಸಂ.",
         "dated": "ದಿನಾಂಕ",
@@ -2223,7 +2227,9 @@
         "leftToRefund": "ಹಿಂದಿರುಗಿಸಲು ಉಳಿದಿದೆ",
         "paidBy": "ಪಾವತಿ ವಿಧಾನ",
         "originalReceived": "ಮೂಲ ಮಾರಾಟದಲ್ಲಿ ಪಡೆದದ್ದು",
-        "originalBreakdown": "ಮೂಲ ಮಾರಾಟದ ಹಣ ಎಲ್ಲಿ ಬಂತು"
+        "originalBreakdown": "ಮೂಲ ಮಾರಾಟದ ಹಣ ಎಲ್ಲಿ ಬಂತು",
+        "done": "ಬದಲಾವಣೆ ಯಶಸ್ವಿ",
+        "viewSale": "ಮಾರಾಟ ನೋಡಿ"
       },
       "exchange": {
         "title": "{number} ಮೇಲೆ ವಿನಿಮಯ",
@@ -2815,6 +2821,8 @@
     "keep": "ಇರಲಿ",
     "cancelDone": "ಮಾರಾಟ ರದ್ದಾಯಿತು.",
     "cancelledOn": "{when}, {name} ಅವರಿಂದ",
+    "edited": "ಬದಲಾಯಿಸಲಾಗಿದೆ",
+    "lastEdited": "ಕೊನೆಯ ಬದಲಾವಣೆ {when}, {name} ಅವರಿಂದ",
     "reasonLine": "ಕಾರಣ: {reason}",
     "stamp": "ರದ್ದು",
     "blocked": {

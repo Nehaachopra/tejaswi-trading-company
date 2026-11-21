@@ -10,7 +10,10 @@ import { useSaleForEdit, useSaveSaleEdit } from "~/providers/sale-edit";
 import { EntryNote, EntryPage, NextButton, StepCard, type SummaryItem, SummaryBar, SummaryCard, SummaryLines } from "../shared/entry-frame";
 import { dateLine, productsLine, textLine } from "../shared/summary";
 import { CartStage } from "./cart-stage";
+import { CustomerStage } from "./customer-stage";
 import { DetailsStage } from "./details-stage";
+import { DueStage } from "./due-stage";
+import { MoneyStage } from "./money-stage";
 import { PaymentStage } from "./payment-stage";
 import { type EditStep, SaleEditProvider, useSaleEdit, useSaleEditState } from "./state";
 
@@ -80,7 +83,7 @@ function EditEntry(props: Parameters<typeof useSaleEditState>[0]) {
 
 // the page: the stage on its own with Back and Next, and the summary
 function EditView() {
-  const { t, tc, sale, lines, packOf, figures, total, editLeft, day, current, index, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, complete, missingOf, leaveDialog } =
+  const { t, tc, sale, lines, packOf, figures, total, editLeft, creditDue, kind, credit, customer, newParty, day, current, index, steps, reachable, summaryOpen, setSummaryOpen, show, next, back, tried, complete, missingOf, leaveDialog } =
     useSaleEdit();
   const locale = useLocale();
   const title = t("edit.title");
@@ -89,9 +92,23 @@ function EditView() {
   const summary: SummaryItem<EditStep>[] = [
     productsLine<EditStep>("cart", t("steps.products"), lines.map((l) => ({ productId: l.productId, quantity: String(sale.lines.find((s) => s.productId === l.productId)?.quantity ?? 0) })), packOf, figures.map((f) => f.total)),
     { key: "amount", step: "cart", heading: t("steps.amount"), value: rupees(total) },
-    textLine<EditStep>("money", "payment", t("steps.money"), t(`kinds.${sale.kind}`)),
-    textLine<EditStep>("customer", "payment", t("steps.customer"), titleCase(sale.customer?.name ?? sale.buyer?.name ?? "") || null),
-    textLine<EditStep>("left", "payment", t("leftDue"), index > 0 ? rupees(editLeft) : null),
+    textLine<EditStep>("money", "money", t("steps.money"), t(`kinds.${kind}`)),
+    // the sale's customer or walk-in; a walk-in put on credit: the customer picked or added now
+    textLine<EditStep>(
+      "customer",
+      steps.includes("customer") ? "customer" : "money",
+      t("steps.customer"),
+      titleCase(
+        steps.includes("customer")
+          ? customer?.kind === "ledger"
+            ? customer.ledger.name
+            : customer?.kind === "party"
+              ? newParty.name
+              : ""
+          : (sale.customer?.name ?? sale.buyer?.name ?? ""),
+      ) || null,
+    ),
+    textLine<EditStep>("left", "payment", t("leftDue"), current === "payment" || current === "details" ? rupees(credit ? creditDue : editLeft) : null),
     dateLine<EditStep>("date", "details", tc("sum.date"), day, locale, true),
   ];
   const linesView = (
@@ -127,13 +144,23 @@ function EditView() {
       <StepCard
         key={current}
         id={current}
-        name={t(current === "cart" ? "steps.amount" : current === "payment" ? "steps.received" : "steps.details")}
-        onBack={index > 0 ? () => show(steps[index - 1]!) : null}
+        // credit: the stage after the customer is its Due
+        name={t(current === "cart" ? "steps.amount" : current === "payment" ? (credit ? "steps.due" : "steps.received") : `steps.${current}`)}
+        onBack={index > 0 ? back : null}
         onChange={null}
         missing={tried && !complete[current] ? missingOf(current) : null}
-        end={current === "details" ? <DetailsStage /> : <NextButton onClick={next} />}
+        // Cash or credit moves on by itself; Details saves
+        end={current === "details" ? <DetailsStage /> : current === "money" ? null : <NextButton onClick={next} />}
       >
-        {current === "cart" ? <CartStage /> : current === "payment" ? <PaymentStage /> : null}
+        {current === "cart" ? (
+          <CartStage />
+        ) : current === "money" ? (
+          <MoneyStage />
+        ) : current === "customer" ? (
+          <CustomerStage />
+        ) : current === "payment" ? (
+          credit ? <DueStage /> : <PaymentStage />
+        ) : null}
       </StepCard>
     </EntryPage>
   );

@@ -13,8 +13,18 @@ import type { useSaleData } from "~/providers/sale";
 import type { SaleForEdit } from "~/providers/sale-edit";
 
 import { indiaDay } from "../../account/balance";
+import {
+  type AddressDraft,
+  draftInput as partyInput,
+  draftOk as partyOk,
+  emptyAddress,
+  emptyDraft as emptyParty,
+  type PartyDraft,
+} from "../../account/party/party-fields";
+import type { StateCode } from "../../account/party/party-kinds";
 import type { Pack, ProductGroup } from "../../product/products/product-tile";
-import type { Pickable } from "../pickers/ledger-picker";
+import type { LedgerChoice, Pickable } from "../pickers/ledger-picker";
+import { usePhoneMatches } from "../pickers/party-finder";
 import { lineFigures } from "../sale/state";
 import { refOkFor } from "../shared/bank-mode";
 import { moveCard, useCardHistory } from "../shared/card-steps";
@@ -22,9 +32,9 @@ import { momentOf } from "../shared/form-basics";
 import type { QrItem } from "../shared/qr-spot";
 import type { GridPlace } from "../shared/split-grid";
 
-// the stages, in order: the cart (prices only), the payment (the breakup, and what's taken now or refunded), the date
-export type EditStep = "cart" | "payment" | "details";
-const STEPS: EditStep[] = ["cart", "payment", "details"];
+// the stages, in order, as a sale's: the cart (prices only), cash or credit, the customer (only a walk-in put on
+// credit), the payment (cash) or the due (credit), then the date
+export type EditStep = "cart" | "money" | "customer" | "payment" | "details";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
@@ -45,10 +55,41 @@ export type SaleEditInput = {
 };
 type EditSaleIn = RouterInputs["transactions"]["sale"]["edit"];
 
+// a walk-in put on credit, as a new customer: the sale's name and phone, and its typed addresses (billed at the first,
+// sent to the second when it went elsewhere); the short name is left to type
+export function walkInParty(sale: SaleForEdit): PartyDraft {
+  const typed = (p: SaleForEdit["shipTo"] | null): AddressDraft | null =>
+    p && "address" in p
+      ? {
+          ...emptyAddress(true),
+          addressLine1: p.address.addressLine1,
+          landmark: p.address.landmark,
+          city: p.address.city,
+          district: p.address.district,
+          state: p.address.state,
+          stateCode: p.address.stateCode as StateCode,
+          postalCode: p.address.postalCode,
+          gstin: p.address.gstin ?? "",
+        }
+      : null;
+  const bill = typed(sale.billTo);
+  const ship = typed(sale.shipTo);
+  const same = bill && ship && JSON.stringify({ ...bill, key: "" }) === JSON.stringify({ ...ship, key: "" });
+  const addresses = [bill ?? ship, !same && bill ? ship : null].filter((a): a is AddressDraft => a !== null);
+  return {
+    ...emptyParty(),
+    name: sale.buyer?.name ?? "",
+    phone: sale.buyer?.phone ?? "",
+    ...(addresses.length > 0 ? { addresses: addresses.map((a, i) => ({ ...a, isDefault: i === 0 })) } : {}),
+  };
+}
+
 // everything an edit holds and works out. Made once in SaleEditEntry; every stage reads it with useSaleEdit()
 export function useSaleEditState({ sale, ledger, products, banks, saveEdit, saving: editSaving, saved, onDiscard }: SaleEditInput) {
   const t = useTranslations("transactions.sale");
   const tc = useTranslations("transactions.chat");
+  // (the due stage's words are a purchase's)
+  const tp = useTranslations("transactions.purchase");
   const locale = useLocale();
   const router = useRouter();
 
@@ -67,13 +108,26 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
     })),
   );
   const putPrice = (line: PriceLine) => setLines((all) => all.map((l) => (l.productId === line.productId ? line : l)));
+  // the prices it opened with: none changed (and still cash or credit as saved) means nothing about the money changes,
+  // so Next on the cart goes straight to the details
+  const [startLines] = useState(lines);
+  const pricesChanged = lines.some((l, i) => parseAmount(l.price) !== parseAmount(startLines[i]!.price));
   const [day, setDay] = useState(() => indiaDay(new Date(sale.dateTime)));
   // the product details card over the page: the item whose price is being changed
   const [cardFor, setCardFor] = useState<string | null>(null);
 
   // the cart, worked out as the server does: each item's figures, the charges and discount as saved, the total
   // rounded to the rupee
-  const figures = lines.map((l) => lineFigures(parseAmount(l.price) ?? 0, savedLine(l.productId).quantity, packOf(l.productId)?.pack.gstPercent ?? 0));
+  // (a price left as it was keeps the rate it was saved at, to the paisa)
+  const figures = lines.map((l, i) => {
+    const quantity = savedLine(l.productId).quantity;
+    const gst = packOf(l.productId)?.pack.gstPercent ?? 0;
+    if (parseAmount(l.price) !== parseAmount(startLines[i]!.price)) return lineFigures(parseAmount(l.price) ?? 0, quantity, gst);
+    const rate = Math.round(savedLine(l.productId).rateBeforeGst * 100);
+    const value = rate * quantity;
+    const tax = Math.round((value * gst) / 100);
+    return { rate, value, tax, total: value + tax };
+  });
   const itemsPaise = figures.reduce((a, f) => a + f.total, 0);
   const itemsTotal = itemsPaise / 100;
   const chargesPaise = Math.round((sale.transportCharges + sale.packingCharges + sale.loadingCharges) * 100);
@@ -85,21 +139,43 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
   const total = totalPaise / 100;
   const pricesOk = lines.every((l) => (parseAmount(l.price) ?? 0) > 0);
 
+  // cash or credit (as saved, until changed), and credit's period (as saved; 30 days for a cash sale put on credit)
+  const [kind, setKind] = useState<"cash" | "credit">(sale.kind);
+  const credit = kind === "credit";
+  const [creditDays, setCreditDays] = useState(() =>
+    sale.kind === "credit" ? (sale.creditPeriodDays === null ? "" : String(sale.creditPeriodDays)) : "30",
+  );
+  const walkIn = !sale.customer;
+  // a walk-in put on credit needs a customer: one of ours picked, or added now with the sale's name, phone and
+  // addresses filled in
+  const [customer, setCustomer] = useState<LedgerChoice>(null);
+  const [newParty, setNewParty] = useState<PartyDraft>(() => walkInParty(sale));
+  const [editingCustomer, setEditingCustomer] = useState(false);
+  const needsCustomer = walkIn && credit;
+  const picked = needsCustomer && customer?.kind === "ledger" ? customer.ledger : null;
+  // a new customer's phone that one of ours already has shows them instead
+  const matches = usePhoneMatches(needsCustomer && customer?.kind === "party" ? newParty.phone : "", "customer");
+  const matched = matches[0] ?? null;
+
   // what the edit leaves: the new total less what was paid towards the bill; more owed (plus) or paid over (minus).
   // Cash takes it now (a walk-in all of it, a customer any part) or refunds what's paid over at once; credit leaves it
   // owed, or as their advance
-  const kind = sale.kind;
-  const credit = kind === "credit";
   const editPaid = sale.paid;
   const balance = round2(total - editPaid);
   const editDueLeft = Math.max(0, balance);
   const editAdvanceLeft = Math.max(0, -balance);
   const refunding = kind === "cash" && balance < 0;
-  const walkIn = !sale.customer;
-  // what the customer owes from before, leaving out what this sale itself still has owed on it
-  const balanceNow = ledger?.balance ? (ledger.balance.today.side === "debit" ? 1 : -1) * ledger.balance.today.amount : 0;
-  const oldDue = ledger?.party ? Math.max(0, round2(balanceNow - (sale.total - editPaid))) : 0;
+  // what the customer owes from before: the sale's own customer, leaving out what this sale itself still has owed on
+  // it; a customer picked now (a walk-in put on credit), all they owe
+  const balanceOf = (l: Pickable | null) => (l?.balance ? (l.balance.today.side === "debit" ? 1 : -1) * l.balance.today.amount : 0);
+  const oldDue = ledger?.party
+    ? Math.max(0, round2(balanceOf(ledger) - (sale.total - editPaid)))
+    : picked?.party
+      ? Math.max(0, balanceOf(picked))
+      : 0;
   const dueNow = round2(oldDue + total);
+  // credit: what they'll owe after this bill (what was paid towards it taken off)
+  const creditDue = Math.max(0, round2(oldDue + balance));
   // what's received now: a customer types any part of what's left; a walk-in pays all of it; a refund gives back what's
   // paid over
   const [receivedText, setReceivedText] = useState("");
@@ -134,8 +210,9 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
     received > 0 &&
     gridTotal === received &&
     gridAccs.every((p) => p.mode !== null && refOkFor(p.mode, refOf(p.id, p.mode)) && (p.mode !== "upi" || upiIdsOf(p.id).length > 0));
-  // the total changed (a price): what's received starts again; what's received changed: where it came in starts again
-  useEffect(() => setReceivedText(""), [total]);
+  // the total (a price) or cash or credit changed: what's received starts again; what's received changed: where it came
+  // in starts again
+  useEffect(() => setReceivedText(""), [total, kind]);
   useEffect(() => {
     setGridTexts({});
     setGridModes({});
@@ -155,9 +232,15 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
 
   // when each stage is filled in; Next or Save tapped with something missing shows it in red
   const [tried, setTried] = useState(false);
+  const untouched = !pricesChanged && kind === sale.kind;
+  const [jumped, setJumped] = useState(false);
   const complete: Record<EditStep, boolean> = {
     cart: total > 0 && pricesOk,
-    payment: credit || balance === 0 || (received > 0 && intoOk),
+    money: true,
+    customer: !needsCustomer || customer?.kind === "ledger" || (customer?.kind === "party" && !matched && partyOk(newParty, true)),
+    // credit: its period never more than 365 days
+    // (nothing about the money changed: nothing to take now)
+    payment: untouched || (credit ? creditDays === "" || Number(creditDays) <= 365 : balance === 0 || (received > 0 && intoOk)),
     details: day !== "",
   };
   const missingOf = (s: EditStep) =>
@@ -165,18 +248,25 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
       ? t("missing.amount")
       : s === "details"
         ? t("missing.date")
-        : received === 0
-          ? t("missing.received")
-          : gridTotal < received
-            ? t("missing.left", { amount: rupees(round2(received - gridTotal)) })
-            : t("missing.into");
+        : s === "customer"
+          ? t("missing.customer")
+          : credit
+            ? tp("missing.creditDays")
+            : received === 0
+              ? t("missing.received")
+              : gridTotal < received
+                ? t("missing.left", { amount: rupees(round2(received - gridTotal)) })
+                : t("missing.into");
 
   // moving between stages: the phone's Back goes to the stage before
+  const STEPS: EditStep[] = ["cart", "money", ...(needsCustomer ? (["customer"] as const) : []), "payment", "details"];
   const [at, setAt] = useState<EditStep>("cart");
-  const index = STEPS.indexOf(at);
+  const current = STEPS.includes(at) ? at : "money";
+  const index = STEPS.indexOf(current);
   const firstOpen = STEPS.findIndex((s) => !complete[s]);
   const ready = firstOpen === -1;
-  const reachable = (s: EditStep) => STEPS.indexOf(s) <= (ready ? STEPS.length - 1 : firstOpen);
+  // (a stage skipped can't be opened from the summary)
+  const reachable = (s: EditStep) => STEPS.includes(s) && STEPS.indexOf(s) <= (ready ? STEPS.length - 1 : firstOpen);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const remember = useCardHistory<EditStep>("cart", (card) => {
     moveCard(() => {
@@ -202,12 +292,32 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
     setTimeout(() => document.querySelector<HTMLElement>('main section [aria-invalid="true"]')?.focus(), 50);
   }
   function next() {
-    if (!complete[at]) return guide();
+    if (!complete[current]) return guide();
+    // the cart as it was: straight to the details (Back comes back to the cart)
+    if (current === "cart" && untouched) {
+      setJumped(true);
+      return show("details");
+    }
+    setJumped(false);
     show(STEPS[index + 1]!);
   }
+  // Back: the stage before (from the details after the cart was left as it was: the cart)
+  function back() {
+    show(current === "details" && jumped && untouched ? "cart" : STEPS[index - 1]!);
+  }
+  // cash or credit picked: moves straight on (a chip-only stage); a walk-in put on credit starts its customer afresh
+  function pickKind(k: "cash" | "credit") {
+    if (k !== kind) {
+      setKind(k);
+      setCustomer(null);
+      setNewParty(walkInParty(sale));
+      setEditingCustomer(false);
+    }
+    show(walkIn && k === "credit" ? "customer" : "payment");
+  }
 
-  // leaving with a change made asks first (not after the save, which goes back to the sale)
-  const changed = day !== indiaDay(new Date(sale.dateTime)) || total !== sale.total;
+  // leaving with a change made asks first (not after the save, which goes on to its success card)
+  const changed = day !== indiaDay(new Date(sale.dateTime)) || total !== sale.total || kind !== sale.kind;
   const { dialog: leaveDialog } = useLeaveGuard(!saved && changed, onDiscard);
 
   // the save: everything as saved, with the new prices, the day, and what moves now (cash only)
@@ -229,6 +339,11 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
             : t("errors.failed");
   }
   async function save() {
+    // nothing changed (prices, cash or credit, the date): nothing saved, no edit recorded; straight back to the sale
+    if (untouched && day === indiaDay(new Date(sale.dateTime))) {
+      router.replace(`/history/${sale.transactionId}`);
+      return;
+    }
     if (!ready) {
       setAt(STEPS[firstOpen]!);
       return guide();
@@ -251,25 +366,30 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
       packingCharges: sale.packingCharges,
       loadingCharges: sale.loadingCharges,
       kind,
-      cashAmount: moving ? gridPlaces[0]!.amount : 0,
-      bankParts: moving
-        ? gridAccs.map((p) => ({ bankDetailsId: p.id, amount: p.amount, mode: p.mode!, referenceNumber: refOf(p.id, p.mode).trim() || null }))
-        : [],
-      customerLedgerId: null,
-      newCustomer: null,
-      // where it was billed and sent, as saved (a walk-in's typed name, phone and addresses too)
+      creditPeriodDays: credit && creditDays !== "" ? Number(creditDays) : null,
+      cashAmount: moving && !credit ? gridPlaces[0]!.amount : 0,
+      bankParts:
+        moving && !credit
+          ? gridAccs.map((p) => ({ bankDetailsId: p.id, amount: p.amount, mode: p.mode!, referenceNumber: refOf(p.id, p.mode).trim() || null }))
+          : [],
+      // a walk-in put on credit: the customer picked or added now (billed and sent to their own address)
+      customerLedgerId: needsCustomer && customer?.kind === "ledger" ? customer.ledger.id : null,
+      newCustomer: needsCustomer && customer?.kind === "party" ? partyInput(newParty) : null,
+      // otherwise where it was billed and sent, as saved (a walk-in's typed name, phone and addresses too)
       ...(sale.customer
         ? { billToAddressId: sale.billTo && "addressId" in sale.billTo ? sale.billTo.addressId : null, shipTo: sale.shipTo }
-        : {
-            buyer: sale.buyer,
-            shipTo: sale.shipTo,
-            billToAddress: sale.billTo && "address" in sale.billTo ? sale.billTo.address : null,
-          }),
+        : needsCustomer
+          ? {}
+          : {
+              buyer: sale.buyer,
+              shipTo: sale.shipTo,
+              billToAddress: sale.billTo && "address" in sale.billTo ? sale.billTo.address : null,
+            }),
     };
     try {
       const done = await saveEdit(input);
-      // back to the sale in History; replace, so going back doesn't land on the form
-      router.replace(`/history/${done.transactionId}`);
+      // on to its success card; replace, so going back doesn't land on the form
+      router.replace(`/history/${done.transactionId}/edit/done`);
     } catch (err) {
       setSaving(false);
       setSaveError(saveErrorOf(err));
@@ -293,7 +413,19 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
     total,
     kind,
     credit,
+    pickKind,
+    creditDays,
+    setCreditDays,
+    creditDue,
     walkIn,
+    customer,
+    setCustomer,
+    newParty,
+    setNewParty,
+    editingCustomer,
+    setEditingCustomer,
+    matched,
+    setTried,
     editPaid,
     editDueLeft,
     editAdvanceLeft,
@@ -301,7 +433,7 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
     refunding,
     oldDue,
     dueNow,
-    hasAccount: !!ledger?.party,
+    hasAccount: !!ledger?.party || !!picked?.party,
     received,
     receivedText,
     typeReceived: setReceivedText,
@@ -320,7 +452,7 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
     tried,
     complete,
     steps: STEPS,
-    current: at,
+    current,
     index,
     reachable,
     summaryOpen,
@@ -328,6 +460,7 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
     missingOf,
     show,
     next,
+    back,
     leaveDialog,
     save,
     saving: saving || editSaving,

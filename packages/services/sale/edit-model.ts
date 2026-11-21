@@ -26,6 +26,8 @@ export const editSaleInputModel = z
     // cash: what's received now (or refunded, when the bill went down), in cash and bank accounts
     cashAmount: rupeesModel.default(0),
     bankParts: z.array(moreBankPartModel).max(5).default([]),
+    // credit: days until it's due (none: no set period)
+    creditPeriodDays: z.number().int().min(0).max(365).nullable().default(null),
     // a walk-in put on credit: the customer, picked or added now
     customerLedgerId: idModel.nullable().default(null),
     newCustomer: createPartyInputModel.nullable().default(null),
@@ -58,6 +60,7 @@ export const editSaleInputModel = z
   .refine((s) => new Set(s.lines.map((l) => l.productId)).size === s.lines.length, { message: "Each pack size once.", path: ["lines"] })
   .refine((s) => new Set(s.bankParts.map((b) => b.bankDetailsId)).size === s.bankParts.length, { message: "An account is in twice.", path: ["bankParts"] })
   .refine((s) => s.kind === "cash" || (s.cashAmount === 0 && s.bankParts.length === 0), { message: "Credit takes no money now.", path: ["cashAmount"] })
+  .refine((s) => s.kind === "credit" || s.creditPeriodDays === null, { message: "Only credit has a credit period.", path: ["creditPeriodDays"] })
   .refine((s) => s.customerLedgerId === null || s.newCustomer === null, { message: "Pick the customer, or add one.", path: ["customerLedgerId"] });
 
 export type EditSaleInputModel = z.infer<typeof editSaleInputModel>;
@@ -83,6 +86,8 @@ export const saleForEditModel = z.object({
   assignedId: z.string(),
   dateTime: z.date(),
   kind: z.enum(["cash", "credit"]),
+  // credit: days until it's due, as saved (none: no set period)
+  creditPeriodDays: z.number().int().nullable(),
   // the customer (a walk-in: none, with the name and phone typed)
   customer: z.object({ ledgerId: idModel, partyId: idModel, name: z.string() }).nullable(),
   buyer: z.object({ name: z.string(), phone: z.string() }).nullable(),
