@@ -2,6 +2,7 @@
 
 import { Pencil, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 
 import { packLabel, rupees, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
@@ -44,7 +45,7 @@ export function CartCards({
   // the Total row under the cards (left out where it already shows above them)
   showTotal?: boolean;
   // the rows under the photo in place of the price and quantity (a sale return's: Sold, Can return, Returning)
-  detailRows?: (line: CartRow) => { key: string; label: string; value: string }[];
+  detailRows?: (line: CartRow) => { key: string; label: string; value: ReactNode }[];
   // whether a card has the bin (a sale return's: only once something of it is coming back)
   canRemove?: (productId: string) => boolean;
   // two to a row at every width (the sale's Cart card, where the cart has half the card)

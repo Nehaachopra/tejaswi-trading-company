@@ -11,19 +11,20 @@ import { useSaleForReturn } from "~/providers/sale-return";
 import { ProductImage } from "../../product/products/product-tile";
 import { SaleForm } from "../sale/form";
 import { EntryNote, EntryPage, NextButton, StepCard, type SummaryItem, SummaryBar, SummaryCard, SummaryLines } from "../shared/entry-frame";
-import { AmountCard } from "./amount-card";
+import { CartStage } from "./cart-stage";
+import { CustomerStage } from "./customer-stage";
 import { DetailsCard, SaveBlock } from "./details-card";
-import { ItemsCard } from "./items-card";
-import { RefundCard } from "./refund-card";
+import { MoneyStage } from "./money-stage";
+import { PaymentStage } from "./payment-stage";
 import { SettleCard } from "./settle-card";
 import { type ExchangeHandoff, ReturnEntryProvider, type ReturnStep, useReturnEntry, useReturnEntryState } from "./state";
 import type { SaleForReturn } from "~/providers/sale-return";
 
 // /history/[id]/return (the admin's, from a sale's Return button): a sale return, laid out like the sale: one card at a
-// time on the left with Back and Next, and a summary on the right (a bar above the card on a phone). 1 Items: the
-// sale's cart, each with how many come back and where they go; 2 Amount; 3 Exchange or Refund; 4 Refund: where the
-// money goes; 5 Details: the reason, remarks, day and Save. An exchange's Next opens the sale form for the same buyer,
-// whose Save saves both
+// time on the left with Back and Next, and a summary on the right (a bar above the card on a phone). On the shared
+// stages: Cart (how many of each come back, and the godowns they go into), Exchange or Refund, a customer's refund in
+// cash or on credit, Payment (paid back from cash and banks, or left on their account), then Details: the reason,
+// remarks, day and Save. An exchange's Next opens the sale form for the same buyer, whose Save saves both
 export function ReturnForm({ id }: { id: string }) {
   const t = useTranslations("transactions.saleReturn");
   const { sale, loading, loadFailed, retry } = useSaleForReturn(id);
@@ -59,8 +60,9 @@ function ReturnEntry({ sale, onExchange }: { sale: SaleForReturn; onExchange: (h
 
 // the page: what shows while its products load or can't, then the card on its own with the summary
 function ReturnEntryView() {
-  const { t, sale, loading, loadFailed, retry, figures, total, chosen, mode, nameOf, packOf, payBack, places, complete, index, current, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, missingOf, leaveDialog, day, reasonKind, reason, remarks } =
+  const { t, sale, loading, loadFailed, retry, figures, total, chosen, mode, refundIn, pickedChoice, newParty, cashRefund, owedAfter, nameOf, packOf, places, complete, index, current, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, missingOf, leaveDialog, day, reasonKind, reason, remarks } =
     useReturnEntry();
+  const ts = useTranslations("transactions.sale");
   const locale = useLocale();
   // the page names the sale it's against
   const title = t("titleFor", { number: sale.assignedId });
@@ -83,7 +85,7 @@ function ReturnEntryView() {
   const summary: SummaryItem<ReturnStep>[] = [
     {
       key: "items",
-      step: "items",
+      step: "cart",
       heading: t("steps.items"),
       value: figures.items.map((i) => {
         const found = packOf(i.productId);
@@ -95,21 +97,31 @@ function ReturnEntryView() {
         };
       }),
     },
-    { key: "amount", step: "amount", heading: t("steps.amount"), value: complete.amount && index > 0 ? rupees(total) : null },
     { key: "settle", step: "settle", heading: t("returnType"), value: mode ? t(`modes.${mode}`) : null },
-    ...(mode === "refund"
+    // a customer's refund: cash or credit
+    ...(mode === "refund" ? [{ key: "money", step: "money" as const, heading: ts("steps.money"), value: refundIn ? ts(`kinds.${refundIn}`) : null }] : []),
+    // a walk-in's refund on credit: who it goes to
+    ...(steps.includes("customer")
       ? [
           {
-            key: "refund",
-            step: "refund" as const,
-            heading: t("steps.refund"),
-            value:
-              payBack === 0
-                ? index > steps.indexOf("refund")
-                  ? t("onAccount")
-                  : null
-                : places.filter((p) => p.amount > 0).map((p) => ({ name: `${p.name} ${p.sub ?? ""}`.trim(), amount: rupees(p.amount) })),
+            key: "customer",
+            step: "customer" as const,
+            heading: ts("steps.customer"),
+            value: pickedChoice?.kind === "ledger" ? pickedChoice.ledger.name : pickedChoice?.kind === "party" && newParty.name.trim() ? newParty.name.trim() : null,
           },
+        ]
+      : []),
+    // paid back: where from; on credit: what's left owed
+    ...(mode === "refund"
+      ? [
+          cashRefund
+            ? {
+                key: "payment",
+                step: "payment" as const,
+                heading: t("steps.refund"),
+                value: places.filter((p) => p.amount > 0).map((p) => ({ name: `${p.name} ${p.sub ?? ""}`.trim(), amount: rupees(p.amount) })),
+              }
+            : { key: "payment", step: "payment" as const, heading: ts("leftDue"), value: refundIn === "credit" && index >= steps.indexOf("payment") ? rupees(owedAfter) : null },
         ]
       : []),
     // the details, each under its own heading: the day (once on Details), why it came back, and any remarks
@@ -150,16 +162,26 @@ function ReturnEntryView() {
       <StepCard
         key={current}
         id={current}
-        name={t(`steps.${current}`)}
-        // Items names its own parts
-        hideName={current === "items"}
+        name={current === "money" ? ts("steps.money") : current === "customer" ? ts("steps.customer") : current === "payment" ? ts(cashRefund ? "steps.received" : "steps.due") : t(`steps.${current}`)}
         onBack={index > 0 ? () => show(steps[index - 1]!) : null}
         onChange={null}
         missing={tried && !complete[current] ? missingOf(current) : null}
-        // Exchange or Refund waits for a pick and moves on by itself; Details saves
-        end={current === "details" ? <SaveBlock /> : current === "settle" ? null : <NextButton onClick={next} />}
+        // Exchange or Refund, and Cash or credit, wait for a pick and move on by themselves; Details saves
+        end={current === "details" ? <SaveBlock /> : current === "settle" || current === "money" ? null : <NextButton onClick={next} />}
       >
-        {current === "items" ? <ItemsCard /> : current === "amount" ? <AmountCard /> : current === "settle" ? <SettleCard /> : current === "refund" ? <RefundCard /> : <DetailsCard />}
+        {current === "cart" ? (
+          <CartStage />
+        ) : current === "settle" ? (
+          <SettleCard />
+        ) : current === "money" ? (
+          <MoneyStage />
+        ) : current === "customer" ? (
+          <CustomerStage />
+        ) : current === "payment" ? (
+          <PaymentStage />
+        ) : (
+          <DetailsCard />
+        )}
       </StepCard>
     </EntryPage>
   );

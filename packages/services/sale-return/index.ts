@@ -285,7 +285,9 @@ export default class SaleReturnService {
   // and how much of the return that sale took in cash (a walk-in's)
   private async createIn(
     tx: Tx,
-    input: Omit<CreateSaleReturnInputModel, "saveKey">,
+    // (an exchange's return has no refundIn: it all goes to the new sale)
+    input: Omit<CreateSaleReturnInputModel, "saveKey" | "refundIn" | "customerLedgerId" | "newCustomer"> &
+      Partial<Pick<CreateSaleReturnInputModel, "refundIn" | "customerLedgerId" | "newCustomer">>,
     actor: ActorModel,
     exchange: { saleId: string | null; used: number } | null,
   ) {
@@ -301,7 +303,12 @@ export default class SaleReturnService {
     await this.transactions.assertOpen(tx, "gstr1", input.dateTime);
 
     const f = this.figure(loaded, input.lines);
-    const customer = await this.customerOf(tx, sale.partyId);
+    let customer = await this.customerOf(tx, sale.partyId);
+    // a walk-in's refund on credit goes to a customer's account: the one picked, or added now
+    if (!customer && !exchange && input.refundIn === "credit") {
+      if (!input.customerLedgerId && !input.newCustomer) throw new TRPCError({ code: "BAD_REQUEST", message: "Pick the customer, or add one." });
+      customer = await this.sales.customerIn(tx, { customerLedgerId: input.customerLedgerId ?? null, newCustomer: input.newCustomer ?? null });
+    }
     const intra = sale.supplyType !== "inter";
     const cgst = intra ? Math.floor(f.gst / 2) : 0;
     const sgst = intra ? f.gst - cgst : 0;
@@ -319,12 +326,12 @@ export default class SaleReturnService {
     const refund = await this.refundLines(tx, input.cashAmount, input.bankParts);
     let onAccount = 0;
     if (customer) {
-      // an exchange keeps it all on their account (the new sale takes it); a refund first takes it off what's still
-      // owed on this bill, and pays back what's over that, all of it, now
+      // an exchange keeps it all on their account (the new sale takes it); a refund in cash pays all of it back now, on
+      // credit none of it (it comes off what they owe, the rest an advance)
       if (exchange && refund.paid > 0) throw new TRPCError({ code: "BAD_REQUEST", message: "An exchange pays nothing back to a customer." });
-      // (what's paid back: what the return has over all they owe, this bill and older ones; an advance they hold stays)
-      const over = Math.max(0, f.total - customer.owed);
-      if (!exchange && refund.paid !== over) throw new TRPCError({ code: "BAD_REQUEST", message: `Pay back ₹${(over / 100).toLocaleString("en-IN")}; the rest comes off what they owe.` });
+      const refundIn = input.refundIn ?? "credit";
+      if (!exchange && refundIn === "cash" && refund.paid !== f.total) throw new TRPCError({ code: "BAD_REQUEST", message: "Cash and bank must add up to the total." });
+      if (!exchange && refundIn === "credit" && refund.paid !== 0) throw new TRPCError({ code: "BAD_REQUEST", message: "A refund on credit pays nothing back now." });
       lines.push({ ledgerId: customer.ledgerId, side: "credit", amount: f.total / 100 });
       if (refund.paid > 0) lines.push({ ledgerId: customer.ledgerId, side: "debit", amount: refund.paid / 100 });
       onAccount = f.total - refund.paid;

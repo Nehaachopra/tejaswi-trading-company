@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { createPartyInputModel } from "../party/model";
 import { moreBankPartModel } from "../payment/model";
 import { createSaleInputModel } from "../sale/model";
 import { companyModel } from "../setting/model";
@@ -44,16 +45,21 @@ const returnBaseModel = z.object({
 const reasonGiven = (r: { reasonKind: string; reason: string | null }) => (r.reasonKind === "other") === !!r.reason;
 const reasonIssue = { message: "Say why, for Other only.", path: ["reason"] };
 
-// a refund: the total comes off what the customer owes; what's over is paid back now from cash and bank accounts (a
-// walk-in: all of it) or left as an advance
+// a refund, in cash or on credit: cash pays the whole total back now from cash and bank accounts; credit keeps it on
+// the customer's account, off what they owe and the rest an advance (a walk-in's goes to a customer picked or added now)
 export const createSaleReturnInputModel = returnBaseModel
   .extend({
+    refundIn: z.enum(["cash", "credit"]).default("cash"),
+    // a walk-in's refund on credit: the customer it goes to, picked or added now
+    customerLedgerId: idModel.nullable().default(null),
+    newCustomer: createPartyInputModel.nullable().default(null),
     cashAmount: rupeesModel.default(0),
     bankParts: z.array(moreBankPartModel).max(5).default([]),
   })
   .refine((r) => new Set(r.lines.map((l) => l.productId)).size === r.lines.length, { message: "Each pack size once.", path: ["lines"] })
   .refine((r) => new Set(r.bankParts.map((b) => b.bankDetailsId)).size === r.bankParts.length, { message: "An account is in twice.", path: ["bankParts"] })
-  .refine(reasonGiven, reasonIssue);
+  .refine(reasonGiven, reasonIssue)
+  .refine((r) => r.customerLedgerId === null || r.newCustomer === null, { message: "Pick the customer, or add one.", path: ["customerLedgerId"] });
 
 export type CreateSaleReturnInputModel = z.infer<typeof createSaleReturnInputModel>;
 

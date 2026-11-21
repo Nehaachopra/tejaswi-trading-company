@@ -8,7 +8,9 @@ import { Spinner } from "~/components/ui/icons/spinner";
 import { amountInWords } from "~/lib/amount-words";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
+import type { HistoryTransaction } from "~/providers/history";
 import { type CreditNote, useCreditNote } from "~/providers/sale-return";
+
 
 import { Breakup, DocHead, LAST_COL, Remarks } from "../done/document-parts";
 import { band, cell, dated, Detail, money } from "../done/voucher";
@@ -22,7 +24,8 @@ const pill =
 // the items back (quantity, a pack's price, the discount off the line, taxable value, GST % and the GST by tax, total);
 // then the breakup (the cash discount taken back, the round off) closing in the amount credited, in words too. A
 // cancelled one carries a CANCELLED stamp
-export function CreditNoteView({ id }: { id: string }) {
+// `history`: opened from a sale's Returns in History: back goes to the sale (a return is never cancelled)
+export function CreditNoteView({ id, history }: { id: string; history?: { record: HistoryTransaction; isAdmin: boolean } }) {
   const t = useTranslations("transactions.saleReturn.note");
   const ti = useTranslations("transactions.sale.invoice");
   const tr = useTranslations("transactions.saleReturn");
@@ -46,6 +49,12 @@ export function CreditNoteView({ id }: { id: string }) {
   const cancelled = d.status === "cancelled";
   const intra = d.supplyType === "intra";
   const buyer = d.buyer.name.trim() ? titleCase(d.buyer.name) : ti("walkIn");
+  // how it was settled, each part it has: exchanged against the new sale, paid back, adjusted in their account
+  const settled = [
+    ...(d.exchangeSale ? [t("exchanged", { number: d.exchangeSale.assignedId })] : []),
+    ...(d.settled.refunded > 0 ? [t("paidBack", { amount: money(d.settled.refunded) })] : []),
+    ...(d.settled.onAccount > 0 && !d.exchangeSale ? [t("onAccount", { amount: money(d.settled.onAccount) })] : []),
+  ].join(", ");
   // half of a line's GST to each of CGST and SGST (the odd paisa to SGST)
   const halves = (gst: number) => {
     const h = Math.floor((gst * 100) / 2 + 1e-6) / 100;
@@ -68,10 +77,10 @@ export function CreditNoteView({ id }: { id: string }) {
     <main className="mx-auto max-w-4xl px-4 pb-28 pt-6 sm:px-6">
       <h1 className="sr-only">{t("title")}</h1>
 
-      {/* back to the return's page, and the download (the page printed as a PDF) */}
+      {/* back to the return's page (from History: to its sale), and the download (the page printed as a PDF) */}
       <div className="no-print mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <Link href={`/transaction/sale-return/${id}`} className="flex min-h-11 items-center gap-1.5 text-sm font-medium">
-          <ArrowLeft className="size-4" aria-hidden /> {t("back")}
+        <Link href={history ? `/history/${d.sale.transactionId}` : `/transaction/sale-return/${id}`} className="flex min-h-11 items-center gap-1.5 text-sm font-medium">
+          <ArrowLeft className="size-4" aria-hidden /> {history ? d.sale.assignedId : t("back")}
         </Link>
         <button type="button" onClick={() => window.print()} className={pill}>
           <Download className="size-4" aria-hidden /> {ti("download")}
@@ -113,6 +122,10 @@ export function CreditNoteView({ id }: { id: string }) {
                 <Detail label={ti("dated")} value={dated(`${d.noteDate}T12:00:00+05:30`)} />
                 <Detail label={t("invoice")} value={d.sale.assignedId} />
                 <Detail label={t("invoiceDate")} value={dated(`${d.sale.invoiceDate}T12:00:00+05:30`)} />
+                {/* how it was settled (paid back, adjusted in their account, or exchanged against a new sale; each part it
+                    has), alone on its row */}
+                <span className={cn(cell, "border-b border-r font-medium")}>{t("settled")}</span>
+                <span className={cn(cell, "border-b sm:col-span-3 sm:border-r-0!")}>{settled}</span>
                 {/* the reason, last and alone on its row */}
                 <span className={cn(cell, "border-b border-r font-medium")}>{tr("reason")}</span>
                 <span className={cn(cell, "border-b sm:col-span-3 sm:border-r-0!")}>{d.reasonKind === "other" ? d.reason : tr(`reasons.${d.reasonKind}`)}</span>

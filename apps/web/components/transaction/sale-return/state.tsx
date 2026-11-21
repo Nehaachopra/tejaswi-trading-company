@@ -11,17 +11,21 @@ import { useLeaveGuard } from "~/lib/use-leave-guard";
 import { type SaleForReturn, useReturnSources, useSaveReturn } from "~/providers/sale-return";
 
 import { indiaDay } from "../../account/balance";
+import { draftInput as partyInput, draftOk as partyOk, emptyDraft as emptyParty, type PartyDraft } from "../../account/party/party-fields";
 import type { Pack, ProductGroup } from "../../product/products/product-tile";
+import type { LedgerChoice, Pickable } from "../pickers/ledger-picker";
+import { usePhoneMatches } from "../pickers/party-finder";
 import { productTitle } from "../../product/products/product-tile";
 import { refOkFor } from "../shared/bank-mode";
 import { moveCard, useCardHistory } from "../shared/card-steps";
 import { momentOf } from "../shared/form-basics";
+import type { GodownSpot } from "../shared/product-details-card";
 import type { GridPlace } from "../shared/split-grid";
 
-// the cards, in order: the items coming back, the amount, Exchange or Refund, the refund (who gets what back, and from
-// where), then the day, reason, remarks and Save (an exchange: Next, to its new sale)
-export type ReturnStep = "items" | "amount" | "settle" | "refund" | "details";
-const ALL_STEPS: ReturnStep[] = ["items", "amount", "settle", "refund", "details"];
+// the stages, in order, as a sale's: the cart (how many of each come back), Exchange or Refund, a customer's refund in
+// cash or on credit, the payment (cash paid back, or what's left on their account), then the reason, remarks, day and
+// Save (an exchange: on to its new sale)
+export type ReturnStep = "cart" | "settle" | "money" | "customer" | "payment" | "details";
 
 export const REASONS = ["damaged", "shortage", "wrong_item", "other"] as const;
 export type Reason = (typeof REASONS)[number];
@@ -33,9 +37,6 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 // one item of the sale on the return: how many come back, and how many go into each godown
 export type ReturnLine = { quantity: string; godowns: Record<string, string> };
 export const placedOf = (l: ReturnLine) => Object.values(l.godowns).reduce((a, v) => a + (Number(v) || 0), 0);
-
-// a godown the packs can go back into: its name, what it holds of that pack now, whether it's being counted (locked)
-export type GodownSpot = { godownId: string; name: string; held: number; counting: boolean };
 
 // what an exchange hands the sale form: the return as it will be saved, its total, and who it's for (the customer, or
 // a walk-in's name and phone); the packs coming back are counted as stock the new sale can take
@@ -64,13 +65,11 @@ function billOf(sale: SaleForReturn, left: (l: SaleForReturn["lines"][number]) =
     return { l, value, gst: Math.round((value * l.gstRate) / 100) };
   });
   const charges = p(sale.transportCharges) + p(sale.packingCharges) + p(sale.loadingCharges);
-  const rate = Math.max(0, ...items.filter((x) => left(x.l) > 0).map((x) => x.l.gstRate));
-  const chargeTaxable = Math.round((charges * 100) / (100 + rate));
   const itemsTotal = items.reduce((a, x) => a + x.value + x.gst, 0);
   const gross = itemsTotal + charges;
   const off = Math.min(p(sale.discount), gross);
   const total = Math.round((gross - off) / 100) * 100;
-  return { itemsTotal, chargeTaxable, off, total, roundOff: total - (gross - off) };
+  return { itemsTotal, off, total, roundOff: total - (gross - off) };
 }
 
 // a return's figures in paise: the bill as it stands less the bill as if these packs had never been sold (the
@@ -84,22 +83,42 @@ export function figureReturn(sale: SaleForReturn, quantities: Record<string, num
       const value = Math.round(l.rate * 100) * quantities[l.productId]!;
       return { productId: l.productId, quantity: quantities[l.productId]!, total: value + Math.round((value * l.gstRate) / 100) };
     });
-  return { items, itemsTotal: items.reduce((a, i) => a + i.total, 0), after, total: before.total - after.total };
+  return {
+    items,
+    itemsTotal: items.reduce((a, i) => a + i.total, 0),
+    // the cash discount that no longer fits the smaller bill, and the round off's change
+    discount: before.off - after.off,
+    roundOff: before.roundOff - after.roundOff,
+    after,
+    total: before.total - after.total,
+  };
 }
 
-// everything the return form holds and works out. Made once in ReturnEntry; every card reads it with useReturnEntry()
+// what a customer picked owes and holds now, in rupees
+const accountOf = (l: Pickable) => {
+  const b = l.balance?.today;
+  return { owed: b?.side === "debit" ? b.amount : 0, held: b?.side === "credit" ? b.amount : 0 };
+};
+
+// a walk-in's refund on credit, as a new customer: the sale's name and phone (the rest typed; the short name left to
+// type)
+export const buyerParty = (sale: SaleForReturn): PartyDraft => ({ ...emptyParty(), name: sale.buyer?.name ?? "", phone: sale.buyer?.phone ?? "" });
+
+// everything the return form holds and works out. Made once in ReturnEntry; every stage reads it with useReturnEntry()
 export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn; onExchange: (h: ExchangeHandoff) => void }) {
   const t = useTranslations("transactions.saleReturn");
+  const ts = useTranslations("transactions.sale");
   const tc = useTranslations("transactions.chat");
   const locale = useLocale();
   const router = useRouter();
   const { products, stock, money, loading, loadFailed, retry } = useReturnSources();
   const { saveRefund, saving: savingNow, saved } = useSaveReturn();
 
-  // the answers: each item's quantity and godowns, Exchange or Refund, a customer's "pay it back now", the money split,
-  // the day, the reason and remarks
+  // the answers: each item's quantity and godowns, Exchange or Refund, a customer's refund in cash or on credit, the
+  // money split, the day, the reason and remarks
   const [lines, setLines] = useState<Record<string, ReturnLine>>({});
   const [mode, setMode] = useState<"exchange" | "refund" | null>(null);
+  const [refundIn, setRefundIn] = useState<"cash" | "credit" | null>(null);
   const [splitTexts, setSplitTexts] = useState<Record<string, string>>({});
   const [bankModes, setBankModes] = useState<Record<string, BankMode | null>>({});
   const [refs, setRefs] = useState<Record<string, { mode: BankMode; text: string }>>({});
@@ -111,10 +130,10 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
   const [saveKey] = useState(() => crypto.randomUUID());
   const [saveError, setSaveError] = useState<string | null>(null);
   const [tried, setTried] = useState(false);
-  // the line card over the page: the item being changed
+  // the product details card over the page: the item being changed
   const [cardFor, setCardFor] = useState<string | null>(null);
 
-  // each pack size with its product (a name, photo and pack chip); a pack size since deleted shows by the sale's name
+  // each pack size with its product (a name, photo and pack chip)
   const packs = new Map<string, { group: ProductGroup; pack: Pack }>();
   for (const group of products) for (const pack of group.packs) packs.set(pack.productId, { group, pack });
   const packOf = (id: string) => packs.get(id) ?? null;
@@ -122,9 +141,10 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
     const p = packOf(id);
     return p ? `${productTitle(p.group)} ${packLabel(p.pack.packSize, p.pack.packSizeCode, p.pack.packCount)}` : (sale.lines.find((l) => l.productId === id)?.name ?? "");
   };
+  const saleLine = (id: string) => sale.lines.find((l) => l.productId === id)!;
   // the godowns a pack can go back into: every godown, with what it holds of that pack now (the ones it left first)
   const godownsOf = (productId: string): GodownSpot[] => {
-    const left = sale.lines.find((l) => l.productId === productId)?.godowns.map((g) => g.godownId) ?? [];
+    const left = saleLine(productId).godowns.map((g) => g.godownId);
     const all = stock.map((g) => ({
       godownId: g.godownId,
       name: g.godownName,
@@ -134,8 +154,12 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
     return [...all.filter((g) => left.includes(g.godownId)), ...all.filter((g) => !left.includes(g.godownId))];
   };
   const lineOf = (id: string): ReturnLine => lines[id] ?? { quantity: "", godowns: {} };
-  const putLine = (id: string, line: ReturnLine) => setLines((all) => ({ ...all, [id]: line }));
-  const removeLine = (id: string) => setLines((all) => Object.fromEntries(Object.entries(all).filter(([k]) => k !== id)));
+  // a line saved from the product details card (none coming back: off the return)
+  const putLine = (id: string, line: ReturnLine) =>
+    setLines((all) => {
+      const rest = Object.fromEntries(Object.entries(all).filter(([k]) => k !== id));
+      return (Number(line.quantity) || 0) > 0 ? { ...rest, [id]: line } : rest;
+    });
 
   // the figures
   const quantities = Object.fromEntries(Object.entries(lines).map(([id, l]) => [id, Number(l.quantity) || 0]));
@@ -143,15 +167,24 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
   const total = f.total / 100;
   const chosen = f.items.length;
 
-  // the bill as if what comes back had never been sold, less what was paid towards it (the Amount card's To pay or To
-  // receive)
+  // a refund in cash pays it all back now; on credit it stays on the customer's account (off what they owe, the rest an
+  // advance). A walk-in's on credit goes to a customer picked or added now (the sale's name and phone filled in)
   const customer = sale.customer;
-  const billAfter = f.after.total / 100;
-  const balance = round2(billAfter - sale.paid);
-  // what's paid back: a walk-in, all of it; a customer, what the return has over all they owe (this bill and older
-  // ones), the rest coming off it; an advance they hold stays theirs
-  const refundDue = customer ? Math.max(0, round2(total - customer.owed)) : total;
-  const payBack = mode === "refund" ? refundDue : 0;
+  const walkIn = !customer;
+  const cashRefund = mode === "refund" && refundIn === "cash";
+  const payBack = cashRefund ? total : 0;
+  const needsCustomer = walkIn && mode === "refund" && refundIn === "credit";
+  const [pickedChoice, setPickedChoice] = useState<LedgerChoice>(null);
+  const [newParty, setNewParty] = useState<PartyDraft>(() => buyerParty(sale));
+  const [editingCustomer, setEditingCustomer] = useState(false);
+  const picked = pickedChoice?.kind === "ledger" ? pickedChoice.ledger : null;
+  const matches = usePhoneMatches(needsCustomer && pickedChoice?.kind === "party" ? newParty.phone : "", "customer");
+  const matched = matches[0] ?? null;
+  // credit: what they owe and hold now (the sale's customer, or the one picked; someone new: nothing), then once the
+  // return is taken off
+  const account = customer ?? (picked ? accountOf(picked) : { owed: 0, held: 0 });
+  const owedAfter = Math.max(0, round2(account.owed - total));
+  const advanceAfter = round2(account.held + Math.max(0, round2(total - account.owed)));
 
   // the places it's paid back from: cash and every bank account, each never past what it holds (staff never get here)
   const placeList = [{ id: "cash", held: money?.cash ?? null }, ...(money?.banks ?? []).map((b) => ({ id: b.id, held: b.available }))];
@@ -168,8 +201,7 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
     };
   });
   const splitTotal = round2(places.reduce((a, p) => a + p.amount, 0));
-  const used = places.filter((p) => p.amount > 0);
-  const banksUsed = used.filter((p) => p.id !== "cash");
+  const banksUsed = places.filter((p) => p.id !== "cash" && p.amount > 0);
   const refOf = (id: string, m: BankMode | null) => (m && refs[id]?.mode === m ? refs[id]!.text : "");
   // what cash and the banks hold together: never more can be paid back
   const payCap = places.every((p) => p.held !== null) ? round2(places.reduce((a, p) => a + Math.max(0, p.held!), 0)) : null;
@@ -185,34 +217,35 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
     setBankModes({});
   }
 
-  // when each card is filled in
+  // when each stage is filled in
   const linesOk =
     chosen > 0 &&
     Object.entries(lines).every(([id, l]) => {
       const q = Number(l.quantity) || 0;
-      const can = sale.lines.find((x) => x.productId === id)?.canReturn ?? 0;
-      return q === 0 || (q <= can && placedOf(l) === q);
+      return q <= saleLine(id).canReturn && placedOf(l) === q;
     });
   const reasonOk = reasonKind !== null && (reasonKind !== "other" || reason.trim() !== "");
   const complete: Record<ReturnStep, boolean> = {
-    items: linesOk,
-    amount: total > 0,
+    cart: linesOk && total > 0,
     settle: mode !== null,
-    refund: payBack === 0 || ((payCap === null || payBack <= payCap) && splitOk),
+    money: refundIn !== null,
+    customer: !needsCustomer || pickedChoice?.kind === "ledger" || (pickedChoice?.kind === "party" && !matched && partyOk(newParty, true)),
+    payment: payBack === 0 || ((payCap === null || payBack <= payCap) && splitOk),
     details: day !== "" && reasonOk,
   };
-  // a refund with money to pay back asks where it's paid from; an exchange goes straight to Details
-  const STEPS = ALL_STEPS.filter((s) => s !== "refund" || mode === "refund");
-  const [at, setAt] = useState<ReturnStep>("items");
+  // a refund asks cash or credit (a walk-in's on credit: then who it goes to), then shows the payment or the due; an
+  // exchange goes straight to Details
+  const STEPS: ReturnStep[] = ["cart", "settle", ...(mode === "refund" ? (["money", ...(needsCustomer ? ["customer"] : []), "payment"] as ReturnStep[]) : []), "details"];
+  const [at, setAt] = useState<ReturnStep>("cart");
   const current = STEPS.includes(at) ? at : "details";
   const index = STEPS.indexOf(current);
   const firstOpen = STEPS.findIndex((s) => !complete[s]);
   const ready = firstOpen === -1;
-  const reachable = (s: ReturnStep) => STEPS.indexOf(s) <= (ready ? STEPS.length - 1 : firstOpen);
+  const reachable = (s: ReturnStep) => STEPS.includes(s) && STEPS.indexOf(s) <= (ready ? STEPS.length - 1 : firstOpen);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
-  // the phone's Back goes to the card before
-  const remember = useCardHistory<ReturnStep>("items", (card) => {
+  // the phone's Back goes to the stage before
+  const remember = useCardHistory<ReturnStep>("cart", (card) => {
     moveCard(() => {
       setTried(false);
       setAt(card);
@@ -239,29 +272,38 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
     if (!complete[current]) return guide();
     show(STEPS[index + 1]!);
   }
-  // Exchange or Refund picked: moves straight on (a chip-only card)
+  // Exchange or Refund picked: moves straight on (a chip-only stage)
   function pickMode(m: "exchange" | "refund") {
     setMode(m);
-    show(m === "refund" ? "refund" : "details");
+    show(m === "exchange" ? "details" : "money");
+  }
+  // a refund in cash or on credit: moves straight on (a walk-in's on credit: to who it goes to)
+  function pickRefundIn(k: "cash" | "credit") {
+    setRefundIn(k);
+    show(walkIn && k === "credit" ? "customer" : "payment");
   }
 
-  // what each card still needs, once Next or Save was tapped
+  // what each stage still needs, once Next or Save was tapped
   const missingOf = (s: ReturnStep) =>
-    s === "items"
+    s === "cart"
       ? chosen === 0
         ? t("missing.items")
         : t("missing.godowns")
       : s === "settle"
         ? t("missing.mode")
-        : s === "refund"
-          ? payCap !== null && payBack > payCap
-            ? t("missing.cap", { amount: rupees(payCap) })
-            : splitTotal < payBack
-              ? t("missing.left", { amount: rupees(round2(payBack - splitTotal)) })
-              : t("missing.into")
-          : !reasonOk
-            ? t("missing.reason")
-            : t("missing.date");
+        : s === "money"
+          ? t("missing.refundIn")
+          : s === "customer"
+            ? ts("missing.customer")
+          : s === "payment"
+            ? payCap !== null && payBack > payCap
+              ? t("missing.cap", { amount: rupees(payCap) })
+              : splitTotal < payBack
+                ? t("missing.left", { amount: rupees(round2(payBack - splitTotal)) })
+                : t("missing.into")
+            : !reasonOk
+              ? t("missing.reason")
+              : t("missing.date");
 
   // leaving with something entered asks first (not after a save)
   const { dialog: leaveDialog } = useLeaveGuard(!saved && chosen > 0, () => setLines({}));
@@ -319,6 +361,10 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
       const r = await saveRefund({
         saveKey,
         ...returnInput(),
+        refundIn: cashRefund ? "cash" : "credit",
+        // a walk-in's on credit: the customer picked, or added now
+        customerLedgerId: needsCustomer && pickedChoice?.kind === "ledger" ? pickedChoice.ledger.id : null,
+        newCustomer: needsCustomer && pickedChoice?.kind === "party" ? partyInput(newParty) : null,
         cashAmount: payBack > 0 ? (places[0]?.amount ?? 0) : 0,
         bankParts:
           payBack > 0
@@ -342,11 +388,11 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
     retry,
     packOf,
     nameOf,
+    saleLine,
     godownsOf,
     lines,
     lineOf,
     putLine,
-    removeLine,
     cardFor,
     setCardFor,
     figures: f,
@@ -354,9 +400,22 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
     chosen,
     mode,
     pickMode,
+    refundIn,
+    pickRefundIn,
     customer,
-    billAfter,
-    balance,
+    walkIn,
+    pickedChoice,
+    setPickedChoice,
+    newParty,
+    setNewParty,
+    editingCustomer,
+    setEditingCustomer,
+    matched,
+    setTried,
+    cashRefund,
+    oldDue: account.owed,
+    owedAfter,
+    advanceAfter,
     payBack,
     payCap,
     places,

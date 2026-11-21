@@ -2,15 +2,13 @@
 
 import { CircleAlert, CircleCheck, FileText, Plus } from "lucide-react";
 import Link from "next/link";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
 import { CopyButton } from "~/components/ui/copy-button";
 import { PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/icons/spinner";
-import { bankNameIn } from "~/lib/bank-names";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { useMoneyHeld } from "~/providers/saved";
 import { useCreditNote } from "~/providers/sale-return";
 
 import { NEW_TRANSACTION_HREF } from "../../shell/nav-items";
@@ -30,17 +28,11 @@ function Rows({ rows }: { rows: { key: string; label: string; value: React.React
 }
 
 // /transaction/sale-return/[id], where a saved return lands: that it worked, its transaction ID with its copy button and
-// the credit note beside it, then what it came to and where it went (off the account, paid back, or the exchange's new
-// sale, with its number to copy); after money is paid back, what cash and each bank account hold now; then the way to
-// a new transaction
+// the credit note beside it, then the items and the total in one box (no payment details), and the way to a new
+// transaction
 export function ReturnSuccess({ id }: { id: string }) {
   const t = useTranslations("transactions.saleReturn.done");
-  const tc = useTranslations("transactions.chat");
-  const locale = useLocale();
   const { note, loading, loadFailed } = useCreditNote(id);
-  // what cash and the banks hold, asked again so it includes this one (only once it's in hand)
-  const sources = useMoneyHeld({ fresh: true, enabled: !!note && note.settled.refunded > 0 });
-  const held = sources.money && sources.money.cash !== null && !sources.fetching ? sources.money : null;
 
   return (
     <main className={`${PAGE} pb-28`}>
@@ -81,40 +73,13 @@ export function ReturnSuccess({ id }: { id: string }) {
             </Link>
           </div>
 
-          {/* what it came to and where it went */}
+          {/* how many items came back, and the total */}
           <Rows
             rows={[
+              { key: "items", label: t("items"), value: note.lines.length.toLocaleString("en-IN") },
               { key: "total", label: t("total"), value: rupees(note.total) },
-              ...(note.settled.onAccount > 0 ? [{ key: "account", label: t("onAccount"), value: rupees(note.settled.onAccount) }] : []),
-              ...(note.settled.refunded > 0 ? [{ key: "refunded", label: t("refunded"), value: rupees(note.settled.refunded) }] : []),
-              ...(note.exchangeSale
-                ? [
-                    {
-                      key: "sale",
-                      label: t("newSale"),
-                      value: (
-                        <span className="flex items-center gap-1">
-                          <Link href={`/transaction/sale/${note.exchangeSale.transactionId}`} className="underline underline-offset-4">
-                            {note.exchangeSale.assignedId}
-                          </Link>
-                          <CopyButton value={note.exchangeSale.assignedId} />
-                        </span>
-                      ),
-                    },
-                  ]
-                : []),
             ]}
           />
-
-          {/* money paid back: what cash and each bank account hold now */}
-          {held && (
-            <Rows
-              rows={[
-                { key: "cash", label: tc("cash"), value: rupees(held.cash ?? 0) },
-                ...held.banks.map((b) => ({ key: b.id, label: `${bankNameIn(b.bankName, locale)} ••${b.last4}`, value: rupees(b.available ?? 0) })),
-              ]}
-            />
-          )}
 
           {/* on to the next one */}
           <Link

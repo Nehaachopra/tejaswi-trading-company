@@ -31,6 +31,7 @@ export function CartStage({
   idPrefix,
   cards,
   count,
+  itemCount,
   itemsTotal,
   discount,
   setDiscount,
@@ -47,6 +48,8 @@ export function CartStage({
   // the cart's cards
   cards: ReactNode;
   count: number;
+  // the Items figure when it isn't the number of cards (a return: how many items come back)
+  itemCount?: number;
   itemsTotal: number;
   discount: string;
   setDiscount: (v: string) => void;
@@ -84,7 +87,7 @@ export function CartStage({
         {/* how many items, then the cart's total as the Amount */}
         <div className={plainRow}>
           <span className="min-w-0">{t("items")}</span>
-          <span className={figure}>{count}</span>
+          <span className={figure}>{itemCount ?? count}</span>
         </div>
         <div className={plainRow}>
           <span className="min-w-0">{t("amount")}</span>
