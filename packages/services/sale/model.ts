@@ -190,6 +190,9 @@ export const saleInvoiceModel = z.object({
   invoiceDate: z.string(),
   status: z.enum(["active", "cancelled"]),
   kind: z.enum(["cash", "credit"]),
+  // the payment terms at the sale: what it settled then (the rest owed), and the day the rest is due (none: no set day)
+  paidAtSale: z.number(),
+  dueOn: z.string().nullable(),
   company: companyModel,
   buyer: z.object({ name: z.string(), shortName: z.string().nullable(), phone: z.string().nullable(), gstin: z.string().nullable() }),
   billTo: invoiceAddressModel.nullable(),

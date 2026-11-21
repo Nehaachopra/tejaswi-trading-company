@@ -3,6 +3,8 @@ import { and, asc, db, eq, inArray } from "@repo/database";
 import {
   bankDetailsTable,
   categoriesTable,
+  dueSettlementsTable,
+  duesTable,
   godownsTable,
   ledgersTable,
   partiesTable,
@@ -501,6 +503,17 @@ export default class SaleService {
     });
     const intra = s.supplyType === "intra";
     const cgst = intra ? Math.floor(gstAll / 2) : 0;
+    // the payment terms as they stood at the sale: what this sale itself settled (a walk-in pays it all), and the day
+    // what's left is due (credit with a period). Later receipts don't change the invoice
+    const [due] = await db.select({ id: duesTable.id, dueOn: duesTable.dueOn }).from(duesTable).where(eq(duesTable.transactionId, t.id));
+    const settledAtSale = due
+      ? (
+          await db
+            .select({ amount: dueSettlementsTable.amount })
+            .from(dueSettlementsTable)
+            .where(and(eq(dueSettlementsTable.dueId, due.id), eq(dueSettlementsTable.transactionId, t.id)))
+        ).reduce((a, r) => a + toPaise(Number(r.amount)), 0)
+      : toPaise(Number(t.amount));
     const place = (line1: string | null, line2: string | null, city: string | null, district: string | null, state: string | null, stateCode: string | null, postalCode: string | null) => ({
       line1,
       line2,
@@ -516,6 +529,8 @@ export default class SaleService {
       invoiceDate: s.invoiceDate,
       status: t.status === "cancelled" ? "cancelled" : "active",
       kind: s.transactedIn === "credit" ? "credit" : "cash",
+      paidAtSale: Math.min(settledAtSale, toPaise(Number(t.amount))) / 100,
+      dueOn: due?.dueOn ?? null,
       company: await this.settings.get("company"),
       buyer: { name: s.partyNameSnapshot, shortName: row.shortName ?? null, phone: s.partyPhoneSnapshot, gstin: s.billToGstinSnapshot },
       billTo: s.billToCitySnapshot

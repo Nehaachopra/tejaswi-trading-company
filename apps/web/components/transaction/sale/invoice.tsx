@@ -16,6 +16,7 @@ import { useSaleInvoice, useSaleShareKey } from "~/providers/sale";
 
 import { CancelDialog } from "../../history/cancel-dialog";
 import { CancelledNote } from "../../history/cancelled-note";
+import { EditedNote } from "../../history/edited-note";
 import { ReturnButton } from "../sale-return/return-button";
 
 import { Breakup, DocHead, LAST_COL, Remarks } from "../done/document-parts";
@@ -83,6 +84,22 @@ export function SaleInvoice({
   const blocked = record?.cancelBlockedBy && record.cancelBlockedBy !== "cancelled" ? record.cancelBlockedBy : null;
   // who it's billed to: their full name, never the short name (as the vouchers)
   const buyer = d.buyer.name.trim() ? titleCase(d.buyer.name) : t("walkIn");
+  // the payment terms at the sale: paid in full, credit (due by its day), or part received with the rest due (credit)
+  // or on their account (a customer's cash sale)
+  const left = Math.round((d.total - d.paidAtSale) * 100) / 100;
+  const dueBy = d.dueOn ? dated(`${d.dueOn}T12:00:00+05:30`) : null;
+  const terms =
+    left <= 0
+      ? ts("kinds.cash")
+      : d.paidAtSale <= 0
+        ? dueBy
+          ? t("creditDue", { date: dueBy })
+          : ts("kinds.credit")
+        : d.kind === "cash"
+          ? t("partOnAccount", { paid: money(d.paidAtSale), left: money(left) })
+          : dueBy
+            ? t("partPaid", { paid: money(d.paidAtSale), left: money(left), date: dueBy })
+            : t("partPaidOpen", { paid: money(d.paidAtSale), left: money(left) });
   const intra = d.supplyType === "intra";
   // half of a line's GST to each of CGST and SGST (the odd paisa to SGST)
   const halves = (gst: number) => {
@@ -197,6 +214,8 @@ export function SaleInvoice({
       )}
       {/* a cancelled one: when, by whom and why */}
       {record && cancelled && <CancelledNote at={record.cancelledAt} by={record.cancelledByName} reason={record.cancelReason} />}
+      {/* an edited one: when it was last edited, and by whom */}
+      {record?.lastEditedAt && record.lastEditedByName && <EditedNote at={record.lastEditedAt} by={record.lastEditedByName} />}
 
       {/* the invoice itself */}
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
@@ -240,7 +259,7 @@ export function SaleInvoice({
                 value={<span className="font-bold">{d.assignedId}</span>}
               />
               <Detail label={t("dated")} value={dated(`${d.invoiceDate}T12:00:00+05:30`)} />
-              <Detail label={t("payment")} value={ts(`kinds.${d.kind}`)} />
+              <Detail label={t("payment")} value={terms} />
               <Detail
                 label={t("placeOfSupply")}
                 value={d.shipTo.state ? `${d.shipTo.state} (${d.shipTo.stateCode ?? ""})` : null}
