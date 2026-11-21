@@ -35,6 +35,7 @@ export function SaleCartButton({ onSlide }: { onSlide: () => void }) {
       onRemove={removeLine}
       lineOpen={cardFor !== null}
       iconOnly
+      filled
       onSlide={onSlide}
     />
   );

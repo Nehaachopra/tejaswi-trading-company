@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { rupees } from "~/lib/format";
+import { cn } from "~/lib/utils";
 
 import { type Pack, type ProductGroup } from "../../product/products/product-tile";
 import { CartCards } from "./cart-cards";
@@ -31,6 +32,7 @@ export function CartButton({
   onRemove,
   lineOpen,
   iconOnly = false,
+  filled = false,
   onSlide,
 }: {
   rows: CartRow[];
@@ -44,6 +46,8 @@ export function CartButton({
   iconOnly?: boolean;
   // the cart opens beside the products in their card (a › after the icon) instead of as a popup
   onSlide?: () => void;
+  // chestnut, with the word Cart after the icon (the sale's, beside its Items | Total row)
+  filled?: boolean;
 }) {
   const ts = useTranslations("transactions.sale");
   const [open, setOpen] = useState(false);
@@ -70,9 +74,15 @@ export function CartButton({
         disabled={count === 0}
         onClick={() => (onSlide ? onSlide() : setOpen(true))}
         aria-label={`${ts("cart")}: ${count}`}
-        className="flex min-h-10 shrink-0 items-center gap-2 rounded-control border border-chestnut/60 px-3 text-sm font-semibold transition-colors hover:border-chestnut disabled:cursor-default disabled:opacity-60 disabled:hover:border-chestnut/60"
+        className={cn(
+          "flex min-h-10 shrink-0 items-center gap-2 rounded-control px-3 text-sm font-semibold transition-colors disabled:cursor-default disabled:opacity-60",
+          filled
+            ? "self-stretch bg-chestnut text-ivory hover:bg-chestnut/90"
+            : "border border-chestnut/60 hover:border-chestnut disabled:hover:border-chestnut/60",
+        )}
       >
         <ShoppingCart className="size-4.5 shrink-0" aria-hidden />
+        {filled && <span>{ts("cart")}</span>}
         {!iconOnly && <span className="tabular">{count > 0 ? rupees(itemsTotal) : ts("cart")}</span>}
         {onSlide && <ChevronRight className="-mx-1 size-4.5 shrink-0" aria-hidden />}
       </button>
