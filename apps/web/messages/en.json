@@ -2381,7 +2381,10 @@
         "invoiceDate": "Invoice date",
         "to": "To",
         "amount": "Amount credited"
-      }
+      },
+      "rate": "Rate",
+      "returnQuantity": "Return quantity",
+      "leftToRefund": "Left to refund"
     }
   },
   "dues": {

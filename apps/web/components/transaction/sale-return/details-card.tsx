@@ -11,28 +11,30 @@ import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 import { indiaDay } from "../../account/balance";
-import { chip, fieldRow, input, REMARKS_MAX } from "../shared/form-basics";
-import { REASON_MAX, REASONS, useReturnEntry } from "./state";
+import { fieldRow, input, REMARKS_MAX } from "../shared/form-basics";
+import { PlacePicker } from "../shared/place-picker";
+import { type Reason, REASON_MAX, REASONS, useReturnEntry } from "./state";
 
-// the Details card: why it came back (chips; Other asks what), then the remarks (typed or spoken), each a row: label
-// left, box right; the day and Save (an exchange: Next, to its new sale) follow, last
+// the Details card: why it came back (an accordion of the reasons, every one open until one is picked; Other asks
+// what), then the remarks (typed or spoken), each a row: label left, box right; the day and Save (an exchange: Next, to
+// its new sale) follow, last
 export function DetailsCard() {
   const { t, tc, reasonKind, setReasonKind, reason, setReason, remarks, setRemarks, tried } = useReturnEntry();
   const reasonBad = tried && (reasonKind === null || (reasonKind === "other" && reason.trim() === ""));
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 sm:w-[calc(50%-0.75rem)]">
         <span className="text-sm">
           {t("reason")}
           <RequiredMark />
         </span>
-        <div className="flex flex-wrap gap-2" role="group" aria-label={t("reason")} aria-invalid={(tried && reasonKind === null) || undefined}>
-          {REASONS.map((r) => (
-            <button key={r} type="button" aria-pressed={reasonKind === r} onClick={() => setReasonKind(r)} className={chip(reasonKind === r)}>
-              {t(`reasons.${r}`)}
-            </button>
-          ))}
-        </div>
+        <PlacePicker<Reason>
+          label={t("reason")}
+          places={REASONS.map((r) => ({ id: r, name: t(`reasons.${r}`), disabled: false }))}
+          value={reasonKind}
+          onPick={setReasonKind}
+          invalid={tried && reasonKind === null}
+        />
         {/* Other: what it was */}
         {reasonKind === "other" && (
           <input
@@ -43,7 +45,7 @@ export function DetailsCard() {
             aria-label={t("reasonOther")}
             placeholder={t("reasonOther")}
             aria-invalid={reasonBad || undefined}
-            className={cn(input(reasonBad), "sm:w-[calc(50%-0.75rem)]")}
+            className={input(reasonBad)}
           />
         )}
       </div>

@@ -4,6 +4,8 @@ import {
   bankDetailsTable,
   categoriesTable,
   deletedProductsTable,
+  dueSettlementsTable,
+  duesTable,
   godownsTable,
   ledgerEntriesTable,
   ledgersTable,
@@ -54,6 +56,9 @@ const lastNoteDay = (saleDay: string) => {
 };
 
 // one item of the sale, its godown parts added up, and what's come back of it on returns still in place
+// a sale as a return works it out
+type Loaded = Awaited<ReturnType<SaleReturnService["load"]>>;
+
 type SaleItem = {
   productId: string;
   name: string;
@@ -66,6 +71,9 @@ type SaleItem = {
   godowns: { godownId: string; name: string; quantity: number }[];
   returned: { quantity: number; gross: number; off: number; gst: number };
 };
+
+// what a pack sold for before GST, in paise
+const rateOf = (i: SaleItem) => Math.round((i.gross - i.off) / i.sold);
 
 // Sale returns: goods coming back against one saved sale (the admin's). They go back into the godowns picked, and that
 // much of the sale is turned round at the price it sold at: its value and GST (a credit note), and its share of the
@@ -133,20 +141,43 @@ export default class SaleReturnService {
       r.off += toPaise(srp.discountAmount);
       r.gst += toPaise(srp.gstAmount);
     }
-    const earlier = await q
-      .select({ discount: saleReturnsTable.discountAmount })
-      .from(saleReturnsTable)
-      .innerJoin(transactionsTable, eq(transactionsTable.id, saleReturnsTable.transactionId))
-      .where(and(eq(saleReturnsTable.saleId, sale.id), eq(transactionsTable.status, "active")));
-    const discountBack = earlier.reduce((a, r) => a + toPaise(r.discount), 0);
-    // what the cash discount came off: the items with their GST, and the charges (GST in them)
+    // the charges (GST in them) and the cash discount, as the sale had them: a return never changes them
     const charges = toPaise(sale.shippingAmount) + toPaise(sale.packagingAmount) + toPaise(sale.handlingAmount);
-    const itemsGross = [...items.values()].reduce((a, i) => a + i.gross - i.off + i.gst, 0);
-    return { t, sale, items, discountBack, discount: toPaise(sale.discountAmount), gross: itemsGross + charges };
+    // what's still owed on this bill (a customer's): its due less what's been settled on it by transactions in place
+    const [due] = await q.select({ id: duesTable.id, amount: duesTable.amount }).from(duesTable).where(eq(duesTable.transactionId, t.id));
+    const settled = due
+      ? (
+          await q
+            .select({ amount: dueSettlementsTable.amount })
+            .from(dueSettlementsTable)
+            .innerJoin(transactionsTable, eq(transactionsTable.id, dueSettlementsTable.transactionId))
+            .where(and(eq(dueSettlementsTable.dueId, due.id), eq(transactionsTable.status, "active")))
+        ).reduce((a, s) => a + toPaise(s.amount), 0)
+      : 0;
+    const dueLeft = due ? Math.max(0, toPaise(due.amount) - settled) : 0;
+    return { t, sale, items, charges, discount: toPaise(sale.discountAmount), due: due ? { id: due.id, left: dueLeft } : null };
+  }
+
+  // the bill as if only `left` of each item had been sold, in paise, worked out as a sale's is: each item at the rate it
+  // sold at with its GST, the charges as they were (their GST taken out at the highest rate among the items still on
+  // it), the cash discount as it was (never more than the bill), rounded to the rupee
+  private bill(loaded: Loaded, left: (i: SaleItem) => number) {
+    const items = [...loaded.items.values()].map((i) => {
+      const value = rateOf(i) * left(i);
+      return { item: i, value, gst: Math.round((value * i.gstRate) / 100) };
+    });
+    const rate = Math.max(0, ...items.filter((x) => left(x.item) > 0).map((x) => x.item.gstRate));
+    const chargeTaxable = Math.round((loaded.charges * 100) / (100 + rate));
+    const value = items.reduce((a, x) => a + x.value, 0);
+    const gst = items.reduce((a, x) => a + x.gst, 0) + loaded.charges - chargeTaxable;
+    const gross = value + chargeTaxable + gst;
+    const off = Math.min(loaded.discount, gross);
+    const total = Math.round((gross - off) / 100) * 100;
+    return { taxable: value + chargeTaxable, gst, off, total };
   }
 
   // why the sale can't take a return, if it can't
-  private blockedBy(loaded: Awaited<ReturnType<SaleReturnService["load"]>>, day: string) {
+  private blockedBy(loaded: Loaded, day: string) {
     if (loaded.t.status === "cancelled") return "cancelled" as const;
     if ([...loaded.items.values()].every((i) => i.returned.quantity >= i.sold)) return "allReturned" as const;
     if (day > lastNoteDay(indiaDay(loaded.t.dateTime))) return "tooLate" as const;
@@ -169,6 +200,8 @@ export default class SaleReturnService {
       const loaded = await this.load(tx, input.transactionId, false);
       const { t, sale, items } = loaded;
       const customer = await this.customerOf(tx, sale.partyId);
+      // the bill as it stands (after any earlier returns), and what's been paid towards it
+      const before = this.bill(loaded, (i) => i.sold - i.returned.quantity);
       return {
         transactionId: t.id,
         assignedId: t.assignedId,
@@ -178,53 +211,53 @@ export default class SaleReturnService {
         buyer: sale.partyId ? null : { name: sale.partyNameSnapshot, phone: sale.partyPhoneSnapshot },
         supplyType: sale.supplyType === "inter" ? "inter" : "intra",
         total: Number(t.amount),
+        billNow: before.total / 100,
+        paid: (before.total - (loaded.due?.left ?? 0)) / 100,
+        transportCharges: Number(sale.shippingAmount),
+        packingCharges: Number(sale.packagingAmount),
+        loadingCharges: Number(sale.handlingAmount),
         discount: loaded.discount / 100,
-        gross: loaded.gross / 100,
-        discountBack: loaded.discountBack / 100,
-        lines: [...items.values()].map((i) => {
-          const taxable = i.gross - i.off;
-          return {
-            productId: i.productId,
-            name: i.name,
-            sold: i.sold,
-            returned: i.returned.quantity,
-            canReturn: i.sold - i.returned.quantity,
-            price: Math.round((taxable + i.gst) / i.sold) / 100,
-            rate: Math.round(taxable / i.sold) / 100,
-            gstRate: i.gstRate,
-            godowns: i.godowns,
-            paise: { gross: i.gross, off: i.off, gst: i.gst, grossBack: i.returned.gross, offBack: i.returned.off, gstBack: i.returned.gst },
-          };
-        }),
+        lines: [...items.values()].map((i) => ({
+          productId: i.productId,
+          name: i.name,
+          sold: i.sold,
+          returned: i.returned.quantity,
+          canReturn: i.sold - i.returned.quantity,
+          price: Math.round(rateOf(i) * (1 + i.gstRate / 100)) / 100,
+          rate: rateOf(i) / 100,
+          gstRate: i.gstRate,
+          godowns: i.godowns,
+        })),
         lastDay: lastNoteDay(indiaDay(t.dateTime)),
         returnBlockedBy: this.blockedBy(loaded, indiaDay(new Date())),
       };
     });
   }
 
-  // the return's figures, in paise: each item's share of what it sold for (the last of an item takes exactly what's
-  // left, so the returns add up to the sale), the cash discount's share by value, the total rounded to the rupee
-  private figure(loaded: Awaited<ReturnType<SaleReturnService["load"]>>, lines: ReturnLineInputModel[]) {
-    const share = (whole: number, before: number, quantity: number, returnedBefore: number, sold: number) =>
-      returnedBefore + quantity === sold ? whole - before : Math.round((whole * quantity) / sold);
-    const items = lines.map((l) => {
+  // the return's figures, in paise: the bill as it stands less the bill as if these packs had never been sold (the
+  // charges and cash discount as they were), so its value, GST, the discount it gives back and its total are what
+  // came off; each item's own line at the rate it sold at, for the credit note
+  private figure(loaded: Loaded, lines: ReturnLineInputModel[]) {
+    const back = new Map<string, number>();
+    for (const l of lines) {
       const i = loaded.items.get(l.productId);
       if (!i) throw new TRPCError({ code: "BAD_REQUEST", message: "An item isn't on this sale." });
       const left = i.sold - i.returned.quantity;
       if (l.quantity > left) throw new TRPCError({ code: "BAD_REQUEST", message: `Only ${left} of ${i.name} can come back.` });
-      const gross = share(i.gross, i.returned.gross, l.quantity, i.returned.quantity, i.sold);
-      const off = share(i.off, i.returned.off, l.quantity, i.returned.quantity, i.sold);
-      const gst = share(i.gst, i.returned.gst, l.quantity, i.returned.quantity, i.sold);
-      return { line: l, item: i, gross, off, taxable: gross - off, gst };
+      back.set(l.productId, l.quantity);
+    }
+    const before = this.bill(loaded, (i) => i.sold - i.returned.quantity);
+    const after = this.bill(loaded, (i) => i.sold - i.returned.quantity - (back.get(i.productId) ?? 0));
+    const items = lines.map((l) => {
+      const item = loaded.items.get(l.productId)!;
+      const value = rateOf(item) * l.quantity;
+      return { line: l, item, gross: value, off: 0, taxable: value, gst: Math.round((value * item.gstRate) / 100) };
     });
-    const taxable = items.reduce((a, i) => a + i.taxable, 0);
-    const gst = items.reduce((a, i) => a + i.gst, 0);
-    // the cash discount's share: by the value with GST of what comes back, out of what it was taken off; never past
-    // what's left of it
-    const discount = loaded.gross > 0 ? Math.min(loaded.discount - loaded.discountBack, Math.round((loaded.discount * (taxable + gst)) / loaded.gross)) : 0;
-    const figured = taxable + gst - discount;
-    const total = Math.round(figured / 100) * 100;
-    return { items, taxable, gst, discount, total, roundOff: total - figured };
+    const taxable = before.taxable - after.taxable;
+    const gst = before.gst - after.gst;
+    const discount = before.off - after.off;
+    const total = before.total - after.total;
+    return { items, taxable, gst, discount, total, roundOff: total - (taxable + gst - discount), dueLeft: loaded.due?.left ?? 0 };
   }
 
   // what a refund's cash and bank parts take out, each part fitting what that place holds today
@@ -286,11 +319,11 @@ export default class SaleReturnService {
     const refund = await this.refundLines(tx, input.cashAmount, input.bankParts);
     let onAccount = 0;
     if (customer) {
-      // an exchange keeps it all on their account (the new sale takes it); a refund pays back only what's over what
-      // they owe
+      // an exchange keeps it all on their account (the new sale takes it); a refund first takes it off what's still
+      // owed on this bill, and pays back what's over that, all of it, now
       if (exchange && refund.paid > 0) throw new TRPCError({ code: "BAD_REQUEST", message: "An exchange pays nothing back to a customer." });
-      const over = Math.max(0, f.total - customer.owed);
-      if (refund.paid > over) throw new TRPCError({ code: "BAD_REQUEST", message: `Only ₹${(over / 100).toLocaleString("en-IN")} can be paid back; the rest comes off what they owe.` });
+      const over = Math.max(0, f.total - f.dueLeft);
+      if (!exchange && refund.paid !== over) throw new TRPCError({ code: "BAD_REQUEST", message: `Pay back ₹${(over / 100).toLocaleString("en-IN")}; the rest comes off what's owed on this bill.` });
       lines.push({ ledgerId: customer.ledgerId, side: "credit", amount: f.total / 100 });
       if (refund.paid > 0) lines.push({ ledgerId: customer.ledgerId, side: "debit", amount: refund.paid / 100 });
       onAccount = f.total - refund.paid;
@@ -387,9 +420,12 @@ export default class SaleReturnService {
       }
     }
 
-    // a customer's: what stays on their account settles their dues oldest first; past them it's an advance
+    // a customer's: what stays on their account settles what's owed on this bill first, then their other dues oldest
+    // first; past them it's an advance
     if (customer && onAccount > 0) {
-      await this.dues.settleOldestIn(tx, { kind: "debtor", partyId: customer.party.id, transactionId: created.id, amount: onAccount / 100 });
+      const onBill = Math.min(onAccount, f.dueLeft);
+      if (onBill > 0 && loaded.due) await tx.insert(dueSettlementsTable).values({ dueId: loaded.due.id, transactionId: created.id, amount: fromPaise(onBill) });
+      if (onAccount > onBill) await this.dues.settleOldestIn(tx, { kind: "debtor", partyId: customer.party.id, transactionId: created.id, amount: (onAccount - onBill) / 100 });
     }
     return { transactionId: created.id, assignedId: created.assignedId, total: f.total, walkIn: !customer };
   }

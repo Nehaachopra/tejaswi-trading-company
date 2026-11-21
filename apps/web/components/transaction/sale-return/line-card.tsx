@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Trash2, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -8,18 +9,11 @@ import { packLabel, rupees, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 import { ProductImage, productTitle } from "../../product/products/product-tile";
+import { FiguresTable } from "../shared/figures-table";
 import { GodownStepper, QuantityBox, SackMeter } from "../shared/pack-parts";
 import { figureReturn, placedOf, type ReturnLine, useReturnEntry } from "./state";
 
-// a figure row on the card: its name on the left, the figure on the right
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <p className="tabular flex min-h-9 items-center justify-between gap-3 text-sm">
-      <span>{label}</span>
-      <b className="font-semibold">{value}</b>
-    </p>
-  );
-}
+
 
 // the line card: one item of the sale zoomed in over the dimmed page, as the sale's product card. On top its pack chip,
 // name and photo; then two panels side by side: the first its Price + GST, how many were sold (and came back before),
@@ -36,6 +30,7 @@ export function LineCard() {
 
 function CardBody({ productId }: { productId: string }) {
   const { t, sale, packOf, nameOf, lineOf, putLine, removeLine, setCardFor, godownsOf } = useReturnEntry();
+  const ts = useTranslations("transactions.sale");
   const item = sale.lines.find((l) => l.productId === productId)!;
   const found = packOf(productId);
   const saved = lineOf(productId);
@@ -143,24 +138,35 @@ function CardBody({ productId }: { productId: string }) {
           {/* the panels: the first, and the godowns to its right */}
           <div className="overflow-hidden transition-[height] duration-300 motion-reduce:transition-none" style={{ height }}>
             <div className={cn("flex w-[200%] items-start transition-transform duration-300 ease-out motion-reduce:transition-none", pane !== "main" && "-translate-x-1/2")}>
-              {/* the first panel: the price, what was sold (and came back before), then how many come back now */}
-              <div ref={mainRef} inert={pane !== "main"} className="flex w-1/2 min-w-0 flex-col px-1 py-1">
-                <Fact label={t("priceGst")} value={rupees(item.price)} />
-                <Fact label={t("sold")} value={item.sold.toLocaleString("en-IN")} />
-                {item.returned > 0 && <Fact label={t("returnedBefore")} value={item.returned.toLocaleString("en-IN")} />}
-                <div className="mt-1 flex min-h-11 items-center justify-between gap-3">
-                  <span className="text-sm">{t("quantity")}</span>
-                  <span className="w-[9rem] shrink-0">
-                    <QuantityBox
-                      autoFocus
-                      value={draft.quantity}
-                      max={item.canReturn}
-                      label={`${t("quantity")}: ${name}`}
-                      // a new quantity clears the godowns, to be placed again
-                      onChange={(v) => setDraft((d) => (d.quantity === v ? d : { quantity: v, godowns: {} }))}
-                    />
-                  </span>
-                </div>
+              {/* the first panel, as the sale's: Basis | Current | New for Price + GST (the price it sold at, never
+                  typed) and Return quantity (how many were sold, then how many come back now) */}
+              <div ref={mainRef} inert={pane !== "main"} className="flex w-1/2 min-w-0 flex-col gap-3 px-1 py-1">
+                <FiguresTable
+                  headings={{ basis: ts("basis"), current: ts("current"), new: ts("new") }}
+                  rows={[
+                    {
+                      key: "price",
+                      label: t("priceGst"),
+                      current: rupees(item.price),
+                      input: <span className="tabular flex min-h-11 items-center justify-end text-base font-bold">{rupees(item.price)}</span>,
+                    },
+                    {
+                      key: "quantity",
+                      label: t("returnQuantity"),
+                      current: item.sold.toLocaleString("en-IN"),
+                      input: (
+                        <QuantityBox
+                          autoFocus
+                          value={draft.quantity}
+                          max={item.canReturn}
+                          label={`${t("returnQuantity")}: ${name}`}
+                          // a new quantity clears the godowns, to be placed again
+                          onChange={(v) => setDraft((d) => (d.quantity === v ? d : { quantity: v, godowns: {} }))}
+                        />
+                      ),
+                    },
+                  ]}
+                />
               </div>
 
               {/* the second panel: the godowns */}

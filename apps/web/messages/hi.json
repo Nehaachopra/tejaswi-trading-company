@@ -2381,7 +2381,10 @@
         "invoiceDate": "इनवॉइस तारीख",
         "to": "को",
         "amount": "जमा राशि"
-      }
+      },
+      "rate": "दर",
+      "returnQuantity": "वापसी मात्रा",
+      "leftToRefund": "लौटाना बाकी"
     }
   },
   "dues": {

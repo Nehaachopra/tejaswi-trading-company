@@ -54,29 +54,37 @@ export type ExchangeHandoff = {
   buyer: { name: string; phone: string } | null;
 };
 
-// a return's figures in paise, as the server works them out: each item's share of what it sold for (the last of it
-// takes exactly what's left), the cash discount's share by value (never past what's left of it), rounded to the rupee
+// the bill as if only `left` of each item had been sold, in paise, as the server works it out (and a sale's is): each
+// item at the rate it sold at with its GST, the charges as they were (their GST taken out at the highest rate among the
+// items still on it), the cash discount as it was (never more than the bill), rounded to the rupee
+function billOf(sale: SaleForReturn, left: (l: SaleForReturn["lines"][number]) => number) {
+  const p = (r: number) => Math.round(r * 100);
+  const items = sale.lines.map((l) => {
+    const value = p(l.rate) * left(l);
+    return { l, value, gst: Math.round((value * l.gstRate) / 100) };
+  });
+  const charges = p(sale.transportCharges) + p(sale.packingCharges) + p(sale.loadingCharges);
+  const rate = Math.max(0, ...items.filter((x) => left(x.l) > 0).map((x) => x.l.gstRate));
+  const chargeTaxable = Math.round((charges * 100) / (100 + rate));
+  const itemsTotal = items.reduce((a, x) => a + x.value + x.gst, 0);
+  const gross = itemsTotal + charges;
+  const off = Math.min(p(sale.discount), gross);
+  const total = Math.round((gross - off) / 100) * 100;
+  return { itemsTotal, chargeTaxable, off, total, roundOff: total - (gross - off) };
+}
+
+// a return's figures in paise: the bill as it stands less the bill as if these packs had never been sold (the
+// charges and the cash discount as they were), and each item's own line (its value and GST) for the cart and summary
 export function figureReturn(sale: SaleForReturn, quantities: Record<string, number>) {
-  const share = (whole: number, before: number, q: number, back: number, sold: number) =>
-    back + q === sold ? whole - before : Math.round((whole * q) / sold);
+  const before = billOf(sale, (l) => l.sold - l.returned);
+  const after = billOf(sale, (l) => l.sold - l.returned - (quantities[l.productId] ?? 0));
   const items = sale.lines
     .filter((l) => (quantities[l.productId] ?? 0) > 0)
     .map((l) => {
-      const q = quantities[l.productId]!;
-      const p = l.paise;
-      const gross = share(p.gross, p.grossBack, q, l.returned, l.sold);
-      const off = share(p.off, p.offBack, q, l.returned, l.sold);
-      const gst = share(p.gst, p.gstBack, q, l.returned, l.sold);
-      return { productId: l.productId, quantity: q, taxable: gross - off, gst, total: gross - off + gst };
+      const value = Math.round(l.rate * 100) * quantities[l.productId]!;
+      return { productId: l.productId, quantity: quantities[l.productId]!, total: value + Math.round((value * l.gstRate) / 100) };
     });
-  const taxable = items.reduce((a, i) => a + i.taxable, 0);
-  const gst = items.reduce((a, i) => a + i.gst, 0);
-  const grossAll = Math.round(sale.gross * 100);
-  const discountAll = Math.round(sale.discount * 100);
-  const discount = grossAll > 0 ? Math.min(discountAll - Math.round(sale.discountBack * 100), Math.round((discountAll * (taxable + gst)) / grossAll)) : 0;
-  const figured = taxable + gst - discount;
-  const total = Math.round(figured / 100) * 100;
-  return { items, itemsTotal: taxable + gst, discount, total, roundOff: total - figured };
+  return { items, itemsTotal: items.reduce((a, i) => a + i.total, 0), after, total: before.total - after.total };
 }
 
 // everything the return form holds and works out. Made once in ReturnEntry; every card reads it with useReturnEntry()
@@ -92,7 +100,6 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
   // the day, the reason and remarks
   const [lines, setLines] = useState<Record<string, ReturnLine>>({});
   const [mode, setMode] = useState<"exchange" | "refund" | null>(null);
-  const [payBackOn, setPayBackOn] = useState(false);
   const [splitTexts, setSplitTexts] = useState<Record<string, string>>({});
   const [bankModes, setBankModes] = useState<Record<string, BankMode | null>>({});
   const [refs, setRefs] = useState<Record<string, { mode: BankMode; text: string }>>({});
@@ -136,14 +143,14 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
   const total = f.total / 100;
   const chosen = f.items.length;
 
-  // a customer: what they owe now (an advance as minus), what the return takes off, and what's left either way; only
-  // what's over what they owe can be paid back now, and only when that's picked. A walk-in is paid back all of it
+  // the bill as if what comes back had never been sold, less what was paid towards it: below nothing, that much is paid
+  // back now on a refund (a walk-in, all of the return; a customer, what's over what they still owed on this bill);
+  // otherwise the return only takes it off what's owed
   const customer = sale.customer;
-  const owed = customer ? round2(customer.owed - customer.held) : 0;
-  const after = round2(owed - total);
-  // what's over what they owe (an advance they already had stays theirs, not paid back here)
-  const over = customer ? Math.max(0, round2(total - customer.owed)) : 0;
-  const payBack = mode !== "refund" ? 0 : customer ? (payBackOn ? over : 0) : total;
+  const billAfter = f.after.total / 100;
+  const balance = round2(billAfter - sale.paid);
+  const refundDue = Math.max(0, -balance);
+  const payBack = mode === "refund" ? refundDue : 0;
 
   // the places it's paid back from: cash and every bank account, each never past what it holds (staff never get here)
   const placeList = [{ id: "cash", held: money?.cash ?? null }, ...(money?.banks ?? []).map((b) => ({ id: b.id, held: b.available }))];
@@ -193,8 +200,8 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
     refund: payBack === 0 || ((payCap === null || payBack <= payCap) && splitOk),
     details: day !== "" && reasonOk,
   };
-  // a refund asks where the money goes (a walk-in's, or a customer's account); an exchange goes straight to Details
-  const STEPS = ALL_STEPS.filter((s) => s !== "refund" || mode === "refund");
+  // a refund with money to pay back asks where it's paid from; an exchange goes straight to Details
+  const STEPS = ALL_STEPS.filter((s) => s !== "refund" || (mode === "refund" && refundDue > 0));
   const [at, setAt] = useState<ReturnStep>("items");
   const current = STEPS.includes(at) ? at : "details";
   const index = STEPS.indexOf(current);
@@ -234,7 +241,7 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
   // Exchange or Refund picked: moves straight on (a chip-only card)
   function pickMode(m: "exchange" | "refund") {
     setMode(m);
-    show(m === "refund" ? "refund" : "details");
+    show(m === "refund" && refundDue > 0 ? "refund" : "details");
   }
 
   // what each card still needs, once Next or Save was tapped
@@ -347,11 +354,8 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
     mode,
     pickMode,
     customer,
-    owed,
-    after,
-    over,
-    payBackOn,
-    setPayBackOn,
+    billAfter,
+    balance,
     payBack,
     payCap,
     places,

@@ -27,9 +27,9 @@ export function ReturnButton({ id, saleDay, className }: { id: string; saleDay: 
       <button type="button" onClick={() => setAsking(true)} className={className}>
         <Undo2 className="size-4" aria-hidden /> {t("returnSale")}
       </button>
+      {/* the shared yes / no popup: No and Yes side by side */}
       <ConfirmDialog
         open={asking}
-        tone="plain"
         title={t("ask.title")}
         body={t("ask.body", { days })}
         confirmLabel={t("ask.yes")}

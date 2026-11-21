@@ -87,9 +87,14 @@ export const saleForReturnModel = z.object({
   buyer: z.object({ name: z.string(), phone: z.string().nullable() }).nullable(),
   supplyType: z.enum(["intra", "inter"]),
   total: z.number(),
-  // the sale's cash discount, and what it was taken off (the items with GST and the charges), to share it out
+  // the bill as it stands (after earlier returns) and what has been paid towards it; the charges (GST in them) and
+  // the cash discount as the sale had them, which a return never changes
+  billNow: z.number(),
+  paid: z.number(),
+  transportCharges: z.number(),
+  packingCharges: z.number(),
+  loadingCharges: z.number(),
   discount: z.number(),
-  gross: z.number(),
   lines: z.array(
     z.object({
       productId: idModel,
@@ -102,13 +107,8 @@ export const saleForReturnModel = z.object({
       rate: z.number(),
       gstRate: z.number(),
       godowns: z.array(z.object({ godownId: idModel, name: z.string(), quantity: z.number().int() })),
-      // in paise, so the form works out a return exactly as the server will: what the item sold for (its value at the
-      // saved price, what came off that, its GST) and how much of each has come back before
-      paise: z.object({ gross: z.number().int(), off: z.number().int(), gst: z.number().int(), grossBack: z.number().int(), offBack: z.number().int(), gstBack: z.number().int() }),
     }),
   ),
-  // the cash discount already taken back on earlier returns
-  discountBack: z.number(),
   // the last day a credit note can be issued for it (30 November after its financial year)
   lastDay: z.string(),
   returnBlockedBy: z.enum(["cancelled", "allReturned", "tooLate"]).nullable(),
