@@ -22,7 +22,7 @@ import {
 import { DetailsCard, SaveBlock } from "./details-card";
 import { ProductsStage } from "./products-stage";
 import { type OrderEditSeed, type OrderStep, OrderEntryProvider, useOrderEntry, useOrderEntryState } from "./state";
-import { SupplierCard } from "./supplier-card";
+import { CustomerStage } from "./customer-stage";
 import { CartStage } from "./cart-stage";
 
 // /transaction/purchase-order and /transaction/sale-order (from Home): a purchase or a sale order, laid out like a
@@ -185,7 +185,7 @@ function OrderEntryView() {
         onBack={index > 0 ? () => show(steps[index - 1]!) : null}
         onChange={null}
         missing={tried && !complete[current] ? missingOf(current) : null}
-        // the Products card's cart button moves on; Supplier moves on by itself once picked; back on it with one picked (or someone new), Next goes on. Details
+        // the Products stage's Cart button moves on; the customer stage's Next shows once someone is picked (or someone new). Details
         // saves
         end={
           current === "details" ? (
@@ -200,7 +200,7 @@ function OrderEntryView() {
         ) : current === "totals" ? (
           <CartStage />
         ) : current === "supplier" ? (
-          <SupplierCard />
+          <CustomerStage />
         ) : (
           <DetailsCard />
         )}

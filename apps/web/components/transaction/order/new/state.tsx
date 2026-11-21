@@ -187,7 +187,8 @@ export function useOrderEntryState({
         (sale
           ? !customerMatch &&
             newCustomer.name.trim() !== "" &&
-            /^[6-9]\d{9}$/.test(newCustomer.phone) &&
+            // the phone optional, a whole mobile number when typed
+            (newCustomer.phone === "" || /^[6-9]\d{9}$/.test(newCustomer.phone)) &&
             !Object.values(addressProblems(newCustomer.address)).some(Boolean)
           : !supplierMatch && draftOk(newSupplier, true, true))),
     details: orderDate !== "" && (expected === "" || expected >= orderDate),
@@ -272,7 +273,7 @@ export function useOrderEntryState({
       supplierPick?.kind === "party"
         ? {
             name: newCustomer.name.trim(),
-            phone: newCustomer.phone,
+            phone: newCustomer.phone === "" ? null : newCustomer.phone,
             address: {
               addressLine1: newCustomer.address.addressLine1.trim(),
               landmark: newCustomer.address.landmark.trim(),

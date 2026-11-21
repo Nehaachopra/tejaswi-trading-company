@@ -98,9 +98,9 @@ export function EntryPage({
   );
 }
 
-// one card: Back to the card before, its name (Change beside it for someone new), what it still needs once Next or
-// Save was tapped, what it holds, then Next (or the card's own end, as Save on the last). Keyed by the caller with its
-// id, so each card comes in fresh
+// one card: Back to the card before, its name (Change beside it for someone new), what it holds, then Next (or the
+// card's own end, as Save on the last), and under it what it still needs once Next or Save was tapped. Keyed by the
+// caller with its id, so each card comes in fresh
 export function StepCard({
   id,
   name,
@@ -159,9 +159,9 @@ export function StepCard({
         )}
       </div>
       {children}
-      {/* what's still missing, just above Next or Save */}
-      {missing && <FieldMessage className="mt-0">{missing}</FieldMessage>}
       {end}
+      {/* what's still missing, just below Next or Save (or a stage's own button, as the products stage's Cart) */}
+      {missing && <FieldMessage className="mt-0">{missing}</FieldMessage>}
     </section>
   );
 }

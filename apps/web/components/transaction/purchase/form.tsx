@@ -18,7 +18,7 @@ import { MoneyCard } from "./money-card";
 import { PaidCard } from "./paid-card";
 import { ProductsStage } from "./products-stage";
 import { type PurchaseStep, PurchaseEntryProvider, usePurchaseEntry, usePurchaseEntryState } from "./state";
-import { SupplierCard } from "./supplier-card";
+import { CustomerStage } from "./customer-stage";
 
 // /transaction/purchase (from the transaction hub): a purchase, laid out like the sale: one card at a time on the left
 // with Back and Next, and a summary on the right (a bar above the card on a phone) that goes back to any card. 1
@@ -215,7 +215,7 @@ function PurchaseEntryView() {
         ) : current === "money" ? (
           <MoneyCard />
         ) : current === "supplier" ? (
-          <SupplierCard />
+          <CustomerStage />
         ) : current === "paid" ? (
           <PaidCard />
         ) : current === "bill" ? (

@@ -33,7 +33,13 @@ export const orderCustomerInputModel = z.object({
     postalCode: a.postalCode,
   }),
   name: z.string().trim().min(1).max(150).regex(/^\D*$/, "A name has no numbers."),
-  phone: z.string().trim().regex(/^[6-9]\d{9}$/, "A 10-digit mobile number."),
+  // optional: asked when the order is shared if left out
+  phone: z
+    .string()
+    .trim()
+    .regex(/^[6-9]\d{9}$/, "A 10-digit mobile number.")
+    .nullable()
+    .default(null),
 });
 
 // a new sale order: a customer picked, or a name (and phone) given (one of the two), an optional expected delivery (on or
