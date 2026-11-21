@@ -2230,7 +2230,8 @@
         "return": "Return",
         "bill": "This bill",
         "payBack": "Pay back in cash"
-      }
+      },
+      "amount": "Amount"
     },
     "drawing": {
       "title": "Drawing",
