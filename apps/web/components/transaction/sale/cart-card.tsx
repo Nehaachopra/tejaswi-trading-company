@@ -40,16 +40,19 @@ export function CartCard() {
     <div className="grid items-start gap-6 sm:grid-cols-2 sm:gap-12">
       {/* the cart: Items (the total is beside it), then its cards (a tap opens the product card to change one) */}
       <div className="flex min-w-0 flex-col gap-3">
-        <CartTotalRow count={lines.length} itemsTotal={itemsTotal} hold={cardFor !== null} countOnly />
         <div className={SCROLL_BOX}>
           {/* nothing in the cart yet: a note in the cards' place */}
           {lines.length === 0 ? <p className="py-6 text-center text-sm opacity-70">{t("cartEmpty")}</p> : <SaleCartCards />}
         </div>
         <ProductCard />
       </div>
-      <div className="flex min-w-0 flex-col gap-2.5">
+      <div className="flex min-w-0 flex-col gap-4">
+        <div className="tabular flex items-baseline justify-between gap-3 text-sm ">
+          <span className="min-w-0">{t("items")}</span>
+          <span className="shrink-0 whitespace-nowrap text-base font-semibold">{lines.length}</span>
+        </div>
         {/* the cart's total as the Amount: room under it */}
-        <div className="tabular mb-2 flex items-baseline justify-between gap-3 text-sm">
+        <div className="tabular flex items-baseline justify-between gap-3 text-sm">
           <span className="min-w-0">{t("amount")}</span>
           <span className="shrink-0 whitespace-nowrap text-base font-semibold">{rupees(itemsTotal)}</span>
         </div>

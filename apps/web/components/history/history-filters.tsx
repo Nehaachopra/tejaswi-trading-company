@@ -1,11 +1,11 @@
 "use client";
 
-import { Check, ChevronDown, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { ClearButton } from "~/components/ui/clear-button";
-import { Menu, MenuItem } from "~/components/ui/menu";
-import { FILTER_BAR, FILTER_TRIGGER, SEARCH_BOX, SEARCH_INPUT } from "~/components/ui/page-styles";
+import { FilterMenu } from "~/components/ui/filter-menu";
+import { FILTER_BAR, SEARCH_BOX, SEARCH_INPUT } from "~/components/ui/page-styles";
 import { cn } from "~/lib/utils";
 import { useHistoryMonths } from "~/providers/history";
 
@@ -29,61 +29,9 @@ export type MonthKey = string;
 // the filters picked, and what's typed in the search (an ID or remarks)
 export type HistoryFilterValues = { type: HistoryType | null; month: MonthKey | null; amount: AmountRange | null; search: string };
 
-// a set filter: ivory, as everywhere
-const trigger = (set: boolean) => cn(FILTER_TRIGGER, set && "border-ivory bg-ivory text-chestnut");
-
 // a month's name in the reader's language: "November 2026"
 export const monthName = (key: MonthKey, locale: string) =>
   new Date(`${key}-15T12:00:00+05:30`).toLocaleDateString(`${locale}-IN`, { month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
-
-// one dropdown: the "all" choice first, then each option; a pick closes it
-function FilterMenu<K extends string>({
-  label,
-  allLabel,
-  value,
-  options,
-  onPick,
-}: {
-  label: string;
-  allLabel: string;
-  value: K | null;
-  options: { key: K; label: string }[];
-  onPick: (key: K | null) => void;
-}) {
-  const picked = options.find((o) => o.key === value);
-  return (
-    <Menu
-      label={label}
-      surface="chestnut"
-      align="left"
-      boxed
-      floating
-      triggerClassName={cn(trigger(value !== null), "shrink-0")}
-      trigger={
-        <>
-          <span className="truncate">{picked ? picked.label : allLabel}</span>
-          <ChevronDown className="size-4 shrink-0" aria-hidden />
-        </>
-      }
-    >
-      {(close) =>
-        [{ key: null, label: allLabel }, ...options].map((o) => (
-          <MenuItem
-            key={o.key ?? "all"}
-            selected={value === o.key}
-            onClick={() => {
-              onPick(o.key);
-              close();
-            }}
-          >
-            <span className="flex-1">{o.label}</span>
-            {value === o.key && <Check className="size-4" aria-hidden />}
-          </MenuItem>
-        ))
-      }
-    </Menu>
-  );
-}
 
 // the filters, under the header while the list scrolls: type, month (only months holding something), amount, then the
 // search (an ID or remarks); one row that scrolls sideways when it doesn't fit, the dropdown lists floating above it

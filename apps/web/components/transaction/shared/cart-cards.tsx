@@ -66,7 +66,7 @@ export function CartCards({
               className="row-arrive flex min-w-0 cursor-pointer flex-col gap-2 rounded-control border border-chestnut/15 p-2.5 hover:bg-chestnut/[0.03] sm:p-3.5"
             >
               {/* the pack chip (the card's button, for the keyboard), then the pen (change it) and the bin */}
-              <div className="flex items-center justify-between gap-1.5">
+              <div className="flex items-center justify-between gap-2">
                 <button
                   type="button"
                   aria-haspopup="dialog"
@@ -157,9 +157,6 @@ export function CartTotalRow({
   count,
   itemsTotal,
   hold = false,
-  countOnly = false,
-  plain = false,
-  className,
 }: {
   count: number;
   itemsTotal: number;
@@ -170,18 +167,16 @@ export function CartTotalRow({
 }) {
   const t = useTranslations("transactions.sale");
   return (
-    <div className={cn("tabular grid shrink-0 rounded-control", plain ? "text-chestnut" : "bg-chestnut text-ivory", countOnly ? "grid-cols-1" : "grid-cols-[auto_minmax(0,1fr)]", className)}>
+    <div className="flex gap-2 items-center">
       <p className="flex items-baseline gap-3 px-2.5 py-2.5">
-        <span className="text-sm font-semibold">{t("items")}</span>
+        <span className="text-sm">{t("items")}</span>
         {/* the count rolls like a slot machine when an item goes in or out */}
         <SlotNumber value={count} hold={hold} className="font-heading text-lg font-extrabold" />
       </p>
-      {!countOnly && (
-        <p className={cn("flex min-w-0 items-baseline border-l px-2.5 py-2.5", plain ? "gap-3 border-chestnut/25" : "justify-between gap-2 border-ivory/25")}>
-          <span className="text-sm font-semibold">{t("lineTotal")}</span>
+        <p className="hidden sm:flex min-w-0 items-baseline px-2.5 py-2.5 gap-3">
+          <span className="text-sm">{t("lineTotal")}</span>
           <span className="truncate whitespace-nowrap font-heading text-lg font-extrabold">{rupees(itemsTotal)}</span>
         </p>
-      )}
     </div>
   );
 }

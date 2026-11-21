@@ -1,10 +1,9 @@
 "use client";
 
-import { Check, ChevronDown, ChevronRight, Plus, ShoppingCart } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, ShoppingCart } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { Menu, MenuItem } from "~/components/ui/menu";
-import { FILTER_TRIGGER } from "~/components/ui/page-styles";
+import { FilterMenu } from "~/components/ui/filter-menu";
 import { rupees, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
@@ -84,88 +83,26 @@ export function ProductsCard() {
   // the filters: category, then its sub-categories; an open list sits under its filter and pushes the products down
   const filters = (
     <div className="flex items-start gap-2 overflow-x-auto [scrollbar-width:none]">
-      <Menu
+      <FilterMenu
+        surface="ivory"
         label={t("category")}
+        allLabel={t("allCategories")}
+        value={categoryId}
+        options={shownCategories.map((c) => ({ key: c.id, label: titleCase(c.name) }))}
+        onPick={(id) => {
+          setCategoryId(id);
+          setSubCategoryId(null);
+        }}
+      />
+      <FilterMenu
         surface="ivory"
-        align="left"
-        boxed
-        inFlow
-        triggerClassName={cn(
-          FILTER_TRIGGER,
-          "min-h-10 shrink-0 rounded-control",
-          categoryId && "border-chestnut bg-chestnut text-ivory",
-        )}
-        trigger={
-          <>
-            <span className="truncate">
-              {category ? titleCase(category.name) : t("allCategories")}
-            </span>
-            <ChevronDown className="size-4 shrink-0" aria-hidden />
-          </>
-        }
-      >
-        {(close) =>
-          [
-            { id: null, name: t("allCategories") },
-            ...shownCategories.map((c) => ({ id: c.id, name: titleCase(c.name) })),
-          ].map((c) => (
-            <MenuItem
-              key={c.id ?? "all"}
-              selected={categoryId === c.id}
-              onClick={() => {
-                setCategoryId(c.id);
-                setSubCategoryId(null);
-                close();
-              }}
-            >
-              <span className="flex-1">{c.name}</span>
-              {categoryId === c.id && <Check className="size-4" aria-hidden />}
-            </MenuItem>
-          ))
-        }
-      </Menu>
-      <Menu
         label={t("subCategory")}
-        surface="ivory"
-        align="left"
-        boxed
-        inFlow
+        allLabel={t("allSubCategories")}
+        value={subCategoryId}
+        options={subs.map((s) => ({ key: s.id, label: titleCase(s.name) }))}
+        onPick={setSubCategoryId}
         disabled={subs.length === 0}
-        triggerClassName={cn(
-          FILTER_TRIGGER,
-          "min-h-10 shrink-0 rounded-control",
-          subCategoryId && "border-chestnut bg-chestnut text-ivory",
-        )}
-        trigger={
-          <>
-            <span className="truncate">
-              {subs.find((s) => s.id === subCategoryId)
-                ? titleCase(subs.find((s) => s.id === subCategoryId)!.name)
-                : t("allSubCategories")}
-            </span>
-            <ChevronDown className="size-4 shrink-0" aria-hidden />
-          </>
-        }
-      >
-        {(close) =>
-          [
-            { id: null, name: t("allSubCategories") },
-            ...subs.map((s) => ({ id: s.id, name: titleCase(s.name) })),
-          ].map((s) => (
-            <MenuItem
-              key={s.id ?? "all"}
-              selected={subCategoryId === s.id}
-              onClick={() => {
-                setSubCategoryId(s.id);
-                close();
-              }}
-            >
-              <span className="flex-1">{s.name}</span>
-              {subCategoryId === s.id && <Check className="size-4" aria-hidden />}
-            </MenuItem>
-          ))
-        }
-      </Menu>
+      />
     </div>
   );
 
@@ -265,13 +202,13 @@ export function ProductsCard() {
         data-recheck
         onClick={() => void next()}
         // Items | Total plain on the card, a soft edge round them; Cart on chestnut
-        className="mt-2 flex w-full items-stretch overflow-hidden rounded-control text-left shadow-[0_0_5px_0] shadow-chestnut/40 transition-colors hover:shadow-chestnut/60"
+        className="mt-2 flex w-full items-center justify-between px-2 bg-chestnut text-ivory overflow-hidden rounded-control shadow-[0_0_5px_0] shadow-chestnut/40 transition-colors hover:shadow-chestnut/60 "
       >
-        <CartTotalRow count={lines.length} itemsTotal={itemsTotal} hold={cardFor !== null} plain className="flex-1" />
-        <span className="flex shrink-0 items-center gap-2 bg-chestnut px-3 text-sm font-semibold text-ivory">
-          <ShoppingCart className="size-4.5 shrink-0" aria-hidden />
+        <CartTotalRow count={lines.length} itemsTotal={itemsTotal} />
+        <span className="flex shrink-0 items-center gap-3 px-2">
+          <ShoppingCart className="size-5 shrink-0" aria-hidden />
           {t("cart")}
-          <ChevronRight className="-ml-1 size-4.5 shrink-0" aria-hidden />
+          <ChevronRight className="size-4 shrink-0" aria-hidden />
         </span>
       </button>
 
