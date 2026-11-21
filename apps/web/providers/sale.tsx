@@ -6,14 +6,13 @@ import type { RouterInputs } from "@repo/trpc/client";
 import { trpc } from "~/trpc/client";
 
 type CreateSaleIn = RouterInputs["transactions"]["sale"]["create"];
-type EditSaleIn = RouterInputs["transactions"]["sale"]["edit"];
 
 // what the sale form needs from the server before anything is typed: the active products, their categories, what each
 // godown holds, our place of business (a cash sale goes there unless changed), the bank accounts, and the save; and
 // for a dispatch on a sale order, that order. Made once for the page; the form reads it with useSaleData(). Every
-// read is tried again by itself before it counts as failed; the save never is. Editing a sale (the admin's): the sale as
-// it was saved, its customer as the Customer card picks one, and the edit's save
-function useSaleDataState(orderId: string | null, editId: string | null, exchangePartyId: string | null) {
+// read is tried again by itself before it counts as failed; the save never is. (An edit's own reads and save are in
+// sale-edit.tsx)
+function useSaleDataState(orderId: string | null, exchangePartyId: string | null) {
   const utils = trpc.useUtils();
   const products = trpc.inventory.product.list.useQuery({ includeInactive: false });
   const categories = trpc.inventory.category.list.useQuery({ includeInactive: false });
@@ -28,14 +27,6 @@ function useSaleDataState(orderId: string | null, editId: string | null, exchang
     { enabled: !!orderPartyId },
   );
   const create = trpc.transactions.sale.create.useMutation();
-  // an edit: the sale as saved, and its customer (their ledger) when it has one
-  const editing = trpc.transactions.sale.forEdit.useQuery({ transactionId: editId ?? "" }, { enabled: editId !== null });
-  const editPartyId = editing.data?.customer?.partyId ?? null;
-  const editLedger = trpc.accounts.ledger.pickable.useQuery(
-    { purpose: "receipt", receiptKind: "customer", partyId: editPartyId },
-    { enabled: !!editPartyId },
-  );
-  const edit = trpc.transactions.sale.edit.useMutation();
   // an exchange's new sale to a customer: their ledger, as the Customer card picks one
   const exchangeLedger = trpc.accounts.ledger.pickable.useQuery(
     { purpose: "receipt", receiptKind: "customer", partyId: exchangePartyId },
@@ -55,17 +46,6 @@ function useSaleDataState(orderId: string | null, editId: string | null, exchang
     return sale;
   }
 
-  // an edit saved: the same reads again, and History and the sale's invoice
-  async function saveEdit(input: EditSaleIn) {
-    const sale = await edit.mutateAsync(input);
-    void utils.inventory.product.list.invalidate();
-    void utils.inventory.stock.invalidate();
-    void utils.accounts.invalidate();
-    void utils.transactions.invalidate();
-    void utils.orders.invalidate();
-    return sale;
-  }
-
   const reads = [
     products,
     categories,
@@ -74,8 +54,6 @@ function useSaleDataState(orderId: string | null, editId: string | null, exchang
     banks,
     ...(orderId !== null ? [order] : []),
     ...(orderPartyId ? [orderLedger] : []),
-    ...(editId !== null ? [editing] : []),
-    ...(editPartyId ? [editLedger] : []),
     ...(exchangePartyId ? [exchangeLedger] : []),
   ];
   return {
@@ -91,12 +69,9 @@ function useSaleDataState(orderId: string | null, editId: string | null, exchang
     loadFailed: reads.some((r) => r.isError),
     retryLoad: () => reads.forEach((r) => r.isError && void r.refetch()),
     saveSale,
-    editing: editId !== null ? (editing.data ?? null) : null,
-    editLedger: editPartyId ? (editLedger.data?.[0] ?? null) : null,
-    saveEdit,
     exchangeLedger: exchangePartyId ? (exchangeLedger.data?.[0] ?? null) : null,
-    saving: create.isPending || edit.isPending,
-    saved: create.isSuccess || edit.isSuccess,
+    saving: create.isPending,
+    saved: create.isSuccess,
   };
 }
 
@@ -105,15 +80,13 @@ const SaleDataContext = createContext<ReturnType<typeof useSaleDataState> | null
 export function SaleDataProvider({
   children,
   orderId = null,
-  editId = null,
   exchangePartyId = null,
 }: {
   children: React.ReactNode;
   orderId?: string | null;
-  editId?: string | null;
   exchangePartyId?: string | null;
 }) {
-  const value = useSaleDataState(orderId, editId, exchangePartyId);
+  const value = useSaleDataState(orderId, exchangePartyId);
   return <SaleDataContext.Provider value={value}>{children}</SaleDataContext.Provider>;
 }
 

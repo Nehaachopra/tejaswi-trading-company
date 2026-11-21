@@ -20,48 +20,48 @@ import { DetailsCard, SaveBlock } from "./details-card";
 import { MoneyCard } from "./money-card";
 import { ProductsCard } from "./products-card";
 import { ReceivedCard } from "./received-card";
-import { type SaleStep, SaleEntryProvider, useSaleEntry, useSaleEntryState } from "./state";
+import { type SaleEdit, type SaleStep, SaleEntryProvider, useSaleEntry, useSaleEntryState } from "./state";
 
 // /transaction/sale (from the transaction hub): a sale, laid out like a payment: one card at a time on the left with
 // Back and Next, and a summary on the right (a bar above the card on a phone) that goes back to any card. 1 Products:
 // the cart above every pack size that can be sold; 2 Amount: the charges and a cash discount; 3 Cash or credit; 4
 // Customer; 5 Received (cash only): what came in and where; 6 Details: the day, vehicle, remarks and Save. A save goes to the sale's success page. Discarding to open a menu
-// starts the form again. With `editId` it edits that sale (the admin's), opened as it was saved, and goes back to it in
-// History once saved. With `exchange` it's an exchange's new sale (from a sale return): to the same buyer, the return
+// starts the form again. (Editing a saved sale is edit/form.tsx, which opens SaleEntry with the sale.) With `exchange` it's an exchange's new sale (from a sale return): to the same buyer, the return
 // counted as received, and its Save saves both; Back on its first card goes back to the return
 export function SaleForm({
   isAdmin,
   orderId = null,
-  editId = null,
   exchange = null,
   onExchangeBack,
 }: {
   isAdmin: boolean;
   orderId?: string | null;
-  editId?: string | null;
   exchange?: ExchangeHandoff | null;
   onExchangeBack?: () => void;
 }) {
   const [round, setRound] = useState(0);
   return (
-    <SaleDataProvider orderId={orderId} editId={editId} exchangePartyId={exchange?.customer?.partyId ?? null}>
+    <SaleDataProvider orderId={orderId} exchangePartyId={exchange?.customer?.partyId ?? null}>
       <SaleEntry key={round} isAdmin={isAdmin} exchange={exchange} onExchangeBack={onExchangeBack} onDiscard={() => setRound((r) => r + 1)} />
     </SaleDataProvider>
   );
 }
 
-function SaleEntry({
+// the form itself, inside SaleDataProvider: a new sale, an exchange's, or (with `edit`, from the edit form) a saved one
+export function SaleEntry({
   isAdmin,
-  exchange,
+  exchange = null,
+  edit = null,
   onExchangeBack,
   onDiscard,
 }: {
   isAdmin: boolean;
-  exchange: ExchangeHandoff | null;
+  exchange?: ExchangeHandoff | null;
+  edit?: SaleEdit | null;
   onExchangeBack?: () => void;
   onDiscard: () => void;
 }) {
-  const state = useSaleEntryState({ isAdmin, exchange, onDiscard });
+  const state = useSaleEntryState({ isAdmin, exchange, edit, onDiscard });
   return (
     <SaleEntryProvider value={state}>
       <SaleEntryView onExchangeBack={onExchangeBack} />

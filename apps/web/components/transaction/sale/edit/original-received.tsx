@@ -4,8 +4,8 @@ import { useTranslations } from "next-intl";
 
 import { bankNameIn } from "~/lib/bank-names";
 
-import { FlowParts } from "../shared/fold-group";
-import { useSaleEntry } from "./state";
+import { FlowParts } from "../../shared/fold-group";
+import { useSaleEntry } from "../state";
 
 // an edit's breakup, under Original sale received (its ⌄ open): where that money came in when the sale was saved (and
 // at each edit since), read only, as a receipt's Received towards: a line from the row into each part (cash, each bank

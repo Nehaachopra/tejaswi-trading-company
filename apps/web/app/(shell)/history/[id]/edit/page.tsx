@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { SaleForm } from "~/components/transaction/sale/form";
+import { SaleEditForm } from "~/components/transaction/sale/edit/form";
 import { getSession } from "~/lib/session";
 
 export const metadata: Metadata = { title: "Edit sale · Tejaswi trading company" };
@@ -11,5 +11,5 @@ export default async function EditSalePage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const session = await getSession();
   if (session!.user.role !== "admin") redirect(`/history/${id}`);
-  return <SaleForm isAdmin editId={id} />;
+  return <SaleEditForm id={id} />;
 }

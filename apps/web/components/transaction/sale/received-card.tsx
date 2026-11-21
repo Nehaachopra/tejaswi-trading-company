@@ -17,7 +17,7 @@ import { AccountCards } from "../shared/account-cards/account-cards";
 import { type AccountCardsApi } from "../shared/account-cards/types";
 import { DueFlow } from "../shared/fold-group";
 import { Meter } from "../shared/meter";
-import { OriginalReceived } from "./original-received";
+import { OriginalReceived } from "./edit/original-received";
 import { SALE_TDS_RATE, useSaleEntry } from "./state";
 import { FixedBanner, TypedBanner } from "../shared/amount-banner";
 

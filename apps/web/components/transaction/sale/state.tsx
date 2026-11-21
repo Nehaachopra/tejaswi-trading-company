@@ -11,6 +11,7 @@ import { toast } from "~/components/ui/toast";
 import { parseAmount } from "~/lib/price";
 import { useLeaveGuard } from "~/lib/use-leave-guard";
 import { useSaleData } from "~/providers/sale";
+import type { SaleForEdit } from "~/providers/sale-edit";
 import { useSaveReturn } from "~/providers/sale-return";
 
 import { indiaDay } from "../../account/balance";
@@ -37,6 +38,8 @@ import { momentOf } from "../shared/form-basics";
 import type { QrItem } from "../shared/qr-spot";
 import type { GridPlace } from "../shared/split-grid";
 import type { ExchangeHandoff } from "../sale-return/state";
+import { editInput, type SaleBase } from "./edit/save-input";
+import type { SaleEditSeed } from "./edit/seed";
 
 // the cards, in order: the cart, the amount (charges and a cash discount), cash or credit, who bought it, what was
 // received and where it came into (cash only), then the day, vehicle, remarks and Save
@@ -81,15 +84,27 @@ export const priceOf = (line: Pick<CartLine, "newPrice">, pack: Pick<Pack, "pric
 export const placedOf = (line: Pick<CartLine, "godowns">) =>
   Object.values(line.godowns).reduce((a, v) => a + (Number(v) || 0), 0);
 
+// an edit, handed in by the edit form (edit/form.tsx): the sale as saved, the answers it starts from, and its save
+export type SaleEdit = {
+  sale: SaleForEdit;
+  seed: SaleEditSeed;
+  saveEdit: (input: ReturnType<typeof editInput>) => Promise<{ transactionId: string }>;
+  saving: boolean;
+  saved: boolean;
+};
+
 // everything the sale form holds and works out. Made once in SaleEntry; every card reads it with useSaleEntry()
 export function useSaleEntryState({
   isAdmin,
   exchange = null,
+  edit = null,
   onDiscard,
 }: {
   isAdmin: boolean;
   // an exchange's new sale: the return it goes with (saved together), its total counted as received
   exchange?: ExchangeHandoff | null;
+  // an edit of a saved sale (the admin's), from the edit form
+  edit?: SaleEdit | null;
   onDiscard: () => void;
 }) {
   const t = useTranslations("transactions.sale");
@@ -109,24 +124,24 @@ export function useSaleEntryState({
     loadFailed,
     retryLoad,
     saveSale,
-    editing,
-    editLedger,
-    saveEdit,
     exchangeLedger,
     saving: creating,
     saved,
   } = useSaleData();
   const { saveExchange, saving: exchanging, saved: exchangeSaved } = useSaveReturn();
-  // editing a saved sale: its items kept (quantities only up), its customer fixed, what was paid towards it known
+  // editing a saved sale: its items kept (quantities only up), its customer fixed, what was paid towards it known; the
+  // answers start as it was saved
+  const editing = edit?.sale ?? null;
   const isEdit = editing !== null;
+  const seed = edit?.seed ?? null;
 
   // the answers
-  const [lines, setLines] = useState<CartLine[]>([]);
-  const [discount, setDiscount] = useState("");
-  const [transport, setTransport] = useState("");
-  const [packing, setPacking] = useState("");
-  const [loadingCharges, setLoadingCharges] = useState("");
-  const [kind, setKind] = useState<"cash" | "credit" | null>(null);
+  const [lines, setLines] = useState<CartLine[]>(seed?.lines ?? []);
+  const [discount, setDiscount] = useState(seed?.discount ?? "");
+  const [transport, setTransport] = useState(seed?.transport ?? "");
+  const [packing, setPacking] = useState(seed?.packing ?? "");
+  const [loadingCharges, setLoadingCharges] = useState(seed?.loadingCharges ?? "");
+  const [kind, setKind] = useState<"cash" | "credit" | null>(seed?.kind ?? null);
   // cash: what came into cash and each bank account (a card each), how each came in and its reference
   const [gridTexts, setGridTexts] = useState<Record<string, string>>({});
   const [gridModes, setGridModes] = useState<Record<string, BankMode | null>>({});
@@ -134,14 +149,14 @@ export function useSaleEntryState({
   const [refLeft, setRefLeft] = useState<string[]>([]);
   // the customer, searched and picked (cash or credit), or someone new: on credit a new customer (their details typed
   // on the card), for cash the buyer below; a picked one's details changed here
-  const [customer, setCustomer] = useState<LedgerChoice>(null);
+  const [customer, setCustomer] = useState<LedgerChoice>(seed?.customer ?? null);
   const [newParty, setNewParty] = useState<PartyDraft>(() => emptyParty());
   const [editingCustomer, setEditingCustomer] = useState(false);
   // cash: the buyer's name and phone, and their address (our place of business, until changed): one for billing and
   // shipping, and a second when it ships somewhere else
-  const [buyerName, setBuyerName] = useState("");
-  const [buyerPhone, setBuyerPhone] = useState("");
-  const [addresses, setAddresses] = useState<AddressDraft[]>(() => [emptyAddress(true)]);
+  const [buyerName, setBuyerName] = useState(seed?.buyerName ?? "");
+  const [buyerPhone, setBuyerPhone] = useState(seed?.buyerPhone ?? "");
+  const [addresses, setAddresses] = useState<AddressDraft[]>(() => seed?.addresses ?? [emptyAddress(true)]);
   // cash, to a saved customer: what they handed over (typed only when they owe from before), whether they deducted
   // TDS, and their PAN when TDS is on and none is saved
   const [receivedText, setReceivedText] = useState("");
@@ -170,9 +185,9 @@ export function useSaleEntryState({
     );
   }, [placeOfBusiness]);
   // the day it's dated (today until changed), the vehicle the goods leave in and its remarks
-  const [day, setDay] = useState(() => indiaDay(new Date()));
-  const [vehicle, setVehicle] = useState("");
-  const [remarks, setRemarks] = useState("");
+  const [day, setDay] = useState(() => seed?.day ?? indiaDay(new Date()));
+  const [vehicle, setVehicle] = useState(seed?.vehicle ?? "");
+  const [remarks, setRemarks] = useState(seed?.remarks ?? "");
   // made when the form opens: a second save with it (a retry after the connection dropped) gets the first one's result
   const [saveKey] = useState(() => crypto.randomUUID());
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -182,76 +197,6 @@ export function useSaleEntryState({
   // (Change brings the search back)
   const [searchSaved, setSearchSaved] = useState(false);
 
-  // an edit opens with the sale as it was saved, once everything it needs is in hand: its items (each at the price it
-  // sold at, with GST), charges and discount, cash or credit, its customer (or a walk-in's name, phone and addresses),
-  // the day, vehicle and remarks
-  const prefilled = useRef(false);
-  useEffect(() => {
-    if (!editing || prefilled.current || !products || (editing.customer && !editLedger)) return;
-    prefilled.current = true;
-    const packAt = new Map<string, Pack>();
-    for (const g of products) for (const p of g.packs) packAt.set(p.productId, p);
-    setLines(
-      editing.lines.map((l) => {
-        const pack = packAt.get(l.productId);
-        const withGst = round2(l.rateBeforeGst * (1 + (pack?.gstPercent ?? 0) / 100));
-        return {
-          productId: l.productId,
-          newPrice: pack && withGst === pack.priceAfterGst ? "" : String(withGst),
-          quantity: String(l.quantity),
-          godowns: Object.fromEntries(l.godowns.map((g) => [g.godownId, String(g.quantity)])),
-          belowCostOk: true,
-        };
-      }),
-    );
-    const text = (n: number) => (n > 0 ? String(n) : "");
-    setDiscount(text(editing.discount));
-    setDiscountTyped(true);
-    setTransport(text(editing.transportCharges));
-    setPacking(text(editing.packingCharges));
-    setLoadingCharges(text(editing.loadingCharges));
-    setKind(editing.kind);
-    setDay(indiaDay(new Date(editing.dateTime)));
-    setVehicle(editing.vehicleNumber ?? "");
-    setRemarks(editing.remarks ?? "");
-    if (editing.customer && editLedger) setCustomer({ kind: "ledger", ledger: editLedger });
-    else {
-      setCustomer({ kind: "party" });
-      setBuyerName(editing.buyer?.name ?? "");
-      setBuyerPhone(editing.buyer?.phone ?? "");
-      // a walk-in's typed addresses: billed at the first, sent to the second when it went elsewhere
-      const draft = (a: {
-        addressLine1: string;
-        landmark: string;
-        city: string;
-        district: string;
-        state: string;
-        stateCode: string;
-        postalCode: string;
-        gstin: string | null;
-      }): AddressDraft => ({
-        ...emptyAddress(true),
-        addressLine1: a.addressLine1,
-        landmark: a.landmark,
-        city: a.city,
-        district: a.district,
-        state: a.state,
-        stateCode: a.stateCode as StateCode,
-        postalCode: a.postalCode,
-        gstin: a.gstin ?? "",
-      });
-      const ship = "address" in editing.shipTo ? draft(editing.shipTo.address) : null;
-      const bill =
-        editing.billTo && "address" in editing.billTo ? draft(editing.billTo.address) : null;
-      const first = bill ?? ship;
-      // (compared without each draft's own key)
-      const same = (a: AddressDraft, b: AddressDraft) =>
-        JSON.stringify({ ...a, key: "" }) === JSON.stringify({ ...b, key: "" });
-      const second = bill && ship && !same(bill, ship) ? { ...ship, isDefault: false } : null;
-      const both = [first, second].filter((a): a is AddressDraft => a !== null);
-      if (both.length > 0) setAddresses(both);
-    }
-  }, [editing, editLedger, products]);
   // an exchange opens with its buyer: the customer (fixed), or a walk-in's name and phone on a cash sale
   const exchangeFilled = useRef(false);
   useEffect(() => {
@@ -375,7 +320,8 @@ export function useSaleEntryState({
 
   // a dispatch on a sale order: the order's discount for what goes now (each item's share, by the part of it that
   // goes) fills the Discount box, again whenever the cart changes, until a discount is typed: then it's left as typed
-  const [discountTyped, setDiscountTyped] = useState(false);
+  // (an edit's discount is the one it was saved with)
+  const [discountTyped, setDiscountTyped] = useState(isEdit);
   const typeDiscount = (v: string) => {
     setDiscountTyped(true);
     setDiscount(v);
@@ -782,7 +728,7 @@ export function useSaleEntryState({
                     : t("missing.address");
 
   // leaving with something entered asks first (not after a save, which goes on to its own page)
-  const { dialog: leaveDialog } = useLeaveGuard(!saved && !exchangeSaved && lines.length > 0, onDiscard);
+  const { dialog: leaveDialog } = useLeaveGuard(!saved && !exchangeSaved && !edit?.saved && lines.length > 0, onDiscard);
 
   // a cash buyer's typed address as the sale keeps it
   const typedAddress = (a: AddressDraft) => ({
@@ -840,54 +786,41 @@ export function useSaleEntryState({
     // a cash buyer's addresses: billed at the first, and sent to the second when there is one
     const billAt = addresses[0]!;
     const shipAt = addresses[1] ?? billAt;
-    if (isEdit) {
+    // what a new sale and an edit both send
+    const base: SaleBase = {
+      saveKey,
+      dateTime: momentOf(day),
+      remarks: remarks.trim() || null,
+      vehicleNumber: vehicle || null,
+      lines: items,
+      discount: offPaise / 100,
+      transportCharges: paise(transport) / 100,
+      packingCharges: paise(packing) / 100,
+      loadingCharges: paise(loadingCharges) / 100,
+      kind: kind!,
+    };
+    const bankParts = gridAccs.map((p) => ({
+      bankDetailsId: p.id,
+      amount: p.amount,
+      mode: p.mode!,
+      referenceNumber: refOf(p.id, p.mode).trim() || null,
+    }));
+    if (edit) {
       try {
-        const sale = await saveEdit({
-          transactionId: editing!.transactionId,
-          saveKey,
-          dateTime: momentOf(day),
-          remarks: remarks.trim() || null,
-          vehicleNumber: vehicle || null,
-          lines: items,
-          discount: offPaise / 100,
-          transportCharges: paise(transport) / 100,
-          packingCharges: paise(packing) / 100,
-          loadingCharges: paise(loadingCharges) / 100,
-          kind: kind!,
-          cashAmount: kind === "cash" && received > 0 ? gridPlaces[0]!.amount : 0,
-          bankParts:
-            kind === "cash" && received > 0
-              ? gridAccs.map((p) => ({
-                  bankDetailsId: p.id,
-                  amount: p.amount,
-                  mode: p.mode!,
-                  referenceNumber: refOf(p.id, p.mode).trim() || null,
-                }))
-              : [],
-          // a walk-in put on credit: the customer picked or added now
-          customerLedgerId:
-            !editing!.customer && customer?.kind === "ledger" ? customer.ledger.id : null,
-          newCustomer:
-            !editing!.customer && kind === "credit" && customer?.kind === "party"
-              ? partyInput(newParty)
-              : null,
-          // a customer's sale keeps its addresses; a walk-in's are as typed
-          ...(editing!.customer
-            ? {
-                billToAddressId:
-                  editing!.billTo && "addressId" in editing!.billTo
-                    ? editing!.billTo.addressId
-                    : null,
-                shipTo: editing!.shipTo,
-              }
-            : customer?.kind === "party" && kind === "cash"
-              ? {
-                  buyer: { name: buyerName.trim(), phone: buyerPhone },
-                  shipTo: { address: typedAddress(shipAt) },
-                  billToAddress: typedAddress(billAt),
-                }
-              : {}),
-        });
+        const sale = await edit.saveEdit(
+          editInput({
+            sale: edit.sale,
+            base,
+            // (only when cash moves)
+            cashAmount: received > 0 ? gridPlaces[0]!.amount : 0,
+            bankParts: received > 0 ? bankParts : [],
+            customer,
+            newParty,
+            buyer: { name: buyerName.trim(), phone: buyerPhone },
+            billAt: typedAddress(billAt),
+            shipAt: typedAddress(shipAt),
+          }),
+        );
         // back to the sale in History; replace, so going back doesn't land on the filled form
         router.replace(`/history/${sale.transactionId}`);
       } catch (err) {
@@ -898,17 +831,8 @@ export function useSaleEntryState({
     }
     // the sale as the server takes it
     const saleInput = {
-        saveKey,
+        ...base,
         saleOrderId: order?.id ?? null,
-        dateTime: momentOf(day),
-        remarks: remarks.trim() || null,
-        vehicleNumber: vehicle || null,
-        lines: items,
-        discount: offPaise / 100,
-        transportCharges: paise(transport) / 100,
-        packingCharges: paise(packing) / 100,
-        loadingCharges: paise(loadingCharges) / 100,
-        kind: kind!,
         ...(kind === "cash"
           ? {
               cashAmount: gridPlaces[0]!.amount,
@@ -918,12 +842,7 @@ export function useSaleEntryState({
               tdsDeducted: tdsIs,
               advanceSetOff: setOff > 0,
               customerPan: panNeeded ? pan : null,
-              bankParts: gridAccs.map((p) => ({
-                bankDetailsId: p.id,
-                amount: p.amount,
-                mode: p.mode!,
-                referenceNumber: refOf(p.id, p.mode).trim() || null,
-              })),
+              bankParts,
               // someone new: their addresses, and from ₹50,000 their name and phone, kept on the sale
               ...(customer?.kind === "party"
                 ? {
@@ -1081,7 +1000,7 @@ export function useSaleEntryState({
     show,
     next,
     saveError,
-    saving: saving || creating || exchanging,
+    saving: saving || creating || exchanging || !!edit?.saving,
     save,
     isEdit,
     editing,
