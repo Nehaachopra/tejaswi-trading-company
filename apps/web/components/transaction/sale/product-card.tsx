@@ -38,7 +38,7 @@ export function ProductCard() {
 }
 
 function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
-  const { t, lines, putLine, removeLine, setCardFor, freeOf, orderPrice, order, editQty } =
+  const { t, lines, putLine, removeLine, setCardFor, freeOf, orderPrice, order, editQty, editing } =
     useSaleEntry();
   const units = useTranslations("products.items.form.units");
   // a dispatch on a sale order: this pack's line on the order (how many were ordered, how many have gone out), while
@@ -174,17 +174,18 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
       value={draft.quantity}
       max={available}
       min={fewest}
-      belowNote={t.rich("edit.belowSaved", {
-        // the sale return form (built next)
-        link: (words) => (
-          <Link
-            href="/transaction/sale-return"
-            className="font-semibold underline underline-offset-2"
-          >
-            {words}
-          </Link>
-        ),
-      })}
+      // only an edit, for an item the sale already had: fewer than it had is a sale return (its own form)
+      belowNote={
+        editing && editQty(pack.productId) > 0
+          ? t.rich("edit.belowSaved", {
+              link: (words) => (
+                <Link href={`/history/${editing.transactionId}/return`} className="font-semibold underline underline-offset-2">
+                  {words}
+                </Link>
+              ),
+            })
+          : undefined
+      }
       label={`${t("quantity")}: ${name}`}
       // a new quantity clears the godowns, to be placed again
       onChange={(v) => setDraft((d) => (d.quantity === v ? d : { ...d, quantity: v, godowns: {} }))}
