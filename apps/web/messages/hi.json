@@ -2396,9 +2396,9 @@
       "date": "तारीख",
       "remarks": "टिप्पणी",
       "bill": "बिल",
-      "lessItemsReturned": "घटाएँ: वापस आइटम",
+      "lessItemsReturned": "वापस आइटम",
       "newBill": "नया बिल",
-      "lessAmountPaid": "घटाएँ: दी गई राशि"
+      "lessAmountPaid": "दी गई राशि"
     }
   },
   "dues": {

@@ -2396,9 +2396,9 @@
       "date": "ದಿನಾಂಕ",
       "remarks": "ಟಿಪ್ಪಣಿ",
       "bill": "ಬಿಲ್",
-      "lessItemsReturned": "ಕಳೆಯಿರಿ: ಹಿಂತಿರುಗಿದ ಐಟಂಗಳು",
+      "lessItemsReturned": "ಹಿಂತಿರುಗಿದ ಐಟಂಗಳು",
       "newBill": "ಹೊಸ ಬಿಲ್",
-      "lessAmountPaid": "ಕಳೆಯಿರಿ: ಪಾವತಿಸಿದ ಮೊತ್ತ"
+      "lessAmountPaid": "ಪಾವತಿಸಿದ ಮೊತ್ತ"
     }
   },
   "dues": {

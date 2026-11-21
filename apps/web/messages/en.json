@@ -2396,9 +2396,9 @@
       "date": "Date",
       "remarks": "Remarks",
       "bill": "Bill",
-      "lessItemsReturned": "Less items returned",
+      "lessItemsReturned": "Items returned",
       "newBill": "New bill",
-      "lessAmountPaid": "Less amount paid"
+      "lessAmountPaid": "Amount paid"
     }
   },
   "dues": {
