@@ -2384,7 +2384,9 @@
       },
       "rate": "Rate",
       "returnQuantity": "Return quantity",
-      "leftToRefund": "Left to refund"
+      "leftToRefund": "Left to refund",
+      "toPay": "To pay",
+      "toReceive": "To receive"
     }
   },
   "dues": {

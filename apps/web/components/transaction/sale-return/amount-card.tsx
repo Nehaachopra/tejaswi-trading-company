@@ -18,11 +18,11 @@ const figure = "tabular flex items-baseline justify-between gap-3 text-sm";
 
 // the Amount card, as the sale's (an edit's): the bill as if what comes back had never been sold. The items, then the
 // cash discount and the transport, packing and loading charges in their boxes as the sale had them (a return never
-// changes them), the round off, Total in the chestnut box; then what was paid towards the bill (taken off) and the
-// balance left (paid over shows with a minus: that's paid back, or carried to the exchange). Half the card wide on a
+// changes them), the round off, Total in the chestnut box; then what was paid towards the bill (taken off) and what's
+// left: To pay (paid over: paid back, or carried to the exchange) or To receive (still owed). Half the card wide on a
 // wider screen
 export function AmountCard() {
-  const { sale, figures, billAfter, balance } = useReturnEntry();
+  const { t, sale, figures, billAfter, balance } = useReturnEntry();
   const ts = useTranslations("transactions.sale");
   const fields = [
     { key: "discount", label: ts("discount"), value: sale.discount },
@@ -69,9 +69,10 @@ export function AmountCard() {
         <span className="min-w-0">{ts("edit.amountPaid")}</span>
         <span className="shrink-0 whitespace-nowrap text-base font-semibold">− {rupees(sale.paid)}</span>
       </div>
+      {/* what's left either way: paid over is ours To pay, still owed is ours To receive */}
       <div className={cn(figure, "border-t border-chestnut/30 pt-2.5")}>
-        <span className="min-w-0 font-bold">{ts("edit.balanceLeft")}</span>
-        <span className="shrink-0 whitespace-nowrap font-heading text-lg font-bold">{balance < 0 ? `− ${rupees(-balance)}` : rupees(balance)}</span>
+        <span className="min-w-0 font-bold">{balance < 0 ? t("toPay") : balance > 0 ? t("toReceive") : ts("edit.balanceLeft")}</span>
+        <span className="shrink-0 whitespace-nowrap font-heading text-lg font-bold">{rupees(Math.abs(balance))}</span>
       </div>
     </div>
   );

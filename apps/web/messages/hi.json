@@ -2384,7 +2384,9 @@
       },
       "rate": "दर",
       "returnQuantity": "वापसी मात्रा",
-      "leftToRefund": "लौटाना बाकी"
+      "leftToRefund": "लौटाना बाकी",
+      "toPay": "देना है",
+      "toReceive": "लेना है"
     }
   },
   "dues": {

@@ -23,8 +23,8 @@ export function DetailsCard() {
   const reasonBad = tried && (reasonKind === null || (reasonKind === "other" && reason.trim() === ""));
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2 sm:w-[calc(50%-0.75rem)]">
-        <span className="text-sm">
+      <div className={cn(fieldRow, "sm:w-[calc(50%-0.75rem)]")}>
+        <span>
           {t("reason")}
           <RequiredMark />
         </span>

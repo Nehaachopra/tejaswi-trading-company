@@ -13,18 +13,35 @@ import { FixedBanner } from "../shared/amount-banner";
 import { Meter } from "../shared/meter";
 import { useReturnEntry } from "./state";
 
-// the Refund card, as the sale's Received card for a walk-in: To pay back (the balance paid over, all of it now), then
-// Left to refund with its slider, pinned while the cards below scroll, then a card for each place it's paid back from,
-// none past what it holds
+// a figure of the breakup: its name on the left, the figure on the right; `strong` closes a part with a line above
+function Figure({ label, amount, strong = false }: { label: string; amount: string; strong?: boolean }) {
+  return (
+    <div className={cn("tabular flex items-center justify-between gap-3 text-sm", strong && "border-t border-chestnut/30 pt-2 font-semibold")}>
+      <span className="min-w-0">{label}</span>
+      <span className={cn("shrink-0 whitespace-nowrap text-base font-semibold", strong && "font-bold")}>{amount}</span>
+    </div>
+  );
+}
+
+// the Refund card, as the sale's Received card: on the left To pay back (the balance paid over, all of it now); on the
+// right (under it on a phone) the breakup: this bill as returned, what was paid towards it, To pay; then Left to refund
+// with its slider, pinned while the cards below scroll, then a card for each place it's paid back from, none past what
+// it holds
 export function RefundCard() {
-  const { t, payBack, splitTotal } = useReturnEntry();
+  const { t, payBack, splitTotal, billAfter, sale } = useReturnEntry();
+  const ts = useTranslations("transactions.sale");
   const tr = useTranslations("transactions.receipt.form");
   const cards = useRefundCards();
   const done = splitTotal === payBack;
   return (
     <div className="flex flex-col gap-1.5 sm:gap-2.5">
-      <div className="sm:w-[calc(50%-1.5rem)]">
+      <div className="grid items-start gap-3 sm:grid-cols-2 sm:gap-12">
         <FixedBanner label={t("toPayBack")} amount={payBack} />
+        <div className="flex min-w-0 flex-col gap-2.5 rounded-control bg-chestnut/[0.04] p-3">
+          <Figure label={ts("thisBill")} amount={rupees(billAfter)} />
+          <Figure label={ts("edit.amountPaid")} amount={`− ${rupees(sale.paid)}`} />
+          <Figure strong label={t("toPay")} amount={rupees(payBack)} />
+        </div>
       </div>
       {/* what's still to place, filling as the cards take their parts; green with a tick once nothing is left */}
       <div className="sticky top-16 z-10 -mx-1 flex flex-col gap-2.5 bg-ivory px-1 pb-1 sm:w-[calc(50%-1rem)]">

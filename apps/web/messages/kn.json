@@ -2384,7 +2384,9 @@
       },
       "rate": "ದರ",
       "returnQuantity": "ವಾಪಸಾತಿ ಪ್ರಮಾಣ",
-      "leftToRefund": "ಹಿಂತಿರುಗಿಸಲು ಬಾಕಿ"
+      "leftToRefund": "ಹಿಂತಿರುಗಿಸಲು ಬಾಕಿ",
+      "toPay": "ಕೊಡಬೇಕು",
+      "toReceive": "ಬರಬೇಕು"
     }
   },
   "dues": {
