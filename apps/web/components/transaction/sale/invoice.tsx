@@ -1,9 +1,8 @@
 "use client";
 
-import { ArrowLeft, Ban, CircleAlert, Download, Flag, Mail, Pencil, Phone } from "lucide-react";
+import { ArrowLeft, CircleAlert, Download, Flag, Mail, Pencil, Phone } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 
 import type { RouterOutputs } from "@repo/trpc/client";
 import { Spinner } from "~/components/ui/icons/spinner";
@@ -14,7 +13,6 @@ import { cn } from "~/lib/utils";
 import type { HistoryTransaction } from "~/providers/history";
 import { useSaleInvoice, useSaleShareKey } from "~/providers/sale";
 
-import { CancelDialog } from "../../history/cancel-dialog";
 import { CancelledNote } from "../../history/cancelled-note";
 import { EditedNote } from "../../history/edited-note";
 import { EditLog } from "../../history/edit-log";
@@ -44,7 +42,7 @@ const placeLine = (a: Place) =>
 // as a row of its own at the bill's highest GST rate; a Total row, then the cash discount off (after GST), the amount
 // and the amount in words. It prints (or saves as a PDF) on its own. With a share key it's the customer's copy, opened
 // from a link without a login: only the download, no way back into the app and nothing to share. Opened from History
-// it goes back there, and the admin can cancel it (greyed, with why, when it can't be); a cancelled one has a note
+// it goes back there, with the admin's Return and Edit sale (no Cancel sale for now); one cancelled before has a note
 // above it (when, by whom, why). A cancelled sale carries a CANCELLED stamp everywhere, printed too, and isn't shared
 export function SaleInvoice({
   id,
@@ -61,9 +59,6 @@ export function SaleInvoice({
   const shared = shareKey !== undefined;
   const doc = useSaleInvoice(id, shareKey);
   const link = useSaleShareKey(id, !shared);
-  // the Cancel sale popup
-  const [asking, setAsking] = useState(false);
-
   if (doc.loading)
     return (
       <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
@@ -80,7 +75,7 @@ export function SaleInvoice({
   const d = doc.invoice!;
   const c = d.company;
   const cancelled = d.status === "cancelled";
-  // the admin's Cancel sale, from History, while it's live; why it can't be, when it can't
+  // the admin's Return and Edit sale, from History, while it's live (Edit greyed when it can't be)
   const record = history?.record;
   const canAsk = !!history?.isAdmin && !cancelled;
   const blocked = record?.cancelBlockedBy && record.cancelBlockedBy !== "cancelled" ? record.cancelBlockedBy : null;
@@ -202,18 +197,8 @@ export function SaleInvoice({
                 <Pencil className="size-4" aria-hidden /> {th("editSale")}
               </Link>
             ))}
-          {/* Cancel sale: greyed when it can't be */}
-          {canAsk && (
-            <button type="button" disabled={!!blocked} onClick={() => setAsking(true)} className={cn(pill, "text-danger")}>
-              <Ban className="size-4" aria-hidden /> {th("cancelSale")}
-            </button>
-          )}
         </div>
       </div>
-      {/* why it can't be cancelled, and what comes first */}
-      {canAsk && blocked && (
-        <p className="no-print -mt-2 mb-4 text-sm text-ivory/80 sm:text-right">{th(`blocked.${blocked}`)}</p>
-      )}
       {/* a cancelled one: when, by whom and why */}
       {record && cancelled && <CancelledNote at={record.cancelledAt} by={record.cancelledByName} reason={record.cancelReason} />}
       {/* an edited one: when it was last edited, and by whom */}
@@ -496,9 +481,6 @@ export function SaleInvoice({
 
       {/* and its edits: the date and the total as they changed */}
       {record && <EditLog edits={record.edits} />}
-
-      {/* Cancel sale asks first, with the reason */}
-      {canAsk && <CancelDialog open={asking} id={d.transactionId} number={d.assignedId} onClose={() => setAsking(false)} />}
     </main>
   );
 }
