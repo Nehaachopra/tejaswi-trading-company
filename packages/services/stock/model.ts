@@ -29,6 +29,8 @@ export const godownProductModel = z.object({
 export const godownStockModel = z.object({
   godownId: idModel,
   godownName: z.string(),
+  // the main godown: returned items go into it
+  isMain: z.boolean(),
   beingCounted: z.boolean(),
   productCount: z.number().int(),
   products: z.array(godownProductModel),

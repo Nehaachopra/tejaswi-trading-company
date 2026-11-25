@@ -27,7 +27,7 @@ export function GodownsBoard({ isAdmin }: { isAdmin: boolean }) {
   const held = useStockByGodown();
   const [showInactive, setShowInactive] = useState(false);
   const read = useGodowns(showInactive);
-  const { setActive, refreshGodowns } = useGodownActions();
+  const { setActive, makeMain, refreshGodowns } = useGodownActions();
 
   // the open sheets
   const [adding, setAdding] = useState(false);
@@ -41,6 +41,7 @@ export function GodownsBoard({ isAdmin }: { isAdmin: boolean }) {
     .map((g) => ({
       godownId: g.id,
       godownName: g.godownName,
+      isMain: g.isMain,
       beingCounted: g.beingCounted,
       productCount: 0,
       products: [],
@@ -64,6 +65,17 @@ export function GodownsBoard({ isAdmin }: { isAdmin: boolean }) {
               ? "network"
               : "failed";
       toast.error(tf(`errors.${key}`));
+    }
+  }
+
+  // the main godown moves to this one
+  async function moveMain(godownId: string, name: string) {
+    try {
+      await makeMain.mutateAsync({ id: godownId });
+      toast.success(t("toast.madeMain", { name }));
+      refreshGodowns();
+    } catch (err) {
+      toast.error(tf(`errors.${(err as { data?: { code?: string } })?.data?.code === undefined ? "network" : "failed"}`));
     }
   }
 
@@ -120,6 +132,7 @@ export function GodownsBoard({ isAdmin }: { isAdmin: boolean }) {
               isAdmin={isAdmin}
               onEdit={() => setEditing(g.godownId)}
               onToggleActive={() => void toggleActive(g.godownId, g.godownName, false)}
+              onMakeMain={() => void moveMain(g.godownId, g.godownName)}
               onMove={(productId) => setMoving({ fromGodownId: g.godownId, productId })}
             />
           ))}
@@ -132,6 +145,7 @@ export function GodownsBoard({ isAdmin }: { isAdmin: boolean }) {
                 isAdmin={isAdmin}
                 onEdit={() => setEditing(g.godownId)}
                 onToggleActive={() => void toggleActive(g.godownId, g.godownName, true)}
+                onMakeMain={() => undefined}
                 onMove={() => undefined}
               />
             ))}

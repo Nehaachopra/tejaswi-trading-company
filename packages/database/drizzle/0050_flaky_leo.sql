@@ -1,0 +1,2 @@
+ALTER TABLE "godowns" ADD COLUMN "is_main" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "godowns_one_main" ON "godowns" USING btree ("is_main") WHERE "godowns"."is_main";

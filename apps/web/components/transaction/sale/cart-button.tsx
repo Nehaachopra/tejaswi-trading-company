@@ -43,7 +43,7 @@ export function SaleCartButton({ onSlide }: { onSlide: () => void }) {
 
 // the cart's cards, in the Products card's cart panel (the Total row already shows above)
 export function SaleCartCards() {
-  const { t, packOf, itemsTotal, setCardFor, removeLine } = useSaleEntry();
+  const { t, packOf, itemsTotal, setCardFor, removeLine, fixed } = useSaleEntry();
   return (
     <CartCards
       lines={useCartRows()}
@@ -52,6 +52,8 @@ export function SaleCartCards() {
       itemsTotal={itemsTotal}
       onOpen={setCardFor}
       onRemove={removeLine}
+      // (a return's replaced item can't come out)
+      canRemove={(id) => !fixed(id)}
       showTotal={false}
       twoPerRow
     />

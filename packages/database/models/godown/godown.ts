@@ -29,6 +29,10 @@ export const godownsTable = pgTable("godowns", {
   // a godown can be made inactive only once it holds no stock; the service checks that
   isActive: boolean("is_active").default(true).notNull(),
 
+  // the main godown: returned items always go back into it. Exactly one; the first godown added is it, and "Make main"
+  // on another moves it there
+  isMain: boolean("is_main").default(false).notNull(),
+
   ownership: godownOwnershipEnum("ownership").notNull().default("rented"),
 
   rent: money("rent"),
@@ -50,6 +54,9 @@ export const godownsTable = pgTable("godowns", {
 (table) => [
   // two godowns can't share a name, whatever the case
   uniqueIndex("godowns_name_unique").on(sql`lower(${table.godownName})`),
+
+  // only one main godown
+  uniqueIndex("godowns_one_main").on(table.isMain).where(sql`${table.isMain}`),
 
   check(
     "godowns_rented_requires_rent",

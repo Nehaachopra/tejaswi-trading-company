@@ -209,6 +209,13 @@ const godownRouter = router({
     .input(setGodownActiveInputModel)
     .output(godownModel)
     .mutation(({ input }) => godownService.setActive(input)),
+
+  // the main godown moves to this one
+  makeMain: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/inventory/godowns/{id}/main", tags: ["inventory"] } })
+    .input(godownIdInputModel)
+    .output(godownModel)
+    .mutation(({ input }) => godownService.makeMain(input)),
 });
 
 // stock: /stock (godown cards) and moving stock are for admin and staff; one pack size's split

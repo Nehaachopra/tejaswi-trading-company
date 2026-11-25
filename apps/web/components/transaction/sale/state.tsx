@@ -64,6 +64,9 @@ export type CartLine = {
   godowns: Record<string, string>;
   // asked on Add to cart: yes, sell it below what a pack costs
   belowCostOk?: boolean;
+  // an item replaced on a return (Buy something else): fixed at the rate it first sold at (paise before GST); it can't
+  // be changed or taken out
+  fixedRate?: number;
 };
 
 // a godown holding a pack size: its name, how many it has, and whether it's being counted (locked)
@@ -122,7 +125,18 @@ export function useSaleEntryState({
   } = useSaleData();
   const { saveExchange, saving: exchanging, saved: exchangeSaved } = useSaveReturn();
   // the answers
-  const [lines, setLines] = useState<CartLine[]>([]);
+  // (Buy something else from a return: its replaced items are in already, fixed)
+  const [lines, setLines] = useState<CartLine[]>(() =>
+    (exchange?.replaced ?? []).map((r) => ({
+      productId: r.productId,
+      newPrice: String(Math.round(r.rate * (1 + r.gstRate / 100)) / 100),
+      quantity: String(r.quantity),
+      godowns: r.godowns,
+      belowCostOk: true,
+      fixedRate: r.rate,
+    })),
+  );
+  const fixed = (productId: string) => lines.some((l) => l.productId === productId && l.fixedRate != null);
   const [discount, setDiscount] = useState("");
   const [transport, setTransport] = useState("");
   const [packing, setPacking] = useState("");
@@ -284,6 +298,12 @@ export function useSaleEntryState({
   // the cart, worked out
   const figures = lines.map((l) => {
     const p = packOf(l.productId)?.pack;
+    // a replaced item: at its fixed rate
+    if (l.fixedRate != null) {
+      const value = l.fixedRate * (Number(l.quantity) || 0);
+      const tax = Math.round((value * (p?.gstPercent ?? 0)) / 100);
+      return { rate: l.fixedRate, value, tax, total: value + tax };
+    }
     return lineFigures(p ? priceOf(l, p) : 0, Number(l.quantity) || 0, p?.gstPercent ?? 0);
   });
   const itemsPaise = figures.reduce((a, f) => a + f.total, 0);
@@ -333,9 +353,13 @@ export function useSaleEntryState({
         ? all.map((l) => (l.productId === line.productId ? line : l))
         : [...all, line],
     );
-  const removeLine = (productId: string) => setLines((all) => all.filter((l) => l.productId !== productId));
-  // the product card over the page: the pack size being added or changed
-  const [cardFor, setCardFor] = useState<string | null>(null);
+  // (a replaced item stays)
+  const removeLine = (productId: string) => setLines((all) => all.filter((l) => l.productId !== productId || l.fixedRate != null));
+  // the product card over the page: the pack size being added or changed (never a replaced item)
+  const [cardFor, setCardOpen] = useState<string | null>(null);
+  const setCardFor = (productId: string | null) => {
+    if (productId === null || !fixed(productId)) setCardOpen(productId);
+  };
 
   // cash: what's received. A walk-in pays the bill. A saved customer pays any part of what's due (this bill and what
   // they owe from before): the old due first, then this bill, the rest staying owed; anything past it all is an
@@ -806,6 +830,7 @@ export function useSaleEntryState({
     figures,
     putLine,
     removeLine,
+    fixed,
     cardFor,
     setCardFor,
     itemsTotal,

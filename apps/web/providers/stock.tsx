@@ -39,6 +39,7 @@ export function useGodownActions() {
     create: trpc.inventory.godown.create.useMutation(),
     update: trpc.inventory.godown.update.useMutation(),
     setActive: trpc.inventory.godown.setActive.useMutation(),
+    makeMain: trpc.inventory.godown.makeMain.useMutation(),
     move: trpc.inventory.stock.move.useMutation(),
     refreshStock,
     // the godown list and what each holds

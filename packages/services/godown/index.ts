@@ -55,6 +55,7 @@ export default class GodownService {
         godownName: g.godownName,
         address: g.address,
         isActive: g.isActive,
+        isMain: g.isMain,
         productCount: heldBy.get(g.id) ?? 0,
         beingCounted: locked.has(g.id),
       } satisfies GodownSummaryModel,
@@ -126,7 +127,9 @@ export default class GodownService {
 
     try {
       const id = await db.transaction(async (tx) => {
-        const [created] = await tx.insert(godownsTable).values(this.values(details)).returning({ id: godownsTable.id });
+        // the first godown added is the main one
+        const [main] = await tx.select({ id: godownsTable.id }).from(godownsTable).where(eq(godownsTable.isMain, true));
+        const [created] = await tx.insert(godownsTable).values({ ...this.values(details), isMain: !main }).returning({ id: godownsTable.id });
         await this.engine.apply(
           tx,
           openingStock.map((l) => ({ productId: l.productId, godownId: created!.id, delta: l.quantity })),
@@ -159,9 +162,10 @@ export default class GodownService {
   // check (and blocks this) or waits and then finds it inactive
   async setActive(input: SetGodownActiveInputModel): Promise<GodownModel> {
     await db.transaction(async (tx) => {
-      const [godown] = await tx.select({ id: godownsTable.id }).from(godownsTable).where(eq(godownsTable.id, input.id)).for("update");
+      const [godown] = await tx.select({ id: godownsTable.id, isMain: godownsTable.isMain }).from(godownsTable).where(eq(godownsTable.id, input.id)).for("update");
       if (!godown) throw notFound();
       if (!input.isActive) {
+        if (godown.isMain) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "This is the main godown. Make another one main first." });
         const [held] = await tx
           .select({ products: count() })
           .from(productGodownsTable)
@@ -176,6 +180,18 @@ export default class GodownService {
         if (counting) throw new TRPCError({ code: "CONFLICT", message: "This godown is being counted. Try again once its count is submitted." });
       }
       await tx.update(godownsTable).set({ isActive: input.isActive }).where(eq(godownsTable.id, input.id));
+    });
+    return this.get({ id: input.id });
+  }
+
+  // the main godown moves here (an active one): returned items go into it from now on
+  async makeMain(input: GodownIdInputModel): Promise<GodownModel> {
+    await db.transaction(async (tx) => {
+      const [godown] = await tx.select({ isActive: godownsTable.isActive }).from(godownsTable).where(eq(godownsTable.id, input.id)).for("update");
+      if (!godown) throw notFound();
+      if (!godown.isActive) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "An inactive godown can't be the main one." });
+      await tx.update(godownsTable).set({ isMain: false }).where(eq(godownsTable.isMain, true));
+      await tx.update(godownsTable).set({ isMain: true }).where(eq(godownsTable.id, input.id));
     });
     return this.get({ id: input.id });
   }

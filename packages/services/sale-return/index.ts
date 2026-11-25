@@ -29,6 +29,7 @@ import { BANK_MODE_DB, type MoreBankPartModel } from "../payment/model";
 import { anyProduct } from "../product/any-product";
 import SaleService from "../sale";
 import { figureSale } from "../sale/figures";
+import { createSaleInputModel } from "../sale/model";
 import SettingService from "../setting";
 import StockEngine, { type Tx } from "../stock/engine";
 import TransactionService from "../transaction";
@@ -326,12 +327,12 @@ export default class SaleReturnService {
     const refund = await this.refundLines(tx, input.cashAmount, input.bankParts);
     let onAccount = 0;
     if (customer) {
-      // an exchange keeps it all on their account (the new sale takes it); a refund in cash pays all of it back now, on
-      // credit none of it (it comes off what they owe, the rest an advance)
-      if (exchange && refund.paid > 0) throw new TRPCError({ code: "BAD_REQUEST", message: "An exchange pays nothing back to a customer." });
+      // a refund in cash pays back all that's left once a replacement's sale has taken its part; on credit (and an
+      // exchange, whose new sale takes it from their account) none of it: it comes off what they owe, the rest an advance
       const refundIn = input.refundIn ?? "credit";
-      if (!exchange && refundIn === "cash" && refund.paid !== f.total) throw new TRPCError({ code: "BAD_REQUEST", message: "Cash and bank must add up to the total." });
-      if (!exchange && refundIn === "credit" && refund.paid !== 0) throw new TRPCError({ code: "BAD_REQUEST", message: "A refund on credit pays nothing back now." });
+      const rest = f.total - (exchange?.used ?? 0);
+      if (refundIn === "cash" && refund.paid !== rest) throw new TRPCError({ code: "BAD_REQUEST", message: "Cash and bank must add up to the total." });
+      if (refundIn === "credit" && refund.paid !== 0) throw new TRPCError({ code: "BAD_REQUEST", message: "A refund on credit pays nothing back now." });
       lines.push({ ledgerId: customer.ledgerId, side: "credit", amount: f.total / 100 });
       if (refund.paid > 0) lines.push({ ledgerId: customer.ledgerId, side: "debit", amount: refund.paid / 100 });
       onAccount = f.total - refund.paid;
@@ -438,12 +439,76 @@ export default class SaleReturnService {
     return { transactionId: created.id, assignedId: created.assignedId, total: f.total, walkIn: !customer };
   }
 
-  // a refund saved
+  // a replacement's new sale: the replaced items to the same buyer at the rate they first sold at, leaving the godowns
+  // given, going where the first sale went. Its cash discount keeps it from coming to more than the return (a rupee of
+  // rounding, or a discount the first bill had); a customer's is on credit (the return is on their account), a
+  // walk-in's is paid for by the return
+  private async replacementSale(tx: Tx, loaded: Loaded, replaced: ReturnLineInputModel[], dateTime: Date, returnTotal: number, customerLedgerId: string | null) {
+    const { sale } = loaded;
+    const shipTo = {
+      addressLine1: sale.shipToAddressLine1Snapshot ?? "",
+      landmark: sale.shipToAddressLine2Snapshot ?? "",
+      city: sale.shipToCitySnapshot ?? "",
+      district: sale.shipToDistrictSnapshot ?? "",
+      state: sale.shipToStateSnapshot ?? "",
+      stateCode: sale.shipToStateCodeSnapshot,
+      postalCode: sale.shipToPostalCodeSnapshot ?? "",
+    };
+    const billTo = sale.billToCitySnapshot
+      ? {
+          addressLine1: sale.billToAddressLine1Snapshot ?? "",
+          landmark: sale.billToAddressLine2Snapshot ?? "",
+          city: sale.billToCitySnapshot,
+          district: sale.billToDistrictSnapshot ?? "",
+          state: sale.billToStateSnapshot ?? "",
+          stateCode: sale.billToStateCodeSnapshot,
+          postalCode: sale.billToPostalCodeSnapshot ?? "",
+          gstin: sale.billToGstinSnapshot ?? "",
+        }
+      : null;
+    const draft = createSaleInputModel.parse({
+      dateTime,
+      lines: replaced.map((l) => ({ productId: l.productId, quantity: l.quantity, rateBeforeGst: rateOf(loaded.items.get(l.productId)!) / 100, belowCostOk: true, godowns: l.replaceFrom })),
+      kind: customerLedgerId ? "credit" : "cash",
+      customerLedgerId,
+      shipTo: { address: shipTo },
+      ...(customerLedgerId ? {} : { billToAddress: billTo, buyer: { name: sale.partyNameSnapshot, phone: sale.partyPhoneSnapshot ?? "" } }),
+    });
+    const bill = figureSale(draft, await this.sales.productsIn(tx, draft));
+    if (bill.total <= returnTotal) return { sale: draft, total: bill.total };
+    // more than the return: the cash discount takes the difference off (the bill before rounding, down to the return)
+    const off = bill.total - bill.roundOff - returnTotal;
+    const lowered = { ...draft, discount: off / 100 };
+    return { sale: lowered, total: figureSale(lowered, await this.sales.productsIn(tx, lowered)).total };
+  }
+
+  // a refund saved. With items replaced, a new sale goes out with them at the price they first sold at (that much of
+  // the return pays for it); what's left of the return is refunded as asked. A walk-in's is paid back in cash
   async create(rawInput: CreateSaleReturnInputModel, actor: ActorModel): Promise<SavedSaleReturnModel> {
     const input = createSaleReturnInputModel.parse(rawInput);
     return db.transaction(async (tx) => {
-      const r = await this.createIn(tx, input, actor, null);
-      return { transactionId: r.transactionId, assignedId: r.assignedId, total: r.total / 100, sale: null };
+      const replaced = input.lines.filter((l) => l.replaceFrom !== null);
+      if (replaced.length === 0) {
+        const r = await this.createIn(tx, input, actor, null);
+        return { transactionId: r.transactionId, assignedId: r.assignedId, total: r.total / 100, sale: null };
+      }
+      const loaded = await this.load(tx, input.saleTransactionId, false);
+      const total = this.figure(loaded, input.lines).total;
+      const customer = await this.customerOf(tx, loaded.sale.partyId);
+      const rep = await this.replacementSale(tx, loaded, replaced, input.dateTime, total, customer?.ledgerId ?? null);
+      if (customer) {
+        // a customer's: the new sale first, on their account; then the return, the rest of it paid back or kept
+        const s = await this.sales.createIn(tx, rep.sale, actor);
+        const r = await this.createIn(tx, input, actor, { saleId: s.saleId, used: rep.total });
+        return { transactionId: r.transactionId, assignedId: r.assignedId, total: r.total / 100, sale: s.saved };
+      }
+      // a walk-in's: the return first, the new sale paid for out of it, the rest paid back
+      if (input.refundIn === "credit") throw new TRPCError({ code: "BAD_REQUEST", message: "With an item replaced, a walk-in's refund is paid back in cash." });
+      const r = await this.createIn(tx, input, actor, { saleId: null, used: rep.total });
+      const s = await this.sales.createIn(tx, rep.sale, actor, { exchangeIn: total });
+      if (s.exchanged !== rep.total) throw new TRPCError({ code: "CONFLICT", message: "The replacement didn't add up. Try again." });
+      await tx.update(saleReturnsTable).set({ exchangeSaleId: s.saleId }).where(eq(saleReturnsTable.transactionId, r.transactionId));
+      return { transactionId: r.transactionId, assignedId: r.assignedId, total: r.total / 100, sale: s.saved };
     });
   }
 
@@ -453,6 +518,20 @@ export default class SaleReturnService {
     const input = exchangeInputModel.parse(rawInput);
     return db.transaction(async (tx) => {
       const loaded = await this.load(tx, input.saleReturn.saleTransactionId, false);
+      // an item replaced goes out again on the new sale: as many, at the rate it first sold at, from the godowns given
+      for (const l of input.saleReturn.lines) {
+        if (!l.replaceFrom) continue;
+        const item = loaded.items.get(l.productId);
+        const on = input.sale.lines.find((x) => x.productId === l.productId);
+        const same =
+          !!item &&
+          !!on &&
+          on.quantity === l.quantity &&
+          toPaise(on.rateBeforeGst) === rateOf(item) &&
+          on.godowns.length === l.replaceFrom.length &&
+          on.godowns.every((g) => l.replaceFrom!.some((x) => x.godownId === g.godownId && x.quantity === g.quantity));
+        if (!same) throw new TRPCError({ code: "BAD_REQUEST", message: "A replaced item goes on the new sale as it came back." });
+      }
       const partyId = loaded.sale.partyId;
       if (partyId) {
         // the new sale is to the same customer
@@ -538,7 +617,7 @@ export default class SaleReturnService {
           .where(eq(salesTable.id, r.exchangeSaleId))
       : [];
     const walkIn = !s.partyId;
-    const exchanged = !exchangeSale ? 0 : walkIn ? Math.min(total, toPaise(exchangeSale.total)) : total;
+    const exchanged = !exchangeSale ? 0 : Math.min(total, toPaise(exchangeSale.total));
     const customerNet = walkIn
       ? 0
       : (
@@ -548,8 +627,10 @@ export default class SaleReturnService {
             .innerJoin(ledgersTable, eq(ledgersTable.id, ledgerEntriesTable.ledgerId))
             .where(and(eq(ledgerEntriesTable.transactionId, t.id), eq(ledgerEntriesTable.isReversal, false), eq(ledgersTable.referenceTable, "parties")))
         ).reduce((a, e) => a + (e.side === "credit" ? 1 : -1) * toPaise(e.amount), 0);
-    const onAccount = walkIn || exchangeSale ? 0 : customerNet;
-    const refunded = total - onAccount - exchanged;
+    // a walk-in's is paid back past what the new sale took; a customer's is what came off their account again (the
+    // rest is on it, less what the new sale took from it)
+    const refunded = walkIn ? total - exchanged : total - customerNet;
+    const onAccount = total - exchanged - refunded;
     return {
       transactionId: t.id,
       assignedId: t.assignedId,

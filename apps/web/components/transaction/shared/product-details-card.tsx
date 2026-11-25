@@ -28,7 +28,15 @@ export type GodownsPart = {
   capAtHeld?: boolean;
   // Add tapped with packs still to place: the Godowns arrow turns red
   invalid?: boolean;
+  // the row's name in place of "Godowns" (a return's "Item received in")
+  label?: string;
+  // filled in already (a return's main godown): the arrow never pulses
+  calm?: boolean;
 };
+
+// a card's second step (a return's Replace or Refund): ‹ back on top, then its own body in place of the figures and
+// godowns; the photo shrinks
+export type SecondStep = { open: boolean; backLabel: string; onBack: () => void; body: ReactNode };
 
 // the product details card shared by sale, purchase, sale order and purchase order: one pack size zoomed in over the dimmed
 // page. On top its pack chip, a bin (when it can come out) and ✕; the name, category | sub-category and the photo;
@@ -51,6 +59,7 @@ export function ProductDetailsCard({
   actionLabel,
   onDone,
   escapeOff = false,
+  second,
   children,
 }: {
   group: ProductGroup;
@@ -71,6 +80,7 @@ export function ProductDetailsCard({
   onDone: () => void;
   // while a question over the card is open, Escape answers that one
   escapeOff?: boolean;
+  second?: SecondStep;
   // dialogs over the card
   children?: ReactNode;
 }) {
@@ -112,7 +122,9 @@ export function ProductDetailsCard({
   };
   // a quantity typed with packs still to place: the Godowns arrow is highlighted, to say where to go next
   const placed = godowns ? Object.values(godowns.parts).reduce((a, v) => a + (Number(v) || 0), 0) : 0;
-  const toPlace = !!godowns && godowns.quantity > 0 && placed !== godowns.quantity;
+  const toPlace = !!godowns && !godowns.calm && godowns.quantity > 0 && placed !== godowns.quantity;
+  const godownsName = godowns?.label ?? t("godowns");
+  const onSecond = !!second?.open;
 
   // straight on the page's body, so the step card's own layer can't put the header or bottom bar over it
   return createPortal(
@@ -158,13 +170,24 @@ export function ProductDetailsCard({
               {titleCase(group.categoryName)} | {titleCase(group.subCategoryName)}
             </p>
           </div>
-          <ProductImage group={group} imageUrl={pack.imageUrl} className="size-40 self-center" />
+          <ProductImage group={group} imageUrl={pack.imageUrl} className={cn("self-center", onSecond ? "size-24" : "size-40")} />
+
+          {/* the second step: ‹ back, then its body */}
+          {second && onSecond && (
+            <div className="flex flex-col gap-2">
+              <button type="button" onClick={second.onBack} className="flex min-h-12 w-full items-center gap-1.5 border-b border-chestnut/15 text-left text-sm font-semibold">
+                <ChevronLeft className="size-5 shrink-0" aria-hidden />
+                {second.backLabel}
+              </button>
+              {second.body}
+            </div>
+          )}
 
           {/* what the transaction adds above the figures (a purchase's cost chart) */}
-          {above}
+          {!onSecond && above}
 
           {/* the panels: the figures, and the godowns to their right (room at the sides for the boxes' soft edges) */}
-          <div className="mt-1 overflow-hidden transition-[height] duration-300 motion-reduce:transition-none" style={{ height }}>
+          <div hidden={onSecond} className="mt-1 overflow-hidden transition-[height] duration-300 motion-reduce:transition-none" style={{ height }}>
             <div className={cn("flex w-[200%] items-start transition-transform duration-300 ease-out motion-reduce:transition-none", pane !== "main" && "-translate-x-1/2")}>
               <div ref={mainRef} inert={pane !== "main"} className="flex w-1/2 min-w-0 flex-col gap-3 px-1 py-1">
                 <FiguresTable headings={headings} rows={rows} />
@@ -180,7 +203,7 @@ export function ProductDetailsCard({
                     className="flex min-h-12 w-full items-center gap-1.5 border-t border-chestnut/15 pt-2 text-left text-sm font-semibold"
                   >
                     <ChevronLeft className="size-5 shrink-0" aria-hidden />
-                    {t("godowns")}
+                    {godownsName}
                   </button>
                   <GodownRows {...godowns} name={name} />
                 </div>
@@ -190,15 +213,15 @@ export function ProductDetailsCard({
 
           {/* Godowns and › (while the figures show): opens the godowns, its arrow filled and pulsing while packs are
               still to place */}
-          {godowns && pane === "main" && (
+          {godowns && pane === "main" && !onSecond && (
             <button
               ref={godownRow}
               type="button"
               onClick={() => slide("godowns")}
-              aria-label={t("godowns")}
+              aria-label={godownsName}
               className="flex min-h-12 w-full items-center justify-between gap-3 text-left text-sm font-semibold"
             >
-              <span>{t("godowns")}</span>
+              <span>{godownsName}</span>
               <span className={cn("grid size-8 shrink-0 place-items-center rounded-control transition-colors", godowns.invalid ? "bg-danger text-white" : toPlace && "animate-pulse bg-chestnut text-ivory motion-reduce:animate-none")}>
                 <ChevronRight className="size-5" aria-hidden />
               </span>
@@ -240,7 +263,7 @@ export function ProductDetailsCard({
 // the godowns' part: what's left to place, then a row each: name left, what it holds now in the middle, how many go
 // (into it or out of it) right; none for one being counted. With no quantity typed yet, only the godowns and what each
 // holds: no meter, no Quantity column
-function GodownRows({ spots, quantity, parts, onPart, leftLabel, capAtHeld = false, name }: GodownsPart & { name: string }) {
+export function GodownRows({ spots, quantity, parts, onPart, leftLabel, capAtHeld = false, name }: GodownsPart & { name: string }) {
   const t = useTranslations("transactions.sale");
   // the godowns holding most of it first, ones being counted last
   const sorted = [...spots].sort((a, b) => Number(a.counting) - Number(b.counting) || b.held - a.held);

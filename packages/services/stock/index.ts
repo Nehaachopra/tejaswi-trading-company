@@ -76,7 +76,7 @@ export default class StockService {
     const locked = new Set(counting.map((c) => c.godownId));
 
     const cards = new Map<string, GodownStockModel>(
-      godowns.map((g) => [g.id, { godownId: g.id, godownName: g.godownName, beingCounted: locked.has(g.id), productCount: 0, products: [] }]),
+      godowns.map((g) => [g.id, { godownId: g.id, godownName: g.godownName, isMain: g.isMain, beingCounted: locked.has(g.id), productCount: 0, products: [] }]),
     );
     for (const { godownId, quantity, product: p, categoryName, subCategoryName } of rows) {
       const card = cards.get(godownId);

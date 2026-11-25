@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRightLeft, ChevronDown, Ellipsis, Pencil, Power } from "lucide-react";
+import { ArrowRightLeft, ChevronDown, Ellipsis, Pencil, Power, Star } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -68,6 +68,7 @@ export function GodownCard({
   isAdmin,
   onEdit,
   onToggleActive,
+  onMakeMain,
   onMove,
 }: {
   godown: GodownStock;
@@ -75,13 +76,15 @@ export function GodownCard({
   isAdmin: boolean;
   onEdit: () => void;
   onToggleActive: () => void;
+  onMakeMain: () => void;
   onMove: (productId: string) => void;
 }) {
   const t = useTranslations("stock.godowns");
   const [open, setOpen] = useState(true);
   const bodyId = `godown-${godown.godownId}`;
   // a godown holding stock, or being counted, can't be made inactive; the menu says why
-  const blocked = isActive && (godown.productCount > 0 || godown.beingCounted);
+  // (nor can the main godown: another is made main first)
+  const blocked = isActive && (godown.isMain || godown.productCount > 0 || godown.beingCounted);
 
   return (
     <section
@@ -102,6 +105,8 @@ export function GodownCard({
         >
           <h2 className="truncate font-heading text-xl font-bold leading-7">{godown.godownName}</h2>
           <span className="tabular shrink-0 text-sm opacity-70">{t("products", { count: godown.productCount })}</span>
+          {/* the main godown: returned items go into it */}
+          {godown.isMain && <span className="shrink-0 rounded-control border border-chestnut px-2 py-0.5 text-xs font-semibold">{t("main")}</span>}
           {godown.beingCounted && <span className="shrink-0 rounded-control bg-chestnut px-2 py-0.5 text-xs font-medium text-ivory">{t("beingCounted")}</span>}
           {!isActive && <span className="shrink-0 rounded-control border border-current px-2 py-0.5 text-xs">{t("inactive")}</span>}
           {isActive && <ChevronDown className={cn("ml-auto size-5 shrink-0 transition-transform", open && "rotate-180")} aria-hidden />}
@@ -125,6 +130,17 @@ export function GodownCard({
                     <Pencil className="size-4" aria-hidden /> {t("edit")}
                   </MenuItem>
                 )}
+                {/* the main godown moves here */}
+                {isActive && !godown.isMain && (
+                  <MenuItem
+                    onClick={() => {
+                      close();
+                      onMakeMain();
+                    }}
+                  >
+                    <Star className="size-4" aria-hidden /> {t("makeMain")}
+                  </MenuItem>
+                )}
                 <MenuItem
                   disabled={blocked}
                   onClick={() => {
@@ -135,7 +151,7 @@ export function GodownCard({
                 >
                   <Power className="size-4" aria-hidden /> {isActive ? t("deactivate") : t("reactivate")}
                   {blocked && (
-                    <span className="w-full pl-6 text-xs">{godown.beingCounted ? t("countingNow") : t("holdsStock")}</span>
+                    <span className="w-full pl-6 text-xs">{godown.isMain ? t("isMainNow") : godown.beingCounted ? t("countingNow") : t("holdsStock")}</span>
                   )}
                 </MenuItem>
               </>

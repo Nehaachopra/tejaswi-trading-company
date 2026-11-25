@@ -60,7 +60,7 @@ function ReturnEntry({ sale, onExchange }: { sale: SaleForReturn; onExchange: (h
 
 // the page: what shows while its products load or can't, then the card on its own with the summary
 function ReturnEntryView() {
-  const { t, sale, loading, loadFailed, retry, figures, total, chosen, mode, refundIn, pickedChoice, newParty, cashRefund, owedAfter, nameOf, packOf, places, complete, index, current, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, missingOf, leaveDialog, day, reasonKind, reason, remarks } =
+  const { t, sale, loading, loadFailed, retry, figures, total, chosen, mode, refundIn, pickedChoice, newParty, cashRefund, owedAfter, nameOf, packOf, places, complete, index, current, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, missingOf, leaveDialog, day, reasonKind, reason, remarks, lineOf, hasReplace, hasRefund, replaced, askRefundIn } =
     useReturnEntry();
   const ts = useTranslations("transactions.sale");
   const locale = useLocale();
@@ -89,17 +89,22 @@ function ReturnEntryView() {
       heading: t("steps.items"),
       value: figures.items.map((i) => {
         const found = packOf(i.productId);
+        // (a replaced one says so after its name)
+        const settle = lineOf(i.productId).settle;
         return {
-          name: nameOf(i.productId),
+          name: settle === "replace" ? `${nameOf(i.productId)} (${t("settle.replace")})` : nameOf(i.productId),
           middle: `×${i.quantity.toLocaleString("en-IN")}`,
           amount: rupees(i.total / 100),
           image: found ? <ProductImage group={found.group} imageUrl={found.pack.imageUrl} className="size-8 rounded-md text-xs" /> : undefined,
         };
       }),
     },
-    { key: "settle", step: "settle", heading: t("returnType"), value: mode ? t(`modes.${mode}`) : null },
+    // the replaced items' new sale
+    ...(hasReplace ? [{ key: "replaced", step: "cart" as const, heading: t("replaced"), value: rupees(replaced) }] : []),
+    // with any refunded: Refund or Buy something else
+    ...(hasRefund ? [{ key: "settle", step: "settle" as const, heading: t("returnType"), value: mode ? t(`modes.${mode}`) : null }] : []),
     // a customer's refund: cash or credit
-    ...(mode === "refund" ? [{ key: "money", step: "money" as const, heading: ts("steps.money"), value: refundIn ? ts(`kinds.${refundIn}`) : null }] : []),
+    ...(hasRefund && mode === "refund" && askRefundIn ? [{ key: "money", step: "money" as const, heading: ts("steps.money"), value: refundIn ? ts(`kinds.${refundIn}`) : null }] : []),
     // a walk-in's refund on credit: who it goes to
     ...(steps.includes("customer")
       ? [
@@ -112,7 +117,7 @@ function ReturnEntryView() {
         ]
       : []),
     // paid back: where from; on credit: what's left owed
-    ...(mode === "refund"
+    ...(hasRefund && mode === "refund"
       ? [
           cashRefund
             ? {

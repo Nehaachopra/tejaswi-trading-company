@@ -456,8 +456,12 @@
         "saved": "{name} saved",
         "deactivated": "{name} marked inactive",
         "reactivated": "{name} marked active",
-        "moved": "{quantity} × {pack} moved to {to}"
-      }
+        "moved": "{quantity} × {pack} moved to {to}",
+        "madeMain": "{name} is now the main godown"
+      },
+      "main": "Main",
+      "makeMain": "Make main",
+      "isMainNow": "Make another godown main first"
     },
     "form": {
       "addTitle": "Add godown",
@@ -2297,12 +2301,12 @@
         "cart": "Cart",
         "items": "Items",
         "amount": "Amount",
-        "settle": "Exchange or refund",
+        "settle": "Refund or buy",
         "refund": "Refund",
         "details": "Details"
       },
       "modes": {
-        "exchange": "Exchange",
+        "exchange": "Buy something else",
         "refund": "Refund"
       },
       "price": "Price + GST",
@@ -2350,14 +2354,16 @@
       "missing": {
         "items": "Pick what's coming back.",
         "godowns": "Put every pack back in a godown.",
-        "mode": "Pick exchange or refund.",
+        "mode": "Pick refund or buy something else.",
         "cap": "Only {amount} can be paid back.",
         "left": "{amount} is still to be placed.",
         "into": "Say how each account paid.",
         "reason": "Pick why it came back.",
         "date": "Pick the date.",
         "refundIn": "Pick cash or credit.",
-        "quantity": "Say how many come back."
+        "quantity": "Say how many come back.",
+        "settle": "Pick replace or refund.",
+        "replaceFrom": "Pick where the new packs come from."
       },
       "errors": {
         "network": "Can't reach the server. Check your connection.",
@@ -2418,7 +2424,16 @@
       "received": "Received",
       "returnTotal": "Return total",
       "removeFromReturn": "Take off the return",
-      "toRefund": "To refund"
+      "toRefund": "To refund",
+      "receivedIn": "Item received in",
+      "quantityAndGodowns": "Quantity and godowns",
+      "settleLabel": "Replace or refund",
+      "next": "Next",
+      "replaced": "Replaced",
+      "settle": {
+        "replace": "Replace",
+        "refund": "Refund"
+      }
     }
   },
   "dues": {

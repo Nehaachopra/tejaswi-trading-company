@@ -70,6 +70,8 @@ export const godownSummaryModel = z.object({
   godownName: z.string(),
   address: z.string().nullable(),
   isActive: z.boolean(),
+  // the main godown: returned items go into it
+  isMain: z.boolean(),
   // pack sizes with stock in it, and whether its stock count is under way (then it is locked)
   productCount: z.number().int(),
   beingCounted: z.boolean(),

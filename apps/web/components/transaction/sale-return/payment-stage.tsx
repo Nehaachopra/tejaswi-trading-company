@@ -26,7 +26,8 @@ export function PaymentStage() {
       <DueStage
         bill={null}
         oldDue={e.oldDue}
-        paid={{ label: e.t("returnTotal"), amount: e.total }}
+        // (with an item replaced: only what's refunded)
+        paid={{ label: e.hasReplace ? e.t("steps.refund") : e.t("returnTotal"), amount: e.refund }}
         due={e.owedAfter}
         after={e.advanceAfter > 0 && <Figure label={ts("advanceLeft")} amount={rupees(e.advanceAfter)} />}
         tried={e.tried}

@@ -17,15 +17,23 @@ export const returnReasonModel = z.enum(RETURN_REASONS);
 // one godown's part of an item coming back: how many packs go into it
 const returnGodownPartModel = z.object({ godownId: idModel, quantity: z.number().int().min(1).max(99_999) });
 
-// one item coming back: a pack size the sale had, how many, and the godowns they go back into (adding up to it)
+// godowns' parts adding up to a quantity, each godown once
+const partsFit = (parts: { godownId: string; quantity: number }[], quantity: number) =>
+  parts.reduce((a, g) => a + g.quantity, 0) === quantity && new Set(parts.map((g) => g.godownId)).size === parts.length;
+
+// one item coming back: a pack size the sale had, how many, and the godowns they go back into (adding up to it).
+// Replaced: as many of the same pack size go out to the buyer again, from the godowns given (a new sale at the price it
+// first sold at); otherwise refunded
 export const returnLineInputModel = z
   .object({
     productId: idModel,
     quantity: z.number().int().min(1).max(99_999),
     godowns: z.array(returnGodownPartModel).min(1, "Pick a godown.").max(20),
+    replaceFrom: z.array(returnGodownPartModel).min(1, "Pick a godown.").max(20).nullable().default(null),
   })
   .refine((l) => l.godowns.reduce((a, g) => a + g.quantity, 0) === l.quantity, { message: "The godowns must add up to the quantity.", path: ["godowns"] })
-  .refine((l) => new Set(l.godowns.map((g) => g.godownId)).size === l.godowns.length, { message: "Each godown once.", path: ["godowns"] });
+  .refine((l) => new Set(l.godowns.map((g) => g.godownId)).size === l.godowns.length, { message: "Each godown once.", path: ["godowns"] })
+  .refine((l) => l.replaceFrom === null || partsFit(l.replaceFrom, l.quantity), { message: "The godowns must add up to the quantity.", path: ["replaceFrom"] });
 
 export type ReturnLineInputModel = z.infer<typeof returnLineInputModel>;
 
