@@ -19,25 +19,28 @@ import { OriginalReceived } from "./original-received";
 import { useSaleEdit } from "./state";
 
 // an edit's payment stage, on the shared one, as a sale's: what's left with arrows to the breakup, then To receive
-// (cash: typed for a customer, fixed for a walk-in; Refund now when the bill went down; credit: none), Remaining and the
-// cards. The breakup: the old due (a customer's), this bill, the due, Original sale received (its ⌄ opening where it
+// (cash: typed for a customer, fixed for a walk-in; credit: none) or, the bill gone down, To pay (typed for a customer,
+// never more than what was paid over; a walk-in's fixed), Remaining and the cards. The breakup: the old due (a customer's), this bill, the due, Original sale received (its ⌄ opening where it
 // came in), then what's received now or refunded, and Due left (with an advance left on credit)
 export function PaymentStage() {
   const e = useSaleEdit();
   const { t, credit, refunding, walkIn, editPaid, editLeft, received, total, tried } = e;
   const tr = useTranslations("transactions.receipt.form");
+  const tpf = useTranslations("transactions.payment.form");
+  const toPay = useTranslations("transactions.purchase")("toPayAmount");
   const [originalOpen, setOriginalOpen] = useState(false);
   const tdsLabel = useId();
   const panBad = tried && e.panNeeded && !/^[A-Z]{5}\d{4}[A-Z]$/.test(e.pan);
   const saleCards = useEditCards();
-  // a refund goes out of the cards: how it was paid, what's left to refund
-  const cards: AccountCardsApi = refunding ? { ...saleCards, labels: { ...saleCards.labels, mode: t("edit.paidBy"), barLeft: t("edit.leftToRefund") } } : saleCards;
+  // money paid back goes out of the cards: how it was paid, what's left to pay
+  const cards: AccountCardsApi = refunding ? { ...saleCards, labels: { ...saleCards.labels, mode: t("edit.paidBy"), barLeft: tpf("leftToPay") } } : saleCards;
 
   // what's left: Due left, and on credit an advance left when the bill went below what was paid
+  const advanceLeft = credit ? e.editAdvanceLeft : e.refundAdvanceLeft;
   const left: LeftItem[] =
-    credit && e.editAdvanceLeft > 0
+    advanceLeft > 0
       ? [
-          { key: "advance", label: t("advanceLeft"), amount: e.editAdvanceLeft },
+          { key: "advance", label: t("advanceLeft"), amount: advanceLeft },
           { key: "due", label: t("leftDue"), amount: editLeft },
         ]
       : [{ key: "due", label: t("leftDue"), amount: editLeft }];
@@ -54,19 +57,20 @@ export function PaymentStage() {
       nothingLeftLabel={tr("nothingLeft")}
       cards={cards}
       leftSide={left}
-      // To receive: fixed (a refund, a walk-in) or typed (a customer's, no more than the bill still has owed); none on credit
+      // To receive, or To pay when the bill went down: fixed for a walk-in, typed for a customer (no more than the bill
+      // still has owed, or what was paid over); none on credit
       amountBox={
-        credit ? null : refunding || walkIn ? (
-          <FixedBanner label={refunding ? t("edit.refundNow") : t("toReceiveOnly")} amount={received} />
+        credit ? null : walkIn ? (
+          <FixedBanner label={refunding ? toPay : t("toReceiveOnly")} amount={received} />
         ) : (
           <TypedBanner
             id="received-field"
-            label={t("toReceiveOnly")}
+            label={refunding ? toPay : t("toReceiveOnly")}
             value={e.receivedText}
             onChange={e.typeReceived}
-            max={e.most}
-            invalid={tried && received === 0 && e.setOff === 0}
-            required={e.setOff === 0}
+            max={refunding ? e.editAdvanceLeft : e.most}
+            invalid={tried && received === 0 && (refunding || e.setOff === 0)}
+            required={refunding || e.setOff === 0}
           />
         )
       }
@@ -109,7 +113,7 @@ export function PaymentStage() {
             {originalOpen && editPaid > 0 && <OriginalReceived />}
             {/* (credit takes nothing now) */}
             {!credit && (
-              <Figure label={refunding ? t("edit.refundNow") : t("edit.received")} amount={refunding ? `+ ${rupees(received)}` : `− ${rupees(received)}`} />
+              <Figure label={refunding ? toPay : t("edit.received")} amount={refunding ? `+ ${rupees(received)}` : `− ${rupees(received)}`} />
             )}
           </>
         ),

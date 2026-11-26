@@ -2053,7 +2053,8 @@
         "toReceive": "वापस मिलना है",
         "leftToReceive": "मिलना बाकी",
         "missingCost": "हर आइटम की कीमत डालें।",
-        "billLeft": "बिल बाकी"
+        "billLeft": "बिल बाकी",
+        "missingReceive": "मिलने वाली रकम लिखें।"
       }
     },
     "sale": {
@@ -2586,8 +2587,11 @@
         "steps": {
           "items": "आइटम",
           "bill": "बिल",
-          "details": "विवरण"
-        }
+          "details": "विवरण",
+          "cart": "कार्ट"
+        },
+        "type": "बदले में",
+        "received": "मिला"
       },
       "replacementBill": "बदले माल का बिल नं.",
       "noteNo": "नोट नं.",
@@ -3045,6 +3049,8 @@
     "returnedShare": "{share}% वापस",
     "noReturns": "अभी कोई वापसी नहीं।",
     "replacedBack": "{share}% वापस आया",
+    "paidCash": "नकद",
+    "paidCredit": "उधार",
     "noReplacements": "अभी कोई बदला माल नहीं।"
   }
 }

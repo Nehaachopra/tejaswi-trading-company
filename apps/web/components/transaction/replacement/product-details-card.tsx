@@ -83,6 +83,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
         onPart: (godownId, v) => setDraft((d) => ({ ...d, into: { ...d.into, [godownId]: v } })),
         leftLabel: tp("leftToPlace"),
         invalid: tried && bad.godowns,
+        hideHeld: true,
       }}
       total={figureOf(pack.productId, quantity).total}
       error={error}

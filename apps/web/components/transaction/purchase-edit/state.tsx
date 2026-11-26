@@ -110,8 +110,8 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
 
   // the money, asked whenever the total changed: cash or credit. The bill up, cash: any amount paid now, as a purchase's
   // payment (older dues first; past all that's due an advance), an advance with them set off unless switched off;
-  // credit owes it. The bill down, cash: the supplier pays the whole cut back now (as a return's cash refund); credit,
-  // it comes off what we owe (past it, an advance)
+  // credit owes it. The bill down, cash: the supplier pays back any part of the cut now (typed, never more than the
+  // cut; the rest comes off what we owe); credit, it all comes off what we owe (past it, an advance)
   const paid = p.paid;
   const rise = round2(total - p.total);
   const asksMoney = pricesChanged && rise !== 0;
@@ -130,15 +130,17 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
   const [setOffOn, setSetOffOn] = useState(true);
   const setOff = paying && setOffOn ? Math.min(heldAdvance, billLeft) : 0;
   const dueNow = round2(oldDue + billLeft - setOff);
-  // paying: what's paid now, as typed; it goes to the older dues first, then this bill; past both, an advance
+  // paying: what's paid now, as typed; it goes to the older dues first, then this bill; past both, an advance. Taking
+  // back: what comes back now, as typed in the same box
   const [paidText, setPaidText] = useState("");
   const payNow = paying ? (parseAmount(paidText) ?? 0) : 0;
   const towardsOld = Math.min(payNow, oldDue);
   const towardsBill = Math.min(round2(payNow - towardsOld), round2(billLeft - setOff));
   const advance = payNow > dueNow ? round2(payNow - dueNow) : 0;
   const dueLeft = Math.max(0, round2(dueNow - payNow));
-  // what moves now: what's paid, or the whole cut coming back
-  const cashBack = takingBack ? -rise : 0;
+  // what moves now: what's paid, or what of the cut comes back (never more than the cut)
+  const cut = takingBack ? -rise : 0;
+  const cashBack = takingBack ? Math.min(parseAmount(paidText) ?? 0, cut) : 0;
   const moving = paying ? payNow : cashBack;
   // what we'll owe them after: credit, the change on top of what we owe; cash, less what's paid, more what came back
   const after = round2(p.supplierBalance + rise + cashBack - payNow);
@@ -190,10 +192,11 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
     setPaidText(text);
     setTypedSplit((was) => (was === null ? null : {}));
   }
-  // cash or credit, or what comes back, changed: the cards start again
-  const [splitFor, setSplitFor] = useState(`${kind}|${cashBack}`);
-  if (splitFor !== `${kind}|${cashBack}`) {
-    setSplitFor(`${kind}|${cashBack}`);
+  // cash or credit, or the cut, changed: the cards start again, and what's typed with them
+  const [splitFor, setSplitFor] = useState(`${kind}|${cut}`);
+  if (splitFor !== `${kind}|${cut}`) {
+    setSplitFor(`${kind}|${cut}`);
+    setPaidText("");
     setTypedSplit(null);
     setBankModes({});
     setRefs({});
@@ -233,7 +236,7 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
       ? creditDays === "" || Number(creditDays) <= 365
       : paying
         ? (payNow > 0 || setOff > 0) && (payCap === null || payNow <= payCap) && (payNow === 0 || splitOk) && !upiTypedBad
-        : splitOk,
+        : cashBack > 0 && splitOk,
     bill: billNumberOk(billNumber) && billDay !== "" && !billBusy,
     details: true,
   };
@@ -247,6 +250,8 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
             ? t("missing.creditDays")
             : paying && payNow === 0 && setOff === 0
               ? t("missing.paid")
+              : takingBack && cashBack === 0
+                ? te("missingReceive")
               : upiTypedBad
                 ? t("missing.upi")
                 : splitTotal < moving
@@ -398,6 +403,7 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
     takingBack,
     paying,
     moving,
+    cut,
     oldDue,
     heldAdvance,
     billLeft,

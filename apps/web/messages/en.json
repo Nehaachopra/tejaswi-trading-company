@@ -2053,7 +2053,8 @@
         "toReceive": "To receive",
         "leftToReceive": "Left to receive",
         "missingCost": "Give every item a cost.",
-        "billLeft": "Bill left"
+        "billLeft": "Bill left",
+        "missingReceive": "Enter the amount to receive."
       }
     },
     "sale": {
@@ -2586,8 +2587,11 @@
         "steps": {
           "items": "Items",
           "bill": "Bill",
-          "details": "Details"
-        }
+          "details": "Details",
+          "cart": "Cart"
+        },
+        "type": "Replacement",
+        "received": "Received"
       },
       "replacementBill": "Replacement bill no.",
       "noteNo": "Note no.",
@@ -3045,6 +3049,8 @@
     "returnedShare": "{share}% returned",
     "noReturns": "No returns yet.",
     "replacedBack": "{share}% back",
+    "paidCash": "Cash",
+    "paidCredit": "Credit",
     "noReplacements": "No replacements yet."
   }
 }

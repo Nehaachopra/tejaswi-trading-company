@@ -86,7 +86,7 @@ function View() {
   ];
   const linesView = (
     <SummaryLines<ReplacementStep>
-      type={t("title")}
+      type={t("type")}
       items={summary}
       current={current}
       reachable={reachable}
@@ -117,7 +117,8 @@ function View() {
       <StepCard
         key={current}
         id={current}
-        name={t(`steps.${current}`)}
+        // (the items stage reads Cart)
+        name={current === "items" ? t("steps.cart") : t(`steps.${current}`)}
         onBack={index > 0 ? () => show(steps[index - 1]!) : null}
         onChange={null}
         missing={tried && !complete[current] ? missingOf(current) : null}

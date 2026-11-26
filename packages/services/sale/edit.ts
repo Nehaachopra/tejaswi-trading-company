@@ -323,8 +323,8 @@ export default class SaleEditService {
       const paid = due ? settlements.reduce((a, s) => a + toPaise(s.amount), 0) : moneyAll;
       const balance = total - paid;
       const moved = toPaise(input.cashAmount) + input.bankParts.reduce((a, b) => a + toPaise(b.amount), 0);
-      // cash: a bill up takes money now (a walk-in all of it, a customer some of it at most), a bill down refunds it all
-      // at once; credit: nothing moves
+      // cash: a bill up takes money now (a walk-in all of it, a customer some of it at most); a bill down pays back what
+      // was paid over (a walk-in all of it, a customer any part: the rest stays as their advance); credit: nothing moves
       let received = 0;
       let refunded = 0;
       // a customer's, as a cash sale's: the TDS they deducted on what came in, and an advance of theirs set off
@@ -353,7 +353,8 @@ export default class SaleEditService {
           }
           received = moved;
         } else if (balance < 0) {
-          if (moved !== -balance) throw new TRPCError({ code: "BAD_REQUEST", message: "Refund what was paid over, in full." });
+          if (!customer && moved !== -balance) throw new TRPCError({ code: "BAD_REQUEST", message: "Refund what was paid over, in full." });
+          if (customer && (moved <= 0 || moved > -balance)) throw new TRPCError({ code: "BAD_REQUEST", message: "Pay back some of what was paid over, and no more." });
           refunded = moved;
         } else if (moved !== 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Nothing is left to receive." });
       } else if (!customer) throw new TRPCError({ code: "BAD_REQUEST", message: "Pick the customer, or add one." });

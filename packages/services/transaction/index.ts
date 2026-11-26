@@ -331,6 +331,7 @@ export default class TransactionService {
       ...(await this.returnedOf(rows.filter((t) => t.type === "sale").map((t) => t.id))),
       ...(await this.purchaseReturnedOf(rows.filter((t) => t.type === "purchase").map((t) => t.id))),
     ]);
+    const paidIn = await this.paidInOf(rows);
     return rows.map((t) => ({
       id: t.id,
       type: t.type,
@@ -344,7 +345,22 @@ export default class TransactionService {
       lastEditedAt: edits.get(t.id)?.at ?? null,
       lastEditedByName: edits.get(t.id)?.by ?? null,
       returned: returned.get(t.id) ?? null,
+      transactedIn: paidIn.get(t.id) ?? null,
     }));
+  }
+
+  // each sale's and purchase's Cash or Credit, as it was saved (other types: none)
+  private async paidInOf(rows: { id: string; type: string }[]) {
+    const out = new Map<string, "cash" | "credit">();
+    const saleIds = rows.filter((t) => t.type === "sale").map((t) => t.id);
+    const purchaseIds = rows.filter((t) => t.type === "purchase").map((t) => t.id);
+    if (saleIds.length)
+      for (const s of await db.select({ id: salesTable.transactionId, kind: salesTable.transactedIn }).from(salesTable).where(inArray(salesTable.transactionId, saleIds)))
+        out.set(s.id, s.kind as "cash" | "credit");
+    if (purchaseIds.length)
+      for (const p of await db.select({ id: purchasesTable.transactionId, kind: purchasesTable.transactedIn }).from(purchasesTable).where(inArray(purchasesTable.transactionId, purchaseIds)))
+        out.set(p.id, p.kind as "cash" | "credit");
+    return out;
   }
 
   // each sale with goods back on it (by returns still in place, any quantity): Returned
@@ -663,6 +679,7 @@ export default class TransactionService {
           : t.type === "purchase"
             ? ((await this.purchaseReturnedOf([t.id])).get(t.id) ?? null)
             : null,
+      transactedIn: (await this.paidInOf([t])).get(t.id) ?? null,
       returns: t.type === "sale" ? await this.returnsOf(t.id) : t.type === "purchase" ? await this.purchaseReturnsOf(t.id) : [],
       replacementFor: await this.replacementFor(t.id, t.type),
       returnedShare: await this.returnedShare(t.id, t.type),

@@ -2053,7 +2053,8 @@
         "toReceive": "ಹಿಂದೆ ಬರಬೇಕು",
         "leftToReceive": "ಬರಲು ಬಾಕಿ",
         "missingCost": "ಪ್ರತಿ ಐಟಂಗೆ ಬೆಲೆ ಹಾಕಿ.",
-        "billLeft": "ಬಿಲ್ ಬಾಕಿ"
+        "billLeft": "ಬಿಲ್ ಬಾಕಿ",
+        "missingReceive": "ಬರಬೇಕಾದ ಮೊತ್ತ ಬರೆಯಿರಿ."
       }
     },
     "sale": {
@@ -2586,8 +2587,11 @@
         "steps": {
           "items": "ಐಟಂಗಳು",
           "bill": "ಬಿಲ್",
-          "details": "ವಿವರಗಳು"
-        }
+          "details": "ವಿವರಗಳು",
+          "cart": "ಕಾರ್ಟ್"
+        },
+        "type": "ಬದಲಿ",
+        "received": "ಬಂದಿದ್ದು"
       },
       "replacementBill": "ಬದಲಿ ಬಿಲ್ ಸಂ.",
       "noteNo": "ನೋಟ್ ಸಂ.",
@@ -3045,6 +3049,8 @@
     "returnedShare": "{share}% ಹಿಂತಿರುಗಿದೆ",
     "noReturns": "ಇನ್ನೂ ಯಾವುದೇ ಹಿಂತಿರುಗಿಸುವಿಕೆ ಇಲ್ಲ.",
     "replacedBack": "{share}% ಹಿಂದೆ ಬಂದಿದೆ",
+    "paidCash": "ನಗದು",
+    "paidCredit": "ಸಾಲ",
     "noReplacements": "ಇನ್ನೂ ಯಾವುದೇ ಬದಲಿ ಸರಕು ಇಲ್ಲ."
   }
 }

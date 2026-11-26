@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, ChevronRight, Hash } from "lucide-react";
+import { CalendarDays, ChevronRight, Clock, Hash, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -57,6 +57,13 @@ export function HistoryRow({ row }: { row: HistoryRowData }) {
               <CalendarDays className="size-3.5" aria-hidden />
               {when(new Date(row.dateTime), locale)}
             </span>
+            {/* a sale or purchase: Cash or Credit, beside when */}
+            {row.transactedIn && (
+              <span className="flex items-center gap-1">
+                {row.transactedIn === "credit" ? <Clock className="size-3.5" aria-hidden /> : <Wallet className="size-3.5" aria-hidden />}
+                {t(row.transactedIn === "credit" ? "paidCredit" : "paidCash")}
+              </span>
+            )}
           </span>
         </span>
         {/* the amount and the arrow */}

@@ -7,7 +7,7 @@ import { FieldMessage } from "~/components/ui/field-message";
 import { rupees } from "~/lib/format";
 
 import { type AccountCardsApi } from "../shared/account-cards/types";
-import { FixedBanner, TypedBanner } from "../shared/amount-banner";
+import { TypedBanner } from "../shared/amount-banner";
 import { DueStage } from "../shared/due-stage";
 import { Figure, type LeftItem, Line, PaymentStage as SharedStage } from "../shared/payment-stage";
 import { AutoSwitch } from "../shared/split-grid";
@@ -16,8 +16,8 @@ import { usePurchaseEdit } from "./state";
 
 // an edit's payment stage. Credit: the due stage (the bill, what was paid, what we'll owe after, the credit period).
 // Cash with the bill up: the purchase form's card: what's left with arrows to the breakup, To pay (typed, never more
-// than cash and the banks hold together), Left to pay with Auto, the cards. Cash with the bill down: To receive (the
-// whole cut, fixed) and a card for each place it comes into, as a purchase return's refund
+// than cash and the banks hold together), Left to pay with Auto, the cards. Cash with the bill down: To receive (typed,
+// never more than the cut; the rest comes off what we owe), Left to receive and a card for each place it comes into
 export function PaymentStage() {
   const e = usePurchaseEdit();
   const tr = useTranslations("transactions.receipt.form");
@@ -51,7 +51,18 @@ export function PaymentStage() {
         leftLabel={e.te("leftToReceive")}
         nothingLeftLabel={tr("nothingLeft")}
         cards={backCards}
-        amountBox={<FixedBanner label={e.te("toReceive")} amount={e.moving} />}
+        // To receive: typed, never more than the cut
+        amountBox={
+          <TypedBanner
+            id="received-field"
+            label={e.te("toReceive")}
+            value={e.paidText}
+            onChange={e.typePaid}
+            max={e.cut}
+            invalid={e.tried && e.moving === 0}
+            required
+          />
+        }
       />
     );
 

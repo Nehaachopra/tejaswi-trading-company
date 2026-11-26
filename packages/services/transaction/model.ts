@@ -55,6 +55,8 @@ export const transactionSummaryModel = z.object({
   // a sale or purchase with goods back on it: Returned, or (a purchase) Pending while replaced packs are still to
   // come; none: null
   returned: z.enum(["returned", "pending"]).nullable(),
+  // a sale or purchase: Cash or Credit, as saved; other types: null
+  transactedIn: z.enum(["cash", "credit"]).nullable(),
 });
 
 export type TransactionSummaryModel = z.infer<typeof transactionSummaryModel>;

@@ -32,6 +32,8 @@ export type GodownsPart = {
   label?: string;
   // filled in already (a return's main godown): the arrow never pulses
   calm?: boolean;
+  // no Available column (a replacement's: what each holds isn't asked)
+  hideHeld?: boolean;
 };
 
 // a card's second step (a return's Replace or Refund): ‹ back on top, then its own body in place of the figures and
@@ -263,7 +265,7 @@ export function ProductDetailsCard({
 // the godowns' part: what's left to place, then a row each: name left, what it holds now in the middle, how many go
 // (into it or out of it) right; none for one being counted. With no quantity typed yet, only the godowns and what each
 // holds: no meter, no Quantity column
-export function GodownRows({ spots, quantity, parts, onPart, leftLabel, capAtHeld = false, name }: GodownsPart & { name: string }) {
+export function GodownRows({ spots, quantity, parts, onPart, leftLabel, capAtHeld = false, hideHeld = false, name }: GodownsPart & { name: string }) {
   const t = useTranslations("transactions.sale");
   // the godowns holding most of it first, ones being counted last
   const sorted = [...spots].sort((a, b) => Number(a.counting) - Number(b.counting) || b.held - a.held);
@@ -271,14 +273,21 @@ export function GodownRows({ spots, quantity, parts, onPart, leftLabel, capAtHel
   const left = quantity - placedNow;
   // a quantity typed: the meter and the Quantity column show
   const placing = quantity > 0;
-  const cols = placing ? "grid-cols-[minmax(0,1fr)_3.5rem_7.5rem]" : "grid-cols-[minmax(0,1fr)_3.5rem]";
+  // (no Available column: the name and Quantity only)
+  const cols = hideHeld
+    ? placing
+      ? "grid-cols-[minmax(0,1fr)_7.5rem]"
+      : "grid-cols-[minmax(0,1fr)]"
+    : placing
+      ? "grid-cols-[minmax(0,1fr)_3.5rem_7.5rem]"
+      : "grid-cols-[minmax(0,1fr)_3.5rem]";
   return (
     <div className="flex flex-col gap-1">
       {placing && <SackMeter label={leftLabel} left={left} share={(placedNow / quantity) * 100} done={left === 0} />}
       {/* the column names, a line under them */}
       <div className={cn("grid items-center gap-3 px-0.5 text-xs font-semibold opacity-60", cols, !placing && "mt-2")}>
         <span>{t("godown")}</span>
-        <span className="text-center">{t("available")}</span>
+        {!hideHeld && <span className="text-center">{t("available")}</span>}
         {placing && <span className="text-right">{t("quantity")}</span>}
       </div>
       <div className="border-t border-chestnut/15" />
@@ -297,7 +306,7 @@ export function GodownRows({ spots, quantity, parts, onPart, leftLabel, capAtHel
                 </span>
                 {g.counting && <span className="block truncate text-xs">{t("beingCounted")}</span>}
               </span>
-              <span className="text-center text-sm font-semibold">{g.held.toLocaleString("en-IN")}</span>
+              {!hideHeld && <span className="text-center text-sm font-semibold">{g.held.toLocaleString("en-IN")}</span>}
               {placing && (
                 <GodownStepper value={parts[g.godownId] ?? ""} max={most} disabled={g.counting} label={`${g.name}: ${name}`} onChange={(v) => onPart(g.godownId, v)} />
               )}

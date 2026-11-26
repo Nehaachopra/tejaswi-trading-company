@@ -257,8 +257,8 @@ export default class PurchaseEditService {
       const balance = total - paid;
       const moved = toPaise(input.cashAmount) + input.bankParts.reduce((a, b) => a + toPaise(b.amount), 0);
       // cash: a bill up pays any amount now, as a purchase's payment (older dues first, past all of it an advance), an
-      // advance already with them set off when asked; a bill down, the supplier pays the whole cut back now (what we owe
-      // them stays as it was, as a return's cash refund leaves it); credit: nothing moves
+      // advance already with them set off when asked; a bill down, the supplier pays back any part of the cut now (the
+      // rest comes off what we owe them); credit: nothing moves
       const oldTotal = toPaise(Number(t.amount));
       let paidNow = 0;
       let takenBack = 0;
@@ -273,7 +273,7 @@ export default class PurchaseEditService {
           if (moved <= 0 && setOff === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Pay some money now, or set off the advance." });
           paidNow = moved;
         } else if (total < oldTotal) {
-          if (moved !== oldTotal - total) throw new TRPCError({ code: "BAD_REQUEST", message: "Take back the cut in full." });
+          if (moved <= 0 || moved > oldTotal - total) throw new TRPCError({ code: "BAD_REQUEST", message: "Take back some of the cut, and no more." });
           takenBack = moved;
         } else if (moved !== 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Nothing moves when the total stays." });
       }
@@ -367,8 +367,8 @@ export default class PurchaseEditService {
         }
       }
 
-      // the due follows the new total, plus a cut the supplier paid back in cash (we still owe that, as their account
-      // shows); what was settled past it is let go (the newest first: their advance now); credit: due after its period
+      // the due follows the new total, plus what of the cut the supplier paid back in cash (we still owe that, as their
+      // account shows); what was settled past it is let go (the newest first: their advance now); credit: due after its period
       // (none: no set day)
       const dueOn = input.kind === "credit" && input.creditPeriodDays !== null ? daysOn(indiaDay(input.dateTime), input.creditPeriodDays) : null;
       if (due) {

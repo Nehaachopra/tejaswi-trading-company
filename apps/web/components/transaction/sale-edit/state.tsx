@@ -193,10 +193,11 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
   const dueNow = round2(oldDue + total - setOff);
   // credit: what they'll owe after this bill (what was paid towards it taken off)
   const creditDue = Math.max(0, round2(oldDue + balance));
-  // what's received now: a customer types any part of what's left; a walk-in pays all of it; a refund gives back what's
-  // paid over
+  // what's received now: a customer types any part of what's left; a walk-in pays all of it. A refund pays back what's
+  // paid over: a customer's typed (any part, the rest stays as their advance), a walk-in's all of it
   const [receivedText, setReceivedText] = useState("");
-  const received = credit ? 0 : balance < 0 ? -balance : walkIn ? balance : Math.min(parseAmount(receivedText) ?? 0, most);
+  const typed = parseAmount(receivedText) ?? 0;
+  const received = credit ? 0 : balance < 0 ? (walkIn ? -balance : Math.min(typed, -balance)) : walkIn ? balance : Math.min(typed, most);
   // the TDS on what came in (a paisa off the bill or all they owe from rounding taken as exactly that), and what it
   // settles; it goes to the older dues first, then this bill
   let tdsAmount = tdsIs && received > 0 ? tdsOn(received, SALE_TDS_RATE) : 0;
@@ -208,6 +209,8 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
   // what stays owed on the account: the old due and this bill, less what was paid, the advance set off and what's
   // settled now (a refund gives back only what's paid over, so the old due stays)
   const editLeft = refunding ? oldDue : Math.max(0, round2(oldDue + editDueLeft - setOff - settles));
+  // a customer's refund of only part of what was paid over: the rest stays as their advance
+  const refundAdvanceLeft = refunding ? Math.max(0, round2(-balance - received)) : 0;
 
   // cash: a card each for cash and every bank account, what came in (or went out) typed
   const [gridTexts, setGridTexts] = useState<Record<string, string>>({});
@@ -277,7 +280,9 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
           ? t("missing.customer")
           : credit
             ? tp("missing.creditDays")
-            : received === 0 && setOff === 0
+            : refunding && received === 0
+              ? tp("missing.paid")
+              : received === 0 && setOff === 0
               ? t("missing.received")
               : !panOk
                 ? t("missing.pan")
@@ -459,6 +464,7 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
     editPaid,
     editDueLeft,
     editAdvanceLeft,
+    refundAdvanceLeft,
     editLeft,
     refunding,
     oldDue,
