@@ -175,6 +175,9 @@ export default class TransactionService {
         // an exchange's new sale goes with its return: that return is cancelled instead
         const [exchange] = await q.select({ id: saleReturnsTable.id }).from(saleReturnsTable).where(eq(saleReturnsTable.exchangeSaleId, sale.id));
         if (exchange) return "exchangeSale";
+        // a return's packs replaced later went out on it: it goes with that return, as an exchange's
+        const [delivery] = await q.select({ id: returnDeliveriesTable.id }).from(returnDeliveriesTable).where(eq(returnDeliveriesTable.deliveryTransactionId, t.id)).limit(1);
+        if (delivery) return "exchangeSale";
       }
     }
     // a purchase we've since paid towards (a payment settled its due): that payment is cancelled first. What a cash
@@ -363,19 +366,51 @@ export default class TransactionService {
     return out;
   }
 
-  // each sale with goods back on it (by returns still in place, any quantity): Returned
+  // each sale with goods back on it (by returns still in place, any quantity): Pending while a return's packs replaced
+  // later are still to go out, else Returned
   private async returnedOf(saleTransactionIds: string[]) {
     const out = new Map<string, "returned" | "pending">();
     if (saleTransactionIds.length === 0) return out;
     const back = await db
-      .select({ transactionId: salesTable.transactionId, quantity: sql<number>`sum(${saleReturnProductsTable.quantity})::int` })
+      .select({ transactionId: salesTable.transactionId, returnTransactionId: transactionsTable.id, quantity: sql<number>`sum(${saleReturnProductsTable.quantity})::int` })
       .from(saleReturnProductsTable)
       .innerJoin(saleReturnsTable, eq(saleReturnsTable.id, saleReturnProductsTable.returnId))
       .innerJoin(transactionsTable, eq(transactionsTable.id, saleReturnsTable.transactionId))
       .innerJoin(salesTable, eq(salesTable.id, saleReturnsTable.saleId))
       .where(and(inArray(salesTable.transactionId, saleTransactionIds), eq(transactionsTable.status, "active")))
-      .groupBy(salesTable.transactionId);
-    for (const b of back) if (b.quantity > 0) out.set(b.transactionId, "returned");
+      .groupBy(salesTable.transactionId, transactionsTable.id);
+    const later = await this.saleReplacedOn(back.map((b) => b.returnTransactionId));
+    for (const b of back) {
+      if (b.quantity <= 0) continue;
+      const x = later.get(b.returnTransactionId);
+      if (x && x.back < x.sent) out.set(b.transactionId, "pending");
+      else if (!out.has(b.transactionId)) out.set(b.transactionId, "returned");
+    }
+    return out;
+  }
+
+  // each sale return's packs replaced later: how many, and how many have gone out (on sales still in place); returns
+  // with none replaced later are left out
+  private async saleReplacedOn(returnTransactionIds: string[]) {
+    const out = new Map<string, { sent: number; back: number }>();
+    if (returnTransactionIds.length === 0) return out;
+    const owed = await db
+      .select({ returnTransactionId: saleReturnsTable.transactionId, quantity: sql<number>`sum(${saleReturnProductsTable.quantity})::int` })
+      .from(saleReturnProductsTable)
+      .innerJoin(saleReturnsTable, eq(saleReturnsTable.id, saleReturnProductsTable.returnId))
+      .where(and(inArray(saleReturnsTable.transactionId, returnTransactionIds), eq(saleReturnProductsTable.replaced, true)))
+      .groupBy(saleReturnsTable.transactionId);
+    const gone = await db
+      .select({ returnTransactionId: returnDeliveriesTable.returnTransactionId, quantity: sql<number>`sum(${returnDeliveriesTable.quantity})::int` })
+      .from(returnDeliveriesTable)
+      .innerJoin(transactionsTable, eq(transactionsTable.id, returnDeliveriesTable.deliveryTransactionId))
+      .where(and(inArray(returnDeliveriesTable.returnTransactionId, returnTransactionIds), eq(transactionsTable.status, "active")))
+      .groupBy(returnDeliveriesTable.returnTransactionId);
+    for (const r of owed) {
+      if (r.quantity <= 0) continue;
+      const g = gone.find((x) => x.returnTransactionId === r.returnTransactionId)?.quantity ?? 0;
+      out.set(r.returnTransactionId, { sent: r.quantity, back: Math.min(g, r.quantity) });
+    }
     return out;
   }
 
@@ -486,15 +521,41 @@ export default class TransactionService {
     };
   }
 
-  // a sale return's replacement: the sale it made for the items it replaced (its ID, day, total, status); none made: []
-  private async saleReplacementsOf(returnTransactionId: string): Promise<TransactionModel["replacements"]> {
-    const rows = await db
+  // a sale return's replacements: the sale it made for the items replaced now, then each sale its packs replaced later
+  // went out on (its ID, day, total, status), oldest first; and how many packs replaced later are still to go
+  private async saleReplacementsOf(returnTransactionId: string): Promise<Pick<TransactionModel, "replacements" | "replacementsOwed" | "replacementsSent">> {
+    const now = await db
       .select({ transactionId: transactionsTable.id, assignedId: transactionsTable.assignedId, date: salesTable.invoiceDate, total: transactionsTable.amount, status: transactionsTable.status })
       .from(saleReturnsTable)
       .innerJoin(salesTable, eq(salesTable.id, saleReturnsTable.exchangeSaleId))
       .innerJoin(transactionsTable, eq(transactionsTable.id, salesTable.transactionId))
       .where(eq(saleReturnsTable.transactionId, returnTransactionId));
-    return rows.map((r) => ({ transactionId: r.transactionId, assignedId: r.assignedId, date: r.date, total: Number(r.total), status: r.status === "cancelled" ? ("cancelled" as const) : ("active" as const) }));
+    const later = await db
+      .selectDistinct({
+        transactionId: transactionsTable.id,
+        assignedId: transactionsTable.assignedId,
+        date: salesTable.invoiceDate,
+        total: transactionsTable.amount,
+        status: transactionsTable.status,
+        createdAt: transactionsTable.createdAt,
+      })
+      .from(returnDeliveriesTable)
+      .innerJoin(transactionsTable, eq(transactionsTable.id, returnDeliveriesTable.deliveryTransactionId))
+      .innerJoin(salesTable, eq(salesTable.transactionId, transactionsTable.id))
+      .where(eq(returnDeliveriesTable.returnTransactionId, returnTransactionId))
+      .orderBy(asc(salesTable.invoiceDate), asc(transactionsTable.createdAt));
+    const x = (await this.saleReplacedOn([returnTransactionId])).get(returnTransactionId);
+    return {
+      replacements: [...now, ...later].map((r) => ({
+        transactionId: r.transactionId,
+        assignedId: r.assignedId,
+        date: r.date,
+        total: Number(r.total),
+        status: r.status === "cancelled" ? ("cancelled" as const) : ("active" as const),
+      })),
+      replacementsOwed: x ? x.sent - x.back : 0,
+      replacementsSent: x?.sent ?? 0,
+    };
   }
 
   // what share of a sale's or purchase's packs went back on returns still in place (replaced ones too), 0 to 100
@@ -555,7 +616,15 @@ export default class TransactionService {
         .innerJoin(transactionsTable, eq(transactionsTable.id, saleReturnsTable.transactionId))
         .where(eq(salesTable.transactionId, transactionId))
         .limit(1);
-      return r ?? null;
+      if (r) return r;
+      // or one a return's packs replaced later went out on
+      const [d] = await db
+        .select({ transactionId: transactionsTable.id, assignedId: transactionsTable.assignedId })
+        .from(returnDeliveriesTable)
+        .innerJoin(transactionsTable, eq(transactionsTable.id, returnDeliveriesTable.returnTransactionId))
+        .where(eq(returnDeliveriesTable.deliveryTransactionId, transactionId))
+        .limit(1);
+      return d ?? null;
     }
     return null;
   }
@@ -608,6 +677,8 @@ export default class TransactionService {
       const replaced = back.reduce((a, b) => a + Math.min(b.quantity, out.find((o) => o.productId === b.productId)?.quantity ?? 0), 0);
       if (replaced > 0) replacedOf.set(r.transactionId, replaced);
     }
+    // and the packs replaced later: how many, and how many have gone out so far
+    const later = await this.saleReplacedOn(rows.map((r) => r.transactionId));
     return rows.map((r) => ({
       transactionId: r.transactionId,
       assignedId: r.assignedId,
@@ -620,7 +691,11 @@ export default class TransactionService {
         const s = replacements.find((x) => x.saleId === r.exchangeSaleId);
         return s ? { transactionId: s.transactionId, assignedId: s.assignedId, dateTime: s.dateTime, total: Number(s.total) } : null;
       })(),
-      replaced: replacedOf.has(r.transactionId) ? { sent: replacedOf.get(r.transactionId)!, back: replacedOf.get(r.transactionId)! } : null,
+      replaced: (() => {
+        const now = replacedOf.get(r.transactionId) ?? 0;
+        const l = later.get(r.transactionId);
+        return now > 0 || l ? { sent: now + (l?.sent ?? 0), back: now + (l?.back ?? 0) } : null;
+      })(),
     }));
   }
 
@@ -686,7 +761,7 @@ export default class TransactionService {
       ...(t.type === "purchase_return"
         ? await this.replacementsOf(t.id)
         : t.type === "sale_return"
-          ? { replacements: await this.saleReplacementsOf(t.id), replacementsOwed: 0, replacementsSent: 0 }
+          ? await this.saleReplacementsOf(t.id)
           : { replacements: [], replacementsOwed: 0, replacementsSent: 0 }),
       edits: (
         await db

@@ -88,3 +88,21 @@ export function useCreditNoteShareKey(transactionId: string, enabled = true) {
   const q = trpc.transactions.saleReturn.shareKey.useQuery({ transactionId }, { enabled });
   return { key: q.data?.key };
 }
+
+// a return's items replaced later, still to go out (the Send replacement form)
+export function usePendingSaleReplacement(transactionId: string) {
+  const q = trpc.transactions.saleReturn.pending.useQuery({ transactionId });
+  return { pending: q.data, loading: q.isPending, loadFailed: q.isError, retry: () => void q.refetch() };
+}
+
+// replaced packs sent out later (a sale); then stock and History are asked again
+export function useSendReplacement() {
+  const utils = trpc.useUtils();
+  const m = trpc.transactions.saleReturn.send.useMutation({
+    onSuccess: () => {
+      void utils.inventory.invalidate();
+      void utils.transactions.invalidate();
+    },
+  });
+  return { send: m.mutateAsync, saving: m.isPending };
+}

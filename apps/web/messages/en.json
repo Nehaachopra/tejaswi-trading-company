@@ -2383,7 +2383,8 @@
         "refundIn": "Pick cash or credit.",
         "quantity": "Say how many come back.",
         "settle": "Pick replace or refund.",
-        "replaceFrom": "Pick where the new packs come from."
+        "replaceFrom": "Pick where the new packs come from.",
+        "when": "Pick when the new packs go."
       },
       "errors": {
         "network": "Can't reach the server. Check your connection.",
@@ -2454,6 +2455,33 @@
       "settle": {
         "replace": "Replace",
         "refund": "Refund"
+      },
+      "newPacksGo": "New packs go",
+      "when": {
+        "now": "Now",
+        "later": "Later"
+      },
+      "send": {
+        "action": "Send replacement",
+        "title": "Send replacement",
+        "titleFor": "Replacement for {number}",
+        "type": "Replacement",
+        "summary": "Summary",
+        "loading": "Loading…",
+        "nothingLeft": "Every replaced pack has gone out.",
+        "customer": "Customer",
+        "dispatched": "Dispatched",
+        "total": "Bill total",
+        "save": "Save",
+        "saving": "Saving…",
+        "failed": "Couldn't save. Try again.",
+        "missing": "Take every pack out of a godown.",
+        "missingQuantity": "Say how many go.",
+        "missingDate": "Pick the date.",
+        "steps": {
+          "cart": "Cart",
+          "details": "Details"
+        }
       }
     },
     "purchaseReturn": {

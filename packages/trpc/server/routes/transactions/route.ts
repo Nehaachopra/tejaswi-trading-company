@@ -20,7 +20,7 @@ import { editPurchaseInputModel, purchaseForEditModel } from "@repo/services/pur
 import { createSaleInputModel, saleIdInputModel, saleInvoiceModel, saleShareKeyModel, saleSummaryModel, savedSaleModel, sharedSaleInputModel } from "@repo/services/sale/model";
 import { placeOfBusinessModel } from "@repo/services/setting/model";
 import { createPurchaseReturnInputModel, debitNoteModel, pendingReplacementModel, purchaseForReturnModel, purchaseReturnIdInputModel, receiveReplacementInputModel, receivedReplacementModel, savedPurchaseReturnModel } from "@repo/services/purchase-return/model";
-import { createSaleReturnInputModel, creditNoteModel, exchangeInputModel, saleForReturnModel, saleReturnIdInputModel, savedSaleReturnModel } from "@repo/services/sale-return/model";
+import { createSaleReturnInputModel, creditNoteModel, exchangeInputModel, pendingSaleReplacementModel, saleForReturnModel, saleReturnIdInputModel, savedSaleReturnModel, sendReplacementInputModel } from "@repo/services/sale-return/model";
 import { createReceiptInputModel, receiptIdInputModel, receiptModel, receiptShareKeyModel, savedReceiptModel, sharedReceiptInputModel } from "@repo/services/receipt/model";
 import {
   cashTodayInputModel,
@@ -602,6 +602,27 @@ const saleReturnRouter = router({
       const save = () => {
         limitSaves(ctx.session.user.id);
         return saleReturnService.exchange(input, ctx.session.user);
+      };
+      return input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save();
+    }),
+
+  // a return's items replaced later, still to go out
+  pending: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/sale-returns/{transactionId}/pending", tags: ["transactions"] } })
+    .input(saleReturnIdInputModel)
+    .output(pendingSaleReplacementModel)
+    .query(({ input }) => saleReturnService.pending(input)),
+
+  // replaced packs going out later (a sale to the customer): dated today or before
+  send: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/sale-returns/{returnTransactionId}/send", tags: ["transactions"] } })
+    .input(sendReplacementInputModel)
+    .output(savedSaleModel)
+    .mutation(({ ctx, input }) => {
+      checkDate(input.dateTime, ctx.session.user.role);
+      const save = () => {
+        limitSaves(ctx.session.user.id);
+        return saleReturnService.send(input, ctx.session.user);
       };
       return input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save();
     }),

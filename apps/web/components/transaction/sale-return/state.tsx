@@ -35,10 +35,14 @@ export const REASON_MAX = 500;
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 // one item of the sale on the return: how many come back and how many go into each godown, then whether it's replaced
-// (as many go out again, from the godowns in `out`) or refunded
+// or refunded; replaced, when the new packs go: now (as many go out again, from the godowns in `out`) or later (a
+// saved customer's: sent from History)
 export type Settle = "replace" | "refund";
-export type ReturnLine = { quantity: string; godowns: Record<string, string>; settle: Settle | null; out: Record<string, string> };
-export const emptyLine = (): ReturnLine => ({ quantity: "", godowns: {}, settle: null, out: {} });
+export type When = "now" | "later";
+export type ReturnLine = { quantity: string; godowns: Record<string, string>; settle: Settle | null; when: When | null; out: Record<string, string> };
+export const emptyLine = (): ReturnLine => ({ quantity: "", godowns: {}, settle: null, when: null, out: {} });
+// replaced now: its new packs go out with the return
+export const replacedNow = (l: ReturnLine) => l.settle === "replace" && l.when === "now";
 // a godowns' map as the server takes it: only the ones with some in them
 const partsOf = (m: Record<string, string>) =>
   Object.entries(m)
@@ -75,7 +79,7 @@ export type ExchangeHandoff = {
 export function replacementTotal(sale: SaleForReturn, lines: Record<string, ReturnLine>, returnTotal: number) {
   let gross = 0;
   for (const [id, l] of Object.entries(lines)) {
-    if (l.settle !== "replace") continue;
+    if (!replacedNow(l)) continue;
     const s = sale.lines.find((x) => x.productId === id);
     if (!s) continue;
     for (const p of partsOf(l.out)) {
@@ -123,6 +127,20 @@ export function figureReturn(sale: SaleForReturn, quantities: Record<string, num
     after,
     total: before.total - after.total,
   };
+}
+
+// what the items replaced later keep on the customer's account until they go out, in paise, as the server works it out:
+// each at the rate it first sold at with its GST, rounded to the rupee, never more than `most`
+export function laterHold(sale: SaleForReturn, lines: Record<string, ReturnLine>, most: number) {
+  let gross = 0;
+  for (const [id, l] of Object.entries(lines)) {
+    if (l.settle !== "replace" || l.when !== "later") continue;
+    const s = sale.lines.find((x) => x.productId === id);
+    if (!s) continue;
+    const value = Math.round(s.rate * 100) * (Number(l.quantity) || 0);
+    gross += value + Math.round((value * s.gstRate) / 100);
+  }
+  return gross === 0 ? 0 : Math.max(0, Math.min(Math.round(gross / 100) * 100, most));
 }
 
 // what a customer picked owes and holds now, in rupees
@@ -208,11 +226,15 @@ export function useReturnEntryState({ sale, ledger }: { sale: SaleForReturn; led
   const f = figureReturn(sale, quantities);
   const total = f.total / 100;
   const chosen = f.items.length;
-  // the replaced items' new sale, and what's left of the return to refund
+  // the items replaced now (their new sale), those replaced later (what they keep on the account), and what's left of
+  // the return to refund
   const hasReplace = Object.values(lines).some((l) => l.settle === "replace");
+  const hasReplaceNow = Object.values(lines).some(replacedNow);
   const hasRefund = Object.values(lines).some((l) => l.settle === "refund");
-  const replaced = replacementTotal(sale, lines, f.total) / 100;
-  const refund = round2(total - replaced);
+  const replacedPaise = replacementTotal(sale, lines, f.total);
+  const replaced = replacedPaise / 100;
+  const held = laterHold(sale, lines, f.total - replacedPaise) / 100;
+  const refund = round2(total - replaced - held);
 
   // a refund in cash pays it all back now; on credit it stays on the customer's account (off what they owe, the rest an
   // advance). A walk-in's on credit goes to a customer picked or added now (the sale's name and phone filled in)
@@ -279,7 +301,7 @@ export function useReturnEntryState({ sale, ledger }: { sale: SaleForReturn; led
     Object.entries(lines).every(([id, l]) => {
       const q = Number(l.quantity) || 0;
       const out = Object.values(l.out).reduce((a, v) => a + (Number(v) || 0), 0);
-      return q <= saleLine(id).canReturn && placedOf(l) === q && l.settle !== null && (l.settle === "refund" || out === q);
+      return q <= saleLine(id).canReturn && placedOf(l) === q && l.settle !== null && (l.settle === "refund" || l.when === "later" || (l.when === "now" && out === q));
     });
   const reasonOk = reasonKind !== null && (reasonKind !== "other" || reason.trim() !== "");
   const complete: Record<ReturnStep, boolean> = {
@@ -373,7 +395,8 @@ export function useReturnEntryState({ sale, ledger }: { sale: SaleForReturn; led
         productId,
         quantity: Number(l.quantity),
         godowns: partsOf(l.godowns),
-        replaceFrom: l.settle === "replace" ? partsOf(l.out) : null,
+        replaceFrom: replacedNow(l) ? partsOf(l.out) : null,
+        replaceLater: l.settle === "replace" && l.when === "later",
       })),
     reasonKind: reasonKind!,
     reason: reasonKind === "other" ? reason.trim() : null,
@@ -437,8 +460,10 @@ export function useReturnEntryState({ sale, ledger }: { sale: SaleForReturn; led
     outOf,
     mainId,
     hasReplace,
+    hasReplaceNow,
     hasRefund,
     replaced,
+    held,
     refund,
     askRefundIn,
     refundWay,

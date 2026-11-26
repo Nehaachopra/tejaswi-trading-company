@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CircleAlert, Download, Mail, Phone } from "lucide-react";
+import { ArrowLeft, CircleAlert, Download, Mail, Phone, Truck } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
@@ -30,6 +30,7 @@ const pill =
 // `shareKey`: the customer's copy from a shared link, opened without a login: only the download
 export function CreditNoteView({ id, history, shareKey }: { id: string; history?: { record: HistoryTransaction; isAdmin: boolean }; shareKey?: string }) {
   const t = useTranslations("transactions.saleReturn.note");
+  const tsend = useTranslations("transactions.saleReturn.send");
   const ti = useTranslations("transactions.sale.invoice");
   const tr = useTranslations("transactions.saleReturn");
   const th = useTranslations("history");
@@ -87,6 +88,11 @@ export function CreditNoteView({ id, history, shareKey }: { id: string; history?
     return `https://wa.me/${to}?text=${encodeURIComponent(text)}`;
   };
   const canShare = !shared && !cancelled && !!d.buyer.phone;
+  // packs replaced later still to go, sent from here (the admin's, from History)
+  const canSend = !!history?.isAdmin && !cancelled && history.record.replacementsOwed > 0;
+  // how much of what was replaced has gone out (replaced now: all of it, with the return)
+  const sent = history?.record.replacementsSent ?? 0;
+  const share = sent > 0 ? Math.round(((sent - (history?.record.replacementsOwed ?? 0)) / sent) * 100) : history && history.record.replacements.length > 0 ? 100 : null;
 
   return (
     <main className="mx-auto max-w-4xl px-4 pb-28 pt-6 sm:px-6">
@@ -272,9 +278,22 @@ export function CreditNoteView({ id, history, shareKey }: { id: string; history?
         </div>
       </article>
 
-      {/* the sale it made for the items it replaced (from History), as the Returns rows */}
-      {/* (a sale's replaced items go out with the return: all back) */}
-      {history && <ReplacementsLog replacements={history.record.replacements} share={history.record.replacements.length > 0 ? 100 : null} />}
+      {/* the sales its replaced items went out on (from History), as the Returns rows, and Send replacement (the admin's,
+          while packs replaced later are still to go) at the right of the heading */}
+      {history && (
+        <ReplacementsLog
+          replacements={history.record.replacements}
+          show={sent > 0}
+          share={share}
+          action={
+            canSend && (
+              <Link href={`/history/${id}/send-replacement`} className={pill}>
+                <Truck className="size-4" aria-hidden /> {tsend("action")}
+              </Link>
+            )
+          }
+        />
+      )}
     </main>
   );
 }

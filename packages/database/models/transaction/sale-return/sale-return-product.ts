@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, index, check } from "drizzle-orm/pg-core";
+import { boolean, pgTable, uuid, varchar, index, check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 import { money, timestamps} from "../../../utils/common/column-type";
@@ -36,6 +36,10 @@ export const saleReturnProductsTable = pgTable(
     discountAmount: money("discount_amount").notNull().default("0.00"),
 
     gstAmount: money("gst_amount").notNull().default("0.00"),
+
+    // replaced later, not refunded: the same packs go out to the customer again on a sale of their own (linked in
+    // return_deliveries); the value waits on their account until then. (Replaced now goes on the exchange's sale)
+    replaced: boolean("replaced").notNull().default(false),
 
     ...timestamps,
   },

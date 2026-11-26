@@ -11,17 +11,18 @@ import { type Pack, type ProductGroup, productTitle } from "../../product/produc
 import { chip } from "../shared/form-basics";
 import { QuantityBox } from "../shared/pack-parts";
 import { ProductDetailsCard as CardFrame, GodownRows } from "../shared/product-details-card";
-import { emptyLine, placedOf, type ReturnLine, type Settle, useReturnEntry } from "./state";
+import { emptyLine, placedOf, type ReturnLine, type Settle, useReturnEntry, type When } from "./state";
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
 // each choice's icon: Replace (arrows going round), Refund (₹)
 export const SETTLE_ICON = { replace: RefreshCw, refund: IndianRupee } as const;
 
-// a return's product details card, on the shared one, in two steps. First: Basis | Current | New for the price (as sold,
-// not changed) and Quantity (Current: what was sold and can still come back; New: how many come back), and Item received
-// in (the main godown filled in, changed only for the odd other one), then Next. Second: Replace or Refund; Replace asks
-// the godowns the new packs leave from (as many as come back). Save. The bin takes it off the return
+// a return's product details card, on the shared one, in two steps (as a purchase return's). First: Basis | Current |
+// New for the price (as sold, not changed) and Quantity (Current: what was sold and can still come back; New: how many
+// come back), and Item received in (the main godown filled in, changed only for the odd other one), then Next. Second:
+// Replace or Refund; Replace asks when the new packs go (a saved customer's): Now (and the godowns they leave from, as
+// many as come back) or Later (nothing more: sent from History). A walk-in's go now. Save. The bin takes it off
 export function ProductDetailsCard() {
   const { cardFor, packOf } = useReturnEntry();
   const found = cardFor ? packOf(cardFor) : null;
@@ -31,7 +32,7 @@ export function ProductDetailsCard() {
 }
 
 function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
-  const { t, lines, lineOf, putLine, setCardFor, saleLine, godownsOf, outOf, mainId } = useReturnEntry();
+  const { t, lines, lineOf, putLine, setCardFor, saleLine, godownsOf, outOf, mainId, walkIn } = useReturnEntry();
   const ts = useTranslations("transactions.sale");
   const line = saleLine(pack.productId);
   const [draft, setDraft] = useState<ReturnLine>(() => lineOf(pack.productId));
@@ -55,7 +56,8 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
     quantity: quantity < 1,
     godowns: quantity >= 1 && placed !== quantity,
     settle: draft.settle === null,
-    out: draft.settle === "replace" && out !== quantity,
+    when: draft.settle === "replace" && draft.when === null,
+    out: draft.settle === "replace" && draft.when === "now" && out !== quantity,
   };
   const error = !tried
     ? null
@@ -67,9 +69,11 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
           : null
       : bad.settle
         ? t("missing.settle")
-        : bad.out
-          ? t("missing.replaceFrom")
-          : null;
+        : bad.when
+          ? t("missing.when")
+          : bad.out
+            ? t("missing.replaceFrom")
+            : null;
 
   // Next: on to Replace or Refund once the quantity and its godowns are in
   function next() {
@@ -79,15 +83,20 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   }
   // Save: only the godowns something goes into or leaves from
   function done() {
-    if (bad.settle || bad.out) return setTried(true);
+    if (bad.settle || bad.when || bad.out) return setTried(true);
     const kept = (m: Record<string, string>) => Object.fromEntries(Object.entries(m).filter(([, v]) => (Number(v) || 0) > 0));
-    putLine(pack.productId, { ...draft, godowns: kept(draft.godowns), out: draft.settle === "replace" ? kept(draft.out) : {} });
+    putLine(pack.productId, { ...draft, godowns: kept(draft.godowns), out: draft.settle === "replace" && draft.when === "now" ? kept(draft.out) : {} });
     close();
   }
+  // Refund: when the new packs go, and their godowns, start empty again; Replace for a walk-in: always now
   const pick = (s: Settle) => {
     setTried(false);
-    // Refund: the godowns a replacement would have left from start empty again
-    setDraft((d) => ({ ...d, settle: s, out: s === "refund" ? {} : d.out }));
+    setDraft((d) => (s === "refund" ? { ...d, settle: s, when: null, out: {} } : { ...d, settle: s, when: walkIn ? "now" : d.when }));
+  };
+  // Later: the godowns are asked when the packs go
+  const pickWhen = (w: When) => {
+    setTried(false);
+    setDraft((d) => ({ ...d, when: w, out: w === "later" ? {} : d.out }));
   };
 
   return (
@@ -168,8 +177,28 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                 );
               })}
             </div>
-            {/* Replace: the godowns the new packs leave from */}
-            {draft.settle === "replace" && (
+            {/* Replace (a saved customer's): when the new packs go, plain chips */}
+            {draft.settle === "replace" && !walkIn && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-semibold opacity-60">{t("newPacksGo")}</span>
+                <div className="grid grid-cols-2 gap-2" role="group" aria-label={t("newPacksGo")}>
+                  {(["now", "later"] as const).map((w) => (
+                    <button
+                      key={w}
+                      type="button"
+                      aria-pressed={draft.when === w}
+                      aria-invalid={tried && bad.when}
+                      onClick={() => pickWhen(w)}
+                      className={cn(chip(draft.when === w), tried && bad.when && "border-danger")}
+                    >
+                      {t(`when.${w}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Now: the godowns the new packs leave from */}
+            {draft.settle === "replace" && draft.when === "now" && (
               <div className={cn("rounded-control", tried && bad.out && "ring-2 ring-danger")}>
                 <GodownRows
                   spots={outOf(pack.productId)}

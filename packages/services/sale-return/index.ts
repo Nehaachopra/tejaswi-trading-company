@@ -12,6 +12,7 @@ import {
   partiesTable,
   productGodownsTable,
   productsTable,
+  returnDeliveriesTable,
   saleProductsTable,
   saleReturnProductsTable,
   saleReturnsTable,
@@ -40,10 +41,13 @@ import {
   type CreditNoteModel,
   type ExchangeInputModel,
   exchangeInputModel,
+  type PendingSaleReplacementModel,
   type ReturnLineInputModel,
   type SaleForReturnModel,
   type SaleReturnIdInputModel,
   type SavedSaleReturnModel,
+  type SendReplacementInputModel,
+  sendReplacementInputModel,
 } from "./model";
 
 // the day a moment falls on in India, as YYYY-MM-DD
@@ -75,6 +79,18 @@ type SaleItem = {
 
 // what a pack sold for before GST, in paise
 const rateOf = (i: SaleItem) => Math.round((i.gross - i.off) / i.sold);
+
+// what the items replaced later keep on the customer's account until they go out, in paise: each at the rate it sold at
+// with its GST, rounded to the rupee, never more than `most` (what's left of the return)
+const laterHoldOf = (loaded: { items: Map<string, SaleItem> }, lines: ReturnLineInputModel[], most: number) => {
+  let gross = 0;
+  for (const l of lines) {
+    if (!l.replaceLater) continue;
+    const value = rateOf(loaded.items.get(l.productId)!) * l.quantity;
+    gross += value + Math.round((value * loaded.items.get(l.productId)!.gstRate) / 100);
+  }
+  return gross === 0 ? 0 : Math.max(0, Math.min(Math.round(gross / 100) * 100, most));
+};
 
 // Sale returns: goods coming back against one saved sale (the admin's). They go back into the godowns picked, and that
 // much of the sale is turned round at the price it sold at: its value and GST (a credit note), and its share of the
@@ -325,12 +341,16 @@ export default class SaleReturnService {
     if (f.discount > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "discountGiven"), side: "credit", amount: f.discount / 100 });
 
     const refund = await this.refundLines(tx, input.cashAmount, input.bankParts);
+    // items replaced later: a saved customer's only; their value waits on the account until the packs go out
+    if (input.lines.some((l) => l.replaceLater) && !sale.partyId) throw new TRPCError({ code: "BAD_REQUEST", message: "A walk-in's replacement goes out now." });
+    const laterHold = laterHoldOf(loaded, input.lines, f.total - (exchange?.used ?? 0));
     let onAccount = 0;
     if (customer) {
-      // a refund in cash pays back all that's left once a replacement's sale has taken its part; on credit (and an
-      // exchange, whose new sale takes it from their account) none of it: it comes off what they owe, the rest an advance
+      // a refund in cash pays back all that's left once a replacement's sale has taken its part and the items replaced
+      // later keep theirs; on credit (and an exchange, whose new sale takes it from their account) none of it: it comes
+      // off what they owe, the rest an advance
       const refundIn = input.refundIn ?? "credit";
-      const rest = f.total - (exchange?.used ?? 0);
+      const rest = f.total - (exchange?.used ?? 0) - laterHold;
       if (refundIn === "cash" && refund.paid !== rest) throw new TRPCError({ code: "BAD_REQUEST", message: "Cash and bank must add up to the total." });
       if (refundIn === "credit" && refund.paid !== 0) throw new TRPCError({ code: "BAD_REQUEST", message: "A refund on credit pays nothing back now." });
       lines.push({ ledgerId: customer.ledgerId, side: "credit", amount: f.total / 100 });
@@ -401,6 +421,8 @@ export default class SaleReturnService {
           grossProductPrice: fromPaise(row.gross),
           discountAmount: fromPaise(row.off),
           gstAmount: fromPaise(row.gst),
+          // replaced later: its packs still to go out
+          replaced: it.line.replaceLater,
         };
       });
     });
@@ -554,6 +576,105 @@ export default class SaleReturnService {
       if (s.exchanged !== Math.min(total, bill)) throw new TRPCError({ code: "CONFLICT", message: "The exchange didn't add up. Try again." });
       await tx.update(saleReturnsTable).set({ exchangeSaleId: s.saleId }).where(eq(saleReturnsTable.transactionId, r.transactionId));
       return { transactionId: r.transactionId, assignedId: r.assignedId, total: r.total / 100, sale: s.saved };
+    });
+  }
+
+  // each item of a return replaced later: how many, and how many have gone out so far (on sales in place)
+  private async owedOn(q: Tx, returnTransactionId: string) {
+    const [ret] = await q
+      .select({ id: saleReturnsTable.id, returnDate: saleReturnsTable.returnDate, saleId: saleReturnsTable.saleId })
+      .from(saleReturnsTable)
+      .where(eq(saleReturnsTable.transactionId, returnTransactionId));
+    if (!ret) throw new TRPCError({ code: "NOT_FOUND", message: "Sale return not found." });
+    const replaced = await q
+      .select({ quantity: saleReturnProductsTable.quantity, productId: saleProductsTable.productId, name: saleProductsTable.productNameSnapshot })
+      .from(saleReturnProductsTable)
+      .innerJoin(saleProductsTable, eq(saleProductsTable.id, saleReturnProductsTable.saleProductId))
+      .where(and(eq(saleReturnProductsTable.returnId, ret.id), eq(saleReturnProductsTable.replaced, true)))
+      .orderBy(asc(saleReturnProductsTable.createdAt));
+    const gone = await q
+      .select({ productId: returnDeliveriesTable.productId, quantity: returnDeliveriesTable.quantity })
+      .from(returnDeliveriesTable)
+      .innerJoin(transactionsTable, eq(transactionsTable.id, returnDeliveriesTable.deliveryTransactionId))
+      .where(and(eq(returnDeliveriesTable.returnTransactionId, returnTransactionId), eq(transactionsTable.status, "active")));
+    const items = new Map<string, { productId: string; name: string; replaced: number; gone: number }>();
+    for (const r of replaced) {
+      const i = items.get(r.productId) ?? { productId: r.productId, name: r.name, replaced: 0, gone: 0 };
+      i.replaced += r.quantity;
+      items.set(r.productId, i);
+    }
+    for (const g of gone) {
+      const i = items.get(g.productId);
+      if (i) i.gone += g.quantity;
+    }
+    // the sale it came back on
+    const [st] = await q
+      .select({ transactionId: transactionsTable.id, assignedId: transactionsTable.assignedId })
+      .from(salesTable)
+      .innerJoin(transactionsTable, eq(transactionsTable.id, salesTable.transactionId))
+      .where(eq(salesTable.id, ret.saleId));
+    return { ret, items, sale: st! };
+  }
+
+  // a return's items replaced later still to go out: each pack size and how many are owed, at the rate it first sold at
+  async pending(input: SaleReturnIdInputModel): Promise<PendingSaleReplacementModel> {
+    return db.transaction(async (tx) => {
+      const { ret, items, sale } = await this.owedOn(tx, input.transactionId);
+      const [t] = await tx.select({ assignedId: transactionsTable.assignedId }).from(transactionsTable).where(eq(transactionsTable.id, input.transactionId));
+      const loaded = await this.load(tx, sale.transactionId, false);
+      return {
+        transactionId: input.transactionId,
+        assignedId: t!.assignedId,
+        returnDate: ret.returnDate,
+        sale,
+        customerName: loaded.sale.partyNameSnapshot,
+        lines: [...items.values()]
+          .filter((i) => i.replaced > i.gone)
+          .map((i) => {
+            const item = loaded.items.get(i.productId)!;
+            return { productId: i.productId, name: i.name, quantity: i.replaced - i.gone, rate: rateOf(item) / 100, gstRate: item.gstRate };
+          }),
+      };
+    });
+  }
+
+  // replaced packs going out later: a sale to the customer (on credit, at the rate they first sold at, from the godowns
+  // given, to where the first sale went), set off against what the return left on their account, and a delivery row for
+  // each item
+  async send(rawInput: SendReplacementInputModel, actor: ActorModel) {
+    const input = sendReplacementInputModel.parse(rawInput);
+    return db.transaction(async (tx) => {
+      const [rt] = await tx.select().from(transactionsTable).where(eq(transactionsTable.id, input.returnTransactionId)).for("update");
+      if (!rt || rt.type !== "sale_return") throw new TRPCError({ code: "NOT_FOUND", message: "Sale return not found." });
+      const { ret, items, sale } = await this.owedOn(tx, input.returnTransactionId);
+      if (indiaDay(input.dateTime) < ret.returnDate) throw new TRPCError({ code: "BAD_REQUEST", message: "The new packs can't go before the return." });
+      for (const l of input.lines) {
+        const i = items.get(l.productId);
+        const owed = i ? i.replaced - i.gone : 0;
+        if (owed <= 0) throw new TRPCError({ code: "BAD_REQUEST", message: "That item isn't waiting to go out." });
+        if (l.quantity > owed) throw new TRPCError({ code: "BAD_REQUEST", message: `Only ${owed} of ${i!.name} are still to go.` });
+      }
+      const loaded = await this.load(tx, sale.transactionId, false);
+      const customer = await this.customerOf(tx, loaded.sale.partyId);
+      if (!customer) throw new TRPCError({ code: "BAD_REQUEST", message: "A walk-in's replacement goes out now." });
+      // the sale as an exchange's replacement is drawn up (no cap: it's set off against what's held), with the vehicle
+      // and remarks
+      const rep = await this.replacementSale(
+        tx,
+        loaded,
+        input.lines.map((l) => ({ productId: l.productId, quantity: l.quantity, godowns: l.from, replaceFrom: l.from, replaceLater: false })),
+        input.dateTime,
+        Number.MAX_SAFE_INTEGER,
+        customer.ledgerId,
+      );
+      const s = await this.sales.createIn(tx, { ...rep.sale, saveKey: input.saveKey, vehicleNumber: input.vehicleNumber, remarks: input.remarks }, actor);
+      // what the return left with them before this sale: set off against it
+      const setOff = Math.min(customer.held, toPaise(s.saved.total));
+      if (setOff > 0) await this.dues.settleOldestIn(tx, { kind: "debtor", partyId: customer.party.id, transactionId: s.saved.transactionId, amount: setOff / 100 });
+      await tx.insert(returnDeliveriesTable).values(
+        input.lines.map((l) => ({ returnTransactionId: input.returnTransactionId, deliveryTransactionId: s.saved.transactionId, productId: l.productId, quantity: l.quantity })),
+      );
+      return s.saved;
     });
   }
 

@@ -55,7 +55,7 @@ function ReturnEntry({ sale, ledger }: { sale: SaleForReturn; ledger: Pickable |
 
 // the page: what shows while its products load or can't, then the card on its own with the summary
 function ReturnEntryView() {
-  const { t, sale, loading, loadFailed, retry, customerLedger, figures, total, chosen, refundIn, pickedChoice, newParty, cashRefund, owedAfter, nameOf, packOf, places, complete, index, current, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, missingOf, leaveDialog, day, reasonKind, reason, remarks, lineOf, hasReplace, hasRefund, replaced, askRefundIn } =
+  const { t, sale, loading, loadFailed, retry, customerLedger, figures, total, chosen, refundIn, pickedChoice, newParty, cashRefund, owedAfter, nameOf, packOf, places, complete, index, current, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, missingOf, leaveDialog, day, reasonKind, reason, remarks, lineOf, hasReplaceNow, hasRefund, replaced, askRefundIn } =
     useReturnEntry();
   const ts = useTranslations("transactions.sale");
   const tt = useTranslations("accounts.types");
@@ -96,7 +96,7 @@ function ReturnEntryView() {
       }),
     },
     // the replaced items' new sale
-    ...(hasReplace ? [{ key: "replaced", step: "cart" as const, heading: t("replaced"), value: rupees(replaced) }] : []),
+    ...(hasReplaceNow ? [{ key: "replaced", step: "cart" as const, heading: t("replaced"), value: rupees(replaced) }] : []),
     // a customer's refund: cash or credit
     ...(hasRefund && askRefundIn ? [{ key: "money", step: "money" as const, heading: ts("steps.money"), value: refundIn ? ts(`kinds.${refundIn}`) : null }] : []),
     // who the refund is for: the sale's customer, or a walk-in's on credit picked or added now

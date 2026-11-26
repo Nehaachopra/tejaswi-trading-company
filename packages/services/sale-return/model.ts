@@ -22,15 +22,18 @@ const partsFit = (parts: { godownId: string; quantity: number }[], quantity: num
   parts.reduce((a, g) => a + g.quantity, 0) === quantity && new Set(parts.map((g) => g.godownId)).size === parts.length;
 
 // one item coming back: a pack size the sale had, how many, and the godowns they go back into (adding up to it).
-// Replaced: as many of the same pack size go out to the buyer again, from the godowns given (a new sale at the price it
-// first sold at); otherwise refunded
+// Replaced now: as many of the same pack size go out to the buyer again, from the godowns given (a new sale at the price
+// it first sold at). Replaced later (a saved customer's): its value waits on their account until the packs are sent.
+// Otherwise refunded
 export const returnLineInputModel = z
   .object({
     productId: idModel,
     quantity: z.number().int().min(1).max(99_999),
     godowns: z.array(returnGodownPartModel).min(1, "Pick a godown.").max(20),
     replaceFrom: z.array(returnGodownPartModel).min(1, "Pick a godown.").max(20).nullable().default(null),
+    replaceLater: z.boolean().default(false),
   })
+  .refine((l) => !(l.replaceLater && l.replaceFrom !== null), { message: "Replaced now or later, not both.", path: ["replaceLater"] })
   .refine((l) => l.godowns.reduce((a, g) => a + g.quantity, 0) === l.quantity, { message: "The godowns must add up to the quantity.", path: ["godowns"] })
   .refine((l) => new Set(l.godowns.map((g) => g.godownId)).size === l.godowns.length, { message: "Each godown once.", path: ["godowns"] })
   .refine((l) => l.replaceFrom === null || partsFit(l.replaceFrom, l.quantity), { message: "The godowns must add up to the quantity.", path: ["replaceFrom"] });
@@ -181,3 +184,44 @@ export const creditNoteModel = z.object({
 });
 
 export type CreditNoteModel = z.infer<typeof creditNoteModel>;
+
+// a return's replaced items still to be sent: who they go to and each pack size owed, at the rate it first sold at
+export const pendingSaleReplacementModel = z.object({
+  transactionId: idModel,
+  assignedId: z.string(),
+  returnDate: z.string(),
+  sale: z.object({ transactionId: idModel, assignedId: z.string() }),
+  customerName: z.string(),
+  lines: z.array(z.object({ productId: idModel, name: z.string(), quantity: z.number().int(), rate: z.number(), gstRate: z.number() })),
+});
+
+export type PendingSaleReplacementModel = z.infer<typeof pendingSaleReplacementModel>;
+
+// replaced packs going out later: the return, the day, the vehicle, remarks, and each pack size with the godowns it
+// leaves from (adding up to how many go)
+export const sendReplacementInputModel = z.object({
+  saveKey: z.string().uuid().nullable().default(null),
+  returnTransactionId: idModel,
+  dateTime: z.coerce.date(),
+  vehicleNumber: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .max(15)
+    .regex(/^[A-Z0-9]*$/, "A vehicle number has only letters and digits.")
+    .transform((v) => (v === "" ? null : v))
+    .nullable()
+    .default(null),
+  remarks: z.string().trim().max(100).nullable().default(null),
+  lines: z
+    .array(
+      z
+        .object({ productId: idModel, quantity: z.number().int().min(1).max(99_999), from: z.array(returnGodownPartModel).min(1, "Pick a godown.").max(20) })
+        .refine((l) => partsFit(l.from, l.quantity), { message: "The godowns must add up to the quantity.", path: ["from"] }),
+    )
+    .min(1, "Add an item.")
+    .max(100)
+    .refine((ls) => new Set(ls.map((l) => l.productId)).size === ls.length, { message: "Each pack size once." }),
+});
+
+export type SendReplacementInputModel = z.infer<typeof sendReplacementInputModel>;
