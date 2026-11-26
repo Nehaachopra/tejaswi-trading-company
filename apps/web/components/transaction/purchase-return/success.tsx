@@ -65,12 +65,13 @@ export function PurchaseReturnSuccess({ id }: { id: string }) {
                 <CopyButton value={note.assignedId} />
               </span>
             </p>
-            <Link
+            {/* (all swapped: no money, no debit note) */}
+            {note.total > 0 && <Link
               href={`/transaction/purchase-return/${id}/debit-note`}
               className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-chestnut/50 px-4 text-sm font-semibold sm:w-auto"
             >
               <FileText className="size-4" aria-hidden /> {t("debitNote")}
-            </Link>
+            </Link>}
           </div>
 
           {/* how many items went back, and the total */}

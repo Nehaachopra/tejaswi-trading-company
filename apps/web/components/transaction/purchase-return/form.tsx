@@ -52,7 +52,7 @@ function ReturnEntry({ purchase, ledger }: { purchase: PurchaseForReturn; ledger
 
 // the page: what shows while its products load or can't, then the card on its own with the summary
 function ReturnEntryView() {
-  const { t, purchase, loading, loadFailed, retry, figures, total, chosen, refundIn, cashRefund, owedAfter, nameOf, packOf, places, complete, index, current, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, missingOf, leaveDialog, day, reasonKind, reason, remarks, noteNumber, lineOf, hasReplace, hasRefund, replaced } =
+  const { t, purchase, loading, loadFailed, retry, lines, total, chosen, refundIn, cashRefund, owedAfter, nameOf, packOf, places, complete, index, current, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, missingOf, leaveDialog, day, reasonKind, reason, remarks, noteNumber, hasRefund } =
     useReturnEntry();
   const ts = useTranslations("transactions.sale");
   const locale = useLocale();
@@ -72,28 +72,24 @@ function ReturnEntryView() {
       </EntryNote>
     );
 
-  // a line for each card answered: each item going back (photo, name, how many, Replace or Refund), the replacement,
-  // cash or credit, the supplier, where the money comes in (or what's left owed), then the day, reason, remarks and
+  // a line for each card answered: each item going back (photo, name, how many, Replace or Refund), cash or credit, the supplier, where the money comes in (or what's left owed), then the day, reason, remarks and
   // the supplier's credit note
   const summary: SummaryItem<ReturnStep>[] = [
     {
       key: "items",
       step: "cart",
       heading: t("steps.items"),
-      value: figures.items.map((i) => {
-        const found = packOf(i.productId);
+      value: Object.entries(lines).map(([productId, l]) => {
+        const found = packOf(productId);
         // Replace or Refund where its price would be
-        const settle = lineOf(i.productId).settle;
         return {
-          name: nameOf(i.productId),
-          middle: `×${i.quantity.toLocaleString("en-IN")}`,
-          amount: settle ? t(`settle.${settle}`) : "",
+          name: nameOf(productId),
+          middle: `×${(Number(l.quantity) || 0).toLocaleString("en-IN")}`,
+          amount: l.settle ? t(`settle.${l.settle}`) : "",
           image: found ? <ProductImage group={found.group} imageUrl={found.pack.imageUrl} className="size-8 rounded-md text-xs" /> : undefined,
         };
       }),
     },
-    // the replaced items' new purchase
-    ...(hasReplace ? [{ key: "replaced", step: "cart" as const, heading: t("replaced"), value: rupees(replaced) }] : []),
     ...(hasRefund
       ? [
           { key: "money", step: "money" as const, heading: ts("steps.money"), value: refundIn ? ts(`kinds.${refundIn}`) : null },

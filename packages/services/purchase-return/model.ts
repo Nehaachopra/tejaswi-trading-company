@@ -20,23 +20,25 @@ const partsFit = (parts: { godownId: string; quantity: number }[], quantity: num
   parts.reduce((a, g) => a + g.quantity, 0) === quantity && new Set(parts.map((g) => g.godownId)).size === parts.length;
 
 // one item going back: a pack size the purchase had, how many, and the godowns they leave from (adding up to it).
-// Replaced: the supplier sends as many of the same pack size again, into the godowns given (a new purchase at the rate
-// it was first bought at); otherwise refunded
+// Refunded (replace: null); or swapped: the supplier sends as many of the same pack size again, now (into the godowns
+// in replaceInto) or later (received on the return afterwards). A swap moves stock only: no money, GST or cost
 export const purchaseReturnLineInputModel = z
   .object({
     productId: idModel,
     quantity: z.number().int().min(1).max(99_999),
     godowns: z.array(godownPartModel).min(1, "Pick a godown.").max(20),
+    replace: z.enum(["now", "later"]).nullable().default(null),
     replaceInto: z.array(godownPartModel).min(1, "Pick a godown.").max(20).nullable().default(null),
   })
   .refine((l) => partsFit(l.godowns, l.quantity), { message: "The godowns must add up to the quantity.", path: ["godowns"] })
+  .refine((l) => (l.replace === "now") === (l.replaceInto !== null), { message: "Pick where the new packs go.", path: ["replaceInto"] })
   .refine((l) => l.replaceInto === null || partsFit(l.replaceInto, l.quantity), { message: "The godowns must add up to the quantity.", path: ["replaceInto"] });
 
 export type PurchaseReturnLineInputModel = z.infer<typeof purchaseReturnLineInputModel>;
 
 // a purchase return saved: the purchase, the day, the items, why, remarks, the supplier's credit note when they gave one,
-// then the refund: cash (the supplier pays it all back now, into cash and bank accounts) or credit (it comes off what
-// we owe them, the rest an advance with them)
+// then the refunded items' money: cash (the supplier pays it all back now, into cash and bank accounts) or credit (it
+// comes off what we owe them, the rest an advance with them). A return all swapped has no money
 export const createPurchaseReturnInputModel = z
   .object({
     // made when the form opened: a second save with it (a retry, a double tap) gets the first one's result
@@ -70,6 +72,28 @@ export const createPurchaseReturnInputModel = z
 export type CreatePurchaseReturnInputModel = z.infer<typeof createPurchaseReturnInputModel>;
 
 export const purchaseReturnIdInputModel = z.object({ transactionId: idModel });
+
+// a swap's new packs come in afterwards: the return, the day, and each pending item's godowns (each item once, all of
+// what's owed)
+export const receiveReplacementInputModel = z
+  .object({
+    transactionId: idModel,
+    dateTime: z.coerce.date(),
+    lines: z.array(z.object({ productId: idModel, into: z.array(godownPartModel).min(1, "Pick a godown.").max(20) })).min(1).max(100),
+  })
+  .refine((r) => new Set(r.lines.map((l) => l.productId)).size === r.lines.length, { message: "Each pack size once.", path: ["lines"] });
+
+export type ReceiveReplacementInputModel = z.infer<typeof receiveReplacementInputModel>;
+
+// a return's swapped items still to come: each pack size, its name and how many
+export const pendingReplacementModel = z.object({
+  transactionId: idModel,
+  assignedId: z.string(),
+  returnDate: z.string(),
+  lines: z.array(z.object({ productId: idModel, name: z.string(), quantity: z.number().int() })),
+});
+
+export type PendingReplacementModel = z.infer<typeof pendingReplacementModel>;
 
 export type PurchaseReturnIdInputModel = z.infer<typeof purchaseReturnIdInputModel>;
 
@@ -114,18 +138,17 @@ export const purchaseForReturnModel = z.object({
 
 export type PurchaseForReturnModel = z.infer<typeof purchaseForReturnModel>;
 
-// a saved return: its number and what it came to, and the replacement purchase when items were replaced
+// a saved return: its number and what it came to
 export const savedPurchaseReturnModel = z.object({
   transactionId: idModel,
   assignedId: z.string(),
   total: z.number(),
-  purchase: z.object({ transactionId: idModel, assignedId: z.string(), total: z.number() }).nullable(),
 });
 
 export type SavedPurchaseReturnModel = z.infer<typeof savedPurchaseReturnModel>;
 
 // a return as our debit note: our details, its number and day, the purchase it's against, the supplier, each item
-// back, the GST by tax, the cash discount given back and what it came to; the supplier's credit note when they gave one;
+// refunded (swapped ones aren't on it), the GST by tax, the cash discount given back and what it came to; the supplier's credit note when they gave one;
 // how it was settled
 export const debitNoteModel = z.object({
   transactionId: idModel,
@@ -160,9 +183,8 @@ export const debitNoteModel = z.object({
   discount: z.number(),
   roundOff: z.number(),
   total: z.number(),
-  // off what we owed them (or left as advance with them), paid back to us now, or taken by the replacement purchase
-  settled: z.object({ onAccount: z.number(), refunded: z.number(), replaced: z.number() }),
-  replacementPurchase: z.object({ transactionId: idModel, assignedId: z.string() }).nullable(),
+  // off what we owed them (or left as advance with them), or paid back to us now
+  settled: z.object({ onAccount: z.number(), refunded: z.number() }),
   createdByName: z.string(),
 });
 

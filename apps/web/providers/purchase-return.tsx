@@ -46,3 +46,21 @@ export function useDebitNote(transactionId: string) {
   const q = trpc.transactions.purchaseReturn.debitNote.useQuery({ transactionId });
   return { note: q.data, loading: q.isPending, loadFailed: q.isError };
 }
+
+// a return's swapped items still to come (only while `enabled`: the Receive card is open)
+export function usePendingReplacement(transactionId: string, enabled: boolean) {
+  const q = trpc.transactions.purchaseReturn.pending.useQuery({ transactionId }, { enabled });
+  return { pending: q.data, loading: q.isPending, loadFailed: q.isError };
+}
+
+// a swap's new packs received; then stock and History are asked again
+export function useReceiveReplacement() {
+  const utils = trpc.useUtils();
+  const m = trpc.transactions.purchaseReturn.receive.useMutation({
+    onSuccess: () => {
+      void utils.inventory.invalidate();
+      void utils.transactions.invalidate();
+    },
+  });
+  return { receive: m.mutateAsync, saving: m.isPending };
+}

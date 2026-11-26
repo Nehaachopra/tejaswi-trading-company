@@ -47,11 +47,6 @@ export const purchaseReturnsTable = pgTable(
     // our debit note PDF, once stored (drawn fresh until then, as the credit note is)
     noteUrl: text("note_url"),
 
-    // a replacement: the new purchase the supplier's same packs came in on, saved with this return
-    exchangePurchaseId: uuid("exchange_purchase_id").references(() => purchasesTable.id, {
-      onDelete: "restrict",
-    }),
-
     remark: varchar("remark", { length: 500 }),
 
     ...timestamps,

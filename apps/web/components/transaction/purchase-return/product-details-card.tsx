@@ -11,15 +11,15 @@ import { SETTLE_ICON } from "../sale-return/product-details-card";
 import { chip } from "../shared/form-basics";
 import { QuantityBox } from "../shared/pack-parts";
 import { ProductDetailsCard as CardFrame, GodownRows } from "../shared/product-details-card";
-import { emptyLine, placedOf, type ReturnLine, type Settle, useReturnEntry } from "./state";
+import { emptyLine, placedOf, type ReturnLine, type Settle, useReturnEntry, type When } from "./state";
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
 // a purchase return's product details card, as a sale return's, in two steps. First: Basis | Current | New for the rate
 // (as bought, not changed) and Quantity (Current: what was bought and can still go back; New: how many go back), and
 // Item sent from (the main godown filled in when it holds them, never more than a godown holds), then Next. Second:
-// Replace or Refund; Replace asks the godowns the new packs go into. Save. Clearing the quantity of one on the return
-// turns Next into Save, which takes it off
+// Replace or Refund; Replace asks when the new packs come: Now (and the godowns they go into) or Later (nothing more).
+// Save. Clearing the quantity of one on the return turns Next into Save, which takes it off
 export function ProductDetailsCard() {
   const { cardFor, packOf } = useReturnEntry();
   const found = cardFor ? packOf(cardFor) : null;
@@ -53,7 +53,8 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
     quantity: quantity < 1,
     godowns: quantity >= 1 && placed !== quantity,
     settle: draft.settle === null,
-    into: draft.settle === "replace" && into !== quantity,
+    when: draft.settle === "replace" && draft.when === null,
+    into: draft.settle === "replace" && draft.when === "now" && into !== quantity,
   };
   const error = !tried
     ? null
@@ -65,9 +66,11 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
           : null
       : bad.settle
         ? t("missing.settle")
-        : bad.into
-          ? t("missing.replaceInto")
-          : null;
+        : bad.when
+          ? t("missing.when")
+          : bad.into
+            ? t("missing.replaceInto")
+            : null;
 
   // Next: on to Replace or Refund once the quantity and its godowns are in
   function next() {
@@ -77,15 +80,20 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   }
   // Save: only the godowns something leaves from or goes into
   function done() {
-    if (bad.settle || bad.into) return setTried(true);
+    if (bad.settle || bad.when || bad.into) return setTried(true);
     const kept = (m: Record<string, string>) => Object.fromEntries(Object.entries(m).filter(([, v]) => (Number(v) || 0) > 0));
-    putLine(pack.productId, { ...draft, godowns: kept(draft.godowns), into: draft.settle === "replace" ? kept(draft.into) : {} });
+    putLine(pack.productId, { ...draft, godowns: kept(draft.godowns), into: draft.settle === "replace" && draft.when === "now" ? kept(draft.into) : {} });
     close();
   }
-  // Refund: the godowns a replacement would have gone into start empty again
+  // Refund: when the new packs come, and their godowns, start empty again
   const pick = (s: Settle) => {
     setTried(false);
-    setDraft((d) => ({ ...d, settle: s, into: s === "refund" ? {} : d.into }));
+    setDraft((d) => (s === "refund" ? { ...d, settle: s, when: null, into: {} } : { ...d, settle: s }));
+  };
+  // Later: the new packs' godowns are asked when they come
+  const pickWhen = (w: When) => {
+    setTried(false);
+    setDraft((d) => ({ ...d, when: w, into: w === "later" ? {} : d.into }));
   };
 
   return (
@@ -161,8 +169,28 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
                 );
               })}
             </div>
-            {/* Replace: the godowns the new packs go into */}
+            {/* Replace: when the new packs come, plain chips */}
             {draft.settle === "replace" && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-semibold opacity-60">{t("newPacksCome")}</span>
+                <div className="grid grid-cols-2 gap-2" role="group" aria-label={t("newPacksCome")}>
+                  {(["now", "later"] as const).map((w) => (
+                    <button
+                      key={w}
+                      type="button"
+                      aria-pressed={draft.when === w}
+                      aria-invalid={tried && bad.when}
+                      onClick={() => pickWhen(w)}
+                      className={cn(chip(draft.when === w), tried && bad.when && "border-danger")}
+                    >
+                      {t(`when.${w}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Now: the godowns the new packs go into */}
+            {draft.settle === "replace" && draft.when === "now" && (
               <div className={cn("rounded-control", tried && bad.into && "ring-2 ring-danger")}>
                 <GodownRows
                   spots={spotsOf(pack.productId)}

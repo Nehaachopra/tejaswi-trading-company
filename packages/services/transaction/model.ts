@@ -97,6 +97,8 @@ export const transactionModel = transactionSummaryModel.extend({
       status: z.enum(["active", "cancelled"]),
       // the sale it made for the items it replaced (none: nothing replaced)
       replacement: z.object({ transactionId: idModel, assignedId: z.string(), dateTime: z.date(), total: z.number() }).nullable(),
+      // a purchase return's swapped packs: how many, how many still to come, and the last day some came
+      swap: z.object({ quantity: z.number().int(), pending: z.number().int(), receivedAt: z.string().nullable() }).nullable(),
     }),
   ),
   // its edits, newest first: when, by whom, and each field changed from what to what
@@ -108,7 +110,7 @@ export const transactionModel = transactionSummaryModel.extend({
     }),
   ),
   // why it can't be cancelled, if it can't (already cancelled, a filed GST month, reverse-charge GST already paid ...)
-  cancelBlockedBy: z.enum(["cancelled", "gstFiled", "openingBalance", "rcmPaid", "salePaid", "purchasePaid", "saleReturned", "exchangeSale", "purchaseReturned", "replacementPurchase"]).nullable(),
+  cancelBlockedBy: z.enum(["cancelled", "gstFiled", "openingBalance", "rcmPaid", "salePaid", "purchasePaid", "saleReturned", "exchangeSale", "purchaseReturned"]).nullable(),
 });
 
 export type TransactionModel = z.infer<typeof transactionModel>;

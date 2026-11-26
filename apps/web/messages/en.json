@@ -2467,7 +2467,6 @@
       "settleLabel": "Replace or refund",
       "modeLabel": "Mode",
       "next": "Next",
-      "replaced": "Replaced",
       "settle": {
         "replace": "Replace",
         "refund": "Refund"
@@ -2496,7 +2495,8 @@
         "left": "{amount} is still to be placed.",
         "into": "Say how each account received it.",
         "reason": "Pick why it went back.",
-        "date": "Pick the date."
+        "date": "Pick the date.",
+        "when": "Pick when the new packs come."
       },
       "errors": {
         "network": "Can't reach the server. Check your connection.",
@@ -2532,7 +2532,6 @@
         "settled": "Settled",
         "receivedBack": "Received back ₹{amount}",
         "onAccount": "Adjusted in account ₹{amount}",
-        "replaced": "Replaced on {number}",
         "creditNote": "Supplier's credit note",
         "discountBack": "Cash discount given back",
         "roundOff": "Round off"
@@ -2540,7 +2539,20 @@
       "optional": "Optional",
       "date": "Date",
       "remarks": "Remarks",
-      "creditNote": "Credit note"
+      "creditNote": "Credit note",
+      "newPacksCome": "New packs come",
+      "when": {
+        "now": "Now",
+        "later": "Later"
+      },
+      "receive": {
+        "title": "Receive replacement",
+        "save": "Save",
+        "saving": "Saving…",
+        "failed": "Couldn't save. Try again.",
+        "missing": "Put every pack that came into a godown.",
+        "loading": "Loading…"
+      }
     }
   },
   "dues": {
@@ -2982,6 +2994,9 @@
         "date": "Date",
         "total": "Total"
       }
-    }
+    },
+    "replacedCount": "Replaced ×{count}",
+    "pendingCount": "Pending ×{count}",
+    "receive": "Receive replacement"
   }
 }

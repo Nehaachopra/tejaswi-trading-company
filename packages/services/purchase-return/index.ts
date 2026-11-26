@@ -28,9 +28,7 @@ import DueService from "../due";
 import PartyService from "../party";
 import { BANK_MODE_DB, type MoreBankPartModel } from "../payment/model";
 import { anyProduct } from "../product/any-product";
-import PurchaseService from "../purchase";
 import { weightedCost } from "../purchase/cost";
-import { createPurchaseInputModel } from "../purchase/model";
 import SettingService from "../setting";
 import StockEngine, { type Tx } from "../stock/engine";
 import TransactionService from "../transaction";
@@ -41,7 +39,10 @@ import {
   type DebitNoteModel,
   type PurchaseForReturnModel,
   type PurchaseReturnIdInputModel,
+  type PendingReplacementModel,
   type PurchaseReturnLineInputModel,
+  type ReceiveReplacementInputModel,
+  receiveReplacementInputModel,
   type SavedPurchaseReturnModel,
 } from "./model";
 
@@ -79,16 +80,15 @@ const rateOf = (i: PurchaseItem) => Math.round((i.gross - i.off) / i.bought);
 // picked, and that much of the purchase is turned round at the rate it was bought at: its value and the GST we'd
 // claimed (our debit note), and its share of the cash discount. Freight, packing, loading and other charges are never
 // given back. Each pack's weighted average cost drops what those packs cost. The total comes off what we owe the
-// supplier (anything over stays with them as advance), or they pay it back now into cash and bank. Items replaced come
-// in again on a new purchase at the rate they were first bought at. Stock, cost, ledgers, dues and the return are
-// saved together or not at all
+// supplier (anything over stays with them as advance), or they pay it back now into cash and bank. Items swapped (the
+// supplier sends the same packs again) only move stock: out now, and in now or when they come (received on the return
+// later); no money, GST or cost. Stock, cost, ledgers, dues and the return are saved together or not at all
 export default class PurchaseReturnService {
   constructor(
     private readonly accounts = new AccountsService(),
     private readonly transactions = new TransactionService(),
     private readonly parties = new PartyService(accounts),
     private readonly dues = new DueService(accounts, transactions, parties),
-    private readonly purchases = new PurchaseService(accounts, transactions, parties),
     private readonly settings = new SettingService(),
     private readonly stock = new StockEngine(),
   ) {}
@@ -127,14 +127,14 @@ export default class PurchaseReturnService {
       if (godownId) item.godowns.push({ godownId, name: pp.godownName, quantity: pp.quantity });
       items.set(pp.productId, item);
     }
-    // what's gone back on returns still in place
+    // what's gone back on returns still in place (refunded only: swapped packs are back in its place)
     const back = await q
       .select({ quantity: purchaseReturnProductsTable.quantity, productId: purchaseProductsTable.productId })
       .from(purchaseReturnProductsTable)
       .innerJoin(purchaseReturnsTable, eq(purchaseReturnsTable.id, purchaseReturnProductsTable.returnId))
       .innerJoin(transactionsTable, eq(transactionsTable.id, purchaseReturnsTable.transactionId))
       .innerJoin(purchaseProductsTable, eq(purchaseProductsTable.id, purchaseReturnProductsTable.purchaseProductId))
-      .where(and(eq(purchaseReturnsTable.purchaseId, purchase.id), eq(transactionsTable.status, "active")));
+      .where(and(eq(purchaseReturnsTable.purchaseId, purchase.id), eq(transactionsTable.status, "active"), eq(purchaseReturnProductsTable.replaced, false)));
     for (const b of back) items.get(b.productId)!.returned += b.quantity;
     // the charges (GST in them) and the cash discount, as the purchase had them: a return never changes them
     const charges = toPaise(purchase.freightAmount) + toPaise(purchase.packagingAmount) + toPaise(purchase.handlingAmount) + toPaise(purchase.otherAmount);
@@ -269,53 +269,17 @@ export default class PurchaseReturnService {
     return { lines, banks, paid: cash + bankParts.reduce((a, b) => a + toPaise(b.amount), 0) };
   }
 
-  // a replacement's new purchase: the replaced items from the same supplier at the rate they were first bought at,
-  // into the godowns given, on credit (the return is on their account). A cash discount keeps it from coming to more
-  // than the return (a rupee of rounding, or a discount the first bill had)
-  private replacementPurchase(loaded: Loaded, replaced: PurchaseReturnLineInputModel[], dateTime: Date, returnTotal: number, supplierLedgerId: string) {
-    const { purchase } = loaded;
-    // worked out as the purchase will: each godown's part at the rate with its GST, rounded to the rupee
-    const gross = replaced.reduce((a, l) => {
-      const i = loaded.items.get(l.productId)!;
-      return a + l.replaceInto!.reduce((b, g) => b + rateOf(i) * g.quantity + Math.round((rateOf(i) * g.quantity * i.gstRate) / 100), 0);
-    }, 0);
-    const discount = Math.round(gross / 100) * 100 > returnTotal ? gross - returnTotal : 0;
-    const draft = createPurchaseInputModel.parse({
-      dateTime,
-      supplierLedgerId,
-      billFromAddressId: purchase.billFromAddressId,
-      supplierInvoiceNumber: purchase.supplierInvoiceNumber,
-      lines: replaced.map((l) => ({ productId: l.productId, quantity: l.quantity, rateBeforeGst: rateOf(loaded.items.get(l.productId)!) / 100, godowns: l.replaceInto })),
-      discount: discount / 100,
-      kind: "credit",
-      remarks: null,
-    });
-    return { draft, total: Math.round((gross - discount) / 100) * 100 };
-  }
-
-  // a purchase return saved. With items replaced, a new purchase comes in with them first (on the supplier's account);
-  // then the return, its total off what we owe, the rest paid back now or kept as an advance with them
+  // a purchase return saved: the refunded items' total off what we owe, the rest paid back now or kept as an advance
+  // with them; swapped items only move stock
   async create(rawInput: CreatePurchaseReturnInputModel, actor: ActorModel): Promise<SavedPurchaseReturnModel> {
     const input = createPurchaseReturnInputModel.parse(rawInput);
     return db.transaction(async (tx) => {
-      const replaced = input.lines.filter((l) => l.replaceInto !== null);
-      if (replaced.length === 0) {
-        const r = await this.createIn(tx, input, actor, null);
-        return { transactionId: r.transactionId, assignedId: r.assignedId, total: r.total / 100, purchase: null };
-      }
-      const loaded = await this.load(tx, input.purchaseTransactionId, false);
-      const total = this.figure(loaded, input.lines).total;
-      const supplier = await this.supplierOf(tx, loaded.purchase.partyId);
-      const rep = this.replacementPurchase(loaded, replaced, input.dateTime, total, supplier.ledgerId);
-      const p = await this.purchases.createIn(tx, rep.draft, actor);
-      if (toPaise(p.total) !== rep.total) throw new TRPCError({ code: "CONFLICT", message: "The replacement didn't add up. Try again." });
-      const r = await this.createIn(tx, input, actor, { purchaseId: p.purchaseId, used: rep.total });
-      return { transactionId: r.transactionId, assignedId: r.assignedId, total: r.total / 100, purchase: { transactionId: p.transactionId, assignedId: p.assignedId, total: p.total } };
+      const r = await this.createIn(tx, input, actor);
+      return { transactionId: r.transactionId, assignedId: r.assignedId, total: r.total / 100 };
     });
   }
 
-  // a return inside a save. `replacement`: the new purchase saved with it, and how much of the return it took
-  private async createIn(tx: Tx, input: CreatePurchaseReturnInputModel, actor: ActorModel, replacement: { purchaseId: string; used: number } | null) {
+  private async createIn(tx: Tx, input: CreatePurchaseReturnInputModel, actor: ActorModel) {
     const loaded = await this.load(tx, input.purchaseTransactionId, true);
     const { t, purchase } = loaded;
     const day = indiaDay(input.dateTime);
@@ -330,7 +294,14 @@ export default class PurchaseReturnService {
     // the debit note goes into the return date's month: one whose GSTR-3B is filed takes no more
     await this.transactions.assertOpen(tx, "gstr3b", input.dateTime);
 
-    const f = this.figure(loaded, input.lines);
+    for (const l of input.lines) {
+      const i = loaded.items.get(l.productId);
+      if (!i) throw new TRPCError({ code: "BAD_REQUEST", message: "An item isn't on this purchase." });
+      if (l.quantity > i.bought - i.returned) throw new TRPCError({ code: "BAD_REQUEST", message: `Only ${i.bought - i.returned} of ${i.name} can go back.` });
+    }
+    // the refunded items' figures (swapped ones carry no money)
+    const refunded = input.lines.filter((l) => l.replace === null);
+    const f = refunded.length > 0 ? this.figure(loaded, refunded) : { items: [], taxable: 0, gst: 0, discount: 0, total: 0, roundOff: 0, dueLeft: loaded.due?.left ?? 0 };
     const supplier = await this.supplierOf(tx, purchase.partyId);
     const intra = purchase.supplyType !== "inter";
     const cgst = intra ? Math.floor(f.gst / 2) : 0;
@@ -340,19 +311,23 @@ export default class PurchaseReturnService {
     // the purchase turned round: the supplier owes us the total (off what we owe them), Purchase return up by the
     // value (and the round off), the GST we'd claimed taken back, the cash discount they gave us given back. Then
     // what they pay back now into cash and bank, off their account again
-    const lines: PostingLine[] = [
-      { ledgerId: supplier.ledgerId, side: "debit", amount: f.total / 100 },
-      { ledgerId: await this.accounts.ledgerId(tx, "purchaseReturn"), side: "credit", amount: (f.taxable + f.roundOff) / 100 },
-    ];
+    // (all swapped: nothing posts)
+    const lines: PostingLine[] =
+      f.total === 0
+        ? []
+        : [
+            { ledgerId: supplier.ledgerId, side: "debit", amount: f.total / 100 },
+            { ledgerId: await this.accounts.ledgerId(tx, "purchaseReturn"), side: "credit", amount: (f.taxable + f.roundOff) / 100 },
+          ];
     if (cgst > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "inputCgst"), side: "credit", amount: cgst / 100 });
     if (sgst > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "inputSgst"), side: "credit", amount: sgst / 100 });
     if (igst > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "inputIgst"), side: "credit", amount: igst / 100 });
     if (f.discount > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, "discountReceived"), side: "debit", amount: f.discount / 100 });
 
-    // cash pays back all that's left once a replacement has taken its part; credit none of it
+    // cash pays back all of it; credit (and a return all swapped) none of it
     const refund = await this.refundLines(tx, input.cashAmount, input.bankParts);
-    const rest = f.total - (replacement?.used ?? 0);
-    if (input.refundIn === "cash" && refund.paid !== rest) throw new TRPCError({ code: "BAD_REQUEST", message: "Cash and bank must add up to the total." });
+    if (f.total === 0 && refund.paid !== 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Nothing is refunded on this return." });
+    if (f.total > 0 && input.refundIn === "cash" && refund.paid !== f.total) throw new TRPCError({ code: "BAD_REQUEST", message: "Cash and bank must add up to the total." });
     if (input.refundIn === "credit" && refund.paid !== 0) throw new TRPCError({ code: "BAD_REQUEST", message: "A refund on credit takes nothing back now." });
     if (refund.paid > 0) lines.push({ ledgerId: supplier.ledgerId, side: "credit", amount: refund.paid / 100 });
     lines.push(...refund.lines);
@@ -360,7 +335,7 @@ export default class PurchaseReturnService {
 
     const created = await this.transactions.create(
       tx,
-      { type: "purchase_return", subType: replacement ? "replacement" : undefined, dateTime: input.dateTime, amount: f.total / 100, remarks: input.remarks, lines },
+      { type: "purchase_return", subType: refunded.length < input.lines.length ? "swap" : undefined, dateTime: input.dateTime, amount: f.total / 100, remarks: input.remarks, lines },
       actor,
     );
 
@@ -369,18 +344,22 @@ export default class PurchaseReturnService {
     const itemsValue = [...loaded.items.values()].reduce((a, i) => a + i.gross - i.off, 0);
     const chargeTaxable = Math.round((loaded.charges * 100) / (100 + Math.max(0, ...[...loaded.items.values()].map((i) => i.gstRate))));
     const ids = input.lines.map((l) => l.productId);
-    const before = await tx
-      .select({ id: productsTable.id, quantity: productsTable.quantity, cost: productsTable.weightedAverageCost })
-      .from(productsTable)
-      .where(inArray(productsTable.id, ids));
-    // the packs leave the godowns picked
-    await this.stock.apply(
-      tx,
-      input.lines.flatMap((l) => l.godowns.map((g) => ({ productId: l.productId, godownId: g.godownId, delta: -g.quantity }))),
-    );
+    const refundedIds = refunded.map((l) => l.productId);
+    const before =
+      refundedIds.length === 0
+        ? []
+        : await tx
+            .select({ id: productsTable.id, quantity: productsTable.quantity, cost: productsTable.weightedAverageCost })
+            .from(productsTable)
+            .where(inArray(productsTable.id, refundedIds));
+    // the packs leave the godowns picked; a swap's new packs that came now go into theirs
+    await this.stock.apply(tx, [
+      ...input.lines.flatMap((l) => l.godowns.map((g) => ({ productId: l.productId, godownId: g.godownId, delta: -g.quantity }))),
+      ...input.lines.flatMap((l) => (l.replaceInto ?? []).map((g) => ({ productId: l.productId, godownId: g.godownId, delta: g.quantity }))),
+    ]);
     for (const b of before) {
       const item = loaded.items.get(b.id)!;
-      const q = input.lines.find((l) => l.productId === b.id)!.quantity;
+      const q = refunded.find((l) => l.productId === b.id)!.quantity;
       const itemCharge = itemsValue === 0 ? 0 : Math.round((chargeTaxable * (item.gross - item.off)) / itemsValue);
       const value = rateOf(item) * q + Math.round((itemCharge * q) / item.bought);
       const was = b.cost === null ? null : toPaise(Number(b.cost));
@@ -398,7 +377,7 @@ export default class PurchaseReturnService {
         transactionId: created.id,
         purchaseId: purchase.id,
         returnDate: day,
-        transactedIn: refund.paid === 0 ? "credit" : onAccount === 0 ? "cash" : "both",
+        transactedIn: f.total === 0 || refund.paid === 0 ? "credit" : onAccount === 0 ? "cash" : "both",
         supplierCreditNoteNumber: input.supplierCreditNoteNumber,
         supplierCreditNoteDate: input.supplierCreditNoteDate,
         subtotal: fromPaise(f.taxable),
@@ -407,7 +386,6 @@ export default class PurchaseReturnService {
         reasonKind: input.reasonKind,
         reason: input.reasonKind === "other" ? input.reason : null,
         remark: input.remarks,
-        exchangePurchaseId: replacement?.purchaseId ?? null,
       })
       .returning({ id: purchaseReturnsTable.id });
 
@@ -421,7 +399,7 @@ export default class PurchaseReturnService {
       .select({ id: productGodownsTable.id, productId: productGodownsTable.productId, godownId: productGodownsTable.godownId })
       .from(productGodownsTable)
       .where(inArray(productGodownsTable.productId, ids));
-    const rows = f.items.flatMap((it) => {
+    const refundRows = f.items.flatMap((it) => {
       let gross = it.gross;
       let gst = it.gst;
       return it.line.godowns.map((g, k) => {
@@ -442,7 +420,25 @@ export default class PurchaseReturnService {
         };
       });
     });
-    await tx.insert(purchaseReturnProductsTable).values(rows);
+    // swapped items: a row for each godown they left, no money; done now, or pending until they come
+    const swapRows = input.lines
+      .filter((l) => l.replace !== null)
+      .flatMap((l) =>
+        l.godowns.map((g) => ({
+          returnId: saved!.id,
+          purchaseProductId: loaded.items.get(l.productId)!.purchaseProductId,
+          productGodownId: holds.find((h) => h.productId === l.productId && h.godownId === g.godownId)?.id ?? null,
+          godownName: (godowns.find((x) => x.id === g.godownId)?.name ?? "").slice(0, 20),
+          quantity: g.quantity,
+          grossProductPrice: fromPaise(0),
+          discountAmount: fromPaise(0),
+          gstAmount: fromPaise(0),
+          replaced: true,
+          pending: l.replace === "later",
+          receivedAt: l.replace === "now" ? day : null,
+        })),
+      );
+    await tx.insert(purchaseReturnProductsTable).values([...refundRows, ...swapRows]);
 
     // each bank account paid back into, how and the account as it is now
     if (refund.banks.length > 0) {
@@ -477,6 +473,60 @@ export default class PurchaseReturnService {
     return { transactionId: created.id, assignedId: created.assignedId, total: f.total };
   }
 
+  // a return's swapped items still to come: each pack size and how many
+  async pending(input: PurchaseReturnIdInputModel): Promise<PendingReplacementModel> {
+    const [row] = await db
+      .select({ id: purchaseReturnsTable.id, transactionId: transactionsTable.id, assignedId: transactionsTable.assignedId, returnDate: purchaseReturnsTable.returnDate })
+      .from(purchaseReturnsTable)
+      .innerJoin(transactionsTable, eq(transactionsTable.id, purchaseReturnsTable.transactionId))
+      .where(eq(purchaseReturnsTable.transactionId, input.transactionId));
+    if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Purchase return not found." });
+    const rows = await db
+      .select({ quantity: purchaseReturnProductsTable.quantity, productId: purchaseProductsTable.productId, name: purchaseProductsTable.productNameSnapshot })
+      .from(purchaseReturnProductsTable)
+      .innerJoin(purchaseProductsTable, eq(purchaseProductsTable.id, purchaseReturnProductsTable.purchaseProductId))
+      .where(and(eq(purchaseReturnProductsTable.returnId, row.id), eq(purchaseReturnProductsTable.pending, true)))
+      .orderBy(asc(purchaseReturnProductsTable.createdAt));
+    const lines = new Map<string, { productId: string; name: string; quantity: number }>();
+    for (const r of rows) {
+      const l = lines.get(r.productId) ?? { productId: r.productId, name: r.name, quantity: 0 };
+      l.quantity += r.quantity;
+      lines.set(r.productId, l);
+    }
+    return { transactionId: row.transactionId, assignedId: row.assignedId, returnDate: row.returnDate, lines: [...lines.values()] };
+  }
+
+  // a swap's new packs come in: each pending item, all of what's owed, into the godowns given, on the day given; its
+  // rows are no longer pending. Stock only
+  async receive(rawInput: ReceiveReplacementInputModel) {
+    const input = receiveReplacementInputModel.parse(rawInput);
+    return db.transaction(async (tx) => {
+      const [ret] = await tx
+        .select({ id: purchaseReturnsTable.id, returnDate: purchaseReturnsTable.returnDate })
+        .from(purchaseReturnsTable)
+        .where(eq(purchaseReturnsTable.transactionId, input.transactionId))
+        .for("update");
+      if (!ret) throw new TRPCError({ code: "NOT_FOUND", message: "Purchase return not found." });
+      const day = indiaDay(input.dateTime);
+      if (day < ret.returnDate) throw new TRPCError({ code: "BAD_REQUEST", message: "The new packs can't come before the return." });
+      if (day > indiaDay(new Date())) throw new TRPCError({ code: "BAD_REQUEST", message: "Pick today or a day before." });
+      const rows = await tx
+        .select({ id: purchaseReturnProductsTable.id, quantity: purchaseReturnProductsTable.quantity, productId: purchaseProductsTable.productId })
+        .from(purchaseReturnProductsTable)
+        .innerJoin(purchaseProductsTable, eq(purchaseProductsTable.id, purchaseReturnProductsTable.purchaseProductId))
+        .where(and(eq(purchaseReturnProductsTable.returnId, ret.id), eq(purchaseReturnProductsTable.pending, true)));
+      for (const l of input.lines) {
+        const owed = rows.filter((r) => r.productId === l.productId).reduce((a, r) => a + r.quantity, 0);
+        if (owed === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "That item isn't waiting to come." });
+        if (l.into.reduce((a, g) => a + g.quantity, 0) !== owed) throw new TRPCError({ code: "BAD_REQUEST", message: "Put every pack that came into a godown." });
+      }
+      await this.stock.apply(tx, input.lines.flatMap((l) => l.into.map((g) => ({ productId: l.productId, godownId: g.godownId, delta: g.quantity }))));
+      const done = rows.filter((r) => input.lines.some((l) => l.productId === r.productId)).map((r) => r.id);
+      await tx.update(purchaseReturnProductsTable).set({ pending: false, receivedAt: day }).where(inArray(purchaseReturnProductsTable.id, done));
+      return { received: done.length };
+    });
+  }
+
   // a return as our debit note
   async debitNote(input: PurchaseReturnIdInputModel): Promise<DebitNoteModel> {
     const [row] = await db
@@ -501,7 +551,7 @@ export default class PurchaseReturnService {
       .leftJoin(productsTable, eq(productsTable.id, purchaseProductsTable.productId))
       .leftJoin(deletedProductsTable, eq(deletedProductsTable.id, purchaseProductsTable.productId))
       .leftJoin(categoriesTable, eq(categoriesTable.id, productsTable.categoryId))
-      .where(eq(purchaseReturnProductsTable.returnId, r.id))
+      .where(and(eq(purchaseReturnProductsTable.returnId, r.id), eq(purchaseReturnProductsTable.replaced, false)))
       .orderBy(asc(purchaseReturnProductsTable.createdAt), asc(purchaseReturnProductsTable.id));
     const byProduct = new Map<string, { title: string; hsn: string | null; gstRate: number; quantity: number; gross: number; off: number; gst: number }>();
     for (const x of parts) {
@@ -527,16 +577,7 @@ export default class PurchaseReturnService {
     const intra = p.supplyType !== "inter";
     const cgst = intra ? Math.floor(gstAll / 2) : 0;
     const total = toPaise(t.amount);
-    // how it was settled: what the replacement purchase took, what the supplier paid back (what came off their account
-    // again), and the rest on their account
-    const [replacement] = r.exchangePurchaseId
-      ? await db
-          .select({ transactionId: purchasesTable.transactionId, assignedId: transactionsTable.assignedId, total: transactionsTable.amount })
-          .from(purchasesTable)
-          .innerJoin(transactionsTable, eq(transactionsTable.id, purchasesTable.transactionId))
-          .where(eq(purchasesTable.id, r.exchangePurchaseId))
-      : [];
-    const replaced = replacement ? Math.min(total, toPaise(replacement.total)) : 0;
+    // how it was settled: what the supplier paid back (what came off their account again), the rest on their account
     const supplierNet = (
       await db
         .select({ amount: ledgerEntriesTable.amount, side: ledgerEntriesTable.transactionType })
@@ -545,7 +586,7 @@ export default class PurchaseReturnService {
         .where(and(eq(ledgerEntriesTable.transactionId, t.id), eq(ledgerEntriesTable.isReversal, false), eq(ledgersTable.referenceTable, "parties")))
     ).reduce((a, e) => a + (e.side === "debit" ? 1 : -1) * toPaise(e.amount), 0);
     const refunded = total - supplierNet;
-    const onAccount = total - replaced - refunded;
+    const onAccount = total - refunded;
     return {
       transactionId: t.id,
       assignedId: t.assignedId,
@@ -567,8 +608,7 @@ export default class PurchaseReturnService {
       discount: Number(r.discountAmount),
       roundOff: (total - (toPaise(r.subtotal) + gstAll - toPaise(r.discountAmount))) / 100,
       total: total / 100,
-      settled: { onAccount: onAccount / 100, refunded: refunded / 100, replaced: replaced / 100 },
-      replacementPurchase: replacement ? { transactionId: replacement.transactionId, assignedId: replacement.assignedId } : null,
+      settled: { onAccount: onAccount / 100, refunded: refunded / 100 },
       createdByName: t.createdByName ?? "",
     };
   }

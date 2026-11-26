@@ -1,18 +1,21 @@
 "use client";
 
-import { ChevronRight, Hash } from "lucide-react";
+import { ChevronRight, Hash, PackageCheck } from "lucide-react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 
 import { CopyButton } from "~/components/ui/copy-button";
+import { ADD_ON_IVORY } from "~/components/ui/page-styles";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import type { HistoryTransaction } from "~/providers/history";
 
 // under a sale's invoice (not printed): its returns, oldest first, as a two-column table. Return: each one's ID (with
 // its copy button), day and total, opening its credit note; Replacement: the sale it made for replaced items, the
-// same way, opening its invoice ("–" when nothing was replaced). Cancelled: faded, the totals struck through
-export function ReturnsLog({ returns }: { returns: HistoryTransaction["returns"] }) {
+// same way, opening its invoice ("–" when nothing was replaced). A purchase return's swap instead: Replaced ×N and the
+// day they came, or Pending ×N with Receive replacement (`onReceive`, the admin's). Cancelled: faded, the totals struck
+// through
+export function ReturnsLog({ returns, onReceive }: { returns: HistoryTransaction["returns"]; onReceive?: (returnId: string) => void }) {
   const t = useTranslations("history");
   const locale = useLocale();
   if (returns.length === 0) return null;
@@ -59,6 +62,8 @@ export function ReturnsLog({ returns }: { returns: HistoryTransaction["returns"]
                         struck={cancelled}
                         openLabel={t("open")}
                       />
+                    ) : r.swap ? (
+                      <SwapCell swap={r.swap} dayOf={dayOf} onReceive={onReceive && !cancelled ? () => onReceive(r.transactionId) : undefined} />
                     ) : (
                       <span className="flex min-h-16 items-center px-3 py-2.5 font-semibold text-chestnut/40 sm:px-4">–</span>
                     )}
@@ -93,6 +98,39 @@ function Cell({ href, id, day, total, struck, openLabel }: { href: string; id: s
         <span className={cn("tabular font-heading text-base font-bold leading-none sm:text-lg", struck && "line-through")}>{rupees(total)}</span>
         <ChevronRight className="size-5 text-chestnut/50" aria-hidden />
       </span>
+    </div>
+  );
+}
+
+// a purchase return's swap: how many were replaced and the day they came; while some are still to come, Pending with
+// Receive replacement under it
+function SwapCell({
+  swap,
+  dayOf,
+  onReceive,
+}: {
+  swap: NonNullable<HistoryTransaction["returns"][number]["swap"]>;
+  dayOf: (d: Date) => string;
+  onReceive?: () => void;
+}) {
+  const t = useTranslations("history");
+  return (
+    <div className="flex min-h-16 flex-col gap-1.5 px-3 py-2.5 sm:px-4 sm:py-3">
+      {swap.pending > 0 ? (
+        <>
+          <span className="tabular text-sm font-semibold sm:text-[0.9375rem]">{t("pendingCount", { count: swap.pending })}</span>
+          {onReceive && (
+            <button type="button" onClick={onReceive} className={cn(ADD_ON_IVORY, "min-h-9 w-fit sm:w-fit")}>
+              <PackageCheck className="size-4" aria-hidden /> {t("receive")}
+            </button>
+          )}
+        </>
+      ) : (
+        <>
+          <span className="tabular text-sm font-semibold sm:text-[0.9375rem]">{t("replacedCount", { count: swap.quantity })}</span>
+          {swap.receivedAt && <span className="tabular text-xs text-chestnut/65">{dayOf(new Date(`${swap.receivedAt}T12:00:00+05:30`))}</span>}
+        </>
+      )}
     </div>
   );
 }

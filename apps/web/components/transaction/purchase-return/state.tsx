@@ -34,33 +34,18 @@ export const NOTE_NUMBER_MAX = 16;
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-// one item of the purchase on the return: how many go back and how many leave each godown, then whether it's replaced
-// (as many come in again, into the godowns in `into`) or refunded
+// one item of the purchase on the return: how many go back and how many leave each godown, then whether it's refunded
+// or swapped (the supplier sends the same packs again: now, into the godowns in `into`, or later)
 export type Settle = "replace" | "refund";
-export type ReturnLine = { quantity: string; godowns: Record<string, string>; settle: Settle | null; into: Record<string, string> };
-export const emptyLine = (): ReturnLine => ({ quantity: "", godowns: {}, settle: null, into: {} });
+export type When = "now" | "later";
+export type ReturnLine = { quantity: string; godowns: Record<string, string>; settle: Settle | null; when: When | null; into: Record<string, string> };
+export const emptyLine = (): ReturnLine => ({ quantity: "", godowns: {}, settle: null, when: null, into: {} });
 // a godowns' map as the server takes it: only the ones with some in them
 const partsOf = (m: Record<string, string>) =>
   Object.entries(m)
     .filter(([, v]) => (Number(v) || 0) > 0)
     .map(([godownId, v]) => ({ godownId, quantity: Number(v) }));
 export const placedOf = (m: Record<string, string>) => Object.values(m).reduce((a, v) => a + (Number(v) || 0), 0);
-
-// a replacement's new purchase in paise, as the server works it out: each godown's part at the rate it was bought at
-// with its GST, rounded to the rupee, never more than the return (a cash discount takes the rest off)
-function replacementTotal(purchase: PurchaseForReturn, lines: Record<string, ReturnLine>, returnTotal: number) {
-  let gross = 0;
-  for (const [id, l] of Object.entries(lines)) {
-    if (l.settle !== "replace") continue;
-    const s = purchase.lines.find((x) => x.productId === id);
-    if (!s) continue;
-    for (const p of partsOf(l.into)) {
-      const value = Math.round(s.rate * 100) * p.quantity;
-      gross += value + Math.round((value * s.gstRate) / 100);
-    }
-  }
-  return gross === 0 ? 0 : Math.min(Math.round(gross / 100) * 100, returnTotal);
-}
 
 // the bill as if only `left` of each item had been bought, in paise, as the server works it out: each item at the
 // rate it was bought at with its GST, the charges as they were (their GST taken out at the highest rate among the items
@@ -82,8 +67,8 @@ function billOf(purchase: PurchaseForReturn, left: (l: PurchaseForReturn["lines"
   return { off, total, roundOff: total - (gross - off) };
 }
 
-// a return's figures in paise: the bill as it stands less the bill as if these packs had never been bought, and each
-// item's own line (its value and GST) for the cart and summary
+// a return's figures in paise (the refunded items): the bill as it stands less the bill as if these packs had never
+// been bought, and each item's own line (its value and GST) for the cart
 function figureReturn(purchase: PurchaseForReturn, quantities: Record<string, number>) {
   const before = billOf(purchase, (l) => l.bought - l.returned);
   const after = billOf(purchase, (l) => l.bought - l.returned - (quantities[l.productId] ?? 0));
@@ -165,20 +150,18 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
       return (Number(line.quantity) || 0) > 0 ? { ...rest, [id]: line } : rest;
     });
 
-  // the figures
-  const quantities = Object.fromEntries(Object.entries(lines).map(([id, l]) => [id, Number(l.quantity) || 0]));
+  // the figures: the refunded items only (a swap carries no money)
+  const quantities = Object.fromEntries(Object.entries(lines).map(([id, l]) => [id, l.settle === "refund" ? Number(l.quantity) || 0 : 0]));
   const f = figureReturn(purchase, quantities);
   const total = f.total / 100;
-  const chosen = f.items.length;
-  // the replaced items' new purchase, and what's left of the return to refund
+  const chosen = Object.keys(lines).length;
   const hasReplace = Object.values(lines).some((l) => l.settle === "replace");
   const hasRefund = Object.values(lines).some((l) => l.settle === "refund");
-  const replaced = replacementTotal(purchase, lines, f.total) / 100;
-  const refund = round2(total - replaced);
+  const refund = total;
 
   // a refund in cash: the supplier pays it all back now; on credit it comes off what we owe them (the rest an advance
-  // with them). With none refunded, what rounding leaves over stays on their account
-  const refundWay: "cash" | "credit" | null = hasRefund ? refundIn : refund > 0 ? "credit" : null;
+  // with them)
+  const refundWay: "cash" | "credit" | null = hasRefund ? refundIn : null;
   const cashRefund = refundWay === "cash";
   const payBack = cashRefund ? refund : 0;
   const supplier = purchase.supplier;
@@ -216,11 +199,12 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
     chosen > 0 &&
     Object.entries(lines).every(([id, l]) => {
       const q = Number(l.quantity) || 0;
-      return q <= purchaseLine(id).canReturn && placedOf(l.godowns) === q && l.settle !== null && (l.settle === "refund" || placedOf(l.into) === q);
+      const swapOk = l.when === "later" || (l.when === "now" && placedOf(l.into) === q);
+      return q <= purchaseLine(id).canReturn && placedOf(l.godowns) === q && l.settle !== null && (l.settle === "refund" || swapOk);
     });
   const reasonOk = reasonKind !== null && (reasonKind !== "other" || reason.trim() !== "");
   const complete: Record<ReturnStep, boolean> = {
-    cart: linesOk && total > 0,
+    cart: linesOk,
     money: refundIn !== null,
     supplier: true,
     payment: payBack === 0 || splitOk,
@@ -321,7 +305,8 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
             productId,
             quantity: Number(l.quantity),
             godowns: partsOf(l.godowns),
-            replaceInto: l.settle === "replace" ? partsOf(l.into) : null,
+            replace: l.settle === "replace" ? l.when : null,
+            replaceInto: l.settle === "replace" && l.when === "now" ? partsOf(l.into) : null,
           })),
         reasonKind: reasonKind!,
         reason: reasonKind === "other" ? reason.trim() : null,
@@ -329,6 +314,7 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
         supplierCreditNoteNumber: noteNumber.trim() || null,
         supplierCreditNoteDate: noteDate || null,
         refundIn: cashRefund ? "cash" : "credit",
+        // (all swapped: no money)
         cashAmount: payBack > 0 ? (places[0]?.amount ?? 0) : 0,
         bankParts: payBack > 0 ? banksUsed.map((p) => ({ bankDetailsId: p.id, amount: p.amount, mode: p.mode!, referenceNumber: refOf(p.id, p.mode).trim() || null })) : [],
       });
@@ -355,7 +341,6 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
     fromMain,
     hasReplace,
     hasRefund,
-    replaced,
     refund,
     lines,
     lineOf,

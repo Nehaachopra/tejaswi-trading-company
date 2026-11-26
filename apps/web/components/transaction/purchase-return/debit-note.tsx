@@ -50,9 +50,8 @@ export function DebitNoteView({ id, history }: { id: string; history?: { record:
   const cancelled = d.status === "cancelled";
   const intra = d.supplyType === "intra";
   const supplier = titleCase(d.supplier.name);
-  // how it was settled, each part it has: replaced on the new purchase, received back, adjusted in their account
+  // how it was settled, each part it has: received back, adjusted in their account
   const settled = [
-    ...(d.replacementPurchase ? [t("replaced", { number: d.replacementPurchase.assignedId })] : []),
     ...(d.settled.refunded > 0 ? [t("receivedBack", { amount: money(d.settled.refunded) })] : []),
     ...(d.settled.onAccount > 0 ? [t("onAccount", { amount: money(d.settled.onAccount) })] : []),
   ].join(", ");
@@ -130,8 +129,8 @@ export function DebitNoteView({ id, history }: { id: string; history?: { record:
                 {/* our purchase number, alone on its row */}
                 <span className={cn(cell, "border-b border-r font-medium")}>{t("purchase")}</span>
                 <span className={cn(cell, "border-b sm:col-span-3 sm:border-r-0!")}>{d.purchase.assignedId}</span>
-                {/* how it was settled (received back, adjusted in their account, or replaced on a new purchase; each part it
-                    has), alone on its row */}
+                {/* how it was settled (received back, or adjusted in their account; each part it has), alone
+                    on its row */}
                 <span className={cn(cell, "border-b border-r font-medium")}>{t("settled")}</span>
                 <span className={cn(cell, "border-b sm:col-span-3 sm:border-r-0!")}>{settled}</span>
                 {/* the supplier's credit note, when they gave one */}
