@@ -67,7 +67,7 @@ export function ReturnsLog({
               const cancelled = r.status === "cancelled";
               // replaced packs still to come: how much of them is pending
               const pending =
-                r.replaced && r.replaced.back < r.replaced.sent
+                r.replaced && r.replaced.sent > 0
                   ? Math.round(((r.replaced.sent - r.replaced.back) / r.replaced.sent) * 100)
                   : null;
               return (
