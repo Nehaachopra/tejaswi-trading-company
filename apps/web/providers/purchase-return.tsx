@@ -42,9 +42,18 @@ export function useSavePurchaseReturn() {
 }
 
 // a return as its debit note (its success page reads the same)
-export function useDebitNote(transactionId: string) {
-  const q = trpc.transactions.purchaseReturn.debitNote.useQuery({ transactionId });
+export function useDebitNote(transactionId: string, shareKey?: string) {
+  const shared = shareKey !== undefined;
+  const own = trpc.transactions.purchaseReturn.debitNote.useQuery({ transactionId }, { enabled: !shared });
+  const theirs = trpc.transactions.purchaseReturn.shared.useQuery({ transactionId, key: shareKey ?? "" }, { enabled: shared, retry: false });
+  const q = shared ? theirs : own;
   return { note: q.data, loading: q.isPending, loadFailed: q.isError };
+}
+
+// the key for the debit note's link, sent to the supplier on WhatsApp (undefined until it comes)
+export function useDebitNoteShareKey(transactionId: string, enabled = true) {
+  const q = trpc.transactions.purchaseReturn.shareKey.useQuery({ transactionId }, { enabled });
+  return { key: q.data?.key };
 }
 
 // a return's swapped items still to come (only while `enabled`: the Receive card is open)

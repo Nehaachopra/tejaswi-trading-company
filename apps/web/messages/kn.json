@@ -2041,15 +2041,6 @@
         "bill": "ಬಿಲ್",
         "paidPart": "₹{paid} ಪಾವತಿಸಲಾಗಿದೆ, ₹{left} ಬಾಕಿ",
         "loadError": "ಖರೀದಿ ಲೋಡ್ ಆಗಲಿಲ್ಲ."
-      },
-      "replacements": {
-        "title": "ಬದಲಿ ಸರಕು",
-        "packsBack": "{sent} ರಲ್ಲಿ {back} ಪ್ಯಾಕ್ ವಾಪಸ್",
-        "sent": "ಕಳುಹಿಸಿದ್ದು {date}",
-        "back": "ಬಂದದ್ದು {date}",
-        "part": "{of} ರಲ್ಲಿ {came} ಬಂದಿವೆ",
-        "pending": "ಬಾಕಿ",
-        "receive": "ಬದಲಿ ಸರಕು ಪಡೆಯಿರಿ"
       }
     },
     "sale": {
@@ -2417,7 +2408,8 @@
         "settled": "ಇತ್ಯರ್ಥ",
         "paidBack": "₹{amount} ಹಿಂತಿರುಗಿಸಲಾಗಿದೆ",
         "onAccount": "ಖಾತೆಯಲ್ಲಿ ₹{amount} ಹೊಂದಿಸಲಾಗಿದೆ",
-        "exchanged": "{number} ಕ್ಕೆ ಬದಲಾಗಿ"
+        "exchanged": "{number} ಕ್ಕೆ ಬದಲಾಗಿ",
+        "whatsAppMessage": "{company} ಇಂದ ಕ್ರೆಡಿಟ್ ನೋಟ್ {number}, ₹{amount}: {url}"
       },
       "rate": "ದರ",
       "returnQuantity": "ವಾಪಸಾತಿ ಪ್ರಮಾಣ",
@@ -2544,7 +2536,9 @@
         "onAccount": "ಖಾತೆಯಲ್ಲಿ ಹೊಂದಿಸಲಾಗಿದೆ ₹{amount}",
         "creditNote": "ಸರಬರಾಜುದಾರರ ಕ್ರೆಡಿಟ್ ನೋಟ್",
         "discountBack": "ನಗದು ರಿಯಾಯಿತಿ ವಾಪಸ್ ನೀಡಲಾಗಿದೆ",
-        "roundOff": "ರೌಂಡ್ ಆಫ್"
+        "roundOff": "ರೌಂಡ್ ಆಫ್",
+        "record": "ಬದಲಿ ಸರಕು ದಾಖಲಿಸಿ",
+        "whatsAppMessage": "{company} ಇಂದ ಡೆಬಿಟ್ ನೋಟ್ {number}, ₹{amount}: {url}"
       },
       "optional": "ಐಚ್ಛಿಕ",
       "date": "ದಿನಾಂಕ",
@@ -2556,7 +2550,7 @@
         "later": "ನಂತರ"
       },
       "receive": {
-        "title": "ಬದಲಿ ಸರಕು ಪಡೆಯಿರಿ",
+        "title": "ಬದಲಿ ಸರಕು ದಾಖಲಿಸಿ",
         "save": "ಉಳಿಸಿ",
         "saving": "ಉಳಿಸಲಾಗುತ್ತಿದೆ…",
         "failed": "ಉಳಿಸಲಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
@@ -3002,7 +2996,6 @@
     "returned": "ಹಿಂತಿರುಗಿದೆ",
     "returnColumn": "ಹಿಂತಿರುಗಿಸಿದ್ದು",
     "replacement": "ಬದಲಿ",
-    "partReturned": "ಭಾಗಶಃ ಹಿಂತಿರುಗಿದೆ",
     "open": "ತೆರೆಯಿರಿ",
     "editLog": {
       "title": "ಬದಲಾವಣೆಗಳು",
@@ -3010,6 +3003,9 @@
         "date": "ದಿನಾಂಕ",
         "total": "ಒಟ್ಟು"
       }
-    }
+    },
+    "pendingReturn": "ಹಿಂತಿರುಗಿಸುವಿಕೆ ಬಾಕಿ",
+    "replacements": "ಬದಲಿ ಸರಕು",
+    "replacedPending": "{share}% ಬಾಕಿ"
   }
 }

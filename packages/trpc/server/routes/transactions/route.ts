@@ -52,7 +52,7 @@ import { contraIdInputModel, contraModel, type ContraKind, createContraInputMode
 import { createOtherInputModel, otherIdInputModel, otherModel, savedOtherModel } from "@repo/services/other/model";
 import { createDrawingInputModel, drawingIdInputModel, drawingModel, savedDrawingModel } from "@repo/services/drawing/model";
 import { paySalariesInputModel, paySalaryInputModel, salaryEmployeeModel, salaryIdInputModel, salaryPaymentModel } from "@repo/services/salary/model";
-import { opensSale, opensVoucher, saleKey, voucherKey } from "@repo/services/transaction/share-link";
+import { noteKey, opensNote, opensSale, opensVoucher, saleKey, voucherKey } from "@repo/services/transaction/share-link";
 
 import { accountsService, contraService, documentService, drawingService, dueService, otherService, paymentService, purchaseReturnService, purchaseService, receiptService, salaryService, saleEditService, saleReturnService, saleService, settingService, transactionService } from "../../services";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
@@ -590,6 +590,23 @@ const saleReturnRouter = router({
     .input(saleReturnIdInputModel)
     .output(creditNoteModel)
     .query(({ input }) => saleReturnService.creditNote(input)),
+
+  // the key for the credit note's link, sent to the customer on WhatsApp
+  shareKey: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/sale-returns/{transactionId}/share-key", tags: ["transactions"] } })
+    .input(saleReturnIdInputModel)
+    .output(z.object({ key: z.string() }))
+    .query(({ input }) => ({ key: noteKey(input.transactionId) })),
+
+  // the credit note from a shared link, for the customer: no login, only with the key from that link
+  shared: publicProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/sale-returns/{transactionId}/shared", tags: ["transactions"] } })
+    .input(z.object({ transactionId: z.string().uuid(), key: z.string().min(1).max(64) }))
+    .output(creditNoteModel)
+    .query(({ input }) => {
+      if (!opensNote(input.transactionId, input.key)) throw new TRPCError({ code: "NOT_FOUND", message: "Credit note not found." });
+      return saleReturnService.creditNote({ transactionId: input.transactionId });
+    }),
 });
 
 // purchase returns: goods back to the supplier against a saved purchase, refunded or replaced (the admin's)
@@ -639,6 +656,23 @@ const purchaseReturnRouter = router({
     .input(purchaseReturnIdInputModel)
     .output(debitNoteModel)
     .query(({ input }) => purchaseReturnService.debitNote(input)),
+
+  // the key for the debit note's link, sent to the supplier on WhatsApp
+  shareKey: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/purchase-returns/{transactionId}/share-key", tags: ["transactions"] } })
+    .input(purchaseReturnIdInputModel)
+    .output(z.object({ key: z.string() }))
+    .query(({ input }) => ({ key: noteKey(input.transactionId) })),
+
+  // the debit note from a shared link, for the supplier: no login, only with the key from that link
+  shared: publicProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/purchase-returns/{transactionId}/shared", tags: ["transactions"] } })
+    .input(z.object({ transactionId: z.string().uuid(), key: z.string().min(1).max(64) }))
+    .output(debitNoteModel)
+    .query(({ input }) => {
+      if (!opensNote(input.transactionId, input.key)) throw new TRPCError({ code: "NOT_FOUND", message: "Debit note not found." });
+      return purchaseReturnService.debitNote({ transactionId: input.transactionId });
+    }),
 });
 
 export const transactionsRouter = router({

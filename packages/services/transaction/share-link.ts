@@ -60,3 +60,16 @@ export function opensSaleOrder(orderId: string, key: string) {
   const got = Buffer.from(key);
   return want.length === got.length && timingSafeEqual(want, got);
 }
+
+// the key for one return's credit or debit note link, sent to the customer or supplier on WhatsApp (same secret, its
+// own prefix)
+export function noteKey(transactionId: string) {
+  return createHmac("sha256", secret).update(`note:${transactionId}`).digest("base64url").slice(0, 32);
+}
+
+// whether a key opens this return's note
+export function opensNote(transactionId: string, key: string) {
+  const want = Buffer.from(noteKey(transactionId));
+  const got = Buffer.from(key);
+  return want.length === got.length && timingSafeEqual(want, got);
+}

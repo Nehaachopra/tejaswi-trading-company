@@ -3,7 +3,6 @@
 import { ArrowLeft, CircleAlert, Download, Flag, Phone, Receipt } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 
 import type { RouterOutputs } from "@repo/trpc/client";
 import { Spinner } from "~/components/ui/icons/spinner";
@@ -19,9 +18,7 @@ import { EditLog } from "../../history/edit-log";
 import { ReturnsLog } from "../../history/returns-log";
 import { Breakup, DocHead, LAST_COL, Remarks } from "../done/document-parts";
 import { band, cell, dated, Detail, money } from "../done/voucher";
-import { ReceiveCard } from "../purchase-return/receive-card";
 import { PurchaseReturnButton } from "../purchase-return/return-button";
-import { Replacements } from "./replacements";
 
 type Purchase = RouterOutputs["transactions"]["purchase"]["get"];
 
@@ -50,8 +47,6 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
   const ti = useTranslations("transactions.sale.invoice");
   const th = useTranslations("history");
   const read = useSavedPurchase(id);
-  // the return whose swapped packs are being received
-  const [receiving, setReceiving] = useState<string | null>(null);
   if (read.loading)
     return (
       <p className="mt-16 flex items-center justify-center gap-2 text-ivory/70">
@@ -304,10 +299,8 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
         <p className="pt-2 font-semibold">{ti("computerGenerated")}</p>
       </article>
 
-      {/* the purchase's returns, under it; then its replacements, those still to come received here (the admin's) */}
+      {/* the purchase's returns, under it (each one's replacements are under its debit note) */}
       <ReturnsLog returns={record.returns} returnOnly />
-      <Replacements replacements={record.replacements} onReceive={history.isAdmin && !cancelled ? setReceiving : undefined} />
-      {receiving && <ReceiveCard returnId={receiving} onClose={() => setReceiving(null)} />}
 
       {/* and its edits */}
       <EditLog edits={record.edits} />

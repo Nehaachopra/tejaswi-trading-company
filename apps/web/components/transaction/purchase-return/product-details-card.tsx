@@ -17,7 +17,7 @@ const round2 = (v: number) => Math.round(v * 100) / 100;
 
 // a purchase return's product details card, as a sale return's, in two steps. First: Basis | Current | New for the rate
 // (as bought, not changed) and Quantity (Current: what was bought and can still go back; New: how many go back), and
-// Item sent from (the main godown filled in when it holds them, never more than a godown holds), then Next. Second:
+// Item sent from (nothing filled in, never more than a godown holds), then Next. Second:
 // Replace or Refund; Replace asks when the new packs come: Now (and the godowns they go into) or Later (nothing more).
 // Save. Clearing the quantity of one on the return turns Next into Save, which takes it off
 export function ProductDetailsCard() {
@@ -29,7 +29,7 @@ export function ProductDetailsCard() {
 }
 
 function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
-  const { t, lines, lineOf, putLine, setCardFor, purchaseLine, godownsOf, spotsOf, fromMain } = useReturnEntry();
+  const { t, lines, lineOf, putLine, setCardFor, purchaseLine, godownsOf, spotsOf } = useReturnEntry();
   const ts = useTranslations("transactions.sale");
   const line = purchaseLine(pack.productId);
   const [draft, setDraft] = useState<ReturnLine>(() => lineOf(pack.productId));
@@ -123,9 +123,8 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
               min={lines[pack.productId] ? 0 : 1}
               label={`${t("returning")}: ${name}`}
               invalid={tried && bad.quantity}
-              // a new quantity: all of it from the main godown (when it holds that many), the replacement's godowns
-              // picked again
-              onChange={(v) => setDraft((d) => (d.quantity === v ? d : { ...d, quantity: v, godowns: fromMain(pack.productId, Number(v) || 0), into: {} }))}
+              // a new quantity: where it's sent from, and the replacement's godowns, picked again
+              onChange={(v) => setDraft((d) => (d.quantity === v ? d : { ...d, quantity: v, godowns: {}, into: {} }))}
             />
           ),
         },

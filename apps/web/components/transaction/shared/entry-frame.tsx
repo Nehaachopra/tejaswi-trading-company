@@ -257,8 +257,7 @@ export function SummaryLines<S extends string>({
   reachable,
   onPick,
 }: {
-  // what kind of transaction it is ("Sale", "Purchase order"): the first line, Type over it (none: no Type line, as a
-  // return's)
+  // what kind of transaction it is ("Sale", "Purchase order"): the first line, Type over it (none: no Type line)
   type?: string;
   items: SummaryItem<S>[];
   current: S;

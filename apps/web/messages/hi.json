@@ -2041,15 +2041,6 @@
         "bill": "बिल",
         "paidPart": "₹{paid} दिए, ₹{left} बाकी",
         "loadError": "खरीद लोड नहीं हो सकी।"
-      },
-      "replacements": {
-        "title": "बदला माल",
-        "packsBack": "{sent} में से {back} पैक वापस आए",
-        "sent": "भेजा {date}",
-        "back": "आया {date}",
-        "part": "{of} में से {came} आए",
-        "pending": "बाकी",
-        "receive": "बदला माल लें"
       }
     },
     "sale": {
@@ -2417,7 +2408,8 @@
         "settled": "निपटारा",
         "paidBack": "₹{amount} वापस दिए",
         "onAccount": "खाते में ₹{amount} समायोजित",
-        "exchanged": "{number} के बदले में"
+        "exchanged": "{number} के बदले में",
+        "whatsAppMessage": "{company} से क्रेडिट नोट {number}, ₹{amount}: {url}"
       },
       "rate": "दर",
       "returnQuantity": "वापसी मात्रा",
@@ -2544,7 +2536,9 @@
         "onAccount": "खाते में समायोजित ₹{amount}",
         "creditNote": "सप्लायर का क्रेडिट नोट",
         "discountBack": "नकद छूट वापस दी",
-        "roundOff": "राउंड ऑफ"
+        "roundOff": "राउंड ऑफ",
+        "record": "बदला माल दर्ज करें",
+        "whatsAppMessage": "{company} से डेबिट नोट {number}, ₹{amount}: {url}"
       },
       "optional": "वैकल्पिक",
       "date": "तारीख",
@@ -2556,7 +2550,7 @@
         "later": "बाद में"
       },
       "receive": {
-        "title": "बदला माल लें",
+        "title": "बदला माल दर्ज करें",
         "save": "सेव करें",
         "saving": "सेव हो रहा है…",
         "failed": "सेव नहीं हुआ। फिर कोशिश करें।",
@@ -3002,7 +2996,6 @@
     "returned": "वापस",
     "returnColumn": "वापसी",
     "replacement": "बदले में",
-    "partReturned": "आंशिक वापस",
     "open": "खोलें",
     "editLog": {
       "title": "बदलाव",
@@ -3010,6 +3003,9 @@
         "date": "तारीख़",
         "total": "कुल"
       }
-    }
+    },
+    "pendingReturn": "वापसी बाकी",
+    "replacements": "बदले में आया माल",
+    "replacedPending": "{share}% बाकी"
   }
 }

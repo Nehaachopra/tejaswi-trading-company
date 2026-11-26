@@ -52,8 +52,9 @@ export const transactionSummaryModel = z.object({
   // the last edit, when it was edited (none: never)
   lastEditedAt: z.date().nullable(),
   lastEditedByName: z.string().nullable(),
-  // a sale: whether goods came back on it (all of it, some of it; none: null)
-  returned: z.enum(["all", "part"]).nullable(),
+  // a sale or purchase with goods back on it: Returned, or (a purchase) Pending while replaced packs are still to
+  // come; none: null
+  returned: z.enum(["returned", "pending"]).nullable(),
 });
 
 export type TransactionSummaryModel = z.infer<typeof transactionSummaryModel>;
@@ -97,25 +98,14 @@ export const transactionModel = transactionSummaryModel.extend({
       status: z.enum(["active", "cancelled"]),
       // the sale it made for the items it replaced (none: nothing replaced)
       replacement: z.object({ transactionId: idModel, assignedId: z.string(), dateTime: z.date(), total: z.number() }).nullable(),
+      // a purchase return with replaced items: packs sent to be replaced, and how many have come back (none: null)
+      replaced: z.object({ sent: z.number().int(), back: z.number().int() }).nullable(),
     }),
   ),
-  // a purchase's replaced items, by the return they went back on: each pack size, how many were replaced, and each
-  // delivery they came back on (its purchase, its bill day, how many)
-  replacements: z.array(
-    z.object({
-      returnTransactionId: idModel,
-      assignedId: z.string(),
-      returnDate: z.string(),
-      items: z.array(
-        z.object({
-          productId: idModel,
-          name: z.string(),
-          replaced: z.number().int(),
-          deliveries: z.array(z.object({ transactionId: idModel, assignedId: z.string(), date: z.string(), quantity: z.number().int() })),
-        }),
-      ),
-    }),
-  ),
+  // a purchase return's replacements: each purchase the replaced packs came back on (its ID, bill day, total, status),
+  // oldest first, and how many packs are still to come (0: none)
+  replacements: z.array(z.object({ transactionId: idModel, assignedId: z.string(), date: z.string(), total: z.number(), status: z.enum(["active", "cancelled"]) })),
+  replacementsOwed: z.number().int(),
   // its edits, newest first: when, by whom, and each field changed from what to what
   edits: z.array(
     z.object({

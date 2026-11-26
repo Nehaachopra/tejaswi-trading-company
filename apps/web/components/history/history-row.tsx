@@ -18,8 +18,8 @@ const when = (at: Date, locale: string) => {
 };
 
 // one transaction: its type on top, its ID and when under it side by side, the amount and an arrow on the right; the
-// whole row opens it. Cancelled: faded, the amount struck through; a sale with goods back: Returned or Part returned;
-// edited: a small Edited badge beside the type
+// whole row opens it. Cancelled: faded, the amount struck through; a sale or purchase with goods back (any part of
+// it): Returned, or Pending return while replaced packs are still to come; edited: a small Edited badge beside the type
 export function HistoryRow({ row }: { row: HistoryRowData }) {
   const t = useTranslations("history");
   const tt = useTranslations("accounts.types");
@@ -36,10 +36,10 @@ export function HistoryRow({ row }: { row: HistoryRowData }) {
           <span className="flex items-baseline gap-2 text-[0.9375rem] font-semibold">
             {tt(row.type)}
             {cancelled && <span className="rounded-control bg-chestnut/60 px-2 py-1 text-[0.75rem] font-semibold leading-none text-ivory">{t("cancelled")}</span>}
-            {/* a sale with goods back on it: Returned (all of it) or Part returned, as the Edited badge but on red */}
+            {/* goods back on it: Returned, or Pending return (replacements still to come), as the Edited badge but on red */}
             {!cancelled && row.returned && (
               <span className="rounded-control bg-danger px-2 py-1 text-[0.75rem] font-semibold leading-none text-ivory">
-                {t(row.returned === "all" ? "returned" : "partReturned")}
+                {t(row.returned === "pending" ? "pendingReturn" : "returned")}
               </span>
             )}
             {/* edited since it was saved: a small badge */}

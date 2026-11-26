@@ -5,12 +5,12 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { Spinner } from "~/components/ui/icons/spinner";
+import { WhatsAppIcon } from "~/components/ui/icons/whatsapp-icon";
 import { amountInWords } from "~/lib/amount-words";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import type { HistoryTransaction } from "~/providers/history";
-import { type CreditNote, useCreditNote } from "~/providers/sale-return";
-
+import { type CreditNote, useCreditNote, useCreditNoteShareKey } from "~/providers/sale-return";
 
 import { Breakup, DocHead, LAST_COL, Remarks } from "../done/document-parts";
 import { band, cell, dated, Detail, money } from "../done/voucher";
@@ -23,14 +23,17 @@ const pill =
 // note's (its number and day, the invoice it's against and its day, the reason), the remarks under them; who it's to;
 // the items back (quantity, a pack's price, the discount off the line, taxable value, GST % and the GST by tax, total);
 // then the breakup (the cash discount taken back, the round off) closing in the amount credited, in words too. A
-// cancelled one carries a CANCELLED stamp
+// cancelled one carries a CANCELLED stamp. Sent on WhatsApp when the customer's phone is kept
 // `history`: opened from a sale's Returns in History: back goes to the sale (a return is never cancelled)
-export function CreditNoteView({ id, history }: { id: string; history?: { record: HistoryTransaction; isAdmin: boolean } }) {
+// `shareKey`: the customer's copy from a shared link, opened without a login: only the download
+export function CreditNoteView({ id, history, shareKey }: { id: string; history?: { record: HistoryTransaction; isAdmin: boolean }; shareKey?: string }) {
   const t = useTranslations("transactions.saleReturn.note");
   const ti = useTranslations("transactions.sale.invoice");
   const tr = useTranslations("transactions.saleReturn");
   const th = useTranslations("history");
-  const { note: d, loading, loadFailed } = useCreditNote(id);
+  const shared = shareKey !== undefined;
+  const { note: d, loading, loadFailed } = useCreditNote(id, shareKey);
+  const link = useCreditNoteShareKey(id, !shared);
 
   if (loading)
     return (
@@ -73,18 +76,42 @@ export function CreditNoteView({ id, history }: { id: string; history?: { record
         ]
       : [];
 
+  // WhatsApp opened on the customer's chat with a message ready to send: the note's number, the amount and the link
+  // that opens it without a login
+  const whatsApp = (key: string) => {
+    const url = `${window.location.origin}/voucher/credit-note/${id}?k=${encodeURIComponent(key)}`;
+    const text = t("whatsAppMessage", { number: d.assignedId, amount: money(d.total), company: c.name, url });
+    const to = d.buyer.phone ? `91${d.buyer.phone.replace(/\D/g, "").slice(-10)}` : "";
+    return `https://wa.me/${to}?text=${encodeURIComponent(text)}`;
+  };
+  const canShare = !shared && !cancelled && !!d.buyer.phone;
+
   return (
     <main className="mx-auto max-w-4xl px-4 pb-28 pt-6 sm:px-6">
       <h1 className="sr-only">{t("title")}</h1>
 
-      {/* back to the return's page (from History: to its sale), and the download (the page printed as a PDF) */}
+      {/* back to the return's page (from History: to its sale), sending it on WhatsApp, and the download (the page
+          printed as a PDF); on a phone side by side, under the back link */}
       <div className="no-print mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <Link href={history ? `/history/${d.sale.transactionId}` : `/transaction/sale-return/${id}`} className="flex min-h-11 items-center gap-1.5 text-sm font-medium">
-          <ArrowLeft className="size-4" aria-hidden /> {history ? d.sale.assignedId : t("back")}
-        </Link>
-        <button type="button" onClick={() => window.print()} className={pill}>
-          <Download className="size-4" aria-hidden /> {ti("download")}
-        </button>
+        {shared ? (
+          <span className="hidden sm:block" />
+        ) : (
+          <Link href={history ? `/history/${d.sale.transactionId}` : `/transaction/sale-return/${id}`} className="flex min-h-11 items-center gap-1.5 text-sm font-medium">
+            <ArrowLeft className="size-4" aria-hidden /> {history ? d.sale.assignedId : t("back")}
+          </Link>
+        )}
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:items-center">
+          {/* WhatsApp only when the customer's phone is kept, and never once cancelled */}
+          {canShare && (
+            <button type="button" disabled={!link.key} onClick={() => window.open(whatsApp(link.key!), "_blank", "noopener")} aria-label={ti("whatsApp")} className={pill}>
+              <span className="whitespace-nowrap">{ti("shareOn")}</span>
+              <WhatsAppIcon className="size-4 shrink-0" />
+            </button>
+          )}
+          <button type="button" onClick={() => window.print()} className={cn(pill, !canShare && "col-span-2")}>
+            <Download className="size-4" aria-hidden /> {ti("download")}
+          </button>
+        </div>
       </div>
 
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">

@@ -55,6 +55,7 @@ function ReturnEntryView() {
   const { t, purchase, loading, loadFailed, retry, lines, total, chosen, refundIn, cashRefund, owedAfter, nameOf, packOf, places, complete, index, current, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, missingOf, leaveDialog, day, reasonKind, reason, remarks, noteNumber, hasRefund } =
     useReturnEntry();
   const ts = useTranslations("transactions.sale");
+  const tt = useTranslations("accounts.types");
   const locale = useLocale();
   // the page names the purchase it's against
   const title = t("titleFor", { number: purchase.assignedId });
@@ -114,6 +115,7 @@ function ReturnEntryView() {
   ];
   const linesView = (
     <SummaryLines<ReturnStep>
+      type={tt("purchase_return")}
       items={summary}
       current={current}
       reachable={reachable}

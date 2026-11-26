@@ -138,12 +138,8 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
       held: g.products.flatMap((p) => p.packs).find((p) => p.productId === productId)?.quantity ?? 0,
       counting: g.beingCounted,
     }));
-  // the godowns a pack can leave from (those holding it), and the main godown
+  // the godowns a pack can leave from (those holding it)
   const godownsOf = (productId: string) => spotsOf(productId).filter((g) => g.held > 0);
-  const mainId = stock.find((g) => g.isMain && !g.beingCounted)?.godownId ?? null;
-  // where a quantity leaves from by default: the main godown when it holds that many
-  const fromMain = (productId: string, q: number): Record<string, string> =>
-    mainId && q > 0 && (godownsOf(productId).find((g) => g.godownId === mainId)?.held ?? 0) >= q ? { [mainId]: String(q) } : {};
   const lineOf = (id: string): ReturnLine => lines[id] ?? emptyLine();
   // a line saved from the product details card (none going back: off the return)
   const putLine = (id: string, line: ReturnLine) =>
@@ -346,7 +342,6 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
     purchaseLine,
     spotsOf,
     godownsOf,
-    fromMain,
     hasReplace,
     hasRefund,
     refund,

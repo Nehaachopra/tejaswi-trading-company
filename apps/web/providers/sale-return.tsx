@@ -75,7 +75,16 @@ export function useSaveReturn() {
 }
 
 // a return as its credit note (its success page reads the same)
-export function useCreditNote(transactionId: string) {
-  const q = trpc.transactions.saleReturn.creditNote.useQuery({ transactionId });
+export function useCreditNote(transactionId: string, shareKey?: string) {
+  const shared = shareKey !== undefined;
+  const own = trpc.transactions.saleReturn.creditNote.useQuery({ transactionId }, { enabled: !shared });
+  const theirs = trpc.transactions.saleReturn.shared.useQuery({ transactionId, key: shareKey ?? "" }, { enabled: shared, retry: false });
+  const q = shared ? theirs : own;
   return { note: q.data, loading: q.isPending, loadFailed: q.isError };
+}
+
+// the key for the credit note's link, sent to the customer on WhatsApp (undefined until it comes)
+export function useCreditNoteShareKey(transactionId: string, enabled = true) {
+  const q = trpc.transactions.saleReturn.shareKey.useQuery({ transactionId }, { enabled });
+  return { key: q.data?.key };
 }

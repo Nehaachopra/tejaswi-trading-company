@@ -2041,15 +2041,6 @@
         "bill": "Bill",
         "paidPart": "₹{paid} paid, ₹{left} due",
         "loadError": "Couldn't load the purchase."
-      },
-      "replacements": {
-        "title": "Replacements",
-        "packsBack": "{back} of {sent} packs back",
-        "sent": "Sent {date}",
-        "back": "Back {date}",
-        "part": "{came} of {of} back",
-        "pending": "Pending",
-        "receive": "Receive replacement"
       }
     },
     "sale": {
@@ -2417,7 +2408,8 @@
         "settled": "Settled",
         "paidBack": "Paid back ₹{amount}",
         "onAccount": "Adjusted in account ₹{amount}",
-        "exchanged": "Exchanged against {number}"
+        "exchanged": "Exchanged against {number}",
+        "whatsAppMessage": "Credit note {number} for ₹{amount} from {company}: {url}"
       },
       "rate": "Rate",
       "returnQuantity": "Return quantity",
@@ -2544,7 +2536,9 @@
         "onAccount": "Adjusted in account ₹{amount}",
         "creditNote": "Supplier's credit note",
         "discountBack": "Cash discount given back",
-        "roundOff": "Round off"
+        "roundOff": "Round off",
+        "record": "Record replacement",
+        "whatsAppMessage": "Debit note {number} for ₹{amount} from {company}: {url}"
       },
       "optional": "Optional",
       "date": "Date",
@@ -2556,7 +2550,7 @@
         "later": "Later"
       },
       "receive": {
-        "title": "Receive replacement",
+        "title": "Record replacement",
         "save": "Save",
         "saving": "Saving…",
         "failed": "Couldn't save. Try again.",
@@ -3002,7 +2996,6 @@
     "returned": "Returned",
     "returnColumn": "Return",
     "replacement": "Replacement",
-    "partReturned": "Part returned",
     "open": "Open",
     "editLog": {
       "title": "Edits",
@@ -3010,6 +3003,9 @@
         "date": "Date",
         "total": "Total"
       }
-    }
+    },
+    "pendingReturn": "Pending return",
+    "replacements": "Replacements",
+    "replacedPending": "{share}% pending"
   }
 }

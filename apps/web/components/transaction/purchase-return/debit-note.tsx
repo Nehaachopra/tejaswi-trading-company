@@ -1,19 +1,22 @@
 "use client";
 
-import { ArrowLeft, CircleAlert, Download, Mail, Phone } from "lucide-react";
+import { ArrowLeft, CircleAlert, Download, Mail, PackageCheck, Phone } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { Spinner } from "~/components/ui/icons/spinner";
+import { WhatsAppIcon } from "~/components/ui/icons/whatsapp-icon";
 import { amountInWords } from "~/lib/amount-words";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import type { HistoryTransaction } from "~/providers/history";
-import { type DebitNote, useDebitNote } from "~/providers/purchase-return";
-
+import { type DebitNote, useDebitNote, useDebitNoteShareKey } from "~/providers/purchase-return";
 
 import { Breakup, DocHead, LAST_COL, Remarks } from "../done/document-parts";
+import { ReplacementsLog } from "../../history/replacements-log";
 import { band, cell, dated, Detail, money } from "../done/voucher";
+import { ReceiveCard } from "./receive-card";
 
 // a button's look on the chestnut page, as on the invoice
 const pill =
@@ -24,14 +27,20 @@ const pill =
 // it was settled, the supplier's credit note when they gave one, the reason), the remarks under them; who it's to (the
 // supplier); the items back (quantity, a pack's rate, the discount off the line, taxable value, GST % and the GST by
 // tax, total); then the breakup (the cash discount given back, the round off) closing in the amount debited, in words
-// too. A cancelled one carries a CANCELLED stamp
-// `history`: opened from a purchase's Returns in History: back goes to the purchase (a return is never cancelled)
-export function DebitNoteView({ id, history }: { id: string; history?: { record: HistoryTransaction; isAdmin: boolean } }) {
+// too. A cancelled one carries a CANCELLED stamp. Sent on WhatsApp when the supplier's phone is kept
+// `history`: opened from a purchase's Returns in History: back goes to the purchase (a return is never cancelled);
+// Record replacement while replaced packs are still to come (the admin's), and the purchases they came on under it
+// `shareKey`: the supplier's copy from a shared link, opened without a login: only the download
+export function DebitNoteView({ id, history, shareKey }: { id: string; history?: { record: HistoryTransaction; isAdmin: boolean }; shareKey?: string }) {
   const t = useTranslations("transactions.purchaseReturn.note");
   const ti = useTranslations("transactions.sale.invoice");
   const tr = useTranslations("transactions.purchaseReturn");
   const th = useTranslations("history");
-  const { note: d, loading, loadFailed } = useDebitNote(id);
+  const shared = shareKey !== undefined;
+  const { note: d, loading, loadFailed } = useDebitNote(id, shareKey);
+  const link = useDebitNoteShareKey(id, !shared);
+  // the Record replacement card, open
+  const [recording, setRecording] = useState(false);
 
   if (loading)
     return (
@@ -77,18 +86,50 @@ export function DebitNoteView({ id, history }: { id: string; history?: { record:
         ]
       : [];
 
+  // WhatsApp opened on the supplier's chat with a message ready to send: the note's number, the amount and the link
+  // that opens it without a login
+  const whatsApp = (key: string) => {
+    const url = `${window.location.origin}/voucher/debit-note/${id}?k=${encodeURIComponent(key)}`;
+    const text = t("whatsAppMessage", { number: d.assignedId, amount: money(d.total), company: c.name, url });
+    const to = d.supplier.phone ? `91${d.supplier.phone.replace(/\D/g, "").slice(-10)}` : "";
+    return `https://wa.me/${to}?text=${encodeURIComponent(text)}`;
+  };
+  const canShare = !shared && !cancelled && !!d.supplier.phone;
+  // replaced packs still to come, recorded here (the admin's, from History)
+  const canRecord = !!history?.isAdmin && !cancelled && history.record.replacementsOwed > 0;
+
   return (
     <main className="mx-auto max-w-4xl px-4 pb-28 pt-6 sm:px-6">
       <h1 className="sr-only">{t("title")}</h1>
 
-      {/* back to the return's page (from History: to its purchase), and the download (the page printed as a PDF) */}
+      {/* back to the return's page (from History: to its purchase), sending it on WhatsApp, Record replacement and the
+          download (the page printed as a PDF); on a phone two to a row, under the back link */}
       <div className="no-print mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <Link href={history ? `/history/${d.purchase.transactionId}` : `/transaction/purchase-return/${id}`} className="flex min-h-11 items-center gap-1.5 text-sm font-medium">
-          <ArrowLeft className="size-4" aria-hidden /> {history ? d.purchase.assignedId : t("back")}
-        </Link>
-        <button type="button" onClick={() => window.print()} className={pill}>
-          <Download className="size-4" aria-hidden /> {ti("download")}
-        </button>
+        {shared ? (
+          <span className="hidden sm:block" />
+        ) : (
+          <Link href={history ? `/history/${d.purchase.transactionId}` : `/transaction/purchase-return/${id}`} className="flex min-h-11 items-center gap-1.5 text-sm font-medium">
+            <ArrowLeft className="size-4" aria-hidden /> {history ? d.purchase.assignedId : t("back")}
+          </Link>
+        )}
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:items-center">
+          {/* WhatsApp only when the supplier's phone is kept, and never once cancelled */}
+          {canShare && (
+            <button type="button" disabled={!link.key} onClick={() => window.open(whatsApp(link.key!), "_blank", "noopener")} aria-label={ti("whatsApp")} className={pill}>
+              <span className="whitespace-nowrap">{ti("shareOn")}</span>
+              <WhatsAppIcon className="size-4 shrink-0" />
+            </button>
+          )}
+          {canRecord && (
+            <button type="button" onClick={() => setRecording(true)} className={pill}>
+              <PackageCheck className="size-4" aria-hidden /> {t("record")}
+            </button>
+          )}
+          {/* (alone or third on a phone row: full width) */}
+          <button type="button" onClick={() => window.print()} className={cn(pill, (Number(canShare) + Number(canRecord)) % 2 === 0 && "col-span-2")}>
+            <Download className="size-4" aria-hidden /> {ti("download")}
+          </button>
+        </div>
       </div>
 
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
@@ -256,6 +297,10 @@ export function DebitNoteView({ id, history }: { id: string; history?: { record:
           <p className="font-semibold">{ti("signatory")}</p>
         </div>
       </article>
+
+      {/* the purchases its replaced packs came back on (from History) */}
+      {history && <ReplacementsLog replacements={history.record.replacements} />}
+      {recording && <ReceiveCard returnId={id} onClose={() => setRecording(false)} />}
     </main>
   );
 }
