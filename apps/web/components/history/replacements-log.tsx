@@ -29,15 +29,20 @@ export function ReplacementsLog({
   const locale = useLocale();
   if (replacements.length === 0 && !show) return null;
   return (
-    <LogSection id="replacements-log" heading={t("replacements")} right={
+    <LogSection
+      id="replacements-log"
+      heading={t("replacements")}
+      bare={replacements.length === 0}
+      right={
         <>
           {/* the bar filled by what has come back; its words what is still to come */}
-          {share != null && <HeadShare share={share} label={t("replacedPending", { share: 100 - share })} />}
+          {share != null && <HeadShare share={share} label={t("replacedPending", { share: 100 - share })} onLeftSide={true} />}
           {action}
         </>
-      }>
+      }
+    >
       {replacements.length === 0 ? (
-        <p className="px-4 py-3.5 text-sm text-chestnut/65">{t("noReplacements")}</p>
+        <p className="text-sm text-ivory/70">{t("noReplacements")}</p>
       ) : (
         <ul>
           {replacements.map((r) => (

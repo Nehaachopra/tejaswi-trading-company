@@ -43,16 +43,17 @@ export function ReturnsLog({
     <LogSection
       id="returns-log"
       heading={t("returns")}
+      bare={returns.length === 0}
       right={
         <>
           {/* only once something on any return was replaced */}
-          {share != null && returns.some((r) => r.replaced || r.replacement) && <HeadShare share={share} label={t("returnedShare", { share })} />}
+          {share != null && returns.some((r) => r.replaced || r.replacement) && <HeadShare share={share} label={t("returnedShare", { share })} onLeftSide={true} />}
           {action}
         </>
       }
     >
       {returns.length === 0 ? (
-        <p className="px-4 py-3.5 text-sm text-chestnut/65">{t("noReturns")}</p>
+        <p className="text-sm text-ivory/70">{t("noReturns")}</p>
       ) : (
         <table className="w-full table-fixed border-collapse">
           {/* the two headings */}
@@ -127,9 +128,10 @@ export function ReturnsLog({
 }
 
 // a log heading's share: a thin bar filled ivory, its words beside it ("40% returned")
-export function HeadShare({ share, label }: { share: number; label: string }) {
+export function HeadShare({ share, label, onLeftSide }: { share: number; label: string, onLeftSide: boolean }) {
   return (
     <span className="mr-auto flex items-center gap-2 sm:mr-0">
+      {onLeftSide && <span className="tabular text-xs font-semibold text-ivory/70">{label}</span>}
       <span
         role="progressbar"
         aria-valuenow={share}
@@ -140,7 +142,7 @@ export function HeadShare({ share, label }: { share: number; label: string }) {
       >
         <i className="block h-full rounded-full bg-ivory" style={{ width: `${share}%` }} />
       </span>
-      <span className="tabular text-xs font-semibold text-ivory/70">{label}</span>
+      {!onLeftSide && <span className="tabular text-xs font-semibold text-ivory/70">{label}</span>}
     </span>
   );
 }
@@ -151,11 +153,14 @@ export function LogSection({
   id,
   heading,
   right,
+  bare = false,
   children,
 }: {
   id: string;
   heading: string;
   right?: ReactNode;
+  // nothing to list: its words straight on the page, no ivory box
+  bare?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -173,9 +178,7 @@ export function LogSection({
           </div>
         )}
       </div>
-      <div className="on-ivory shrink-0 overflow-hidden rounded-control bg-ivory text-chestnut">
-        {children}
-      </div>
+      {bare ? children : <div className="on-ivory shrink-0 overflow-hidden rounded-control bg-ivory text-chestnut">{children}</div>}
     </section>
   );
 }
