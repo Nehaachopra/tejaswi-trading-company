@@ -2028,6 +2028,19 @@
         "newTransaction": "New transaction",
         "loading": "Loading…",
         "loadError": "Couldn't load the purchase. Check your connection and try again."
+      },
+      "record": {
+        "title": "Purchase",
+        "number": "Purchase no.",
+        "dated": "Dated",
+        "billNumber": "Supplier's bill no.",
+        "payment": "Payment",
+        "vehicle": "Vehicle",
+        "from": "Bill from",
+        "amount": "Amount",
+        "bill": "Bill",
+        "paidPart": "₹{paid} paid, ₹{left} due",
+        "loadError": "Couldn't load the purchase."
       }
     },
     "sale": {
@@ -2427,6 +2440,107 @@
         "replace": "Replace",
         "refund": "Refund"
       }
+    },
+    "purchaseReturn": {
+      "title": "Purchase return",
+      "titleFor": "Return on {number}",
+      "loading": "Loading the purchase…",
+      "loadFailed": "Couldn't load the purchase.",
+      "blocked": {
+        "cancelled": "This purchase is cancelled.",
+        "allReturned": "Everything on this purchase has gone back already.",
+        "tooLate": "A return for this purchase can't be made after {day}."
+      },
+      "summary": "Summary",
+      "steps": {
+        "cart": "Cart",
+        "items": "Items",
+        "refund": "Refund",
+        "details": "Details",
+        "supplier": "Supplier"
+      },
+      "returning": "Returning",
+      "returnTotal": "Return total",
+      "removeFromReturn": "Take off the return",
+      "sentFrom": "Item sent from",
+      "quantityAndGodowns": "Quantity and godowns",
+      "settleLabel": "Replace or refund",
+      "modeLabel": "Mode",
+      "next": "Next",
+      "replaced": "Replaced",
+      "settle": {
+        "replace": "Replace",
+        "refund": "Refund"
+      },
+      "toReceive": "To receive",
+      "leftToReceive": "Left to receive",
+      "reason": "Reason",
+      "reasons": {
+        "damaged": "Spoiled",
+        "shortage": "Shortage",
+        "wrong_item": "Wrong item",
+        "other": "Other"
+      },
+      "reasonOther": "What was it?",
+      "creditNoteNumber": "Supplier's credit note no.",
+      "creditNoteDate": "Credit note date",
+      "saving": "Saving…",
+      "save": "Save return",
+      "missing": {
+        "items": "Pick what's going back.",
+        "godowns": "Pick the godowns every pack leaves from.",
+        "quantity": "Say how many go back.",
+        "settle": "Pick replace or refund.",
+        "replaceInto": "Pick where the new packs go.",
+        "refundIn": "Pick cash or credit.",
+        "left": "{amount} is still to be placed.",
+        "into": "Say how each account received it.",
+        "reason": "Pick why it went back.",
+        "date": "Pick the date."
+      },
+      "errors": {
+        "network": "Can't reach the server. Check your connection.",
+        "busy": "Too many saves. Wait a minute and try again.",
+        "failed": "Couldn't save the return. Try again."
+      },
+      "returnPurchase": "Return",
+      "ask": {
+        "title": "Return this purchase?",
+        "body": "It was bought {days, plural, =0 {today} =1 {1 day ago} other {# days ago}}. Do you want to return?",
+        "yes": "Yes",
+        "no": "No"
+      },
+      "done": {
+        "title": "Purchase return saved",
+        "loading": "Loading…",
+        "loadError": "Couldn't load the return.",
+        "number": "Transaction ID",
+        "debitNote": "Debit note",
+        "items": "Items",
+        "total": "Total",
+        "newTransaction": "New transaction"
+      },
+      "note": {
+        "title": "Debit note",
+        "back": "Back",
+        "number": "Debit note no.",
+        "bill": "Against bill",
+        "billDate": "Bill date",
+        "purchase": "Purchase no.",
+        "to": "To",
+        "amount": "Amount debited",
+        "settled": "Settled",
+        "receivedBack": "Received back ₹{amount}",
+        "onAccount": "Adjusted in account ₹{amount}",
+        "replaced": "Replaced on {number}",
+        "creditNote": "Supplier's credit note",
+        "discountBack": "Cash discount given back",
+        "roundOff": "Round off"
+      },
+      "optional": "Optional",
+      "date": "Date",
+      "remarks": "Remarks",
+      "creditNote": "Credit note"
     }
   },
   "dues": {

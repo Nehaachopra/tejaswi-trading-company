@@ -2028,6 +2028,19 @@
         "newTransaction": "नया लेन-देन",
         "loading": "लोड हो रहा है…",
         "loadError": "खरीद लोड नहीं हुई। कनेक्शन जाँचकर फिर कोशिश करें।"
+      },
+      "record": {
+        "title": "खरीद",
+        "number": "खरीद नं.",
+        "dated": "तारीख",
+        "billNumber": "सप्लायर बिल नं.",
+        "payment": "भुगतान",
+        "vehicle": "वाहन",
+        "from": "बिल किससे",
+        "amount": "राशि",
+        "bill": "बिल",
+        "paidPart": "₹{paid} दिए, ₹{left} बाकी",
+        "loadError": "खरीद लोड नहीं हो सकी।"
       }
     },
     "sale": {
@@ -2427,6 +2440,107 @@
         "replace": "बदलें",
         "refund": "पैसे वापस"
       }
+    },
+    "purchaseReturn": {
+      "title": "खरीद वापसी",
+      "titleFor": "{number} पर वापसी",
+      "loading": "खरीद लोड हो रही है…",
+      "loadFailed": "खरीद लोड नहीं हो सकी।",
+      "blocked": {
+        "cancelled": "यह खरीद रद्द है।",
+        "allReturned": "इस खरीद का सारा माल पहले ही वापस जा चुका है।",
+        "tooLate": "इस खरीद की वापसी {day} के बाद नहीं हो सकती।"
+      },
+      "summary": "सारांश",
+      "steps": {
+        "cart": "कार्ट",
+        "items": "सामान",
+        "refund": "पैसे वापस",
+        "details": "विवरण",
+        "supplier": "सप्लायर"
+      },
+      "returning": "वापस जा रहा",
+      "returnTotal": "वापसी कुल",
+      "removeFromReturn": "वापसी से हटाएं",
+      "sentFrom": "माल भेजा गया",
+      "quantityAndGodowns": "मात्रा और गोदाम",
+      "settleLabel": "बदलें या पैसे वापस",
+      "modeLabel": "तरीका",
+      "next": "आगे",
+      "replaced": "बदला गया",
+      "settle": {
+        "replace": "बदलें",
+        "refund": "पैसे वापस"
+      },
+      "toReceive": "मिलना है",
+      "leftToReceive": "मिलना बाकी",
+      "reason": "कारण",
+      "reasons": {
+        "damaged": "खराब",
+        "shortage": "कमी",
+        "wrong_item": "गलत सामान",
+        "other": "अन्य"
+      },
+      "reasonOther": "क्या था?",
+      "creditNoteNumber": "सप्लायर का क्रेडिट नोट नं.",
+      "creditNoteDate": "क्रेडिट नोट तारीख",
+      "saving": "सेव हो रहा है…",
+      "save": "वापसी सेव करें",
+      "missing": {
+        "items": "चुनें कि क्या वापस जा रहा है।",
+        "godowns": "हर पैक किस गोदाम से जा रहा है, चुनें।",
+        "quantity": "बताएं कितने वापस जा रहे हैं।",
+        "settle": "बदलें या पैसे वापस चुनें।",
+        "replaceInto": "चुनें नए पैक कहाँ जाएंगे।",
+        "refundIn": "नकद या उधार चुनें।",
+        "left": "{amount} अभी बाँटना बाकी है।",
+        "into": "बताएं हर खाते में कैसे आया।",
+        "reason": "चुनें कि क्यों वापस गया।",
+        "date": "तारीख चुनें।"
+      },
+      "errors": {
+        "network": "सर्वर से जुड़ नहीं पा रहे। कनेक्शन जाँचें।",
+        "busy": "बहुत ज़्यादा सेव। एक मिनट रुककर फिर कोशिश करें।",
+        "failed": "वापसी सेव नहीं हो सकी। फिर कोशिश करें।"
+      },
+      "returnPurchase": "वापसी",
+      "ask": {
+        "title": "यह खरीद वापस करें?",
+        "body": "यह {days, plural, =0 {आज} =1 {1 दिन पहले} other {# दिन पहले}} खरीदी गई थी। क्या आप वापस करना चाहते हैं?",
+        "yes": "हाँ",
+        "no": "नहीं"
+      },
+      "done": {
+        "title": "खरीद वापसी सेव हुई",
+        "loading": "लोड हो रहा है…",
+        "loadError": "वापसी लोड नहीं हो सकी।",
+        "number": "लेनदेन ID",
+        "debitNote": "डेबिट नोट",
+        "items": "सामान",
+        "total": "कुल",
+        "newTransaction": "नया लेनदेन"
+      },
+      "note": {
+        "title": "डेबिट नोट",
+        "back": "वापस",
+        "number": "डेबिट नोट नं.",
+        "bill": "बिल के सामने",
+        "billDate": "बिल तारीख",
+        "purchase": "खरीद नं.",
+        "to": "को",
+        "amount": "डेबिट राशि",
+        "settled": "निपटारा",
+        "receivedBack": "₹{amount} वापस मिले",
+        "onAccount": "खाते में समायोजित ₹{amount}",
+        "replaced": "{number} पर बदला गया",
+        "creditNote": "सप्लायर का क्रेडिट नोट",
+        "discountBack": "नकद छूट वापस दी",
+        "roundOff": "राउंड ऑफ"
+      },
+      "optional": "वैकल्पिक",
+      "date": "तारीख",
+      "remarks": "टिप्पणी",
+      "creditNote": "क्रेडिट नोट"
     }
   },
   "dues": {
