@@ -36,9 +36,10 @@ export function HistoryRow({ row }: { row: HistoryRowData }) {
           <span className="flex items-baseline gap-2 text-[0.9375rem] font-semibold">
             {tt(row.type)}
             {cancelled && <span className="rounded-control bg-chestnut/60 px-2 py-1 text-[0.75rem] font-semibold leading-none text-ivory">{t("cancelled")}</span>}
-            {/* goods back on it: Returned, or Pending return (replacements still to come), as the Edited badge but on red */}
+            {/* goods back on it, as the Edited badge: Returned on green; Pending return (replacements still to come) on
+                red, the only red badge */}
             {!cancelled && row.returned && (
-              <span className="rounded-control bg-danger px-2 py-1 text-[0.75rem] font-semibold leading-none text-ivory">
+              <span className={cn("rounded-control px-2 py-1 text-[0.75rem] font-semibold leading-none text-ivory", row.returned === "pending" ? "bg-danger" : "bg-success")}>
                 {t(row.returned === "pending" ? "pendingReturn" : "returned")}
               </span>
             )}
