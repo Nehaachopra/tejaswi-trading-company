@@ -138,12 +138,13 @@ export function LogCell({
   );
 }
 
-// how much of a return's replaced packs is still to come: a thin bar filled by the pending part, its share under it
+// how much of a return's replaced packs is still to come: a thin bar, chestnut only for what has come back (the rest
+// the light track), the share pending under it
 function PendingBar({ share, label }: { share: number; label: string }) {
   return (
     <span className="flex w-28 flex-col gap-1 sm:items-end">
-      <span role="progressbar" aria-valuenow={share} aria-valuemin={0} aria-valuemax={100} aria-label={label} className="block h-1.5 w-full overflow-hidden rounded-full bg-chestnut/12">
-        <i className="block h-full rounded-full bg-chestnut" style={{ width: `${share}%` }} />
+      <span role="progressbar" aria-valuenow={100 - share} aria-valuemin={0} aria-valuemax={100} aria-label={label} className="block h-1.5 w-full overflow-hidden rounded-full bg-chestnut/12">
+        <i className="block h-full rounded-full bg-chestnut" style={{ width: `${100 - share}%` }} />
       </span>
       <span className="tabular text-[0.6875rem] font-semibold text-chestnut/65">{label}</span>
     </span>
