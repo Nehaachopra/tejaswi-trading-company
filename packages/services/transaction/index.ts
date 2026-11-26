@@ -554,6 +554,7 @@ export default class TransactionService {
         total: transactionsTable.amount,
         status: transactionsTable.status,
         transactedIn: saleReturnsTable.transactedIn,
+        returnId: saleReturnsTable.id,
         exchangeSaleId: saleReturnsTable.exchangeSaleId,
         items: sql<number>`(select count(distinct ${saleProductsTable.productId})::int from ${saleReturnProductsTable} inner join ${saleProductsTable} on ${saleProductsTable.id} = ${saleReturnProductsTable.saleProductId} where ${saleReturnProductsTable.returnId} = ${saleReturnsTable.id})`,
       })
@@ -572,6 +573,25 @@ export default class TransactionService {
             .from(salesTable)
             .innerJoin(transactionsTable, eq(transactionsTable.id, salesTable.transactionId))
             .where(inArray(salesTable.id, saleIds));
+    // each return's replaced packs: what went out again on its replacement sale of what came back (a pack size no more
+    // than came back); they go out with the return, so all of them are back at once
+    const replacedOf = new Map<string, number>();
+    for (const r of rows) {
+      if (!r.exchangeSaleId) continue;
+      const back = await db
+        .select({ productId: saleProductsTable.productId, quantity: sql<number>`sum(${saleReturnProductsTable.quantity})::int` })
+        .from(saleReturnProductsTable)
+        .innerJoin(saleProductsTable, eq(saleProductsTable.id, saleReturnProductsTable.saleProductId))
+        .where(eq(saleReturnProductsTable.returnId, r.returnId))
+        .groupBy(saleProductsTable.productId);
+      const out = await db
+        .select({ productId: saleProductsTable.productId, quantity: sql<number>`sum(${saleProductsTable.quantity})::int` })
+        .from(saleProductsTable)
+        .where(eq(saleProductsTable.saleId, r.exchangeSaleId))
+        .groupBy(saleProductsTable.productId);
+      const replaced = back.reduce((a, b) => a + Math.min(b.quantity, out.find((o) => o.productId === b.productId)?.quantity ?? 0), 0);
+      if (replaced > 0) replacedOf.set(r.transactionId, replaced);
+    }
     return rows.map((r) => ({
       transactionId: r.transactionId,
       assignedId: r.assignedId,
@@ -584,7 +604,7 @@ export default class TransactionService {
         const s = replacements.find((x) => x.saleId === r.exchangeSaleId);
         return s ? { transactionId: s.transactionId, assignedId: s.assignedId, dateTime: s.dateTime, total: Number(s.total) } : null;
       })(),
-      replaced: null,
+      replaced: replacedOf.has(r.transactionId) ? { sent: replacedOf.get(r.transactionId)!, back: replacedOf.get(r.transactionId)! } : null,
     }));
   }
 
