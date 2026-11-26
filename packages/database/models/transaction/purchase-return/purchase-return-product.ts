@@ -1,4 +1,4 @@
-import { boolean, date, pgTable, uuid, varchar, index, check } from "drizzle-orm/pg-core";
+import { boolean, pgTable, uuid, varchar, index, check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 import { money, timestamps} from "../../../utils/common/column-type";
@@ -37,14 +37,9 @@ export const purchaseReturnProductsTable = pgTable(
 
     gstAmount: money("gst_amount").notNull().default("0.00"),
 
-    // swapped, not refunded: the supplier sends the same packs again (no money, GST or cost; the money columns stay 0)
+    // replaced, not refunded: the supplier sends the same packs again on an invoice of their own (return_deliveries);
+    // its value stays on their account until then
     replaced: boolean("replaced").notNull().default(false),
-
-    // a swap whose new packs haven't come yet
-    pending: boolean("pending").notNull().default(false),
-
-    // the day a swap's new packs came in
-    receivedAt: date("received_at"),
 
     ...timestamps,
   },

@@ -21,6 +21,7 @@ import { Breakup, DocHead, LAST_COL, Remarks } from "../done/document-parts";
 import { band, cell, dated, Detail, money } from "../done/voucher";
 import { ReceiveCard } from "../purchase-return/receive-card";
 import { PurchaseReturnButton } from "../purchase-return/return-button";
+import { Replacements } from "./replacements";
 
 type Purchase = RouterOutputs["transactions"]["purchase"]["get"];
 
@@ -303,8 +304,9 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
         <p className="pt-2 font-semibold">{ti("computerGenerated")}</p>
       </article>
 
-      {/* the purchase's returns, under it: a swap still to come can be received (the admin's) */}
-      <ReturnsLog returns={record.returns} onReceive={history.isAdmin ? setReceiving : undefined} />
+      {/* the purchase's returns, under it; then its replacements, those still to come received here (the admin's) */}
+      <ReturnsLog returns={record.returns} returnOnly />
+      <Replacements replacements={record.replacements} onReceive={history.isAdmin && !cancelled ? setReceiving : undefined} />
       {receiving && <ReceiveCard returnId={receiving} onClose={() => setReceiving(null)} />}
 
       {/* and its edits */}

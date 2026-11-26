@@ -110,6 +110,8 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
   const [remarks, setRemarks] = useState("");
   const [noteNumber, setNoteNumber] = useState("");
   const [noteDate, setNoteDate] = useState("");
+  // items replaced now: the supplier's invoice they came on
+  const [replacementBill, setReplacementBill] = useState("");
   const [saveKey] = useState(() => crypto.randomUUID());
   const [saveError, setSaveError] = useState<string | null>(null);
   const [tried, setTried] = useState(false);
@@ -150,23 +152,27 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
       return (Number(line.quantity) || 0) > 0 ? { ...rest, [id]: line } : rest;
     });
 
-  // the figures: the refunded items only (a swap carries no money)
-  const quantities = Object.fromEntries(Object.entries(lines).map(([id, l]) => [id, l.settle === "refund" ? Number(l.quantity) || 0 : 0]));
+  // the figures: every item is on the debit note; the refunded items' part on its own (what can be paid back now). The
+  // replaced items' part always stays on the supplier's account (their new invoice adds it back)
+  const quantities = Object.fromEntries(Object.entries(lines).map(([id, l]) => [id, Number(l.quantity) || 0]));
   const f = figureReturn(purchase, quantities);
   const total = f.total / 100;
   const chosen = Object.keys(lines).length;
   const hasReplace = Object.values(lines).some((l) => l.settle === "replace");
   const hasRefund = Object.values(lines).some((l) => l.settle === "refund");
-  const refund = total;
+  const replaceNow = Object.values(lines).some((l) => l.settle === "replace" && l.when === "now");
+  const refund = figureReturn(purchase, Object.fromEntries(Object.entries(lines).map(([id, l]) => [id, l.settle === "refund" ? Number(l.quantity) || 0 : 0]))).total / 100;
 
-  // a refund in cash: the supplier pays it all back now; on credit it comes off what we owe them (the rest an advance
-  // with them)
+  // a refund in cash: the supplier pays the refunded part back now; on credit it comes off what we owe them (the rest an
+  // advance with them)
   const refundWay: "cash" | "credit" | null = hasRefund ? refundIn : null;
   const cashRefund = refundWay === "cash";
   const payBack = cashRefund ? refund : 0;
   const supplier = purchase.supplier;
-  const owedAfter = Math.max(0, round2(supplier.owed - refund));
-  const advanceAfter = round2(supplier.held + Math.max(0, round2(refund - supplier.owed)));
+  // what stays on their account: the whole return less what they pay back now
+  const onAccount = round2(total - payBack);
+  const owedAfter = Math.max(0, round2(supplier.owed - onAccount));
+  const advanceAfter = round2(supplier.held + Math.max(0, round2(onAccount - supplier.owed)));
 
   // the places it comes back into: cash and every bank account (money coming in: no cap)
   const placeList = [{ id: "cash" }, ...(money?.banks ?? []).map((b) => ({ id: b.id }))];
@@ -208,7 +214,7 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
     money: refundIn !== null,
     supplier: true,
     payment: payBack === 0 || splitOk,
-    details: day !== "" && reasonOk,
+    details: day !== "" && reasonOk && (!replaceNow || replacementBill.trim() !== ""),
   };
   // with any refunded: cash or credit, the supplier, then what comes back (or what's left owed); a return all replaced
   // goes straight to Details
@@ -269,7 +275,9 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
             : t("missing.into")
           : !reasonOk
             ? t("missing.reason")
-            : t("missing.date");
+            : replaceNow && replacementBill.trim() === ""
+              ? t("missing.replacementBill")
+              : t("missing.date");
 
   // leaving with something entered asks first (not after a save)
   const { dialog: leaveDialog } = useLeaveGuard(!saved && chosen > 0, () => setLines({}));
@@ -313,8 +321,8 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
         remarks: remarks.trim() || null,
         supplierCreditNoteNumber: noteNumber.trim() || null,
         supplierCreditNoteDate: noteDate || null,
+        replacementBillNumber: replaceNow ? replacementBill.trim() : null,
         refundIn: cashRefund ? "cash" : "credit",
-        // (all swapped: no money)
         cashAmount: payBack > 0 ? (places[0]?.amount ?? 0) : 0,
         bankParts: payBack > 0 ? banksUsed.map((p) => ({ bankDetailsId: p.id, amount: p.amount, mode: p.mode!, referenceNumber: refOf(p.id, p.mode).trim() || null })) : [],
       });
@@ -377,6 +385,9 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
     setReason,
     remarks,
     setRemarks,
+    replaceNow,
+    replacementBill,
+    setReplacementBill,
     noteNumber,
     setNoteNumber,
     noteDate,

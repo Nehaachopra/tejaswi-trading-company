@@ -17,10 +17,10 @@ import { NOTE_NUMBER_MAX, type Reason, REASON_MAX, REASONS, useReturnEntry } fro
 const noteNumberOnly = (v: string) => v.toUpperCase().replace(/[^A-Z0-9/-]/g, "").slice(0, NOTE_NUMBER_MAX);
 
 // the Details card, as a sale return's: why it went back (an accordion of the reasons, every one open until one is
-// picked; Other asks what), the remarks (typed or spoken), then the supplier's credit note when they gave one (its
-// number and day, both optional), each a row: label left, box right; the day and Save follow, last
+// picked; Other asks what), the remarks (typed or spoken), the bill number of the supplier's invoice for items replaced
+// now, then the supplier's credit note when they gave one (its number and day, both optional), each a row: label left, box right; the day and Save follow, last
 export function DetailsCard() {
-  const { t, tc, purchase, reasonKind, setReasonKind, reason, setReason, remarks, setRemarks, noteNumber, setNoteNumber, noteDate, setNoteDate, tried } = useReturnEntry();
+  const { t, tc, purchase, reasonKind, setReasonKind, reason, setReason, remarks, setRemarks, noteNumber, setNoteNumber, noteDate, setNoteDate, replaceNow, replacementBill, setReplacementBill, tried } = useReturnEntry();
   const reasonBad = tried && (reasonKind === null || (reasonKind === "other" && reason.trim() === ""));
   const min = indiaDay(new Date(purchase.dateTime));
   const today = indiaDay(new Date());
@@ -58,6 +58,22 @@ export function DetailsCard() {
           <input value={remarks} maxLength={REMARKS_MAX} placeholder={tc("hints.remarks")} onChange={(e) => setRemarks(e.target.value)} className={cn(input(false), "pr-11")} />
         </MicField>
       </label>
+      {/* items replaced now: the bill number of the supplier's invoice they came on */}
+      {replaceNow && (
+        <label className={cn(fieldRow, "sm:w-[calc(50%-0.75rem)]")}>
+          <span>
+            {t("replacementBill")}
+            <RequiredMark />
+          </span>
+          <input
+            value={replacementBill}
+            maxLength={NOTE_NUMBER_MAX}
+            onChange={(e) => setReplacementBill(noteNumberOnly(e.target.value))}
+            aria-invalid={(tried && replacementBill.trim() === "") || undefined}
+            className={cn(input(tried && replacementBill.trim() === ""), "max-w-48")}
+          />
+        </label>
+      )}
       {/* the supplier's credit note, when they gave one */}
       <label className={cn(fieldRow, "sm:w-[calc(50%-0.75rem)]")}>
         <span>{t("creditNoteNumber")}</span>

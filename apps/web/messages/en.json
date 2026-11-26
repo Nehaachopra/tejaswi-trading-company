@@ -2041,6 +2041,15 @@
         "bill": "Bill",
         "paidPart": "₹{paid} paid, ₹{left} due",
         "loadError": "Couldn't load the purchase."
+      },
+      "replacements": {
+        "title": "Replacements",
+        "packsBack": "{back} of {sent} packs back",
+        "sent": "Sent {date}",
+        "back": "Back {date}",
+        "part": "{came} of {of} back",
+        "pending": "Pending",
+        "receive": "Receive replacement"
       }
     },
     "sale": {
@@ -2496,7 +2505,8 @@
         "into": "Say how each account received it.",
         "reason": "Pick why it went back.",
         "date": "Pick the date.",
-        "when": "Pick when the new packs come."
+        "when": "Pick when the new packs come.",
+        "replacementBill": "Give the replacement's bill number."
       },
       "errors": {
         "network": "Can't reach the server. Check your connection.",
@@ -2551,8 +2561,14 @@
         "saving": "Saving…",
         "failed": "Couldn't save. Try again.",
         "missing": "Put every pack that came into a godown.",
-        "loading": "Loading…"
-      }
+        "loading": "Loading…",
+        "billNumber": "Supplier's bill no.",
+        "billDate": "Bill date",
+        "owed": "({count} to come)",
+        "missingBill": "Give the bill number.",
+        "missingQuantity": "Say how many came."
+      },
+      "replacementBill": "Replacement bill no."
     }
   },
   "dues": {
@@ -2994,9 +3010,6 @@
         "date": "Date",
         "total": "Total"
       }
-    },
-    "replacedCount": "Replaced ×{count}",
-    "pendingCount": "Pending ×{count}",
-    "receive": "Receive replacement"
+    }
   }
 }

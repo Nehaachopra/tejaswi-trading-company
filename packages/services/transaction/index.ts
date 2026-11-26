@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { and, asc, db, desc, eq, gte, ilike, inArray, lt, lte, ne, or, sql } from "@repo/database";
-import { dueSettlementsTable, duesTable, gstReturnFilingsTable, ledgerEntriesTable, ledgersTable, productGodownsTable, receiptsTable, saleOrderProductsTable, saleOrdersTable, purchaseProductsTable, purchaseReturnProductsTable, purchaseReturnsTable, purchasesTable, saleProductsTable, saleReturnProductsTable, saleReturnsTable, salesTable, transactionEditLogsTable, transactionsTable } from "@repo/database/schema";
+import { dueSettlementsTable, duesTable, gstReturnFilingsTable, ledgerEntriesTable, ledgersTable, productGodownsTable, receiptsTable, saleOrderProductsTable, saleOrdersTable, purchaseProductsTable, purchaseReturnProductsTable, purchaseReturnsTable, purchasesTable, returnDeliveriesTable, saleProductsTable, saleReturnProductsTable, saleReturnsTable, salesTable, transactionEditLogsTable, transactionsTable } from "@repo/database/schema";
 
 import LedgerEngine from "../accounts/engine";
 import type { ActorModel, PostingLine } from "../accounts/model";
@@ -117,7 +117,7 @@ export default class TransactionService {
         companySnapshot: await this.settings.get("company", tx),
       })
       .returning({ id: transactionsTable.id });
-    // (nothing to post: a purchase return whose packs were all swapped)
+    // (a transaction with nothing to post saves without ledger entries)
     if (input.lines.length > 0) await this.engine.post(tx, { transactionId: created!.id, dateTime: input.dateTime, lines: input.lines, isContra: input.isContra });
     return { id: created!.id, assignedId };
   }
@@ -198,6 +198,9 @@ export default class TransactionService {
           .where(and(eq(purchaseReturnsTable.purchaseId, purchase.id), eq(transactionsTable.status, "active")))
           .limit(1);
         if (returned.length > 0) return "purchaseReturned";
+        // a return's replaced packs came on it: it goes with that return
+        const [delivery] = await q.select({ id: returnDeliveriesTable.id }).from(returnDeliveriesTable).where(eq(returnDeliveriesTable.deliveryTransactionId, t.id)).limit(1);
+        if (delivery) return "replacementPurchase";
       }
     }
     return null;
@@ -222,6 +225,7 @@ export default class TransactionService {
       if (blocked === "salePaid") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The customer has paid towards this sale. Cancel that receipt first." });
       if (blocked === "saleReturned") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Goods came back on this sale, so it can't be cancelled." });
       if (blocked === "exchangeSale") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "This sale was an exchange, so it can't be cancelled." });
+      if (blocked === "replacementPurchase") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A return's replaced packs came on this purchase, so it can't be cancelled." });
       if (blocked === "purchaseReturned") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Goods went back on this purchase, so it can't be cancelled." });
       const now = new Date();
       await this.engine.reverse(tx, { transactionId: t.id, dateTime: now });
@@ -366,8 +370,7 @@ export default class TransactionService {
     return out;
   }
 
-  // each purchase's goods gone back on it (by returns still in place, refunded packs only: swapped ones are back): all
-  // of it, or some of it
+  // each purchase's goods gone back on it (by returns still in place, replaced ones too): all of it, or some of it
   private async purchaseReturnedOf(purchaseTransactionIds: string[]) {
     const out = new Map<string, "all" | "part">();
     if (purchaseTransactionIds.length === 0) return out;
@@ -383,7 +386,7 @@ export default class TransactionService {
       .innerJoin(purchaseReturnsTable, eq(purchaseReturnsTable.id, purchaseReturnProductsTable.returnId))
       .innerJoin(transactionsTable, eq(transactionsTable.id, purchaseReturnsTable.transactionId))
       .innerJoin(purchasesTable, eq(purchasesTable.id, purchaseReturnsTable.purchaseId))
-      .where(and(inArray(purchasesTable.transactionId, purchaseTransactionIds), eq(transactionsTable.status, "active"), eq(purchaseReturnProductsTable.replaced, false)))
+      .where(and(inArray(purchasesTable.transactionId, purchaseTransactionIds), eq(transactionsTable.status, "active")))
       .groupBy(purchasesTable.transactionId);
     for (const b of back) {
       if (b.quantity <= 0) continue;
@@ -393,12 +396,10 @@ export default class TransactionService {
     return out;
   }
 
-  // a purchase's returns, oldest first, as a sale's: each one's ID, day, items, total, how it was settled and status,
-  // and the packs swapped on it: how many, how many still to come, and the day they came
+  // a purchase's returns, oldest first, as a sale's: each one's ID, day, items, total, how it was settled and status
   private async purchaseReturnsOf(purchaseTransactionId: string): Promise<TransactionModel["returns"]> {
     const rows = await db
       .select({
-        id: purchaseReturnsTable.id,
         transactionId: transactionsTable.id,
         assignedId: transactionsTable.assignedId,
         returnDate: purchaseReturnsTable.returnDate,
@@ -412,16 +413,7 @@ export default class TransactionService {
       .innerJoin(purchasesTable, eq(purchasesTable.id, purchaseReturnsTable.purchaseId))
       .where(eq(purchasesTable.transactionId, purchaseTransactionId))
       .orderBy(asc(transactionsTable.dateTime), asc(transactionsTable.createdAt));
-    const swapped =
-      rows.length === 0
-        ? []
-        : await db
-            .select({ returnId: purchaseReturnProductsTable.returnId, quantity: purchaseReturnProductsTable.quantity, pending: purchaseReturnProductsTable.pending, receivedAt: purchaseReturnProductsTable.receivedAt })
-            .from(purchaseReturnProductsTable)
-            .where(and(inArray(purchaseReturnProductsTable.returnId, rows.map((r) => r.id)), eq(purchaseReturnProductsTable.replaced, true)));
     return rows.map((r) => {
-      const mine = swapped.filter((x) => x.returnId === r.id);
-      const days = mine.map((x) => x.receivedAt).filter((d): d is string => !!d).sort();
       return {
         transactionId: r.transactionId,
         assignedId: r.assignedId,
@@ -431,16 +423,63 @@ export default class TransactionService {
         settledIn: r.transactedIn as "cash" | "credit" | "both",
         status: r.status === "cancelled" ? ("cancelled" as const) : ("active" as const),
         replacement: null,
-        swap:
-          mine.length === 0
-            ? null
-            : {
-                quantity: mine.reduce((a, x) => a + x.quantity, 0),
-                pending: mine.filter((x) => x.pending).reduce((a, x) => a + x.quantity, 0),
-                receivedAt: days.at(-1) ?? null,
-              },
       };
     });
+  }
+
+  // a purchase's replaced items, by the return they went back on (oldest first): each pack size, how many were
+  // replaced, and each delivery they came back on (its purchase, its bill day, how many) by purchases still in place
+  private async replacementsOf(purchaseTransactionId: string): Promise<TransactionModel["replacements"]> {
+    const replaced = await db
+      .select({
+        returnTransactionId: transactionsTable.id,
+        assignedId: transactionsTable.assignedId,
+        returnDate: purchaseReturnsTable.returnDate,
+        productId: purchaseProductsTable.productId,
+        name: purchaseProductsTable.productNameSnapshot,
+        quantity: purchaseReturnProductsTable.quantity,
+      })
+      .from(purchaseReturnProductsTable)
+      .innerJoin(purchaseReturnsTable, eq(purchaseReturnsTable.id, purchaseReturnProductsTable.returnId))
+      .innerJoin(transactionsTable, eq(transactionsTable.id, purchaseReturnsTable.transactionId))
+      .innerJoin(purchasesTable, eq(purchasesTable.id, purchaseReturnsTable.purchaseId))
+      .innerJoin(purchaseProductsTable, eq(purchaseProductsTable.id, purchaseReturnProductsTable.purchaseProductId))
+      .where(and(eq(purchasesTable.transactionId, purchaseTransactionId), eq(purchaseReturnProductsTable.replaced, true), eq(transactionsTable.status, "active")))
+      .orderBy(asc(transactionsTable.dateTime), asc(purchaseReturnProductsTable.createdAt));
+    if (replaced.length === 0) return [];
+    const came = await db
+      .select({
+        returnTransactionId: returnDeliveriesTable.returnTransactionId,
+        productId: returnDeliveriesTable.productId,
+        quantity: returnDeliveriesTable.quantity,
+        transactionId: transactionsTable.id,
+        assignedId: transactionsTable.assignedId,
+        billDate: purchasesTable.invoiceDate,
+      })
+      .from(returnDeliveriesTable)
+      .innerJoin(transactionsTable, eq(transactionsTable.id, returnDeliveriesTable.deliveryTransactionId))
+      .innerJoin(purchasesTable, eq(purchasesTable.transactionId, transactionsTable.id))
+      .where(and(inArray(returnDeliveriesTable.returnTransactionId, [...new Set(replaced.map((r) => r.returnTransactionId))]), eq(transactionsTable.status, "active")))
+      .orderBy(asc(purchasesTable.invoiceDate));
+    const out: TransactionModel["replacements"] = [];
+    for (const r of replaced) {
+      let ret = out.find((x) => x.returnTransactionId === r.returnTransactionId);
+      if (!ret) out.push((ret = { returnTransactionId: r.returnTransactionId, assignedId: r.assignedId, returnDate: r.returnDate, items: [] }));
+      let item = ret.items.find((x) => x.productId === r.productId);
+      if (!item) {
+        item = {
+          productId: r.productId,
+          name: r.name,
+          replaced: 0,
+          deliveries: came
+            .filter((c) => c.returnTransactionId === r.returnTransactionId && c.productId === r.productId)
+            .map((c) => ({ transactionId: c.transactionId, assignedId: c.assignedId, date: c.billDate, quantity: c.quantity })),
+        };
+        ret.items.push(item);
+      }
+      item.replaced += r.quantity;
+    }
+    return out;
   }
 
   // a sale's returns, oldest first: each one's ID, day, items, total, how it was settled, and status
@@ -483,7 +522,6 @@ export default class TransactionService {
         const s = replacements.find((x) => x.saleId === r.exchangeSaleId);
         return s ? { transactionId: s.transactionId, assignedId: s.assignedId, dateTime: s.dateTime, total: Number(s.total) } : null;
       })(),
-      swap: null,
     }));
   }
 
@@ -543,6 +581,7 @@ export default class TransactionService {
             ? ((await this.purchaseReturnedOf([t.id])).get(t.id) ?? null)
             : null,
       returns: t.type === "sale" ? await this.returnsOf(t.id) : t.type === "purchase" ? await this.purchaseReturnsOf(t.id) : [],
+      replacements: t.type === "purchase" ? await this.replacementsOf(t.id) : [],
       edits: (
         await db
           .select({ at: transactionEditLogsTable.createdAt, byName: transactionEditLogsTable.editedByName, changes: transactionEditLogsTable.changes })

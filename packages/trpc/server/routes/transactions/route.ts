@@ -18,7 +18,7 @@ import { attachBillInputModel, createPurchaseInputModel, purchaseIdInputModel, p
 import { editSaleInputModel, saleForEditModel } from "@repo/services/sale/edit-model";
 import { createSaleInputModel, saleIdInputModel, saleInvoiceModel, saleShareKeyModel, saleSummaryModel, savedSaleModel, sharedSaleInputModel } from "@repo/services/sale/model";
 import { placeOfBusinessModel } from "@repo/services/setting/model";
-import { createPurchaseReturnInputModel, debitNoteModel, pendingReplacementModel, purchaseForReturnModel, purchaseReturnIdInputModel, receiveReplacementInputModel, savedPurchaseReturnModel } from "@repo/services/purchase-return/model";
+import { createPurchaseReturnInputModel, debitNoteModel, pendingReplacementModel, purchaseForReturnModel, purchaseReturnIdInputModel, receiveReplacementInputModel, receivedReplacementModel, savedPurchaseReturnModel } from "@repo/services/purchase-return/model";
 import { createSaleReturnInputModel, creditNoteModel, exchangeInputModel, saleForReturnModel, saleReturnIdInputModel, savedSaleReturnModel } from "@repo/services/sale-return/model";
 import { createReceiptInputModel, receiptIdInputModel, receiptModel, receiptShareKeyModel, savedReceiptModel, sharedReceiptInputModel } from "@repo/services/receipt/model";
 import {
@@ -615,22 +615,22 @@ const purchaseReturnRouter = router({
       return input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save();
     }),
 
-  // a return's swapped items still to come
+  // a return's replaced items still to come
   pending: adminProcedure
     .meta({ openapi: { method: "GET", path: "/transactions/purchase-returns/{transactionId}/pending", tags: ["transactions"] } })
     .input(purchaseReturnIdInputModel)
     .output(pendingReplacementModel)
     .query(({ input }) => purchaseReturnService.pending(input)),
 
-  // a swap's new packs come in: dated today or before
+  // replaced packs coming on the supplier's new invoice (a purchase): dated today or before
   receive: adminProcedure
-    .meta({ openapi: { method: "POST", path: "/transactions/purchase-returns/{transactionId}/receive", tags: ["transactions"] } })
+    .meta({ openapi: { method: "POST", path: "/transactions/purchase-returns/{returnTransactionId}/receive", tags: ["transactions"] } })
     .input(receiveReplacementInputModel)
-    .output(z.object({ received: z.number().int() }))
+    .output(receivedReplacementModel)
     .mutation(({ ctx, input }) => {
       checkDate(input.dateTime, ctx.session.user.role);
       limitSaves(ctx.session.user.id);
-      return purchaseReturnService.receive(input);
+      return purchaseReturnService.receive(input, ctx.session.user);
     }),
 
   // a return as our debit note

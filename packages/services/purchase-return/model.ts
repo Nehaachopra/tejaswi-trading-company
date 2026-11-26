@@ -5,6 +5,15 @@ import { companyModel } from "../setting/model";
 
 const idModel = z.string().uuid();
 
+// a supplier's bill number: up to 16 letters, digits, / and -, as GST allows
+const billNumberModel = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .min(1, "Give the bill number.")
+  .max(16)
+  .regex(/^[A-Z0-9/-]+$/, "A bill number has only letters, digits, / and -.");
+
 // rupees with at most 2 decimals, within the money columns
 const rupeesModel = z.number().min(0).max(9_999_999_999_999).multipleOf(0.01);
 
@@ -20,8 +29,8 @@ const partsFit = (parts: { godownId: string; quantity: number }[], quantity: num
   parts.reduce((a, g) => a + g.quantity, 0) === quantity && new Set(parts.map((g) => g.godownId)).size === parts.length;
 
 // one item going back: a pack size the purchase had, how many, and the godowns they leave from (adding up to it).
-// Refunded (replace: null); or swapped: the supplier sends as many of the same pack size again, now (into the godowns
-// in replaceInto) or later (received on the return afterwards). A swap moves stock only: no money, GST or cost
+// Refunded (replace: null); or replaced: the supplier sends as many of the same pack size again on an invoice of their
+// own, now (into the godowns in replaceInto) or later (received on the return afterwards)
 export const purchaseReturnLineInputModel = z
   .object({
     productId: idModel,
@@ -61,31 +70,42 @@ export const createPurchaseReturnInputModel = z
       .nullable()
       .default(null),
     supplierCreditNoteDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+    // items replaced now: the supplier's invoice they came on
+    replacementBillNumber: billNumberModel.nullable().default(null),
     refundIn: z.enum(["cash", "credit"]).default("credit"),
     cashAmount: rupeesModel.default(0),
     bankParts: z.array(moreBankPartModel).max(5).default([]),
   })
   .refine((r) => new Set(r.lines.map((l) => l.productId)).size === r.lines.length, { message: "Each pack size once.", path: ["lines"] })
   .refine((r) => new Set(r.bankParts.map((b) => b.bankDetailsId)).size === r.bankParts.length, { message: "An account is in twice.", path: ["bankParts"] })
-  .refine((r) => (r.reasonKind === "other") === !!r.reason, { message: "Say why, for Other only.", path: ["reason"] });
+  .refine((r) => (r.reasonKind === "other") === !!r.reason, { message: "Say why, for Other only.", path: ["reason"] })
+  .refine((r) => r.lines.some((l) => l.replace === "now") === (r.replacementBillNumber !== null), { message: "Give the replacement's bill number.", path: ["replacementBillNumber"] });
 
 export type CreatePurchaseReturnInputModel = z.infer<typeof createPurchaseReturnInputModel>;
 
 export const purchaseReturnIdInputModel = z.object({ transactionId: idModel });
 
-// a swap's new packs come in afterwards: the return, the day, and each pending item's godowns (each item once, all of
-// what's owed)
+// replaced packs coming on the supplier's new invoice: the return, their bill number and day, and each item that came:
+// how many (up to what's owed) and the godowns they go into
 export const receiveReplacementInputModel = z
   .object({
-    transactionId: idModel,
+    returnTransactionId: idModel,
+    supplierInvoiceNumber: billNumberModel,
     dateTime: z.coerce.date(),
-    lines: z.array(z.object({ productId: idModel, into: z.array(godownPartModel).min(1, "Pick a godown.").max(20) })).min(1).max(100),
+    lines: z
+      .array(z.object({ productId: idModel, quantity: z.number().int().min(1).max(99_999), into: z.array(godownPartModel).min(1, "Pick a godown.").max(20) }))
+      .min(1)
+      .max(100),
   })
-  .refine((r) => new Set(r.lines.map((l) => l.productId)).size === r.lines.length, { message: "Each pack size once.", path: ["lines"] });
+  .refine((r) => new Set(r.lines.map((l) => l.productId)).size === r.lines.length, { message: "Each pack size once.", path: ["lines"] })
+  .refine((r) => r.lines.every((l) => partsFit(l.into, l.quantity)), { message: "The godowns must add up to the quantity.", path: ["lines"] });
+
+// a replacement received: the purchase it came on
+export const receivedReplacementModel = z.object({ transactionId: idModel, assignedId: z.string(), total: z.number() });
 
 export type ReceiveReplacementInputModel = z.infer<typeof receiveReplacementInputModel>;
 
-// a return's swapped items still to come: each pack size, its name and how many
+// a return's replaced items still to come: each pack size, its name and how many
 export const pendingReplacementModel = z.object({
   transactionId: idModel,
   assignedId: z.string(),

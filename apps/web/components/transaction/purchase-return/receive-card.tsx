@@ -16,12 +16,17 @@ import { useReturnSources } from "~/providers/sale-return";
 
 import { indiaDay } from "../../account/balance";
 import { fieldRow, input, momentOf } from "../shared/form-basics";
+import { QuantityBox } from "../shared/pack-parts";
 import { GodownRows } from "../shared/product-details-card";
+import { NOTE_NUMBER_MAX } from "./state";
 
-// a return's Receive replacement, over the dimmed page as the product details card: each item still to come with the
-// godowns its new packs go into (the main godown filled in), then the day they came (today until changed; never before
-// the return) and Save. Tapped with packs still to place: said under the button. ✕, a tap on the dim area or Escape
-// closes it
+// a bill number as GST allows: capitals, digits, / and -
+const billNumberOnly = (v: string) => v.toUpperCase().replace(/[^A-Z0-9/-]/g, "").slice(0, NOTE_NUMBER_MAX);
+
+// a return's Receive replacement, over the dimmed page as the product details card: the supplier's invoice the packs
+// came on (its bill number and day), then each item still to come: how many came on it (all that's owed to start;
+// fewer for a part, 0 when it didn't come) and the godowns they go into (the main godown filled in). Save saves the
+// purchase. Tapped with something missing: said under the button. ✕, a tap on the dim area or Escape closes it
 export function ReceiveCard({ returnId, onClose }: { returnId: string; onClose: () => void }) {
   const t = useTranslations("transactions.purchaseReturn.receive");
   const tc = useTranslations("transactions.chat");
@@ -30,10 +35,11 @@ export function ReceiveCard({ returnId, onClose }: { returnId: string; onClose: 
   const { stock } = useReturnSources();
   const { receive, saving } = useReceiveReplacement();
   const mainId = stock.find((g) => g.isMain && !g.beingCounted)?.godownId ?? null;
-  // each item's godowns, the main godown filled in with all of it once the items are in
-  const [parts, setParts] = useState<Record<string, Record<string, string>> | null>(null);
-  if (pending && parts === null && stock.length > 0)
-    setParts(Object.fromEntries(pending.lines.map((l) => [l.productId, mainId ? { [mainId]: String(l.quantity) } : {}])));
+  // each item: how many came, and their godowns (all of it into the main godown to start)
+  const [came, setCame] = useState<Record<string, { quantity: string; parts: Record<string, string> }> | null>(null);
+  if (pending && came === null && stock.length > 0)
+    setCame(Object.fromEntries(pending.lines.map((l) => [l.productId, { quantity: String(l.quantity), parts: mainId ? { [mainId]: String(l.quantity) } : {} }])));
+  const [bill, setBill] = useState("");
   const [day, setDay] = useState(() => indiaDay(new Date()));
   const [error, setError] = useState<string | null>(null);
 
@@ -57,21 +63,27 @@ export function ReceiveCard({ returnId, onClose }: { returnId: string; onClose: 
       held: g.products.flatMap((p) => p.packs).find((p) => p.productId === productId)?.quantity ?? 0,
       counting: g.beingCounted,
     }));
-  const placed = (productId: string) => Object.values(parts?.[productId] ?? {}).reduce((a, v) => a + (Number(v) || 0), 0);
+  const qty = (productId: string) => Number(came?.[productId]?.quantity) || 0;
+  const placed = (productId: string) => Object.values(came?.[productId]?.parts ?? {}).reduce((a, v) => a + (Number(v) || 0), 0);
   const today = indiaDay(new Date());
 
-  // Save: every pack placed, then the new packs come in
+  // Save: the bill number, something come, every pack placed; then the purchase is saved
   async function save() {
-    if (!pending || !parts) return;
-    if (pending.lines.some((l) => placed(l.productId) !== l.quantity) || day === "") return setError(t("missing"));
+    if (!pending || !came) return;
+    const lines = pending.lines.filter((l) => qty(l.productId) > 0);
+    if (bill.trim() === "") return setError(t("missingBill"));
+    if (lines.length === 0) return setError(t("missingQuantity"));
+    if (lines.some((l) => placed(l.productId) !== qty(l.productId)) || day === "") return setError(t("missing"));
     setError(null);
     try {
       await receive({
-        transactionId: returnId,
+        returnTransactionId: returnId,
+        supplierInvoiceNumber: bill.trim(),
         dateTime: momentOf(day),
-        lines: pending.lines.map((l) => ({
+        lines: lines.map((l) => ({
           productId: l.productId,
-          into: Object.entries(parts[l.productId] ?? {})
+          quantity: qty(l.productId),
+          into: Object.entries(came[l.productId]!.parts)
             .filter(([, v]) => (Number(v) || 0) > 0)
             .map(([godownId, v]) => ({ godownId, quantity: Number(v) })),
         })),
@@ -102,33 +114,29 @@ export function ReceiveCard({ returnId, onClose }: { returnId: string; onClose: 
             </button>
           </div>
 
-          {loading || !pending || !parts ? (
+          {loading || !pending || !came ? (
             <p className="flex items-center justify-center gap-2 py-6 text-sm opacity-70">
               <Spinner /> {t("loading")}
             </p>
           ) : (
             <>
-              {/* each item still to come: its name and how many, then the godowns its new packs go into */}
-              {pending.lines.map((l) => (
-                <div key={l.productId} className="flex flex-col gap-1 border-t border-chestnut/15 pt-2">
-                  <p className="flex items-baseline justify-between gap-3 text-sm font-semibold">
-                    <span className="min-w-0 break-words">{titleCase(l.name)}</span>
-                    <span className="tabular shrink-0">×{l.quantity.toLocaleString("en-IN")}</span>
-                  </p>
-                  <GodownRows
-                    spots={spotsOf(l.productId)}
-                    quantity={l.quantity}
-                    parts={parts[l.productId] ?? {}}
-                    onPart={(godownId, v) => setParts((all) => ({ ...all, [l.productId]: { ...(all?.[l.productId] ?? {}), [godownId]: v } }))}
-                    leftLabel={ts("leftToPlace")}
-                    name={l.name}
-                  />
-                </div>
-              ))}
-              {/* the day they came */}
-              <label className={cn(fieldRow, "border-t border-chestnut/15 pt-3")}>
+              {/* the supplier's invoice: its bill number and day */}
+              <label className={fieldRow}>
                 <span>
-                  {tc("q.date")}
+                  {t("billNumber")}
+                  <RequiredMark />
+                </span>
+                <input
+                  autoFocus
+                  value={bill}
+                  maxLength={NOTE_NUMBER_MAX}
+                  onChange={(e) => setBill(billNumberOnly(e.target.value))}
+                  className={cn(input(!!error && bill.trim() === ""), "max-w-48")}
+                />
+              </label>
+              <label className={fieldRow}>
+                <span>
+                  {t("billDate")}
                   <RequiredMark />
                 </span>
                 <DateInput
@@ -136,10 +144,40 @@ export function ReceiveCard({ returnId, onClose }: { returnId: string; onClose: 
                   min={pending.returnDate}
                   max={today}
                   onChange={(d) => setDay(d !== "" && (d > today || d < pending.returnDate) ? day : d)}
-                  calendarLabel={tc("q.date")}
+                  calendarLabel={t("billDate")}
                   className={input(day === "")}
                 />
               </label>
+              {/* each item still to come: how many came on this bill, then their godowns */}
+              {pending.lines.map((l) => (
+                <div key={l.productId} className="flex flex-col gap-1.5 border-t border-chestnut/15 pt-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 break-words text-sm font-semibold">
+                      {titleCase(l.name)} <span className="tabular font-medium opacity-65">{t("owed", { count: l.quantity })}</span>
+                    </span>
+                    <span className="w-28 shrink-0">
+                      <QuantityBox
+                        value={came[l.productId]!.quantity}
+                        max={l.quantity}
+                        min={0}
+                        label={`${tc("q.amount")}: ${l.name}`}
+                        // a new quantity: all of it into the main godown again
+                        onChange={(v) => setCame((all) => ({ ...all, [l.productId]: { quantity: v, parts: mainId && (Number(v) || 0) > 0 ? { [mainId]: v } : {} } }))}
+                      />
+                    </span>
+                  </div>
+                  {qty(l.productId) > 0 && (
+                    <GodownRows
+                      spots={spotsOf(l.productId)}
+                      quantity={qty(l.productId)}
+                      parts={came[l.productId]!.parts}
+                      onPart={(godownId, v) => setCame((all) => ({ ...all, [l.productId]: { ...all![l.productId]!, parts: { ...all![l.productId]!.parts, [godownId]: v } } }))}
+                      leftLabel={ts("leftToPlace")}
+                      name={l.name}
+                    />
+                  )}
+                </div>
+              ))}
               <div className="mt-1 flex flex-col gap-2">
                 <button
                   type="button"
