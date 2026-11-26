@@ -253,7 +253,8 @@ function PendingBar({ share, label }: { share: number; label: string }) {
         aria-label={label}
         className="block h-1.5 w-full overflow-hidden rounded-full bg-chestnut/12"
       >
-        <i className="block h-full rounded-full bg-chestnut" style={{ width: `${100 - share}%` }} />
+        {/* all back (0% pending): green */}
+        <i className={cn("block h-full rounded-full", share === 0 ? "bg-success" : "bg-chestnut")} style={{ width: `${100 - share}%` }} />
       </span>
 
       <span className="shrink-0 whitespace-nowrap text-xs text-chestnut/65">{label}</span>
