@@ -75,11 +75,15 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
   const [vehicle, setVehicle] = useState(p.vehicleNumber ?? "");
   const [remarks, setRemarks] = useState(p.remarks ?? "");
 
-  // each item's rate before GST, in paise: a cost left as it was keeps the saved rate to the paisa
+  // each item's rate before GST, in paise: a cost left as it was (or typed again as it was saved, before GST or with
+  // it) keeps the saved rate to the paisa, so re-typing it never counts as a change
   const rateOf = (l: CostLine) => {
     const s = savedLine(l.productId);
     const typed = parseAmount(l.price);
-    return typed === null ? 0 : round2(typed) === round2(s.rateBeforeGst) ? Math.round(s.rateBeforeGst * 100) : Math.round(typed * 100);
+    if (typed === null) return 0;
+    const savedGst = round2(s.rateBeforeGst * (1 + s.gstRate / 100));
+    const same = round2(typed) === round2(s.rateBeforeGst) || (l.from !== "price" && round2(parseAmount(l.priceGst) ?? -1) === savedGst);
+    return same ? Math.round(s.rateBeforeGst * 100) : Math.round(typed * 100);
   };
   // the cart, worked out as the server does: each item's value (its saved discount off) and GST, the charges and cash
   // discount as saved, the total rounded to the rupee
