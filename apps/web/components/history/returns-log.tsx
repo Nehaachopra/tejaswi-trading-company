@@ -129,7 +129,7 @@ export function ReturnsLog({
 // a log heading's share: a thin bar filled ivory, its words beside it ("40% returned")
 export function HeadShare({ share, label }: { share: number; label: string }) {
   return (
-    <span className="flex items-center gap-2">
+    <span className="mr-auto flex items-center gap-2 sm:mr-0">
       <span
         role="progressbar"
         aria-valuenow={share}
@@ -168,7 +168,7 @@ export function LogSection({
           {heading}
         </h2>
         {right && (
-          <div className="flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-2 sm:w-auto sm:justify-end">
+          <div className="flex w-full flex-wrap items-center justify-end gap-x-3 gap-y-2 sm:w-auto">
             {right}
           </div>
         )}
