@@ -1,6 +1,14 @@
 "use client";
 
-import { ArrowLeft, CircleAlert, Download, FileText, Mail, PackageCheck, Phone } from "lucide-react";
+import {
+  ArrowLeft,
+  CircleAlert,
+  Download,
+  FileText,
+  Mail,
+  PackageCheck,
+  Phone,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
@@ -30,7 +38,15 @@ const pill =
 // Record replacement (its form) while replaced packs are still to come (the admin's), and the purchases they came on
 // under it
 // `shareKey`: the supplier's copy from a shared link, opened without a login: only the download
-export function DebitNoteView({ id, history, shareKey }: { id: string; history?: { record: HistoryTransaction; isAdmin: boolean }; shareKey?: string }) {
+export function DebitNoteView({
+  id,
+  history,
+  shareKey,
+}: {
+  id: string;
+  history?: { record: HistoryTransaction; isAdmin: boolean };
+  shareKey?: string;
+}) {
   const t = useTranslations("transactions.purchaseReturn.note");
   const ti = useTranslations("transactions.sale.invoice");
   const tr = useTranslations("transactions.purchaseReturn");
@@ -63,14 +79,20 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
   ].join(", ");
   // the supplier's credit note, when they gave one: its number and day
   const creditNote = d.supplierCreditNote
-    ? [d.supplierCreditNote.number, d.supplierCreditNote.date ? dated(`${d.supplierCreditNote.date}T12:00:00+05:30`) : null].filter(Boolean).join(", ")
+    ? [
+        d.supplierCreditNote.number,
+        d.supplierCreditNote.date ? dated(`${d.supplierCreditNote.date}T12:00:00+05:30`) : null,
+      ]
+        .filter(Boolean)
+        .join(", ")
     : null;
   // half of a line's GST to each of CGST and SGST (the odd paisa to SGST)
   const halves = (gst: number) => {
     const h = Math.floor((gst * 100) / 2 + 1e-6) / 100;
     return [h, Math.round((gst - h) * 100) / 100] as const;
   };
-  const sum = (pick: (l: DebitNote["lines"][number]) => number) => Math.round(d.lines.reduce((a, l) => a + pick(l), 0) * 100) / 100;
+  const sum = (pick: (l: DebitNote["lines"][number]) => number) =>
+    Math.round(d.lines.reduce((a, l) => a + pick(l), 0) * 100) / 100;
   const quantity = d.lines.reduce((a, l) => a + l.quantity, 0);
   const tableTotal = Math.round((sum((l) => l.taxable) + sum((l) => l.gst)) * 100) / 100;
   // under the table: the cash discount given back, then the round off; Total first when either changes it
@@ -78,8 +100,18 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
     d.discount > 0 || d.roundOff !== 0
       ? [
           { key: "total", label: ti("total"), value: `₹${money(tableTotal)}` },
-          ...(d.discount > 0 ? [{ key: "discount", label: t("discountBack"), value: `− ₹${money(d.discount)}` }] : []),
-          ...(d.roundOff !== 0 ? [{ key: "roundOff", label: t("roundOff"), value: `${d.roundOff > 0 ? "+" : "−"} ₹${money(Math.abs(d.roundOff))}` }] : []),
+          ...(d.discount > 0
+            ? [{ key: "discount", label: t("discountBack"), value: `− ₹${money(d.discount)}` }]
+            : []),
+          ...(d.roundOff !== 0
+            ? [
+                {
+                  key: "roundOff",
+                  label: t("roundOff"),
+                  value: `${d.roundOff > 0 ? "+" : "−"} ₹${money(Math.abs(d.roundOff))}`,
+                },
+              ]
+            : []),
         ]
       : [];
 
@@ -87,7 +119,12 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
   // that opens it without a login
   const whatsApp = (key: string) => {
     const url = `${window.location.origin}/voucher/debit-note/${id}?k=${encodeURIComponent(key)}`;
-    const text = t("whatsAppMessage", { number: d.assignedId, amount: money(d.total), company: c.name, url });
+    const text = t("whatsAppMessage", {
+      number: d.assignedId,
+      amount: money(d.total),
+      company: c.name,
+      url,
+    });
     const to = d.supplier.phone ? `91${d.supplier.phone.replace(/\D/g, "").slice(-10)}` : "";
     return `https://wa.me/${to}?text=${encodeURIComponent(text)}`;
   };
@@ -105,26 +142,53 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
         {shared ? (
           <span className="hidden sm:block" />
         ) : (
-          <Link href={history ? `/history/${d.purchase.transactionId}` : `/transaction/purchase-return/${id}`} className="flex min-h-11 items-center gap-1.5 text-sm font-medium">
-            <ArrowLeft className="size-4" aria-hidden /> {history ? d.purchase.assignedId : t("back")}
+          <Link
+            href={
+              history
+                ? `/history/${d.purchase.transactionId}`
+                : `/transaction/purchase-return/${id}`
+            }
+            className="flex min-h-11 items-center gap-1.5 text-sm font-medium"
+          >
+            <ArrowLeft className="size-4" aria-hidden />{" "}
+            {history ? d.purchase.assignedId : t("back")}
           </Link>
         )}
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:items-center">
           {/* WhatsApp only when the supplier's phone is kept, and never once cancelled */}
           {canShare && (
-            <button type="button" disabled={!link.key} onClick={() => window.open(whatsApp(link.key!), "_blank", "noopener")} aria-label={ti("whatsApp")} className={pill}>
+            <button
+              type="button"
+              disabled={!link.key}
+              onClick={() => window.open(whatsApp(link.key!), "_blank", "noopener")}
+              aria-label={ti("whatsApp")}
+              className={pill}
+            >
               <span className="whitespace-nowrap">{ti("shareOn")}</span>
               <WhatsAppIcon className="size-4 shrink-0" />
             </button>
           )}
           {/* the supplier's credit note, when attached */}
           {!shared && d.supplierCreditNote?.url && (
-            <a href={d.supplierCreditNote.url} target="_blank" rel="noopener noreferrer" className={pill}>
+            <a
+              href={d.supplierCreditNote.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={pill}
+            >
               <FileText className="size-4" aria-hidden /> {t("creditNoteFile")}
             </a>
           )}
           {/* (alone or third on a phone row: full width) */}
-          <button type="button" onClick={() => window.print()} className={cn(pill, (Number(canShare) + Number(!shared && !!d.supplierCreditNote?.url)) % 2 === 0 && "col-span-2")}>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className={cn(
+              pill,
+              (Number(canShare) + Number(!shared && !!d.supplierCreditNote?.url)) % 2 === 0 &&
+                "col-span-2",
+            )}
+          >
             <Download className="size-4" aria-hidden /> {ti("download")}
           </button>
         </div>
@@ -133,7 +197,10 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
         <DocHead title={t("title")} jurisdiction={ti("jurisdiction", { place: c.jurisdiction })} />
         {cancelled && (
-          <div aria-hidden className="pointer-events-none absolute inset-0 z-20 grid place-items-center">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 z-20 grid place-items-center"
+          >
             <span className="-rotate-[24deg] rounded-control border-4 border-danger px-5 pb-1 pt-3 font-heading text-6xl font-bold tracking-[0.06em] text-danger opacity-35 sm:text-8xl">
               {th("stamp")}
             </span>
@@ -151,7 +218,8 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
                   <Phone className="size-3.5 shrink-0" aria-hidden /> {c.phone}
                 </span>
                 <span className="flex min-w-0 items-center gap-1.5">
-                  <Mail className="size-3.5 shrink-0" aria-hidden /> <span className="min-w-0 break-all">{c.email}</span>
+                  <Mail className="size-3.5 shrink-0" aria-hidden />{" "}
+                  <span className="min-w-0 break-all">{c.email}</span>
                 </span>
                 <span>
                   {ti("state")}: {c.state} {ti("code")}: {c.stateCode}
@@ -161,13 +229,21 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
             </div>
             <div className="flex min-w-0 flex-col border-b border-chestnut/40">
               <div className="grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_1fr_auto_1fr] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
-                <Detail label={t("number")} value={<span className="font-bold">{d.assignedId}</span>} />
+                <Detail
+                  label={t("number")}
+                  value={<span className="font-bold">{d.assignedId}</span>}
+                />
                 <Detail label={ti("dated")} value={dated(`${d.noteDate}T12:00:00+05:30`)} />
                 <Detail label={t("bill")} value={d.purchase.supplierInvoiceNumber} />
-                <Detail label={t("billDate")} value={dated(`${d.purchase.invoiceDate}T12:00:00+05:30`)} />
+                <Detail
+                  label={t("billDate")}
+                  value={dated(`${d.purchase.invoiceDate}T12:00:00+05:30`)}
+                />
                 {/* our purchase number, alone on its row */}
                 <span className={cn(cell, "border-b border-r font-medium")}>{t("purchase")}</span>
-                <span className={cn(cell, "border-b sm:col-span-3 sm:border-r-0!")}>{d.purchase.assignedId}</span>
+                <span className={cn(cell, "border-b sm:col-span-3 sm:border-r-0!")}>
+                  {d.purchase.assignedId}
+                </span>
                 {/* how it was settled (received back, or adjusted in their account; each part it has), alone
                     on its row */}
                 <span className={cn(cell, "border-b border-r font-medium")}>{t("settled")}</span>
@@ -175,13 +251,19 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
                 {/* the supplier's credit note, when they gave one */}
                 {creditNote && (
                   <>
-                    <span className={cn(cell, "border-b border-r font-medium")}>{t("creditNote")}</span>
-                    <span className={cn(cell, "border-b sm:col-span-3 sm:border-r-0!")}>{creditNote}</span>
+                    <span className={cn(cell, "border-b border-r font-medium")}>
+                      {t("creditNote")}
+                    </span>
+                    <span className={cn(cell, "border-b sm:col-span-3 sm:border-r-0!")}>
+                      {creditNote}
+                    </span>
                   </>
                 )}
                 {/* the reason, last and alone on its row */}
                 <span className={cn(cell, "border-b border-r font-medium")}>{tr("reason")}</span>
-                <span className={cn(cell, "border-b sm:col-span-3 sm:border-r-0!")}>{d.reasonKind === "other" ? d.reason : tr(`reasons.${d.reasonKind}`)}</span>
+                <span className={cn(cell, "border-b sm:col-span-3 sm:border-r-0!")}>
+                  {d.reasonKind === "other" ? d.reason : tr(`reasons.${d.reasonKind}`)}
+                </span>
               </div>
               <Remarks label={ti("remarks")} text={d.remarks} />
             </div>
@@ -212,9 +294,13 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
                   <th className={cn(cell, "border-r font-semibold")}>HSN</th>
                   <th className={cn(cell, "border-r text-right font-semibold")}>{ti("qty")}</th>
                   <th className={cn(cell, "border-r text-right font-semibold")}>{ti("price")}</th>
-                  <th className={cn(cell, "border-r text-right font-semibold")}>{ti("discount")}</th>
+                  <th className={cn(cell, "border-r text-right font-semibold")}>
+                    {ti("discount")}
+                  </th>
                   <th className={cn(cell, "border-r text-right font-semibold")}>{ti("taxable")}</th>
-                  <th className={cn(cell, "border-r text-right font-semibold")}>{ti("gstPercent")}</th>
+                  <th className={cn(cell, "border-r text-right font-semibold")}>
+                    {ti("gstPercent")}
+                  </th>
                   {intra ? (
                     <>
                       <th className={cn(cell, "border-r text-right font-semibold")}>CGST</th>
@@ -239,13 +325,19 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
                     <td className={cn(cell, "border-r text-right")}>{l.gstRate}%</td>
                     {intra ? (
                       <>
-                        <td className={cn(cell, "border-r text-right")}>{money(halves(l.gst)[0])}</td>
-                        <td className={cn(cell, "border-r text-right")}>{money(halves(l.gst)[1])}</td>
+                        <td className={cn(cell, "border-r text-right")}>
+                          {money(halves(l.gst)[0])}
+                        </td>
+                        <td className={cn(cell, "border-r text-right")}>
+                          {money(halves(l.gst)[1])}
+                        </td>
                       </>
                     ) : (
                       <td className={cn(cell, "border-r text-right")}>{money(l.gst)}</td>
                     )}
-                    <td className={cn(cell, "text-right")}>{money(Math.round((l.taxable + l.gst) * 100) / 100)}</td>
+                    <td className={cn(cell, "text-right")}>
+                      {money(Math.round((l.taxable + l.gst) * 100) / 100)}
+                    </td>
                   </tr>
                 ))}
                 {/* room below the lines */}
@@ -261,13 +353,21 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
                   <td className={cn(cell, "border-r")} />
                   <td className={cn(cell, "border-r text-right")}>{quantity}</td>
                   <td className={cn(cell, "border-r")} />
-                  <td className={cn(cell, "border-r text-right")}>{money(sum((l) => l.discount))}</td>
-                  <td className={cn(cell, "border-r text-right")}>{money(sum((l) => l.taxable))}</td>
+                  <td className={cn(cell, "border-r text-right")}>
+                    {money(sum((l) => l.discount))}
+                  </td>
+                  <td className={cn(cell, "border-r text-right")}>
+                    {money(sum((l) => l.taxable))}
+                  </td>
                   <td className={cn(cell, "border-r")} />
                   {intra ? (
                     <>
-                      <td className={cn(cell, "border-r text-right")}>{money(sum((l) => halves(l.gst)[0]))}</td>
-                      <td className={cn(cell, "border-r text-right")}>{money(sum((l) => halves(l.gst)[1]))}</td>
+                      <td className={cn(cell, "border-r text-right")}>
+                        {money(sum((l) => halves(l.gst)[0]))}
+                      </td>
+                      <td className={cn(cell, "border-r text-right")}>
+                        {money(sum((l) => halves(l.gst)[1]))}
+                      </td>
                     </>
                   ) : (
                     <td className={cn(cell, "border-r text-right")}>{money(sum((l) => l.gst))}</td>
@@ -297,13 +397,12 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
       </article>
 
       {/* the purchases its replaced packs came back on (from History) */}
-      {/* the purchases its replaced packs came back on, how much has come back and Record replacement (the admin's,
+      {/* the purchases its replaced packs came back on, and Record replacement (the admin's,
           while packs are still to come) at the right of the heading */}
       {history && (
         <ReplacementsLog
           replacements={history.record.replacements}
           show={history.record.replacementsSent > 0}
-          share={history.record.replacementsSent > 0 ? Math.round(((history.record.replacementsSent - history.record.replacementsOwed) / history.record.replacementsSent) * 100) : null}
           action={
             canRecord && (
               <Link href={`/history/${id}/replacement`} className={pill}>

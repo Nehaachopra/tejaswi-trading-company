@@ -45,7 +45,8 @@ export function ReturnsLog({
       heading={t("returns")}
       right={
         <>
-          {share != null && <HeadShare share={share} label={t("returnedShare", { share })} />}
+          {/* only once something on any return was replaced */}
+          {share != null && returns.some((r) => r.replaced || r.replacement) && <HeadShare share={share} label={t("returnedShare", { share })} />}
           {action}
         </>
       }
