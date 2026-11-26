@@ -103,8 +103,9 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
 
       {/* back to History, the supplier's bill, the download and (the admin's) Return; on a phone two to a row */}
       <div className="no-print mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <Link href="/history" className="flex min-h-11 items-center gap-1.5 text-sm font-medium">
-          <ArrowLeft className="size-4" aria-hidden /> {th("title")}
+        {/* (a return's replacement: back to that return, where its Replacements are) */}
+        <Link href={record.replacementFor ? `/history/${record.replacementFor.transactionId}` : "/history"} className="flex min-h-11 items-center gap-1.5 text-sm font-medium">
+          <ArrowLeft className="size-4" aria-hidden /> {record.replacementFor ? record.replacementFor.assignedId : th("title")}
         </Link>
         <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:items-center">
           {d.invoiceUrl && (

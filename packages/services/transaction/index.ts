@@ -480,6 +480,31 @@ export default class TransactionService {
     return rows.map((r) => ({ transactionId: r.transactionId, assignedId: r.assignedId, date: r.date, total: Number(r.total), status: r.status === "cancelled" ? ("cancelled" as const) : ("active" as const) }));
   }
 
+  // the return a sale or purchase was made as the replacement for (a sale: the return's exchange sale; a purchase: one
+  // its replaced packs came on), if any
+  private async replacementFor(transactionId: string, type: TransactionType): Promise<TransactionModel["replacementFor"]> {
+    if (type === "purchase") {
+      const [r] = await db
+        .select({ transactionId: transactionsTable.id, assignedId: transactionsTable.assignedId })
+        .from(returnDeliveriesTable)
+        .innerJoin(transactionsTable, eq(transactionsTable.id, returnDeliveriesTable.returnTransactionId))
+        .where(eq(returnDeliveriesTable.deliveryTransactionId, transactionId))
+        .limit(1);
+      return r ?? null;
+    }
+    if (type === "sale") {
+      const [r] = await db
+        .select({ transactionId: transactionsTable.id, assignedId: transactionsTable.assignedId })
+        .from(saleReturnsTable)
+        .innerJoin(salesTable, eq(salesTable.id, saleReturnsTable.exchangeSaleId))
+        .innerJoin(transactionsTable, eq(transactionsTable.id, saleReturnsTable.transactionId))
+        .where(eq(salesTable.transactionId, transactionId))
+        .limit(1);
+      return r ?? null;
+    }
+    return null;
+  }
+
   // a sale's returns, oldest first: each one's ID, day, items, total, how it was settled, and status
   private async returnsOf(saleTransactionId: string): Promise<TransactionModel["returns"]> {
     const rows = await db
@@ -580,6 +605,7 @@ export default class TransactionService {
             ? ((await this.purchaseReturnedOf([t.id])).get(t.id) ?? null)
             : null,
       returns: t.type === "sale" ? await this.returnsOf(t.id) : t.type === "purchase" ? await this.purchaseReturnsOf(t.id) : [],
+      replacementFor: await this.replacementFor(t.id, t.type),
       ...(t.type === "purchase_return"
         ? await this.replacementsOf(t.id)
         : t.type === "sale_return"

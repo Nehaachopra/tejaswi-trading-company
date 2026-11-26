@@ -154,10 +154,11 @@ export function SaleInvoice({
           <span className="hidden sm:block" />
         ) : (
           <Link
-            href={history ? "/history" : `/transaction/sale/${id}`}
+            // (a return's replacement, from History: back to that return, where its Replacements are)
+            href={history ? (record?.replacementFor ? `/history/${record.replacementFor.transactionId}` : "/history") : `/transaction/sale/${id}`}
             className="flex min-h-11 items-center gap-1.5 text-sm font-medium"
           >
-            <ArrowLeft className="size-4" aria-hidden /> {history ? th("title") : t("back")}
+            <ArrowLeft className="size-4" aria-hidden /> {history ? (record?.replacementFor?.assignedId ?? th("title")) : t("back")}
           </Link>
         )}
         {/* (from History, on a phone the buttons sit two to a row) */}
