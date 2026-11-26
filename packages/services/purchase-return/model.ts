@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { imageUrlModel } from "../product/model";
 import { moreBankPartModel } from "../payment/model";
 import { companyModel } from "../setting/model";
 
@@ -70,6 +71,8 @@ export const createPurchaseReturnInputModel = z
       .nullable()
       .default(null),
     supplierCreditNoteDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+    // the credit note's photo or PDF, when it's attached
+    supplierCreditNoteUrl: imageUrlModel.nullable().default(null),
     // items replaced now: the supplier's invoice they came on
     replacementBillNumber: billNumberModel.nullable().default(null),
     refundIn: z.enum(["cash", "credit"]).default("credit"),
@@ -180,7 +183,7 @@ export const debitNoteModel = z.object({
   company: companyModel,
   purchase: z.object({ transactionId: idModel, assignedId: z.string(), invoiceDate: z.string(), supplierInvoiceNumber: z.string() }),
   supplier: z.object({ name: z.string(), phone: z.string().nullable(), gstin: z.string().nullable() }),
-  supplierCreditNote: z.object({ number: z.string().nullable(), date: z.string().nullable() }).nullable(),
+  supplierCreditNote: z.object({ number: z.string().nullable(), date: z.string().nullable(), url: z.string().nullable() }).nullable(),
   supplyType: z.enum(["intra", "inter"]),
   reasonKind: purchaseReturnReasonModel,
   reason: z.string().nullable(),

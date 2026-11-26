@@ -389,6 +389,7 @@ export default class PurchaseReturnService {
         transactedIn: refund.paid === 0 ? "credit" : onAccount === 0 ? "cash" : "both",
         supplierCreditNoteNumber: input.supplierCreditNoteNumber,
         supplierCreditNoteDate: input.supplierCreditNoteDate,
+        noteUrl: input.supplierCreditNoteUrl,
         subtotal: fromPaise(f.taxable),
         discountAmount: fromPaise(f.discount),
         gstAmount: fromPaise(f.gst),
@@ -619,7 +620,8 @@ export default class PurchaseReturnService {
       company: t.companySnapshot ?? (await this.settings.get("company")),
       purchase: { transactionId: purchaseT!.id, assignedId: purchaseT!.assignedId, invoiceDate: p.invoiceDate, supplierInvoiceNumber: p.supplierInvoiceNumber },
       supplier: { name: p.partyNameSnapshot, phone: p.partyPhoneSnapshot, gstin: p.billFromGstinSnapshot },
-      supplierCreditNote: r.supplierCreditNoteNumber || r.supplierCreditNoteDate ? { number: r.supplierCreditNoteNumber, date: r.supplierCreditNoteDate } : null,
+      supplierCreditNote:
+        r.supplierCreditNoteNumber || r.supplierCreditNoteDate || r.noteUrl ? { number: r.supplierCreditNoteNumber, date: r.supplierCreditNoteDate, url: r.noteUrl } : null,
       supplyType: intra ? "intra" : "inter",
       reasonKind: r.reasonKind,
       reason: r.reason,

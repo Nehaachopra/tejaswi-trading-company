@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CircleAlert, Download, Flag, Phone, Receipt } from "lucide-react";
+import { ArrowLeft, CircleAlert, Download, Flag, Pencil, Phone, Receipt } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
@@ -117,6 +117,17 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
           </button>
           {/* Return: while something of it can still go back */}
           {canAsk && <PurchaseReturnButton id={id} purchaseDay={d.invoiceDate} className={pill} />}
+          {/* Edit purchase: greyed once its GSTR-3B month is filed, goods went back on it, or it's a return's replacement */}
+          {canAsk &&
+            (record.returned || record.cancelBlockedBy === "gstFiled" || record.cancelBlockedBy === "replacementPurchase" ? (
+              <button type="button" disabled className={pill}>
+                <Pencil className="size-4" aria-hidden /> {th("editPurchase")}
+              </button>
+            ) : (
+              <Link href={`/history/${id}/edit`} className={pill}>
+                <Pencil className="size-4" aria-hidden /> {th("editPurchase")}
+              </Link>
+            ))}
         </div>
       </div>
       {/* a cancelled one: when, by whom and why */}

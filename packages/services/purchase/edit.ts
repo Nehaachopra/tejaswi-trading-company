@@ -5,6 +5,7 @@ import {
   dueSettlementsTable,
   duesTable,
   ledgerEntriesTable,
+  ledgersTable,
   productCostHistoryTable,
   productsTable,
   purchaseProductsTable,
@@ -77,8 +78,8 @@ function netLines(lines: { ledgerId: string; paise: number }[]): PostingLine[] {
     .map(([ledgerId, p]) => ({ ledgerId, side: p > 0 ? "debit" : "credit", amount: Math.abs(p) / 100 }));
 }
 
-// Editing a purchase (the admin's), as editing a sale: each item's rate and discount (quantities and godowns as they
-// are), the charges, the cash discount, the supplier's bill number and day (within its month), the vehicle and remarks.
+// Editing a purchase (the admin's), as editing a sale: each item's rate (quantities, godowns, discounts and charges as
+// they are), the supplier's bill number and day (within its month), the vehicle and remarks.
 // Its old ledger effect is reversed and the new one posted; each pack's cost moves by what its packs' value changed;
 // its due follows the new total. What the edit leaves against what was paid is paid now or taken back (cash), or left
 // owed or as an advance (credit). Each edit is kept in the edit log; nothing changed records nothing
@@ -124,6 +125,12 @@ export default class PurchaseEditService {
           .orderBy(desc(dueSettlementsTable.createdAt))
       : [];
     return { t, purchase, parts, supplier, due: due ?? null, settlements };
+  }
+
+  // a supplier's account now, in rupees: what we owe them (plus) or hold with them as an advance (minus)
+  private async balanceOf(q: Tx, ledgerId: string) {
+    const [l] = await q.select({ balance: ledgersTable.balance, side: ledgersTable.balanceType }).from(ledgersTable).where(eq(ledgersTable.id, ledgerId));
+    return l ? (l.side === "credit" ? 1 : -1) * Number(l.balance) : 0;
   }
 
   // the money ledgers on the transaction (cash, bank accounts) and their net, in paise (debit as plus): every ledger
@@ -192,6 +199,7 @@ export default class PurchaseEditService {
         remarks: purchase.remarks,
         total: Number(t.amount),
         paid: paid / 100,
+        supplierBalance: await this.balanceOf(tx, supplier.id),
         editBlockedBy: await this.blockedBy(tx, t, purchase.id),
       };
     });
@@ -214,29 +222,21 @@ export default class PurchaseEditService {
       if (input.lines.length !== ids.length || ids.some((id) => !input.lines.some((l) => l.productId === id))) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "The items stay as they were; only their rates change." });
       }
-      // the new parts: each item's rate on every godown part, its discount shared over them by quantity
+      // the new parts: each item's rate on every godown part, its discount as it was
       const parts: Part[] = [];
       for (const l of input.lines) {
-        const mine = oldParts.filter((p) => p.productId === l.productId);
-        const quantity = mine.reduce((a, p) => a + p.quantity, 0);
-        if (toPaise(l.discount) > quantity * toPaise(l.rateBeforeGst)) throw new TRPCError({ code: "BAD_REQUEST", message: "The discount can't be more than the item's value." });
-        let left = toPaise(l.discount);
-        for (const [j, p] of mine.entries()) {
-          const share = j === mine.length - 1 ? left : Math.round((toPaise(l.discount) * p.quantity) / quantity);
-          left -= share;
-          parts.push({ ...p, gross: p.quantity * toPaise(l.rateBeforeGst), off: share });
+        for (const p of oldParts.filter((o) => o.productId === l.productId)) {
+          if (p.off > p.quantity * toPaise(l.rateBeforeGst)) throw new TRPCError({ code: "BAD_REQUEST", message: "The discount can't be more than the item's value." });
+          parts.push({ ...p, gross: p.quantity * toPaise(l.rateBeforeGst) });
         }
       }
       // in the purchase's own order, so the charges spread the same way as when saved
       parts.sort((a, b) => oldParts.findIndex((o) => o.id === a.id) - oldParts.findIndex((o) => o.id === b.id));
-      const charges = toPaise(input.freightCharges) + toPaise(input.packingCharges) + toPaise(input.loadingCharges) + toPaise(input.otherCharges);
-      const off = toPaise(input.discount);
+      // the charges and cash discount as they were
+      const charges = toPaise(Number(purchase.freightAmount)) + toPaise(Number(purchase.packagingAmount)) + toPaise(Number(purchase.handlingAmount)) + toPaise(Number(purchase.otherAmount));
+      const off = toPaise(Number(purchase.discountAmount));
       const now = figure(parts, charges, off);
-      const was = figure(
-        oldParts,
-        toPaise(Number(purchase.freightAmount)) + toPaise(Number(purchase.packagingAmount)) + toPaise(Number(purchase.handlingAmount)) + toPaise(Number(purchase.otherAmount)),
-        toPaise(Number(purchase.discountAmount)),
-      );
+      const was = figure(oldParts, charges, off);
       const total = now.total;
       const intra = purchase.supplyType === "intra";
       const cgst = intra ? Math.floor(now.gstAll / 2) : 0;
@@ -318,12 +318,7 @@ export default class PurchaseEditService {
         .set({
           vehicleNumber: input.vehicleNumber,
           subtotal: fromPaise(now.itemsValue),
-          discountAmount: fromPaise(off),
           gstAmount: fromPaise(now.gstAll),
-          freightAmount: fromPaise(toPaise(input.freightCharges)),
-          packagingAmount: fromPaise(toPaise(input.packingCharges)),
-          handlingAmount: fromPaise(toPaise(input.loadingCharges)),
-          otherAmount: fromPaise(toPaise(input.otherCharges)),
           transactedIn: input.kind,
           remarks: input.remarks,
           supplierInvoiceNumber: input.supplierInvoiceNumber,
@@ -390,7 +385,7 @@ export default class PurchaseEditService {
           .map((id) => {
             const mine = ps.filter((p) => p.productId === id);
             const q = mine.reduce((a, p) => a + p.quantity, 0);
-            return { productId: id, quantity: q, rate: Math.round(mine.reduce((a, p) => a + p.gross, 0) / q) / 100, discount: mine.reduce((a, p) => a + p.off, 0) / 100 };
+            return { productId: id, quantity: q, rate: Math.round(mine.reduce((a, p) => a + p.gross, 0) / q) / 100 };
           });
       const changes = [
         { field: "date", old: indiaDay(t.dateTime), new: indiaDay(input.dateTime) },
@@ -399,12 +394,6 @@ export default class PurchaseEditService {
         { field: "creditPeriodDays", old: creditBefore?.days ?? null, new: input.kind === "credit" ? input.creditPeriodDays : null },
         { field: "total", old: Number(t.amount), new: total / 100 },
         { field: "items", old: itemsOf(oldParts), new: itemsOf(parts) },
-        { field: "discount", old: Number(purchase.discountAmount), new: off / 100 },
-        {
-          field: "charges",
-          old: [purchase.freightAmount, purchase.packagingAmount, purchase.handlingAmount, purchase.otherAmount].map(Number),
-          new: [input.freightCharges, input.packingCharges, input.loadingCharges, input.otherCharges],
-        },
         { field: "vehicleNumber", old: purchase.vehicleNumber, new: input.vehicleNumber },
         { field: "remarks", old: purchase.remarks, new: input.remarks },
         ...(paidNow > 0 ? [{ field: "paid", old: null, new: paidNow / 100 }] : []),

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CircleAlert, Download, Mail, PackageCheck, Phone } from "lucide-react";
+import { ArrowLeft, CircleAlert, Download, FileText, Mail, PackageCheck, Phone } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -120,13 +120,19 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
               <WhatsAppIcon className="size-4 shrink-0" />
             </button>
           )}
+          {/* the supplier's credit note, when attached */}
+          {!shared && d.supplierCreditNote?.url && (
+            <a href={d.supplierCreditNote.url} target="_blank" rel="noopener noreferrer" className={pill}>
+              <FileText className="size-4" aria-hidden /> {t("creditNoteFile")}
+            </a>
+          )}
           {canRecord && (
             <button type="button" onClick={() => setRecording(true)} className={pill}>
               <PackageCheck className="size-4" aria-hidden /> {t("record")}
             </button>
           )}
           {/* (alone or third on a phone row: full width) */}
-          <button type="button" onClick={() => window.print()} className={cn(pill, (Number(canShare) + Number(canRecord)) % 2 === 0 && "col-span-2")}>
+          <button type="button" onClick={() => window.print()} className={cn(pill, (Number(canShare) + Number(canRecord) + Number(!shared && !!d.supplierCreditNote?.url)) % 2 === 0 && "col-span-2")}>
             <Download className="size-4" aria-hidden /> {ti("download")}
           </button>
         </div>

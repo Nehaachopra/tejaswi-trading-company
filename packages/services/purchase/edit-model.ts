@@ -5,9 +5,8 @@ import { moreBankPartModel } from "../payment/model";
 const idModel = z.string().uuid();
 const rupeesModel = z.number().min(0).max(9_999_999_999_999).multipleOf(0.01);
 
-// a purchase edited (the admin's): each item's rate before GST and its discount (every item kept, quantities and
-// godowns as they are), the charges and cash discount, the supplier's bill number and day (within its month), the
-// vehicle and remarks. What the edit leaves (the new total less what was paid towards the bill) is settled by `kind`:
+// a purchase edited (the admin's): each item's rate before GST (every item kept; quantities, godowns, discounts and
+// charges as they are), the supplier's bill number and day (within its month), the vehicle and remarks. What the edit leaves (the new total less what was paid towards the bill) is settled by `kind`:
 // cash pays some of it now (or takes back what was paid over, in full, when the bill went down), credit leaves it owed
 // (or as an advance with the supplier)
 export const editPurchaseInputModel = z
@@ -26,16 +25,11 @@ export const editPurchaseInputModel = z
     lines: z
       .array(
         z
-          .object({ productId: idModel, rateBeforeGst: rupeesModel.max(9_999_999.99), discount: rupeesModel.default(0) })
+          .object({ productId: idModel, rateBeforeGst: rupeesModel.max(9_999_999.99) })
           .refine((l) => l.rateBeforeGst > 0, { message: "Give the rate.", path: ["rateBeforeGst"] }),
       )
       .min(1)
       .max(100),
-    freightCharges: rupeesModel.default(0),
-    packingCharges: rupeesModel.default(0),
-    loadingCharges: rupeesModel.default(0),
-    otherCharges: rupeesModel.default(0),
-    discount: rupeesModel.default(0),
     kind: z.enum(["cash", "credit"]),
     // cash: what's paid now (or taken back, when the bill went down), from cash and bank accounts
     cashAmount: rupeesModel.default(0),
@@ -83,6 +77,8 @@ export const purchaseForEditModel = z.object({
   total: z.number(),
   // paid towards this bill so far (with it, an advance set off, and later payments)
   paid: z.number(),
+  // the supplier's account now: what we owe them (plus) or hold with them as an advance (minus)
+  supplierBalance: z.number(),
   editBlockedBy: z.enum(["cancelled", "gstFiled", "returned", "replacement"]).nullable(),
 });
 

@@ -23,8 +23,24 @@ async function upload(body: Blob): Promise<string> {
 // the supplier's bill: Take photo (the phone's camera) and Upload (a photo or a PDF) side by side, full width on a
 // phone; once attached, a row with Bill attached (opens it) and a bin to take it off. A photo is shrunk on the device
 // first
-export function BillAttach({ value, onChange, onBusy, removable = true }: { value: string | null; onChange: (url: string | null) => void; onBusy: (busy: boolean) => void; removable?: boolean }) {
-  const t = useTranslations("transactions.purchase");
+// `note`: a supplier's credit note instead (its own words)
+export function BillAttach({
+  value,
+  onChange,
+  onBusy,
+  removable = true,
+  note = false,
+}: {
+  value: string | null;
+  onChange: (url: string | null) => void;
+  onBusy: (busy: boolean) => void;
+  removable?: boolean;
+  note?: boolean;
+}) {
+  const tb = useTranslations("transactions.purchase");
+  const tn = useTranslations("transactions.purchaseReturn.noteAttach");
+  const t = (key: "billTooBig" | "billFailed" | "billUploading" | "billAttached" | "billRemove" | "takePhoto" | "upload") =>
+    note && (key === "billFailed" || key === "billAttached" || key === "billRemove") ? tn(key) : tb(key);
   const camera = useRef<HTMLInputElement>(null);
   const file = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);

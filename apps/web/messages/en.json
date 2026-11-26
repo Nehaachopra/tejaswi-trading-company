@@ -2041,6 +2041,18 @@
         "bill": "Bill",
         "paidPart": "₹{paid} paid, ₹{left} due",
         "loadError": "Couldn't load the purchase."
+      },
+      "edit": {
+        "title": "Edit purchase",
+        "total": "Total",
+        "save": "Save changes",
+        "done": "Edit successful",
+        "viewPurchase": "View purchase",
+        "alreadyPaid": "Already paid",
+        "toPay": "To pay",
+        "toReceive": "To receive",
+        "leftToReceive": "Left to receive",
+        "missingCost": "Give every item a cost."
       }
     },
     "sale": {
@@ -2499,7 +2511,8 @@
         "reason": "Pick why it went back.",
         "date": "Pick the date.",
         "when": "Pick when the new packs come.",
-        "replacementBill": "Give the replacement's bill number."
+        "replacementBill": "Give the replacement's bill number.",
+        "noteUpload": "Wait for the credit note to upload."
       },
       "errors": {
         "network": "Can't reach the server. Check your connection.",
@@ -2539,7 +2552,8 @@
         "discountBack": "Cash discount given back",
         "roundOff": "Round off",
         "record": "Record replacement",
-        "whatsAppMessage": "Debit note {number} for ₹{amount} from {company}: {url}"
+        "whatsAppMessage": "Debit note {number} for ₹{amount} from {company}: {url}",
+        "creditNoteFile": "Credit note"
       },
       "optional": "Optional",
       "date": "Date",
@@ -2563,7 +2577,14 @@
         "missingBill": "Give the bill number.",
         "missingQuantity": "Say how many came."
       },
-      "replacementBill": "Replacement bill no."
+      "replacementBill": "Replacement bill no.",
+      "noteNo": "Note no.",
+      "notePhoto": "Credit note",
+      "noteAttach": {
+        "billFailed": "Couldn't upload the credit note. Try again.",
+        "billAttached": "Credit note attached",
+        "billRemove": "Remove credit note"
+      }
     }
   },
   "dues": {
@@ -3007,6 +3028,7 @@
     },
     "pendingReturn": "Pending return",
     "replacements": "Replacements",
-    "replacedPending": "{share}% pending"
+    "replacedPending": "{share}% pending",
+    "editPurchase": "Edit purchase"
   }
 }

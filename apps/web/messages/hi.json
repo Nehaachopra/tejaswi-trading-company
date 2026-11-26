@@ -2041,6 +2041,18 @@
         "bill": "बिल",
         "paidPart": "₹{paid} दिए, ₹{left} बाकी",
         "loadError": "खरीद लोड नहीं हो सकी।"
+      },
+      "edit": {
+        "title": "खरीद बदलें",
+        "total": "कुल",
+        "save": "बदलाव सेव करें",
+        "done": "बदलाव सफल",
+        "viewPurchase": "खरीद देखें",
+        "alreadyPaid": "पहले चुकाया",
+        "toPay": "चुकाना है",
+        "toReceive": "वापस मिलना है",
+        "leftToReceive": "मिलना बाकी",
+        "missingCost": "हर आइटम की कीमत डालें।"
       }
     },
     "sale": {
@@ -2499,7 +2511,8 @@
         "reason": "चुनें कि क्यों वापस गया।",
         "date": "तारीख चुनें।",
         "when": "चुनें नए पैक कब आएंगे।",
-        "replacementBill": "बदले माल का बिल नंबर दें।"
+        "replacementBill": "बदले माल का बिल नंबर दें।",
+        "noteUpload": "क्रेडिट नोट अपलोड होने दें।"
       },
       "errors": {
         "network": "सर्वर से जुड़ नहीं पा रहे। कनेक्शन जाँचें।",
@@ -2539,7 +2552,8 @@
         "discountBack": "नकद छूट वापस दी",
         "roundOff": "राउंड ऑफ",
         "record": "बदला माल दर्ज करें",
-        "whatsAppMessage": "{company} से डेबिट नोट {number}, ₹{amount}: {url}"
+        "whatsAppMessage": "{company} से डेबिट नोट {number}, ₹{amount}: {url}",
+        "creditNoteFile": "क्रेडिट नोट"
       },
       "optional": "वैकल्पिक",
       "date": "तारीख",
@@ -2563,7 +2577,14 @@
         "missingBill": "बिल नंबर दें।",
         "missingQuantity": "बताएं कितने आए।"
       },
-      "replacementBill": "बदले माल का बिल नं."
+      "replacementBill": "बदले माल का बिल नं.",
+      "noteNo": "नोट नं.",
+      "notePhoto": "क्रेडिट नोट",
+      "noteAttach": {
+        "billFailed": "क्रेडिट नोट अपलोड नहीं हुआ। फिर कोशिश करें।",
+        "billAttached": "क्रेडिट नोट लगा है",
+        "billRemove": "क्रेडिट नोट हटाएँ"
+      }
     }
   },
   "dues": {
@@ -3007,6 +3028,7 @@
     },
     "pendingReturn": "वापसी बाकी",
     "replacements": "बदले में आया माल",
-    "replacedPending": "{share}% बाकी"
+    "replacedPending": "{share}% बाकी",
+    "editPurchase": "खरीद बदलें"
   }
 }

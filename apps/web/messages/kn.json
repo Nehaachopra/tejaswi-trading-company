@@ -2041,6 +2041,18 @@
         "bill": "ಬಿಲ್",
         "paidPart": "₹{paid} ಪಾವತಿಸಲಾಗಿದೆ, ₹{left} ಬಾಕಿ",
         "loadError": "ಖರೀದಿ ಲೋಡ್ ಆಗಲಿಲ್ಲ."
+      },
+      "edit": {
+        "title": "ಖರೀದಿ ಬದಲಿಸಿ",
+        "total": "ಒಟ್ಟು",
+        "save": "ಬದಲಾವಣೆ ಉಳಿಸಿ",
+        "done": "ಬದಲಾವಣೆ ಯಶಸ್ವಿ",
+        "viewPurchase": "ಖರೀದಿ ನೋಡಿ",
+        "alreadyPaid": "ಈಗಾಗಲೇ ಪಾವತಿಸಿದೆ",
+        "toPay": "ಪಾವತಿಸಬೇಕು",
+        "toReceive": "ಹಿಂದೆ ಬರಬೇಕು",
+        "leftToReceive": "ಬರಲು ಬಾಕಿ",
+        "missingCost": "ಪ್ರತಿ ಐಟಂಗೆ ಬೆಲೆ ಹಾಕಿ."
       }
     },
     "sale": {
@@ -2499,7 +2511,8 @@
         "reason": "ಯಾಕೆ ಹಿಂತಿರುಗಿತು ಎಂದು ಆರಿಸಿ.",
         "date": "ದಿನಾಂಕ ಆರಿಸಿ.",
         "when": "ಹೊಸ ಪ್ಯಾಕ್‌ಗಳು ಯಾವಾಗ ಬರುತ್ತವೆ ಎಂದು ಆರಿಸಿ.",
-        "replacementBill": "ಬದಲಿ ಬಿಲ್ ಸಂಖ್ಯೆ ನೀಡಿ."
+        "replacementBill": "ಬದಲಿ ಬಿಲ್ ಸಂಖ್ಯೆ ನೀಡಿ.",
+        "noteUpload": "ಕ್ರೆಡಿಟ್ ನೋಟ್ ಅಪ್‌ಲೋಡ್ ಆಗಲಿ."
       },
       "errors": {
         "network": "ಸರ್ವರ್ ತಲುಪಲಾಗುತ್ತಿಲ್ಲ. ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ.",
@@ -2539,7 +2552,8 @@
         "discountBack": "ನಗದು ರಿಯಾಯಿತಿ ವಾಪಸ್ ನೀಡಲಾಗಿದೆ",
         "roundOff": "ರೌಂಡ್ ಆಫ್",
         "record": "ಬದಲಿ ಸರಕು ದಾಖಲಿಸಿ",
-        "whatsAppMessage": "{company} ಇಂದ ಡೆಬಿಟ್ ನೋಟ್ {number}, ₹{amount}: {url}"
+        "whatsAppMessage": "{company} ಇಂದ ಡೆಬಿಟ್ ನೋಟ್ {number}, ₹{amount}: {url}",
+        "creditNoteFile": "ಕ್ರೆಡಿಟ್ ನೋಟ್"
       },
       "optional": "ಐಚ್ಛಿಕ",
       "date": "ದಿನಾಂಕ",
@@ -2563,7 +2577,14 @@
         "missingBill": "ಬಿಲ್ ಸಂಖ್ಯೆ ನೀಡಿ.",
         "missingQuantity": "ಎಷ್ಟು ಬಂದವು ಎಂದು ಹೇಳಿ."
       },
-      "replacementBill": "ಬದಲಿ ಬಿಲ್ ಸಂ."
+      "replacementBill": "ಬದಲಿ ಬಿಲ್ ಸಂ.",
+      "noteNo": "ನೋಟ್ ಸಂ.",
+      "notePhoto": "ಕ್ರೆಡಿಟ್ ನೋಟ್",
+      "noteAttach": {
+        "billFailed": "ಕ್ರೆಡಿಟ್ ನೋಟ್ ಅಪ್‌ಲೋಡ್ ಆಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
+        "billAttached": "ಕ್ರೆಡಿಟ್ ನೋಟ್ ಲಗತ್ತಿಸಲಾಗಿದೆ",
+        "billRemove": "ಕ್ರೆಡಿಟ್ ನೋಟ್ ತೆಗೆಯಿರಿ"
+      }
     }
   },
   "dues": {
@@ -3007,6 +3028,7 @@
     },
     "pendingReturn": "ಹಿಂತಿರುಗಿಸುವಿಕೆ ಬಾಕಿ",
     "replacements": "ಬದಲಿ ಸರಕು",
-    "replacedPending": "{share}% ಬಾಕಿ"
+    "replacedPending": "{share}% ಬಾಕಿ",
+    "editPurchase": "ಖರೀದಿ ಬದಲಿಸಿ"
   }
 }

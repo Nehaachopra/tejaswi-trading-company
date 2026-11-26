@@ -38,25 +38,45 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 // or swapped (the supplier sends the same packs again: now, into the godowns in `into`, or later)
 export type Settle = "replace" | "refund";
 export type When = "now" | "later";
-export type ReturnLine = { quantity: string; godowns: Record<string, string>; settle: Settle | null; when: When | null; into: Record<string, string> };
-export const emptyLine = (): ReturnLine => ({ quantity: "", godowns: {}, settle: null, when: null, into: {} });
+export type ReturnLine = {
+  quantity: string;
+  godowns: Record<string, string>;
+  settle: Settle | null;
+  when: When | null;
+  into: Record<string, string>;
+};
+export const emptyLine = (): ReturnLine => ({
+  quantity: "",
+  godowns: {},
+  settle: null,
+  when: null,
+  into: {},
+});
 // a godowns' map as the server takes it: only the ones with some in them
 const partsOf = (m: Record<string, string>) =>
   Object.entries(m)
     .filter(([, v]) => (Number(v) || 0) > 0)
     .map(([godownId, v]) => ({ godownId, quantity: Number(v) }));
-export const placedOf = (m: Record<string, string>) => Object.values(m).reduce((a, v) => a + (Number(v) || 0), 0);
+export const placedOf = (m: Record<string, string>) =>
+  Object.values(m).reduce((a, v) => a + (Number(v) || 0), 0);
 
 // the bill as if only `left` of each item had been bought, in paise, as the server works it out: each item at the
 // rate it was bought at with its GST, the charges as they were (their GST taken out at the highest rate among the items
 // still on it), the cash discount as it was (never more than the bill), rounded to the rupee
-function billOf(purchase: PurchaseForReturn, left: (l: PurchaseForReturn["lines"][number]) => number) {
+function billOf(
+  purchase: PurchaseForReturn,
+  left: (l: PurchaseForReturn["lines"][number]) => number,
+) {
   const p = (r: number) => Math.round(r * 100);
   const items = purchase.lines.map((l) => {
     const value = p(l.rate) * left(l);
     return { l, value, gst: Math.round((value * l.gstRate) / 100) };
   });
-  const charges = p(purchase.freightCharges) + p(purchase.packingCharges) + p(purchase.loadingCharges) + p(purchase.otherCharges);
+  const charges =
+    p(purchase.freightCharges) +
+    p(purchase.packingCharges) +
+    p(purchase.loadingCharges) +
+    p(purchase.otherCharges);
   const rate = Math.max(0, ...items.filter((x) => left(x.l) > 0).map((x) => x.l.gstRate));
   const chargeTaxable = Math.round((charges * 100) / (100 + rate));
   const value = items.reduce((a, x) => a + x.value, 0);
@@ -76,7 +96,11 @@ function figureReturn(purchase: PurchaseForReturn, quantities: Record<string, nu
     .filter((l) => (quantities[l.productId] ?? 0) > 0)
     .map((l) => {
       const value = Math.round(l.rate * 100) * quantities[l.productId]!;
-      return { productId: l.productId, quantity: quantities[l.productId]!, total: value + Math.round((value * l.gstRate) / 100) };
+      return {
+        productId: l.productId,
+        quantity: quantities[l.productId]!,
+        total: value + Math.round((value * l.gstRate) / 100),
+      };
     });
   return {
     items,
@@ -88,7 +112,13 @@ function figureReturn(purchase: PurchaseForReturn, quantities: Record<string, nu
 }
 
 // everything the return form holds and works out. Made once in ReturnEntry; every stage reads it with useReturnEntry()
-export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseForReturn; ledger: Pickable | null }) {
+export function useReturnEntryState({
+  purchase,
+  ledger,
+}: {
+  purchase: PurchaseForReturn;
+  ledger: Pickable | null;
+}) {
   const t = useTranslations("transactions.purchaseReturn");
   const tc = useTranslations("transactions.chat");
   const locale = useLocale();
@@ -110,6 +140,9 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
   const [remarks, setRemarks] = useState("");
   const [noteNumber, setNoteNumber] = useState("");
   const [noteDate, setNoteDate] = useState("");
+  // the credit note's photo or PDF, and whether it's still uploading
+  const [noteUrl, setNoteUrl] = useState<string | null>(null);
+  const [noteBusy, setNoteBusy] = useState(false);
   // items replaced now: the supplier's invoice they came on
   const [replacementBill, setReplacementBill] = useState("");
   const [saveKey] = useState(() => crypto.randomUUID());
@@ -123,11 +156,14 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
 
   // each pack size with its product (a name, photo and pack chip)
   const packs = new Map<string, { group: ProductGroup; pack: Pack }>();
-  for (const group of products) for (const pack of group.packs) packs.set(pack.productId, { group, pack });
+  for (const group of products)
+    for (const pack of group.packs) packs.set(pack.productId, { group, pack });
   const packOf = (id: string) => packs.get(id) ?? null;
   const nameOf = (id: string) => {
     const p = packOf(id);
-    return p ? `${productTitle(p.group)} ${packLabel(p.pack.packSize, p.pack.packSizeCode, p.pack.packCount)}` : (purchase.lines.find((l) => l.productId === id)?.name ?? "");
+    return p
+      ? `${productTitle(p.group)} ${packLabel(p.pack.packSize, p.pack.packSizeCode, p.pack.packCount)}`
+      : (purchase.lines.find((l) => l.productId === id)?.name ?? "");
   };
   const purchaseLine = (id: string) => purchase.lines.find((l) => l.productId === id)!;
   // what each godown holds of a pack now
@@ -135,7 +171,8 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
     stock.map((g) => ({
       godownId: g.godownId,
       name: g.godownName,
-      held: g.products.flatMap((p) => p.packs).find((p) => p.productId === productId)?.quantity ?? 0,
+      held:
+        g.products.flatMap((p) => p.packs).find((p) => p.productId === productId)?.quantity ?? 0,
       counting: g.beingCounted,
     }));
   // the godowns a pack can leave from (those holding it)
@@ -150,14 +187,25 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
 
   // the figures: every item is on the debit note; the refunded items' part on its own (what can be paid back now). The
   // replaced items' part always stays on the supplier's account (their new invoice adds it back)
-  const quantities = Object.fromEntries(Object.entries(lines).map(([id, l]) => [id, Number(l.quantity) || 0]));
+  const quantities = Object.fromEntries(
+    Object.entries(lines).map(([id, l]) => [id, Number(l.quantity) || 0]),
+  );
   const f = figureReturn(purchase, quantities);
   const total = f.total / 100;
   const chosen = Object.keys(lines).length;
   const hasReplace = Object.values(lines).some((l) => l.settle === "replace");
   const hasRefund = Object.values(lines).some((l) => l.settle === "refund");
   const replaceNow = Object.values(lines).some((l) => l.settle === "replace" && l.when === "now");
-  const refund = figureReturn(purchase, Object.fromEntries(Object.entries(lines).map(([id, l]) => [id, l.settle === "refund" ? Number(l.quantity) || 0 : 0]))).total / 100;
+  const refund =
+    figureReturn(
+      purchase,
+      Object.fromEntries(
+        Object.entries(lines).map(([id, l]) => [
+          id,
+          l.settle === "refund" ? Number(l.quantity) || 0 : 0,
+        ]),
+      ),
+    ).total / 100;
 
   // a refund in cash: the supplier pays the refunded part back now; on credit it comes off what we owe them (the rest an
   // advance with them)
@@ -186,8 +234,11 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
   });
   const splitTotal = round2(places.reduce((a, p) => a + p.amount, 0));
   const banksUsed = places.filter((p) => p.id !== "cash" && p.amount > 0);
-  const refOf = (id: string, m: BankMode | null) => (m && refs[id]?.mode === m ? refs[id]!.text : "");
-  const splitOk = splitTotal === payBack && banksUsed.every((p) => p.mode !== null && refOkFor(p.mode, refOf(p.id, p.mode)));
+  const refOf = (id: string, m: BankMode | null) =>
+    m && refs[id]?.mode === m ? refs[id]!.text : "";
+  const splitOk =
+    splitTotal === payBack &&
+    banksUsed.every((p) => p.mode !== null && refOkFor(p.mode, refOf(p.id, p.mode)));
   // what comes back changed: the cards start again
   const [splitFor, setSplitFor] = useState(payBack);
   if (splitFor !== payBack) {
@@ -202,7 +253,12 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
     Object.entries(lines).every(([id, l]) => {
       const q = Number(l.quantity) || 0;
       const swapOk = l.when === "later" || (l.when === "now" && placedOf(l.into) === q);
-      return q <= purchaseLine(id).canReturn && placedOf(l.godowns) === q && l.settle !== null && (l.settle === "refund" || swapOk);
+      return (
+        q <= purchaseLine(id).canReturn &&
+        placedOf(l.godowns) === q &&
+        l.settle !== null &&
+        (l.settle === "refund" || swapOk)
+      );
     });
   const reasonOk = reasonKind !== null && (reasonKind !== "other" || reason.trim() !== "");
   const complete: Record<ReturnStep, boolean> = {
@@ -210,18 +266,24 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
     money: refundIn !== null,
     supplier: true,
     payment: payBack === 0 || splitOk,
-    creditNote: true,
+    creditNote: !noteBusy,
     details: day !== "" && reasonOk && (!replaceNow || replacementBill.trim() !== ""),
   };
   // with any refunded: cash or credit, the supplier, then what comes back (or what's left owed); then the supplier's
   // credit note (optional) and Details
-  const STEPS: ReturnStep[] = ["cart", ...(hasRefund ? (["money", "supplier", "payment"] as ReturnStep[]) : []), "creditNote", "details"];
+  const STEPS: ReturnStep[] = [
+    "cart",
+    ...(hasRefund ? (["money", "supplier", "payment"] as ReturnStep[]) : []),
+    "creditNote",
+    "details",
+  ];
   const [at, setAt] = useState<ReturnStep>("cart");
   const current = STEPS.includes(at) ? at : "details";
   const index = STEPS.indexOf(current);
   const firstOpen = STEPS.findIndex((s) => !complete[s]);
   const ready = firstOpen === -1;
-  const reachable = (s: ReturnStep) => STEPS.includes(s) && STEPS.indexOf(s) <= (ready ? STEPS.length - 1 : firstOpen);
+  const reachable = (s: ReturnStep) =>
+    STEPS.includes(s) && STEPS.indexOf(s) <= (ready ? STEPS.length - 1 : firstOpen);
   const [summaryOpen, setSummaryOpen] = useState(false);
 
   // the phone's Back goes to the stage before
@@ -246,7 +308,10 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
   // something missing: show it in red and put the cursor on its first field
   function guide() {
     setTried(true);
-    setTimeout(() => document.querySelector<HTMLElement>('main section [aria-invalid="true"]')?.focus(), 50);
+    setTimeout(
+      () => document.querySelector<HTMLElement>('main section [aria-invalid="true"]')?.focus(),
+      50,
+    );
   }
   function next() {
     if (!complete[current]) return guide();
@@ -270,11 +335,13 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
           ? splitTotal < payBack
             ? t("missing.left", { amount: rupees(round2(payBack - splitTotal)) })
             : t("missing.into")
-          : !reasonOk
-            ? t("missing.reason")
-            : replaceNow && replacementBill.trim() === ""
-              ? t("missing.replacementBill")
-              : t("missing.date");
+          : s === "creditNote"
+            ? t("missing.noteUpload")
+            : !reasonOk
+              ? t("missing.reason")
+              : replaceNow && replacementBill.trim() === ""
+                ? t("missing.replacementBill")
+                : t("missing.date");
 
   // leaving with something entered asks first (not after a save)
   const { dialog: leaveDialog } = useLeaveGuard(!saved && chosen > 0, () => setLines({}));
@@ -287,7 +354,8 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
       ? t("errors.network")
       : code === "TOO_MANY_REQUESTS"
         ? t("errors.busy")
-        : (code === "BAD_REQUEST" || code === "CONFLICT" || code === "PRECONDITION_FAILED") && e.message
+        : (code === "BAD_REQUEST" || code === "CONFLICT" || code === "PRECONDITION_FAILED") &&
+            e.message
           ? e.message
           : t("errors.failed");
   }
@@ -318,10 +386,19 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
         remarks: remarks.trim() || null,
         supplierCreditNoteNumber: noteNumber.trim() || null,
         supplierCreditNoteDate: noteDate || null,
+        supplierCreditNoteUrl: noteUrl,
         replacementBillNumber: replaceNow ? replacementBill.trim() : null,
         refundIn: cashRefund ? "cash" : "credit",
         cashAmount: payBack > 0 ? (places[0]?.amount ?? 0) : 0,
-        bankParts: payBack > 0 ? banksUsed.map((p) => ({ bankDetailsId: p.id, amount: p.amount, mode: p.mode!, referenceNumber: refOf(p.id, p.mode).trim() || null })) : [],
+        bankParts:
+          payBack > 0
+            ? banksUsed.map((p) => ({
+                bankDetailsId: p.id,
+                amount: p.amount,
+                mode: p.mode!,
+                referenceNumber: refOf(p.id, p.mode).trim() || null,
+              }))
+            : [],
       });
       router.replace(`/transaction/purchase-return/${r.transactionId}`);
     } catch (err) {
@@ -387,6 +464,9 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
     noteNumber,
     setNoteNumber,
     noteDate,
+    noteUrl,
+    setNoteUrl,
+    setNoteBusy,
     setNoteDate,
     tried,
     setTried,
