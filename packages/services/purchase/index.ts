@@ -129,7 +129,10 @@ export default class PurchaseService {
   async create(rawInput: CreatePurchaseInputModel, actor: ActorModel): Promise<SavedPurchaseModel> {
     const input = createPurchaseInputModel.parse(rawInput);
     try {
-      return await db.transaction((tx) => this.createIn(tx, input, actor));
+      return await db.transaction(async (tx) => {
+        const { purchaseId: _, ...saved } = await this.createIn(tx, input, actor);
+        return saved;
+      });
     } catch (error) {
       const code = ((error as { cause?: { code?: string } })?.cause ?? (error as { code?: string }))?.code;
       if (code === "23505") throw new TRPCError({ code: "CONFLICT", message: "One of the new pack sizes already exists for this product." });
@@ -137,7 +140,8 @@ export default class PurchaseService {
     }
   }
 
-  private async createIn(tx: Tx, input: ReturnType<typeof createPurchaseInputModel.parse>, actor: ActorModel): Promise<SavedPurchaseModel> {
+  // a purchase inside a save (a purchase return's replacement is saved with its return)
+  async createIn(tx: Tx, input: ReturnType<typeof createPurchaseInputModel.parse>, actor: ActorModel): Promise<SavedPurchaseModel & { purchaseId: string }> {
     // a month whose GSTR-3B is filed takes no more purchases
     await this.transactions.assertOpen(tx, "gstr3b", input.dateTime);
     const company = await this.settings.get("company", tx);
@@ -345,7 +349,7 @@ export default class PurchaseService {
     // an arrival on a purchase order: the order (pending, this supplier's) completes once everything ordered has come
     if (input.purchaseOrderId) await this.arrivedOn(tx, input.purchaseOrderId, supplier.party.id);
 
-    return { transactionId: t.id, assignedId: t.assignedId, total: total / 100 };
+    return { transactionId: t.id, assignedId: t.assignedId, total: total / 100, purchaseId: purchase!.id };
   }
 
   // a purchase order an arrival is recorded on: pending and the supplier's own; done once every item has fully come

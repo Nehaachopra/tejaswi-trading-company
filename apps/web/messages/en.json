@@ -2851,7 +2851,9 @@
       "rcmPaid": "Can't cancel: its reverse-charge GST is already paid. Cancel that Tax paid payment first.",
       "openingBalance": "Opening balances are changed on the Opening balances page.",
       "saleReturned": "Can't cancel: goods came back on this sale.",
-      "exchangeSale": "Can't cancel: this sale was an exchange."
+      "exchangeSale": "Can't cancel: this sale was an exchange.",
+      "purchaseReturned": "Can't cancel: goods went back on this purchase.",
+      "replacementPurchase": "Can't cancel: this purchase is a return's replacement."
     },
     "editSale": "Edit sale",
     "returns": "Returns",

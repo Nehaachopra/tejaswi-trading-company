@@ -139,3 +139,6 @@ export const salaryKindEnum = pgEnum("salary_kind", ["salary", "advance"]);
 
 // why goods came back on a sale return: damaged, short, the wrong item, or another reason (typed)
 export const saleReturnReasonEnum = pgEnum("sale_return_reason", ["damaged", "shortage", "wrong_item", "other"]);
+
+// why goods went back to the supplier: the sale return's reasons
+export const purchaseReturnReasonEnum = pgEnum("purchase_return_reason", ["damaged", "shortage", "wrong_item", "other"]);

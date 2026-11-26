@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 import { money, timestamps } from "../../../utils/common/column-type";
 import { purchasesTable } from "../purchase/purchase";
 import { transactionsTable } from "../transaction";
-import { transactedInEnum } from "../../../utils/common/enum";
+import { purchaseReturnReasonEnum, transactedInEnum } from "../../../utils/common/enum";
 import { uniqueIndex } from "drizzle-orm/pg-core";
 
 export const purchaseReturnsTable = pgTable(
@@ -28,10 +28,10 @@ export const purchaseReturnsTable = pgTable(
     // off what we owe; both: part refunded, the rest off the balance
     transactedIn: transactedInEnum("transacted_in").notNull(),
 
-    // the supplier's credit note; note_url holds its photo or PDF
-    supplierCreditNoteNumber: varchar("supplier_credit_note_number", { length: 16 }).notNull(),
+    // the supplier's credit note, when they give one (our own debit note is the return's document)
+    supplierCreditNoteNumber: varchar("supplier_credit_note_number", { length: 16 }),
 
-    supplierCreditNoteDate: date("supplier_credit_note_date").notNull(),
+    supplierCreditNoteDate: date("supplier_credit_note_date"),
 
     subtotal: money("subtotal").notNull().default("0.00"),
 
@@ -39,9 +39,18 @@ export const purchaseReturnsTable = pgTable(
 
     gstAmount: money("gst_amount").notNull().default("0.00"),
 
+    // why it went back (chips); `reason` holds only what was typed for Other
+    reasonKind: purchaseReturnReasonEnum("reason_kind").notNull(),
+
     reason: varchar("reason", { length: 500 }),
 
-    noteUrl: text("note_url").notNull(),
+    // our debit note PDF, once stored (drawn fresh until then, as the credit note is)
+    noteUrl: text("note_url"),
+
+    // a replacement: the new purchase the supplier's same packs came in on, saved with this return
+    exchangePurchaseId: uuid("exchange_purchase_id").references(() => purchasesTable.id, {
+      onDelete: "restrict",
+    }),
 
     remark: varchar("remark", { length: 500 }),
 

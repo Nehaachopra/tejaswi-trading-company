@@ -18,6 +18,7 @@ import { attachBillInputModel, createPurchaseInputModel, purchaseIdInputModel, p
 import { editSaleInputModel, saleForEditModel } from "@repo/services/sale/edit-model";
 import { createSaleInputModel, saleIdInputModel, saleInvoiceModel, saleShareKeyModel, saleSummaryModel, savedSaleModel, sharedSaleInputModel } from "@repo/services/sale/model";
 import { placeOfBusinessModel } from "@repo/services/setting/model";
+import { createPurchaseReturnInputModel, debitNoteModel, purchaseForReturnModel, purchaseReturnIdInputModel, savedPurchaseReturnModel } from "@repo/services/purchase-return/model";
 import { createSaleReturnInputModel, creditNoteModel, exchangeInputModel, saleForReturnModel, saleReturnIdInputModel, savedSaleReturnModel } from "@repo/services/sale-return/model";
 import { createReceiptInputModel, receiptIdInputModel, receiptModel, receiptShareKeyModel, savedReceiptModel, sharedReceiptInputModel } from "@repo/services/receipt/model";
 import {
@@ -53,7 +54,7 @@ import { createDrawingInputModel, drawingIdInputModel, drawingModel, savedDrawin
 import { paySalariesInputModel, paySalaryInputModel, salaryEmployeeModel, salaryIdInputModel, salaryPaymentModel } from "@repo/services/salary/model";
 import { opensSale, opensVoucher, saleKey, voucherKey } from "@repo/services/transaction/share-link";
 
-import { accountsService, contraService, documentService, drawingService, dueService, otherService, paymentService, purchaseService, receiptService, salaryService, saleEditService, saleReturnService, saleService, settingService, transactionService } from "../../services";
+import { accountsService, contraService, documentService, drawingService, dueService, otherService, paymentService, purchaseReturnService, purchaseService, receiptService, salaryService, saleEditService, saleReturnService, saleService, settingService, transactionService } from "../../services";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 import { checkDate, limitSaves, onceFor } from "../../guards";
 
@@ -591,11 +592,43 @@ const saleReturnRouter = router({
     .query(({ input }) => saleReturnService.creditNote(input)),
 });
 
+// purchase returns: goods back to the supplier against a saved purchase, refunded or replaced (the admin's)
+const purchaseReturnRouter = router({
+  // a purchase as the return form opens it
+  forReturn: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/purchases/{transactionId}/return", tags: ["transactions"] } })
+    .input(purchaseReturnIdInputModel)
+    .output(purchaseForReturnModel)
+    .query(({ input }) => purchaseReturnService.forReturn(input)),
+
+  // a return saved: dated today or before, within the saves a minute, once per form
+  create: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/purchase-returns", tags: ["transactions"] } })
+    .input(createPurchaseReturnInputModel)
+    .output(savedPurchaseReturnModel)
+    .mutation(({ ctx, input }) => {
+      checkDate(input.dateTime, ctx.session.user.role);
+      const save = () => {
+        limitSaves(ctx.session.user.id);
+        return purchaseReturnService.create(input, ctx.session.user);
+      };
+      return input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save();
+    }),
+
+  // a return as our debit note
+  debitNote: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/purchase-returns/{transactionId}/debit-note", tags: ["transactions"] } })
+    .input(purchaseReturnIdInputModel)
+    .output(debitNoteModel)
+    .query(({ input }) => purchaseReturnService.debitNote(input)),
+});
+
 export const transactionsRouter = router({
   history: historyRouter,
   sale: saleRouter,
   saleReturn: saleReturnRouter,
   purchase: purchaseRouter,
+  purchaseReturn: purchaseReturnRouter,
   receipt: receiptRouter,
   payment: paymentRouter,
   deposit: contraRouter("deposit"),
