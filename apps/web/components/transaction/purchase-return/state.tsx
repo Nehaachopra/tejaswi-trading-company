@@ -24,7 +24,7 @@ import type { GridPlace } from "../shared/split-grid";
 // the stages, in order, as a sale return's: the cart (how many of each go back, each replaced or refunded), then with any
 // refunded: the refund in cash or on credit, the supplier (only editable), what they pay back (or what's left owed);
 // then the reason, remarks, the supplier's credit note, the day and Save
-export type ReturnStep = "cart" | "money" | "supplier" | "payment" | "details";
+export type ReturnStep = "cart" | "money" | "supplier" | "payment" | "creditNote" | "details";
 
 export const REASONS = ["damaged", "shortage", "wrong_item", "other"] as const;
 export type Reason = (typeof REASONS)[number];
@@ -210,11 +210,12 @@ export function useReturnEntryState({ purchase, ledger }: { purchase: PurchaseFo
     money: refundIn !== null,
     supplier: true,
     payment: payBack === 0 || splitOk,
+    creditNote: true,
     details: day !== "" && reasonOk && (!replaceNow || replacementBill.trim() !== ""),
   };
-  // with any refunded: cash or credit, the supplier, then what comes back (or what's left owed); a return all replaced
-  // goes straight to Details
-  const STEPS: ReturnStep[] = ["cart", ...(hasRefund ? (["money", "supplier", "payment"] as ReturnStep[]) : []), "details"];
+  // with any refunded: cash or credit, the supplier, then what comes back (or what's left owed); then the supplier's
+  // credit note (optional) and Details
+  const STEPS: ReturnStep[] = ["cart", ...(hasRefund ? (["money", "supplier", "payment"] as ReturnStep[]) : []), "creditNote", "details"];
   const [at, setAt] = useState<ReturnStep>("cart");
   const current = STEPS.includes(at) ? at : "details";
   const index = STEPS.indexOf(current);

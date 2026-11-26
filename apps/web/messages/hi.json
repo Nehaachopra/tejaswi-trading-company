@@ -2458,7 +2458,8 @@
         "items": "सामान",
         "refund": "पैसे वापस",
         "details": "विवरण",
-        "supplier": "सप्लायर"
+        "supplier": "सप्लायर",
+        "creditNote": "क्रेडिट नोट"
       },
       "returning": "वापस जा रहा",
       "returnTotal": "वापसी कुल",

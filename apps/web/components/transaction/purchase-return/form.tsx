@@ -10,6 +10,7 @@ import { ProductImage } from "../../product/products/product-tile";
 import type { Pickable } from "../pickers/ledger-picker";
 import { EntryNote, EntryPage, NextButton, StepCard, type SummaryItem, SummaryBar, SummaryCard, SummaryLines } from "../shared/entry-frame";
 import { CartStage } from "./cart-stage";
+import { CreditNoteCard } from "./credit-note-card";
 import { DetailsCard, SaveBlock } from "./details-card";
 import { MoneyStage } from "./money-stage";
 import { PaymentStage } from "./payment-stage";
@@ -52,7 +53,7 @@ function ReturnEntry({ purchase, ledger }: { purchase: PurchaseForReturn; ledger
 
 // the page: what shows while its products load or can't, then the card on its own with the summary
 function ReturnEntryView() {
-  const { t, purchase, loading, loadFailed, retry, lines, total, chosen, refundIn, cashRefund, owedAfter, nameOf, packOf, places, complete, index, current, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, missingOf, leaveDialog, day, reasonKind, reason, remarks, noteNumber, hasRefund } =
+  const { t, purchase, loading, loadFailed, retry, lines, total, chosen, refundIn, cashRefund, owedAfter, nameOf, packOf, places, complete, index, current, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, missingOf, leaveDialog, day, reasonKind, reason, remarks, noteNumber, noteDate, hasRefund } =
     useReturnEntry();
   const ts = useTranslations("transactions.sale");
   const tt = useTranslations("accounts.types");
@@ -107,11 +108,17 @@ function ReturnEntryView() {
             : { key: "payment", step: "payment" as const, heading: ts("leftDue"), value: refundIn === "credit" && index >= steps.indexOf("payment") ? rupees(owedAfter) : null },
         ]
       : []),
+    // the supplier's credit note, when given: its number and day
+    {
+      key: "creditNote",
+      step: "creditNote",
+      heading: t("creditNote"),
+      value: [noteNumber.trim(), noteDate ? dayInWords(noteDate, locale) : ""].filter(Boolean).join(", ") || null,
+    },
     // the details, each under its own heading
     { key: "date", step: "details", heading: t("date"), value: current === "details" || reasonKind ? dayInWords(day, locale) : null },
     { key: "reason", step: "details", heading: t("reason"), value: reasonKind ? (reasonKind === "other" && reason.trim() ? reason.trim() : t(`reasons.${reasonKind}`)) : null },
     ...(remarks.trim() ? [{ key: "remarks", step: "details" as const, heading: t("remarks"), value: remarks.trim() }] : []),
-    ...(noteNumber.trim() ? [{ key: "creditNote", step: "details" as const, heading: t("creditNote"), value: noteNumber.trim() }] : []),
   ];
   const linesView = (
     <SummaryLines<ReturnStep>
@@ -161,6 +168,8 @@ function ReturnEntryView() {
           <SupplierStage />
         ) : current === "payment" ? (
           <PaymentStage />
+        ) : current === "creditNote" ? (
+          <CreditNoteCard />
         ) : (
           <DetailsCard />
         )}

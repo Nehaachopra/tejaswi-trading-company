@@ -2458,7 +2458,8 @@
         "items": "Items",
         "refund": "Refund",
         "details": "Details",
-        "supplier": "Supplier"
+        "supplier": "Supplier",
+        "creditNote": "Credit note"
       },
       "returning": "Returning",
       "returnTotal": "Return total",

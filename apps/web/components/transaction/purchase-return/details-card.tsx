@@ -11,19 +11,16 @@ import { cn } from "~/lib/utils";
 import { indiaDay } from "../../account/balance";
 import { fieldRow, input, REMARKS_MAX } from "../shared/form-basics";
 import { PlacePicker } from "../shared/place-picker";
+import { noteNumberOnly } from "./credit-note-card";
 import { NOTE_NUMBER_MAX, type Reason, REASON_MAX, REASONS, useReturnEntry } from "./state";
 
-// a credit note number as GST allows a bill number: capitals, digits, / and -
-const noteNumberOnly = (v: string) => v.toUpperCase().replace(/[^A-Z0-9/-]/g, "").slice(0, NOTE_NUMBER_MAX);
-
 // the Details card, as a sale return's: why it went back (an accordion of the reasons, every one open until one is
-// picked; Other asks what), the remarks (typed or spoken), the bill number of the supplier's invoice for items replaced
-// now, then the supplier's credit note when they gave one (its number and day, both optional), each a row: label left, box right; the day and Save follow, last
+// picked; Other asks what), the remarks (typed or spoken), then the bill number of the supplier's invoice for items
+// replaced now, each a row: label left, box right; the day and Save follow, last (the supplier's credit note has its own
+// card before this one)
 export function DetailsCard() {
-  const { t, tc, purchase, reasonKind, setReasonKind, reason, setReason, remarks, setRemarks, noteNumber, setNoteNumber, noteDate, setNoteDate, replaceNow, replacementBill, setReplacementBill, tried } = useReturnEntry();
+  const { t, tc, reasonKind, setReasonKind, reason, setReason, remarks, setRemarks, replaceNow, replacementBill, setReplacementBill, tried } = useReturnEntry();
   const reasonBad = tried && (reasonKind === null || (reasonKind === "other" && reason.trim() === ""));
-  const min = indiaDay(new Date(purchase.dateTime));
-  const today = indiaDay(new Date());
   return (
     <div className="flex flex-col gap-4">
       <div className={cn(fieldRow, "sm:w-[calc(50%-0.75rem)]")}>
@@ -74,29 +71,6 @@ export function DetailsCard() {
           />
         </label>
       )}
-      {/* the supplier's credit note, when they gave one */}
-      <label className={cn(fieldRow, "sm:w-[calc(50%-0.75rem)]")}>
-        <span>{t("creditNoteNumber")}</span>
-        <input
-          value={noteNumber}
-          maxLength={NOTE_NUMBER_MAX}
-          placeholder={t("optional")}
-          onChange={(e) => setNoteNumber(noteNumberOnly(e.target.value))}
-          className={cn(input(false), "max-w-48")}
-        />
-      </label>
-      <label className={cn(fieldRow, "sm:w-[calc(50%-0.75rem)]")}>
-        <span>{t("creditNoteDate")}</span>
-        <DateInput
-          value={noteDate}
-          min={min}
-          max={today}
-          // a day outside the purchase's day and today is left as it was
-          onChange={(d) => setNoteDate(d !== "" && (d > today || d < min) ? noteDate : d)}
-          calendarLabel={t("creditNoteDate")}
-          className={input(false)}
-        />
-      </label>
     </div>
   );
 }
