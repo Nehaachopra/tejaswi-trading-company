@@ -13,7 +13,8 @@ import { usePurchaseEdit } from "./state";
 // an edit's payment stage. Cash: on the shared one, a fixed amount and a card for each place it moves through: the bill
 // below what was paid, the supplier gives the rest back (To receive, no cap, as a purchase return's refund); the bill
 // up, the rise is paid now (To pay, each place never more than it holds). Credit: the due stage, the bill less what was
-// paid, what we'll owe them after (an advance with them when it's below nothing) and the credit period
+// paid, what we'll owe them after (an advance with them when it's below nothing) and the credit period (only when it
+// is on credit). Cash with nothing to move (nothing paid to take back): the due stage too, showing the lower due
 export function PaymentStage() {
   const e = usePurchaseEdit();
   const tr = useTranslations("transactions.receipt.form");
@@ -27,8 +28,8 @@ export function PaymentStage() {
         paid={e.paid > 0 ? { label: e.te("alreadyPaid"), amount: e.paid } : null}
         due={e.owedAfter}
         after={e.advanceAfter > 0 && <Figure label={e.ts("advanceLeft")} amount={rupees(e.advanceAfter)} />}
-        days={e.creditDays}
-        setDays={e.setCreditDays}
+        days={e.asksDays ? e.creditDays : undefined}
+        setDays={e.asksDays ? e.setCreditDays : undefined}
         tried={e.tried}
       />
     );

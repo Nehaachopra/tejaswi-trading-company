@@ -249,18 +249,19 @@ export default class PurchaseEditService {
       const paid = due ? settlements.reduce((a, s) => a + toPaise(s.amount), 0) : -moneyAll;
       const balance = total - paid;
       const moved = toPaise(input.cashAmount) + input.bankParts.reduce((a, b) => a + toPaise(b.amount), 0);
-      // cash: a bill up pays some of what's left now (no more); a bill down takes back what was paid over, in full;
-      // credit: nothing moves
+      // cash: a bill up pays the rise now (no more than is left on it); a bill down: the supplier pays the cut back now,
+      // out of what was paid towards it (none paid: nothing comes back); credit: nothing moves
+      const oldTotal = toPaise(Number(t.amount));
       let paidNow = 0;
       let takenBack = 0;
       if (input.kind === "cash") {
-        if (balance > 0) {
-          if (moved > balance) throw new TRPCError({ code: "BAD_REQUEST", message: "Pay some of what's left, and no more." });
+        if (total > oldTotal) {
+          if (moved > Math.max(0, Math.min(total - oldTotal, balance))) throw new TRPCError({ code: "BAD_REQUEST", message: "Pay the rise, and no more." });
           paidNow = moved;
-        } else if (balance < 0) {
-          if (moved !== -balance) throw new TRPCError({ code: "BAD_REQUEST", message: "Take back what was paid over, in full." });
+        } else if (total < oldTotal) {
+          if (moved !== Math.min(oldTotal - total, paid)) throw new TRPCError({ code: "BAD_REQUEST", message: "Take back the cut in full." });
           takenBack = moved;
-        } else if (moved !== 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Nothing is left to pay." });
+        } else if (moved !== 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Nothing moves when the total stays." });
       }
 
       // the money moving now: each part out of (or back into) cash and the bank accounts; paid out, never more than
@@ -351,12 +352,12 @@ export default class PurchaseEditService {
         }
       }
 
-      // the due follows the new total: what was settled past it is let go (the newest first: it's their advance now,
-      // or what was taken back); credit: due after its period (none: no set day)
+      // the due follows the new total: what was settled past it, and what was taken back, is let go (the newest
+      // first: what's past the bill is their advance now); credit: due after its period (none: no set day)
       const dueOn = input.kind === "credit" && input.creditPeriodDays !== null ? daysOn(indiaDay(input.dateTime), input.creditPeriodDays) : null;
       if (due) {
         await tx.update(duesTable).set({ amount: fromPaise(total), dueOn }).where(eq(duesTable.id, due.id));
-        let over = paid - total;
+        let over = paid - Math.min(total, paid - takenBack);
         for (const s of settlements) {
           if (over <= 0) break;
           const take = Math.min(over, toPaise(s.amount));

@@ -100,21 +100,28 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
   const costsOk = figures.every((f) => f.rate > 0);
   const pricesChanged = lines.some((l) => rateOf(l) !== Math.round(savedLine(l.productId).rateBeforeGst * 100));
 
-  // the money: what the edit leaves against what was paid towards the bill. Paid over (the bill went below it): cash
-  // takes it back now, credit keeps it as an advance with them. The bill up: cash pays the rise now, credit owes it
+  // the money, asked whenever a price changed: cash or credit. The bill up: cash pays the rise now (no more than is
+  // left on it), credit owes it. The bill down: cash, the supplier pays the cut back now out of what was paid towards
+  // it (none paid: nothing comes back, the due just drops); credit, it comes off what we owe (past it, an advance)
   const paid = p.paid;
   const balance = round2(total - paid);
   const rise = round2(total - p.total);
-  const asksMoney = pricesChanged && (balance < 0 || (rise > 0 && balance > 0));
+  const asksMoney = pricesChanged && rise !== 0;
   const [kind, setKind] = useState<"cash" | "credit" | null>(null);
-  const credit = kind === "credit";
-  const takingBack = asksMoney && kind === "cash" && balance < 0;
-  const paying = asksMoney && kind === "cash" && balance > 0;
-  const moving = takingBack ? -balance : paying ? Math.min(rise, balance) : 0;
+  const cashBack = asksMoney && kind === "cash" && rise < 0 ? round2(Math.min(-rise, paid)) : 0;
+  const cashPay = asksMoney && kind === "cash" && rise > 0 ? round2(Math.max(0, Math.min(rise, balance))) : 0;
+  const takingBack = cashBack > 0;
+  const paying = cashPay > 0;
+  const moving = takingBack ? cashBack : cashPay;
+  // the Due card: on credit, or cash with nothing to move (nothing was paid to take back, or nothing left to pay)
+  const credit = kind === "credit" || (kind === "cash" && moving === 0);
+  // the credit period: asked only on credit
+  const asksDays = kind === "credit";
+  // what we'll owe them after: with cash taken back, that much more again (it came out of what was paid)
   const [creditDays, setCreditDays] = useState(() => (p.kind === "credit" && p.creditPeriodDays !== null ? String(p.creditPeriodDays) : p.kind === "credit" ? "" : "30"));
   // the supplier's account: what we owe them besides this bill, and after the edit (an advance when below nothing)
   const oldDue = Math.max(0, round2(p.supplierBalance - (p.total - paid)));
-  const after = round2(p.supplierBalance + rise);
+  const after = round2(p.supplierBalance + rise + cashBack - cashPay);
   const owedAfter = Math.max(0, after);
   const advanceAfter = Math.max(0, -after);
 
@@ -160,7 +167,7 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
   const complete: Record<EditStep, boolean> = {
     cart: costsOk && total > 0,
     money: kind !== null,
-    payment: credit ? creditDays === "" || Number(creditDays) <= 365 : moving === 0 || splitOk,
+    payment: credit ? !asksDays || creditDays === "" || Number(creditDays) <= 365 : moving === 0 || splitOk,
     bill: billNumberOk(billNumber) && billDay !== "",
     details: true,
   };
@@ -310,6 +317,7 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
     credit,
     pickKind,
     creditDays,
+    asksDays,
     setCreditDays,
     takingBack,
     paying,
