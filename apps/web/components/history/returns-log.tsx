@@ -91,9 +91,9 @@ export function LogSection({ id, heading, children }: { id: string; heading: str
   );
 }
 
-// one cell: the ID (with its copy button) and the day (with its calendar icon), then the total and the arrow, anything
-// `under` it below the total; the same on a phone. The whole cell opens it; the
-// copy button sits above the link, so a tap on it copies
+// one cell, two rows with the arrow at the right of both: the ID (with its copy button) on the left and the total on
+// the right; under them the day (with its calendar icon) on the left and anything `under` (a progress bar) on the
+// right. The same on a phone. The whole cell opens it; the copy button sits above the link, so a tap on it copies
 export function LogCell({
   href,
   id,
@@ -112,28 +112,30 @@ export function LogCell({
   under?: ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-16 items-center justify-between gap-2.5 px-3 py-2.5 hover:bg-chestnut/[0.05] sm:px-4 sm:py-3">
+    <div className="relative flex min-h-16 items-center gap-2 px-3 py-2.5 hover:bg-chestnut/[0.05] sm:px-4 sm:py-3">
       <Link href={href} aria-label={`${openLabel}: ${id}`} className="absolute inset-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-chestnut" />
-      <span className="pointer-events-none flex min-w-0 flex-col gap-0.5">
-        <span className="tabular flex items-center gap-1 text-sm font-semibold sm:text-[0.9375rem]">
-          <Hash className="size-3.5 shrink-0" aria-hidden />
-          <span className="truncate">{id}</span>
-          <span className="pointer-events-auto relative">
-            <CopyButton value={id} />
+      <span className="pointer-events-none flex min-w-0 flex-1 flex-col gap-1">
+        {/* the ID and its copy button | the total */}
+        <span className="flex items-center justify-between gap-3">
+          <span className="tabular flex min-w-0 items-center gap-1 text-sm font-semibold sm:text-[0.9375rem]">
+            <Hash className="size-3.5 shrink-0" aria-hidden />
+            <span className="truncate">{id}</span>
+            <span className="pointer-events-auto relative">
+              <CopyButton value={id} />
+            </span>
           </span>
+          <span className={cn("tabular shrink-0 font-heading text-base font-bold leading-none sm:text-lg", struck && "line-through")}>{rupees(total)}</span>
         </span>
-        <span className="tabular flex items-center gap-1 text-xs text-chestnut/65">
-          <CalendarDays className="size-3.5 shrink-0" aria-hidden />
-          {day}
-        </span>
-      </span>
-      <span className="pointer-events-none flex shrink-0 items-center gap-1.5">
-        <span className="flex flex-col items-end gap-1.5">
-          <span className={cn("tabular font-heading text-base font-bold leading-none sm:text-lg", struck && "line-through")}>{rupees(total)}</span>
+        {/* the day | anything under (a progress bar) */}
+        <span className="flex items-center justify-between gap-3">
+          <span className="tabular flex shrink-0 items-center gap-1 text-xs text-chestnut/65">
+            <CalendarDays className="size-3.5 shrink-0" aria-hidden />
+            {day}
+          </span>
           {under}
         </span>
-        <ChevronRight className="size-5 text-chestnut/50" aria-hidden />
       </span>
+      <ChevronRight className="pointer-events-none size-5 shrink-0 text-chestnut/50" aria-hidden />
     </div>
   );
 }
@@ -142,12 +144,11 @@ export function LogCell({
 // the light track), the share pending under it
 function PendingBar({ share, label }: { share: number; label: string }) {
   return (
-    <span className="flex w-50 gap-2 justify-center items-center">
-    <span className="text-sm font-semibold text-chestnut/65 shrink-0 whitespace-nowrap">{label}</span>
-      <span role="progressbar" aria-valuenow={100 - share} aria-valuemin={0} aria-valuemax={100} aria-label={label} className="block h-1.5 w-full overflow-hidden rounded-full bg-chestnut/12">
+    <span className="flex w-35 flex-1 items-center justify-end gap-2">
+    <span className="shrink-0 whitespace-nowrap text-xs text-chestnut/65">{label}</span>
+      <span role="progressbar" aria-valuenow={100 - share} aria-valuemin={0} aria-valuemax={100} aria-label={label} className="block h-1.5 w-full min-w-10 overflow-hidden rounded-full bg-chestnut/12">
         <i className="block h-full rounded-full bg-chestnut" style={{ width: `${100 - share}%` }} />
       </span>
-      
     </span>
   );
 }
