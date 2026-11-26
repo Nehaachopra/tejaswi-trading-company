@@ -309,6 +309,9 @@ export default class TransactionService {
           ne(transactionsTable.type, "purchase_return"),
           // a return's replacement sale shows under that return (its sale's Returns log), not as a row of its own
           sql`not exists (select 1 from ${saleReturnsTable} sr inner join ${salesTable} s on s.id = sr.exchange_sale_id inner join ${transactionsTable} rt on rt.id = sr.transaction_id where s.transaction_id = ${transactionsTable.id} and rt.status = 'active')`,
+          // a purchase return's replacement purchase shows under that return (its debit note's Replacements), not as a
+          // row of its own
+          sql`not exists (select 1 from ${returnDeliveriesTable} rd inner join ${transactionsTable} rt on rt.id = rd.return_transaction_id where rd.delivery_transaction_id = ${transactionsTable.id} and rt.status = 'active')`,
           viewer.role === "admin" ? undefined : eq(transactionsTable.createdById, viewer.id),
           input.types.length ? inArray(transactionsTable.type, input.types) : undefined,
           input.status ? eq(transactionsTable.status, input.status) : undefined,
