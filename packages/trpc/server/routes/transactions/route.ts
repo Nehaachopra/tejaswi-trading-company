@@ -668,8 +668,11 @@ const purchaseReturnRouter = router({
     .output(receivedReplacementModel)
     .mutation(({ ctx, input }) => {
       checkDate(input.dateTime, ctx.session.user.role);
-      limitSaves(ctx.session.user.id);
-      return purchaseReturnService.receive(input, ctx.session.user);
+      const save = () => {
+        limitSaves(ctx.session.user.id);
+        return purchaseReturnService.receive(input, ctx.session.user);
+      };
+      return input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save();
     }),
 
   // a return as our debit note

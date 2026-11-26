@@ -93,8 +93,12 @@ export const purchaseReturnIdInputModel = z.object({ transactionId: idModel });
 export const receiveReplacementInputModel = z
   .object({
     returnTransactionId: idModel,
+    saveKey: z.string().uuid().nullable().default(null),
     supplierInvoiceNumber: billNumberModel,
     dateTime: z.coerce.date(),
+    // the supplier's bill's photo or PDF, and remarks
+    invoiceUrl: imageUrlModel.nullable().default(null),
+    remarks: z.string().trim().max(1000).nullable().default(null),
     lines: z
       .array(z.object({ productId: idModel, quantity: z.number().int().min(1).max(99_999), into: z.array(godownPartModel).min(1, "Pick a godown.").max(20) }))
       .min(1)
@@ -106,14 +110,17 @@ export const receiveReplacementInputModel = z
 // a replacement received: the purchase it came on
 export const receivedReplacementModel = z.object({ transactionId: idModel, assignedId: z.string(), total: z.number() });
 
-export type ReceiveReplacementInputModel = z.infer<typeof receiveReplacementInputModel>;
+export type ReceiveReplacementInputModel = z.input<typeof receiveReplacementInputModel>;
 
-// a return's replaced items still to come: each pack size, its name and how many
+// a return's replaced items still to come: each pack size, its name, how many, and the rate it was bought at (before
+// GST, which the replacement is bought at too) with its GST %; the supplier and the purchase it went back on
 export const pendingReplacementModel = z.object({
   transactionId: idModel,
   assignedId: z.string(),
   returnDate: z.string(),
-  lines: z.array(z.object({ productId: idModel, name: z.string(), quantity: z.number().int() })),
+  purchase: z.object({ transactionId: idModel, assignedId: z.string() }),
+  supplierName: z.string(),
+  lines: z.array(z.object({ productId: idModel, name: z.string(), quantity: z.number().int(), rate: z.number(), gstRate: z.number() })),
 });
 
 export type PendingReplacementModel = z.infer<typeof pendingReplacementModel>;

@@ -2575,7 +2575,18 @@
         "billDate": "ಬಿಲ್ ದಿನಾಂಕ",
         "owed": "({count} ಬರಬೇಕಿದೆ)",
         "missingBill": "ಬಿಲ್ ಸಂಖ್ಯೆ ನೀಡಿ.",
-        "missingQuantity": "ಎಷ್ಟು ಬಂದವು ಎಂದು ಹೇಳಿ."
+        "missingQuantity": "ಎಷ್ಟು ಬಂದವು ಎಂದು ಹೇಳಿ.",
+        "toCome": "ಬರಲು ಬಾಕಿ",
+        "came": "ಬಂದಿದೆ",
+        "total": "ಬಿಲ್ ಒಟ್ಟು",
+        "titleFor": "{number} ಗೆ ಬದಲಿ ಸರಕು",
+        "summary": "ಸಾರಾಂಶ",
+        "nothingLeft": "ಬದಲಿ ಸರಕು ಎಲ್ಲಾ ಬಂದಿದೆ.",
+        "steps": {
+          "items": "ಐಟಂಗಳು",
+          "bill": "ಬಿಲ್",
+          "details": "ವಿವರಗಳು"
+        }
       },
       "replacementBill": "ಬದಲಿ ಬಿಲ್ ಸಂ.",
       "noteNo": "ನೋಟ್ ಸಂ.",

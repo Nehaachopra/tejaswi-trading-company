@@ -3,7 +3,6 @@
 import { ArrowLeft, CircleAlert, Download, FileText, Mail, PackageCheck, Phone } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 
 import { Spinner } from "~/components/ui/icons/spinner";
 import { WhatsAppIcon } from "~/components/ui/icons/whatsapp-icon";
@@ -16,7 +15,6 @@ import { type DebitNote, useDebitNote, useDebitNoteShareKey } from "~/providers/
 import { Breakup, DocHead, LAST_COL, Remarks } from "../done/document-parts";
 import { ReplacementsLog } from "../../history/replacements-log";
 import { band, cell, dated, Detail, money } from "../done/voucher";
-import { ReceiveCard } from "./receive-card";
 
 // a button's look on the chestnut page, as on the invoice
 const pill =
@@ -29,7 +27,8 @@ const pill =
 // tax, total); then the breakup (the cash discount given back, the round off) closing in the amount debited, in words
 // too. A cancelled one carries a CANCELLED stamp. Sent on WhatsApp when the supplier's phone is kept
 // `history`: opened from a purchase's Returns in History: back goes to the purchase (a return is never cancelled);
-// Record replacement while replaced packs are still to come (the admin's), and the purchases they came on under it
+// Record replacement (its form) while replaced packs are still to come (the admin's), and the purchases they came on
+// under it
 // `shareKey`: the supplier's copy from a shared link, opened without a login: only the download
 export function DebitNoteView({ id, history, shareKey }: { id: string; history?: { record: HistoryTransaction; isAdmin: boolean }; shareKey?: string }) {
   const t = useTranslations("transactions.purchaseReturn.note");
@@ -39,8 +38,6 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
   const shared = shareKey !== undefined;
   const { note: d, loading, loadFailed } = useDebitNote(id, shareKey);
   const link = useDebitNoteShareKey(id, !shared);
-  // the Record replacement card, open
-  const [recording, setRecording] = useState(false);
 
   if (loading)
     return (
@@ -127,9 +124,9 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
             </a>
           )}
           {canRecord && (
-            <button type="button" onClick={() => setRecording(true)} className={pill}>
+            <Link href={`/history/${id}/replacement`} className={pill}>
               <PackageCheck className="size-4" aria-hidden /> {t("record")}
-            </button>
+            </Link>
           )}
           {/* (alone or third on a phone row: full width) */}
           <button type="button" onClick={() => window.print()} className={cn(pill, (Number(canShare) + Number(canRecord) + Number(!shared && !!d.supplierCreditNote?.url)) % 2 === 0 && "col-span-2")}>
@@ -306,7 +303,6 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
 
       {/* the purchases its replaced packs came back on (from History) */}
       {history && <ReplacementsLog replacements={history.record.replacements} />}
-      {recording && <ReceiveCard returnId={id} onClose={() => setRecording(false)} />}
     </main>
   );
 }

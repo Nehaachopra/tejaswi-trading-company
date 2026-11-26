@@ -2575,7 +2575,18 @@
         "billDate": "बिल तारीख",
         "owed": "({count} आना बाकी)",
         "missingBill": "बिल नंबर दें।",
-        "missingQuantity": "बताएं कितने आए।"
+        "missingQuantity": "बताएं कितने आए।",
+        "toCome": "आना बाकी",
+        "came": "आया",
+        "total": "बिल कुल",
+        "titleFor": "{number} का बदला माल",
+        "summary": "सारांश",
+        "nothingLeft": "बदले का सारा माल आ चुका है।",
+        "steps": {
+          "items": "आइटम",
+          "bill": "बिल",
+          "details": "विवरण"
+        }
       },
       "replacementBill": "बदले माल का बिल नं.",
       "noteNo": "नोट नं.",

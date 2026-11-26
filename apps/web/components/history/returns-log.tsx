@@ -27,12 +27,12 @@ export function ReturnsLog({ returns, returnOnly = false }: { returns: HistoryTr
     <LogSection id="returns-log" heading={t("returns")}>
       <table className="w-full table-fixed border-collapse">
         {/* the two headings */}
-        <thead>
+        {/* <thead>
           <tr className="border-b border-chestnut/15 text-left text-xs text-chestnut/65">
             <th className="px-3 pb-2 pt-2.5 font-semibold sm:px-4">{t("returnColumn")}</th>
             {!returnOnly && <th className="border-l border-chestnut/15 px-3 pb-2 pt-2.5 font-semibold sm:px-4">{t("replacement")}</th>}
           </tr>
-        </thead>
+        </thead> */}
         <tbody>
           {returns.map((r) => {
             const cancelled = r.status === "cancelled";

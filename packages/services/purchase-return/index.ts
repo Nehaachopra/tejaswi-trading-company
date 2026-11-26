@@ -291,6 +291,9 @@ export default class PurchaseReturnService {
       if (now.length > 0) {
         await this.deliverIn(tx, {
           returnTransactionId: r.transactionId,
+          saveKey: null,
+          invoiceUrl: null,
+          remarks: null,
           supplierInvoiceNumber: input.replacementBillNumber!,
           dateTime: input.dateTime,
           lines: now.map((l) => ({ productId: l.productId, quantity: l.quantity, into: l.replaceInto! })),
@@ -502,11 +505,25 @@ export default class PurchaseReturnService {
     return db.transaction(async (tx) => {
       const { ret, items } = await this.owedOn(tx, input.transactionId);
       const [t] = await tx.select({ assignedId: transactionsTable.assignedId }).from(transactionsTable).where(eq(transactionsTable.id, input.transactionId));
+      // the purchase it went back on: its number, supplier and each item's rate
+      const [pt] = await tx
+        .select({ transactionId: transactionsTable.id, assignedId: transactionsTable.assignedId })
+        .from(purchasesTable)
+        .innerJoin(transactionsTable, eq(transactionsTable.id, purchasesTable.transactionId))
+        .where(eq(purchasesTable.id, ret.purchaseId));
+      const loaded = await this.load(tx, pt!.transactionId, false);
       return {
         transactionId: input.transactionId,
         assignedId: t!.assignedId,
         returnDate: ret.returnDate,
-        lines: [...items.values()].filter((i) => i.replaced > i.came).map((i) => ({ productId: i.productId, name: i.name, quantity: i.replaced - i.came })),
+        purchase: { transactionId: pt!.transactionId, assignedId: pt!.assignedId },
+        supplierName: loaded.purchase.partyNameSnapshot,
+        lines: [...items.values()]
+          .filter((i) => i.replaced > i.came)
+          .map((i) => {
+            const item = loaded.items.get(i.productId)!;
+            return { productId: i.productId, name: i.name, quantity: i.replaced - i.came, rate: rateOf(item) / 100, gstRate: item.gstRate };
+          }),
       };
     });
   }
@@ -518,7 +535,7 @@ export default class PurchaseReturnService {
     return db.transaction(async (tx) => this.deliverIn(tx, input, actor));
   }
 
-  private async deliverIn(tx: Tx, input: ReceiveReplacementInputModel, actor: ActorModel) {
+  private async deliverIn(tx: Tx, input: ReturnType<typeof receiveReplacementInputModel.parse>, actor: ActorModel) {
     const [rt] = await tx.select().from(transactionsTable).where(eq(transactionsTable.id, input.returnTransactionId)).for("update");
     if (!rt || rt.type !== "purchase_return") throw new TRPCError({ code: "NOT_FOUND", message: "Purchase return not found." });
     const { ret, items } = await this.owedOn(tx, input.returnTransactionId);
@@ -540,6 +557,8 @@ export default class PurchaseReturnService {
       supplierInvoiceNumber: input.supplierInvoiceNumber,
       lines: input.lines.map((l) => ({ productId: l.productId, quantity: l.quantity, rateBeforeGst: rateOf(loaded.items.get(l.productId)!) / 100, godowns: l.into })),
       kind: "credit",
+      invoiceUrl: input.invoiceUrl,
+      remarks: input.remarks,
     });
     // what the return left with them before this bill: set off against it
     const advance = (await this.supplierOf(tx, loaded.purchase.partyId)).held;

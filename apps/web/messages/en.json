@@ -2575,7 +2575,18 @@
         "billDate": "Bill date",
         "owed": "({count} to come)",
         "missingBill": "Give the bill number.",
-        "missingQuantity": "Say how many came."
+        "missingQuantity": "Say how many came.",
+        "toCome": "To come",
+        "came": "Came",
+        "total": "Bill total",
+        "titleFor": "Replacement for {number}",
+        "summary": "Summary",
+        "nothingLeft": "Every replaced pack has come back.",
+        "steps": {
+          "items": "Items",
+          "bill": "Bill",
+          "details": "Details"
+        }
       },
       "replacementBill": "Replacement bill no.",
       "noteNo": "Note no.",
