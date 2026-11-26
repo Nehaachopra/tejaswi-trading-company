@@ -130,7 +130,7 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
         body={
           <>
             <p>{t("sellBelowFact", { price: rupees(price), cost: rupees(costGst) })}</p>
-            <p className="mt-2 font-semibold text-chestnut">{t("sellBelowAsk", { loss: rupees(round2((costGst - price) * quantity)) })}</p>
+            <p className="mt-2 font-semibold text-chestnut">{t("sellBelowAsk", { loss: rupees(round2(costGst - price)) })}</p>
           </>
         }
         confirmLabel={t("yes")}

@@ -11,34 +11,63 @@ import { indiaDay } from "../../account/balance";
 import { fieldRow, input } from "../shared/form-basics";
 import { useSaleEdit } from "./state";
 
-// an edit's details stage, as a sale's Save block: the date as a row (within the sale's own month, never after today),
-// then Save changes with the total on it, and why a save failed
+// length follows sales.vehicle_number
+const VEHICLE_MAX = 15;
+
+// an edit's details stage, as a sale's Save block: the vehicle it went in (optional; capital letters and digits only)
+// and the date (within the sale's own month, never after today), each a row (side by side on a wider screen), then
+// Save changes with the total on it, and why a save failed
 export function DetailsStage() {
-  const { t, tc, sale, day, setDay, tried, total, saving, save, saveError } = useSaleEdit();
+  const { t, tc, sale, day, setDay, vehicle, setVehicle, tried, total, saving, save, saveError } =
+    useSaleEdit();
   const today = indiaDay(new Date());
   // the sale's month: its first day to its last (or today, if sooner)
   const month = indiaDay(new Date(sale.dateTime)).slice(0, 7);
-  const monthEnd = indiaDay(new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0, 12)));
+  const monthEnd = indiaDay(
+    new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0, 12)),
+  );
   const min = `${month}-01`;
   const max = monthEnd < today ? monthEnd : today;
   return (
     <>
-      <label className={cn(fieldRow, "mb-3 sm:w-[calc(50%-0.75rem)]")}>
-        <span>
-          {tc("q.date")}
-          <RequiredMark />
-        </span>
-        <DateInput
-          value={day}
-          min={min}
-          max={max}
-          // a day typed outside what the picker offers is left as it was
-          onChange={(d) => setDay(d !== "" && (d > max || d < min) ? day : d)}
-          calendarLabel={tc("q.date")}
-          aria-invalid={(tried && day === "") || undefined}
-          className={input(day === "")}
-        />
-      </label>
+      <div className="mb-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+        <label className={fieldRow}>
+          <span>{t("vehicle")}</span>
+          <input
+            value={vehicle}
+            maxLength={VEHICLE_MAX}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="KA01AB1234"
+            onChange={(e) =>
+              setVehicle(
+                e.target.value
+                  .toUpperCase()
+                  .replace(/[^A-Z0-9]/g, "")
+                  .slice(0, VEHICLE_MAX),
+              )
+            }
+            className={cn(input(false), "tabular uppercase")}
+          />
+        </label>
+        <label className={fieldRow}>
+          <span>
+            {tc("q.date")}
+            <RequiredMark />
+          </span>
+          <DateInput
+            value={day}
+            min={min}
+            max={max}
+            // a day typed outside what the picker offers is left as it was
+            onChange={(d) => setDay(d !== "" && (d > max || d < min) ? day : d)}
+            calendarLabel={tc("q.date")}
+            aria-invalid={(tried && day === "") || undefined}
+            className={input(day === "")}
+          />
+        </label>
+      </div>
       <button
         type="button"
         data-recheck

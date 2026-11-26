@@ -113,6 +113,9 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
   const [startLines] = useState(lines);
   const pricesChanged = lines.some((l, i) => parseAmount(l.price) !== parseAmount(startLines[i]!.price));
   const [day, setDay] = useState(() => indiaDay(new Date(sale.dateTime)));
+  // the vehicle it went in (as saved, until changed)
+  const [vehicle, setVehicle] = useState(sale.vehicleNumber ?? "");
+  const vehicleChanged = vehicle !== (sale.vehicleNumber ?? "");
   // the product details card over the page: the item whose price is being changed
   const [cardFor, setCardFor] = useState<string | null>(null);
 
@@ -317,7 +320,7 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
   }
 
   // leaving with a change made asks first (not after the save, which goes on to its success card)
-  const changed = day !== indiaDay(new Date(sale.dateTime)) || total !== sale.total || kind !== sale.kind;
+  const changed = day !== indiaDay(new Date(sale.dateTime)) || total !== sale.total || kind !== sale.kind || vehicleChanged;
   const { dialog: leaveDialog } = useLeaveGuard(!saved && changed, onDiscard);
 
   // the save: everything as saved, with the new prices, the day, and what moves now (cash only)
@@ -340,7 +343,7 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
   }
   async function save() {
     // nothing changed (prices, cash or credit, the date): nothing saved, no edit recorded; straight back to the sale
-    if (untouched && day === indiaDay(new Date(sale.dateTime))) {
+    if (untouched && day === indiaDay(new Date(sale.dateTime)) && !vehicleChanged) {
       router.replace(`/history/${sale.transactionId}`);
       return;
     }
@@ -356,7 +359,7 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
       saveKey,
       dateTime: momentOf(day),
       remarks: sale.remarks,
-      vehicleNumber: sale.vehicleNumber,
+      vehicleNumber: vehicle.trim() || null,
       lines: lines.map((l, i) => {
         const s = savedLine(l.productId);
         return { productId: l.productId, quantity: s.quantity, rateBeforeGst: figures[i]!.rate / 100, belowCostOk: l.belowCostOk, godowns: s.godowns };
@@ -448,6 +451,8 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
     setRefLeft,
     qrItems,
     day,
+    vehicle,
+    setVehicle,
     setDay,
     tried,
     complete,

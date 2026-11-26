@@ -2102,7 +2102,7 @@
       "roundOff": "ರೌಂಡ್ ಆಫ್",
       "sellBelowTitle": "ನಷ್ಟಕ್ಕೆ ಮಾರಬೇಕೆ?",
       "sellBelowFact": "ಬೆಲೆ {price} ವೆಚ್ಚ {cost} ಗಿಂತ ಕಡಿಮೆ.",
-      "sellBelowAsk": "{loss} ನಷ್ಟಕ್ಕೆ ಮಾರಬೇಕೆ?",
+      "sellBelowAsk": "ಪ್ರತಿ ಪ್ಯಾಕ್‌ಗೆ {loss} ನಷ್ಟದಲ್ಲಿ ಮಾರಬೇಕೆ?",
       "yes": "ಹೌದು",
       "no": "ಇಲ್ಲ",
       "hintQuantity": "ಪ್ರಮಾಣ ಬರೆಯಿರಿ.",

@@ -4,20 +4,26 @@ import { DateInput } from "~/components/ui/date-input";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { cn } from "~/lib/utils";
 
+import { BillAttach } from "../purchase/bill-attach";
 import { BILL_NUMBER_MAX, billNumberOk } from "../purchase/state";
 import { fieldRow, input } from "../shared/form-basics";
 import { usePurchaseEdit } from "./state";
 
-// an edit's Bill card, as a purchase's (no photo: it's changed on the purchase's page): the supplier's bill number
-// (capital letters, digits, / and - only) and its date (within the purchase's own month, never after today) side by
-// side, each a row: label left, box right
+// an edit's Bill card, as a purchase's: the supplier's bill on top (its preview when attached, opening it, with a bin;
+// or Take photo / Upload), then its number (capital letters, digits, / and - only) and its date (within the purchase's
+// own month, never after today) side by side, each a row: label left, box right
 export function BillCard() {
-  const { t, tc, billNumber, setBillNumber, billDay, setBillDay, dayMin, dayMax, tried } = usePurchaseEdit();
+  const { t, tc, billNumber, setBillNumber, billDay, setBillDay, billUrl, setBillUrl, setBillBusy, dayMin, dayMax, tried } = usePurchaseEdit();
   const numberBad = tried && !billNumberOk(billNumber);
   const dayBad = tried && billDay === "";
   return (
     <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-      <label className={fieldRow}>
+      {/* the bill on top, in the left column (the right one empty) */}
+      <div className={cn(fieldRow, "sm:col-start-1")}>
+        <span>{t("billPhoto")}</span>
+        <BillAttach value={billUrl} onChange={setBillUrl} onBusy={setBillBusy} />
+      </div>
+      <label className={cn(fieldRow, "sm:col-start-1")}>
         <span>
           {t("billNumber")}
           <RequiredMark />

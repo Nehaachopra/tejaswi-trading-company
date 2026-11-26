@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { moreBankPartModel } from "../payment/model";
+import { imageUrlModel } from "../product/model";
 
 const idModel = z.string().uuid();
 const rupeesModel = z.number().min(0).max(9_999_999_999_999).multipleOf(0.01);
@@ -46,6 +47,8 @@ export const editPurchaseInputModel = z
       .nullable()
       .default(null),
     remarks: z.string().trim().max(1000).nullable().default(null),
+    // the supplier's bill's photo or PDF (none: taken off, or never attached)
+    invoiceUrl: imageUrlModel.nullable().default(null),
   })
   .refine((p) => new Set(p.lines.map((l) => l.productId)).size === p.lines.length, { message: "Each pack size once.", path: ["lines"] })
   .refine((p) => new Set(p.bankParts.map((b) => b.bankDetailsId)).size === p.bankParts.length, { message: "An account is in twice.", path: ["bankParts"] })
@@ -74,6 +77,7 @@ export const purchaseForEditModel = z.object({
   discount: z.number(),
   vehicleNumber: z.string().nullable(),
   remarks: z.string().nullable(),
+  invoiceUrl: z.string().nullable(),
   total: z.number(),
   // paid towards this bill so far (with it, an advance set off, and later payments)
   paid: z.number(),

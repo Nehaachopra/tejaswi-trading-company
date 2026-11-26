@@ -2102,7 +2102,7 @@
       "roundOff": "राउंड ऑफ",
       "sellBelowTitle": "घाटे में बेचें?",
       "sellBelowFact": "कीमत {price} लागत {cost} से कम है।",
-      "sellBelowAsk": "क्या आप {loss} के घाटे में बेचना चाहते हैं?",
+      "sellBelowAsk": "क्या आप {loss} प्रति पैक के नुकसान पर बेचना चाहते हैं?",
       "yes": "हाँ",
       "no": "नहीं",
       "hintQuantity": "मात्रा लिखें।",

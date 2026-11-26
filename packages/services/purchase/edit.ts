@@ -197,6 +197,7 @@ export default class PurchaseEditService {
         discount: Number(purchase.discountAmount),
         vehicleNumber: purchase.vehicleNumber,
         remarks: purchase.remarks,
+        invoiceUrl: purchase.invoiceUrl,
         total: Number(t.amount),
         paid: paid / 100,
         supplierBalance: await this.balanceOf(tx, supplier.id),
@@ -249,17 +250,17 @@ export default class PurchaseEditService {
       const paid = due ? settlements.reduce((a, s) => a + toPaise(s.amount), 0) : -moneyAll;
       const balance = total - paid;
       const moved = toPaise(input.cashAmount) + input.bankParts.reduce((a, b) => a + toPaise(b.amount), 0);
-      // cash: a bill up pays the rise now (no more than is left on it); a bill down: the supplier pays the cut back now,
-      // out of what was paid towards it (none paid: nothing comes back); credit: nothing moves
+      // cash, as a return's cash refund: a bill up pays the whole rise now; a bill down, the supplier pays the whole cut
+      // back now (what we owe them stays as it was, as a return's cash refund leaves it); credit: nothing moves
       const oldTotal = toPaise(Number(t.amount));
       let paidNow = 0;
       let takenBack = 0;
       if (input.kind === "cash") {
         if (total > oldTotal) {
-          if (moved > Math.max(0, Math.min(total - oldTotal, balance))) throw new TRPCError({ code: "BAD_REQUEST", message: "Pay the rise, and no more." });
+          if (moved !== total - oldTotal) throw new TRPCError({ code: "BAD_REQUEST", message: "Pay the rise in full." });
           paidNow = moved;
         } else if (total < oldTotal) {
-          if (moved !== Math.min(oldTotal - total, paid)) throw new TRPCError({ code: "BAD_REQUEST", message: "Take back the cut in full." });
+          if (moved !== oldTotal - total) throw new TRPCError({ code: "BAD_REQUEST", message: "Take back the cut in full." });
           takenBack = moved;
         } else if (moved !== 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Nothing moves when the total stays." });
       }
@@ -324,6 +325,7 @@ export default class PurchaseEditService {
           remarks: input.remarks,
           supplierInvoiceNumber: input.supplierInvoiceNumber,
           invoiceDate: indiaDay(input.dateTime),
+          invoiceUrl: input.invoiceUrl,
         })
         .where(eq(purchasesTable.id, purchase.id));
       await tx.update(transactionsTable).set({ dateTime: input.dateTime, amount: fromPaise(total), remarks: input.remarks }).where(eq(transactionsTable.id, t.id));
@@ -352,12 +354,14 @@ export default class PurchaseEditService {
         }
       }
 
-      // the due follows the new total: what was settled past it, and what was taken back, is let go (the newest
-      // first: what's past the bill is their advance now); credit: due after its period (none: no set day)
+      // the due follows the new total, plus a cut the supplier paid back in cash (we still owe that, as their account
+      // shows); what was settled past it is let go (the newest first: their advance now); credit: due after its period
+      // (none: no set day)
       const dueOn = input.kind === "credit" && input.creditPeriodDays !== null ? daysOn(indiaDay(input.dateTime), input.creditPeriodDays) : null;
       if (due) {
-        await tx.update(duesTable).set({ amount: fromPaise(total), dueOn }).where(eq(duesTable.id, due.id));
-        let over = paid - Math.min(total, paid - takenBack);
+        const owedOnBill = total + takenBack;
+        await tx.update(duesTable).set({ amount: fromPaise(owedOnBill), dueOn }).where(eq(duesTable.id, due.id));
+        let over = paid - Math.min(owedOnBill, paid);
         for (const s of settlements) {
           if (over <= 0) break;
           const take = Math.min(over, toPaise(s.amount));
@@ -396,6 +400,7 @@ export default class PurchaseEditService {
         { field: "total", old: Number(t.amount), new: total / 100 },
         { field: "items", old: itemsOf(oldParts), new: itemsOf(parts) },
         { field: "vehicleNumber", old: purchase.vehicleNumber, new: input.vehicleNumber },
+        { field: "bill", old: purchase.invoiceUrl, new: input.invoiceUrl },
         { field: "remarks", old: purchase.remarks, new: input.remarks },
         ...(paidNow > 0 ? [{ field: "paid", old: null, new: paidNow / 100 }] : []),
         ...(takenBack > 0 ? [{ field: "takenBack", old: null, new: takenBack / 100 }] : []),

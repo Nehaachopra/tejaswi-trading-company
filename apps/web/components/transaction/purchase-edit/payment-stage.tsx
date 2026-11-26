@@ -14,7 +14,7 @@ import { usePurchaseEdit } from "./state";
 // below what was paid, the supplier gives the rest back (To receive, no cap, as a purchase return's refund); the bill
 // up, the rise is paid now (To pay, each place never more than it holds). Credit: the due stage, the bill less what was
 // paid, what we'll owe them after (an advance with them when it's below nothing) and the credit period (only when it
-// is on credit). Cash with nothing to move (nothing paid to take back): the due stage too, showing the lower due
+// is on credit)
 export function PaymentStage() {
   const e = usePurchaseEdit();
   const tr = useTranslations("transactions.receipt.form");

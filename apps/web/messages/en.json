@@ -2102,7 +2102,7 @@
       "roundOff": "Round off",
       "sellBelowTitle": "Sell at a loss?",
       "sellBelowFact": "Price {price} is less than cost {cost}.",
-      "sellBelowAsk": "Do you want to sell at a loss of {loss}?",
+      "sellBelowAsk": "Do you want to sell at a loss of {loss} a pack?",
       "yes": "Yes",
       "no": "No",
       "hintQuantity": "Type the quantity.",

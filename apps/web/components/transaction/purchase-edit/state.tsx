@@ -73,6 +73,9 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
   const [billNumber, setBillNumber] = useState(p.supplierInvoiceNumber);
   const [billDay, setBillDay] = useState(() => indiaDay(new Date(p.dateTime)));
   const [vehicle, setVehicle] = useState(p.vehicleNumber ?? "");
+  // the supplier's bill's file (as attached, until changed), and whether one is uploading
+  const [billUrl, setBillUrl] = useState<string | null>(p.invoiceUrl);
+  const [billBusy, setBillBusy] = useState(false);
   const [remarks, setRemarks] = useState(p.remarks ?? "");
 
   // each item's rate before GST, in paise: a cost left as it was (or typed again as it was saved, before GST or with
@@ -104,21 +107,21 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
   const costsOk = figures.every((f) => f.rate > 0);
   const pricesChanged = lines.some((l) => rateOf(l) !== Math.round(savedLine(l.productId).rateBeforeGst * 100));
 
-  // the money, asked whenever a price changed: cash or credit. The bill up: cash pays the rise now (no more than is
-  // left on it), credit owes it. The bill down: cash, the supplier pays the cut back now out of what was paid towards
-  // it (none paid: nothing comes back, the due just drops); credit, it comes off what we owe (past it, an advance)
+  // the money, asked whenever the total changed: cash or credit. The bill up: cash pays the rise now, credit owes it.
+  // The bill down: cash, the supplier pays the cut back now (as a return's cash refund); credit, it comes off what we
+  // owe (past it, an advance)
   const paid = p.paid;
-  const balance = round2(total - paid);
   const rise = round2(total - p.total);
   const asksMoney = pricesChanged && rise !== 0;
   const [kind, setKind] = useState<"cash" | "credit" | null>(null);
-  const cashBack = asksMoney && kind === "cash" && rise < 0 ? round2(Math.min(-rise, paid)) : 0;
-  const cashPay = asksMoney && kind === "cash" && rise > 0 ? round2(Math.max(0, Math.min(rise, balance))) : 0;
+  // cash, as a return's cash refund: the whole cut comes back now, or the whole rise is paid now
+  const cashBack = asksMoney && kind === "cash" && rise < 0 ? -rise : 0;
+  const cashPay = asksMoney && kind === "cash" && rise > 0 ? rise : 0;
   const takingBack = cashBack > 0;
   const paying = cashPay > 0;
   const moving = takingBack ? cashBack : cashPay;
-  // the Due card: on credit, or cash with nothing to move (nothing was paid to take back, or nothing left to pay)
-  const credit = kind === "credit" || (kind === "cash" && moving === 0);
+  // the Due card: on credit only
+  const credit = kind === "credit";
   // the credit period: asked only on credit
   const asksDays = kind === "credit";
   // what we'll owe them after: with cash taken back, that much more again (it came out of what was paid)
@@ -172,7 +175,7 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
     cart: costsOk && total > 0,
     money: kind !== null,
     payment: credit ? !asksDays || creditDays === "" || Number(creditDays) <= 365 : moving === 0 || splitOk,
-    bill: billNumberOk(billNumber) && billDay !== "",
+    bill: billNumberOk(billNumber) && billDay !== "" && !billBusy,
     details: true,
   };
   const missingOf = (s: EditStep) =>
@@ -187,9 +190,11 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
               ? t("missing.left", { amount: rupees(round2(moving - splitTotal)) })
               : t("missing.into")
           : s === "bill"
-            ? billNumberOk(billNumber)
-              ? t("missing.billDate")
-              : t("missing.billNumber")
+            ? !billNumberOk(billNumber)
+              ? t("missing.billNumber")
+              : billBusy
+                ? t("missing.billUpload")
+                : t("missing.billDate")
             : "";
 
   // moving between stages: the phone's Back goes to the stage before
@@ -240,7 +245,8 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
     billNumber !== p.supplierInvoiceNumber ||
     billDay !== indiaDay(new Date(p.dateTime)) ||
     vehicle !== (p.vehicleNumber ?? "") ||
-    remarks.trim() !== (p.remarks ?? "");
+    remarks.trim() !== (p.remarks ?? "") ||
+    billUrl !== p.invoiceUrl;
   const { dialog: leaveDialog } = useLeaveGuard(!saved && changed, onDiscard);
 
   // the save: the new prices, the bill, vehicle and remarks, and what moves now
@@ -288,6 +294,7 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
         bankParts: moving > 0 ? banksUsed.map((x) => ({ bankDetailsId: x.id, amount: x.amount, mode: x.mode!, referenceNumber: refOf(x.id, x.mode).trim() || null })) : [],
         vehicleNumber: vehicle.trim() || null,
         remarks: remarks.trim() || null,
+        invoiceUrl: billUrl,
       });
       // on to its success card; replace, so going back doesn't land on the form
       router.replace(`/history/${done.transactionId}/edit/done`);
@@ -341,6 +348,9 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
     setBillNumber,
     billDay,
     setBillDay,
+    billUrl,
+    setBillUrl,
+    setBillBusy,
     dayMin,
     dayMax,
     vehicle,
