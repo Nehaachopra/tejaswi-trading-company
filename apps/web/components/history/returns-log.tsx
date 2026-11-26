@@ -14,10 +14,10 @@ import type { HistoryTransaction } from "~/providers/history";
 export const logDay = (d: Date, locale: string) =>
   d.toLocaleDateString(`${locale}-IN`, { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
 
-// under a sale's invoice (not printed): its returns, oldest first, as a two-column table. Return: each one's ID (with
-// its copy button), day and total, opening its credit note; Replacement: the sale it made for replaced items, the
-// same way, opening its invoice ("–" when nothing was replaced). `returnOnly` (a purchase's): the Return column alone,
-// each return with replaced packs still to come carrying a bar of how much is pending under its total. Cancelled:
+// under a sale's invoice or a purchase's (not printed): its returns, oldest first. Each one's ID (with its copy button),
+// day and total, opening its credit (or debit) note, whose replacements are listed under it. `returnOnly`: the Return
+// column alone (both use it now); otherwise a Replacement column beside it. A purchase return with replaced packs still
+// to come carries a bar of how much is pending under its total. Cancelled:
 // faded, the totals struck through
 export function ReturnsLog({ returns, returnOnly = false }: { returns: HistoryTransaction["returns"]; returnOnly?: boolean }) {
   const t = useTranslations("history");

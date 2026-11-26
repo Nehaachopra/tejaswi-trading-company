@@ -7,8 +7,9 @@ import type { HistoryTransaction } from "~/providers/history";
 
 import { LogCell, LogSection, logDay } from "./returns-log";
 
-// under a purchase return's debit note (not printed): the purchases its replaced packs came back on, oldest first, as
-// the Returns rows: each one's ID (with its copy button), bill day and total, opening it. Cancelled: faded, struck
+// under a return's note (not printed): a purchase return's, the purchases its replaced packs came back on, oldest first;
+// a sale return's, the sale it made for the items it replaced. As the Returns rows: each one's ID (with its copy
+// button), day and total, opening it. Cancelled: faded, struck
 export function ReplacementsLog({ replacements }: { replacements: HistoryTransaction["replacements"] }) {
   const t = useTranslations("history");
   const locale = useLocale();

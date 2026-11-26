@@ -102,7 +102,8 @@ export const transactionModel = transactionSummaryModel.extend({
       replaced: z.object({ sent: z.number().int(), back: z.number().int() }).nullable(),
     }),
   ),
-  // a purchase return's replacements: each purchase the replaced packs came back on (its ID, bill day, total, status),
+  // a return's replacements: a purchase return's, each purchase the replaced packs came back on; a sale return's, the
+  // sale it made for the items it replaced. A purchase return's (its ID, bill day, total, status),
   // oldest first, and how many packs are still to come (0: none)
   replacements: z.array(z.object({ transactionId: idModel, assignedId: z.string(), date: z.string(), total: z.number(), status: z.enum(["active", "cancelled"]) })),
   replacementsOwed: z.number().int(),

@@ -477,7 +477,7 @@ export function SaleInvoice({
       </article>
 
       {/* in History: the sale's returns, under the invoice */}
-      {record && <ReturnsLog returns={record.returns} />}
+      {record && <ReturnsLog returns={record.returns} returnOnly />}
 
       {/* and its edits: the date and the total as they changed */}
       {record && <EditLog edits={record.edits} />}

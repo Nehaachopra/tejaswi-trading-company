@@ -469,6 +469,17 @@ export default class TransactionService {
     };
   }
 
+  // a sale return's replacement: the sale it made for the items it replaced (its ID, day, total, status); none made: []
+  private async saleReplacementsOf(returnTransactionId: string): Promise<TransactionModel["replacements"]> {
+    const rows = await db
+      .select({ transactionId: transactionsTable.id, assignedId: transactionsTable.assignedId, date: salesTable.invoiceDate, total: transactionsTable.amount, status: transactionsTable.status })
+      .from(saleReturnsTable)
+      .innerJoin(salesTable, eq(salesTable.id, saleReturnsTable.exchangeSaleId))
+      .innerJoin(transactionsTable, eq(transactionsTable.id, salesTable.transactionId))
+      .where(eq(saleReturnsTable.transactionId, returnTransactionId));
+    return rows.map((r) => ({ transactionId: r.transactionId, assignedId: r.assignedId, date: r.date, total: Number(r.total), status: r.status === "cancelled" ? ("cancelled" as const) : ("active" as const) }));
+  }
+
   // a sale's returns, oldest first: each one's ID, day, items, total, how it was settled, and status
   private async returnsOf(saleTransactionId: string): Promise<TransactionModel["returns"]> {
     const rows = await db
@@ -569,7 +580,11 @@ export default class TransactionService {
             ? ((await this.purchaseReturnedOf([t.id])).get(t.id) ?? null)
             : null,
       returns: t.type === "sale" ? await this.returnsOf(t.id) : t.type === "purchase" ? await this.purchaseReturnsOf(t.id) : [],
-      ...(t.type === "purchase_return" ? await this.replacementsOf(t.id) : { replacements: [], replacementsOwed: 0 }),
+      ...(t.type === "purchase_return"
+        ? await this.replacementsOf(t.id)
+        : t.type === "sale_return"
+          ? { replacements: await this.saleReplacementsOf(t.id), replacementsOwed: 0 }
+          : { replacements: [], replacementsOwed: 0 }),
       edits: (
         await db
           .select({ at: transactionEditLogsTable.createdAt, byName: transactionEditLogsTable.editedByName, changes: transactionEditLogsTable.changes })

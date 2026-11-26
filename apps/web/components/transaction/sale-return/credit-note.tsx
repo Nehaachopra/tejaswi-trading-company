@@ -13,6 +13,7 @@ import type { HistoryTransaction } from "~/providers/history";
 import { type CreditNote, useCreditNote, useCreditNoteShareKey } from "~/providers/sale-return";
 
 import { Breakup, DocHead, LAST_COL, Remarks } from "../done/document-parts";
+import { ReplacementsLog } from "../../history/replacements-log";
 import { band, cell, dated, Detail, money } from "../done/voucher";
 
 // a button's look on the chestnut page, as on the invoice
@@ -24,7 +25,8 @@ const pill =
 // the items back (quantity, a pack's price, the discount off the line, taxable value, GST % and the GST by tax, total);
 // then the breakup (the cash discount taken back, the round off) closing in the amount credited, in words too. A
 // cancelled one carries a CANCELLED stamp. Sent on WhatsApp when the customer's phone is kept
-// `history`: opened from a sale's Returns in History: back goes to the sale (a return is never cancelled)
+// `history`: opened from a sale's Returns in History: back goes to the sale (a return is never cancelled); the sale it
+// made for replaced items under it
 // `shareKey`: the customer's copy from a shared link, opened without a login: only the download
 export function CreditNoteView({ id, history, shareKey }: { id: string; history?: { record: HistoryTransaction; isAdmin: boolean }; shareKey?: string }) {
   const t = useTranslations("transactions.saleReturn.note");
@@ -269,6 +271,9 @@ export function CreditNoteView({ id, history, shareKey }: { id: string; history?
           <p className="font-semibold">{ti("signatory")}</p>
         </div>
       </article>
+
+      {/* the sale it made for the items it replaced (from History), as the Returns rows */}
+      {history && <ReplacementsLog replacements={history.record.replacements} />}
     </main>
   );
 }
