@@ -441,7 +441,7 @@ export default class TransactionService {
 
   // a purchase return's replacements: each purchase its replaced packs came back on (its ID, bill day, total, status),
   // oldest first, and how many packs are still to come
-  private async replacementsOf(returnTransactionId: string): Promise<Pick<TransactionModel, "replacements" | "replacementsOwed">> {
+  private async replacementsOf(returnTransactionId: string): Promise<Pick<TransactionModel, "replacements" | "replacementsOwed" | "replacementsSent">> {
     const rows = await db
       .selectDistinct({
         transactionId: transactionsTable.id,
@@ -466,6 +466,7 @@ export default class TransactionService {
         status: r.status === "cancelled" ? ("cancelled" as const) : ("active" as const),
       })),
       replacementsOwed: x ? x.sent - x.back : 0,
+      replacementsSent: x?.sent ?? 0,
     };
   }
 
@@ -648,8 +649,8 @@ export default class TransactionService {
       ...(t.type === "purchase_return"
         ? await this.replacementsOf(t.id)
         : t.type === "sale_return"
-          ? { replacements: await this.saleReplacementsOf(t.id), replacementsOwed: 0 }
-          : { replacements: [], replacementsOwed: 0 }),
+          ? { replacements: await this.saleReplacementsOf(t.id), replacementsOwed: 0, replacementsSent: 0 }
+          : { replacements: [], replacementsOwed: 0, replacementsSent: 0 }),
       edits: (
         await db
           .select({ at: transactionEditLogsTable.createdAt, byName: transactionEditLogsTable.editedByName, changes: transactionEditLogsTable.changes })

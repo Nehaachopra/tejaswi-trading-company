@@ -3043,6 +3043,8 @@
     "replacedPending": "{share}% pending",
     "editPurchase": "Edit purchase",
     "returnedShare": "{share}% returned",
-    "noReturns": "No returns yet."
+    "noReturns": "No returns yet.",
+    "replacedBack": "{share}% back",
+    "noReplacements": "Nothing has come back yet."
   }
 }

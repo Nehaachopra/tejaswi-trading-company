@@ -3043,6 +3043,8 @@
     "replacedPending": "{share}% ಬಾಕಿ",
     "editPurchase": "ಖರೀದಿ ಬದಲಿಸಿ",
     "returnedShare": "{share}% ಹಿಂತಿರುಗಿದೆ",
-    "noReturns": "ಇನ್ನೂ ಯಾವುದೇ ಹಿಂತಿರುಗಿಸುವಿಕೆ ಇಲ್ಲ."
+    "noReturns": "ಇನ್ನೂ ಯಾವುದೇ ಹಿಂತಿರುಗಿಸುವಿಕೆ ಇಲ್ಲ.",
+    "replacedBack": "{share}% ಹಿಂದೆ ಬಂದಿದೆ",
+    "noReplacements": "ಇನ್ನೂ ಏನೂ ಹಿಂದೆ ಬಂದಿಲ್ಲ."
   }
 }

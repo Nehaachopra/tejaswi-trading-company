@@ -3043,6 +3043,8 @@
     "replacedPending": "{share}% बाकी",
     "editPurchase": "खरीद बदलें",
     "returnedShare": "{share}% वापस",
-    "noReturns": "अभी कोई वापसी नहीं।"
+    "noReturns": "अभी कोई वापसी नहीं।",
+    "replacedBack": "{share}% वापस आया",
+    "noReplacements": "अभी कुछ वापस नहीं आया।"
   }
 }

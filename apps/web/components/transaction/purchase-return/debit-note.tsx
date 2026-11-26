@@ -123,13 +123,8 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
               <FileText className="size-4" aria-hidden /> {t("creditNoteFile")}
             </a>
           )}
-          {canRecord && (
-            <Link href={`/history/${id}/replacement`} className={pill}>
-              <PackageCheck className="size-4" aria-hidden /> {t("record")}
-            </Link>
-          )}
           {/* (alone or third on a phone row: full width) */}
-          <button type="button" onClick={() => window.print()} className={cn(pill, (Number(canShare) + Number(canRecord) + Number(!shared && !!d.supplierCreditNote?.url)) % 2 === 0 && "col-span-2")}>
+          <button type="button" onClick={() => window.print()} className={cn(pill, (Number(canShare) + Number(!shared && !!d.supplierCreditNote?.url)) % 2 === 0 && "col-span-2")}>
             <Download className="size-4" aria-hidden /> {ti("download")}
           </button>
         </div>
@@ -302,7 +297,22 @@ export function DebitNoteView({ id, history, shareKey }: { id: string; history?:
       </article>
 
       {/* the purchases its replaced packs came back on (from History) */}
-      {history && <ReplacementsLog replacements={history.record.replacements} />}
+      {/* the purchases its replaced packs came back on, how much has come back and Record replacement (the admin's,
+          while packs are still to come) at the right of the heading */}
+      {history && (
+        <ReplacementsLog
+          replacements={history.record.replacements}
+          show={history.record.replacementsSent > 0}
+          share={history.record.replacementsSent > 0 ? Math.round(((history.record.replacementsSent - history.record.replacementsOwed) / history.record.replacementsSent) * 100) : null}
+          action={
+            canRecord && (
+              <Link href={`/history/${id}/replacement`} className={pill}>
+                <PackageCheck className="size-4" aria-hidden /> {t("record")}
+              </Link>
+            )
+          }
+        />
+      )}
     </main>
   );
 }
