@@ -31,7 +31,8 @@ export function ReplacementsLog({
   return (
     <LogSection id="replacements-log" heading={t("replacements")} right={
         <>
-          {share != null && <HeadShare share={share} label={t("replacedBack", { share })} />}
+          {/* the bar filled by what has come back; its words what is still to come */}
+          {share != null && <HeadShare share={share} label={t("replacedPending", { share: 100 - share })} />}
           {action}
         </>
       }>
