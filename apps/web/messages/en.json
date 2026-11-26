@@ -2388,7 +2388,7 @@
         "busy": "Too many saves. Wait a minute and try again.",
         "failed": "Couldn't save the return. Try again."
       },
-      "returnSale": "Return",
+      "returnSale": "Record return",
       "ask": {
         "title": "Return this sale?",
         "body": "It was sold {days, plural, =0 {today} =1 {1 day ago} other {# days ago}}. Do you want to return?",
@@ -2519,7 +2519,7 @@
         "busy": "Too many saves. Wait a minute and try again.",
         "failed": "Couldn't save the return. Try again."
       },
-      "returnPurchase": "Return",
+      "returnPurchase": "Record return",
       "ask": {
         "title": "Return this purchase?",
         "body": "It was bought {days, plural, =0 {today} =1 {1 day ago} other {# days ago}}. Do you want to return?",
@@ -3040,6 +3040,8 @@
     "pendingReturn": "Pending return",
     "replacements": "Replacements",
     "replacedPending": "{share}% pending",
-    "editPurchase": "Edit purchase"
+    "editPurchase": "Edit purchase",
+    "returnedShare": "{share}% returned",
+    "noReturns": "No returns yet."
   }
 }

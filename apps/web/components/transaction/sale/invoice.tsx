@@ -186,7 +186,6 @@ export function SaleInvoice({
             <Download className="size-4" aria-hidden /> {t("download")}
           </button>
           {/* Return: while something of it can still come back */}
-          {canAsk && <ReturnButton id={id} saleDay={d.invoiceDate} className={pill} />}
           {/* Edit sale: greyed once its GSTR-1 month is filed, goods came back on it, or it's an exchange's sale */}
           {canAsk &&
             (blocked === "gstFiled" || blocked === "saleReturned" || blocked === "exchangeSale" ? (
@@ -478,7 +477,15 @@ export function SaleInvoice({
       </article>
 
       {/* in History: the sale's returns, under the invoice */}
-      {record && <ReturnsLog returns={record.returns} returnOnly />}
+      {record && (
+        <ReturnsLog
+          returns={record.returns}
+          returnOnly
+          share={record.returnedShare}
+          // Return: while something of it can still come back (the admin's)
+          action={canAsk && <ReturnButton id={id} saleDay={d.invoiceDate} className={pill} />}
+        />
+      )}
 
       {/* and its edits: the date and the total as they changed */}
       {record && <EditLog edits={record.edits} />}

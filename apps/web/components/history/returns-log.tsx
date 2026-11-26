@@ -12,81 +12,161 @@ import type { HistoryTransaction } from "~/providers/history";
 
 // a day as the log rows show it: "26 Nov 2026"
 export const logDay = (d: Date, locale: string) =>
-  d.toLocaleDateString(`${locale}-IN`, { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+  d.toLocaleDateString(`${locale}-IN`, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Kolkata",
+  });
 
 // under a sale's invoice or a purchase's (not printed): its returns, oldest first. Each one's ID (with its copy button),
 // day and total, opening its credit (or debit) note, whose replacements are listed under it. `returnOnly`: the Return
 // column alone (both use it now); otherwise a Replacement column beside it. A purchase return with replaced packs still
 // to come carries a bar of how much is pending under its total. Cancelled:
 // faded, the totals struck through
-export function ReturnsLog({ returns, returnOnly = false }: { returns: HistoryTransaction["returns"]; returnOnly?: boolean }) {
+// The section is always there (none yet: said so); at the right of its heading, the share of packs gone back and
+// `action` (the Return button)
+export function ReturnsLog({
+  returns,
+  returnOnly = false,
+  share,
+  action,
+}: {
+  returns: HistoryTransaction["returns"];
+  returnOnly?: boolean;
+  share?: number | null;
+  action?: ReactNode;
+}) {
   const t = useTranslations("history");
   const locale = useLocale();
-  if (returns.length === 0) return null;
   return (
-    <LogSection id="returns-log" heading={t("returns")}>
-      <table className="w-full table-fixed border-collapse">
-        {/* the two headings */}
-        {/* <thead>
+    <LogSection
+      id="returns-log"
+      heading={t("returns")}
+      right={
+        <>
+          {/* how much has gone back: a thin bar filled ivory, its share beside it */}
+          {share != null && (
+            <span className="flex items-center gap-2">
+              <span
+                role="progressbar"
+                aria-valuenow={share}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={t("returnedShare", { share })}
+                className="block h-1.5 w-20 overflow-hidden rounded-full bg-ivory/20"
+              >
+                <i className="block h-full rounded-full bg-ivory" style={{ width: `${share}%` }} />
+              </span>
+              <span className="tabular text-xs font-semibold text-ivory/70">{t("returnedShare", { share })}</span>
+            </span>
+          )}
+          {action}
+        </>
+      }
+    >
+      {returns.length === 0 ? (
+        <p className="px-4 py-3.5 text-sm text-chestnut/65">{t("noReturns")}</p>
+      ) : (
+        <table className="w-full table-fixed border-collapse">
+          {/* the two headings */}
+          {/* <thead>
           <tr className="border-b border-chestnut/15 text-left text-xs text-chestnut/65">
             <th className="px-3 pb-2 pt-2.5 font-semibold sm:px-4">{t("returnColumn")}</th>
             {!returnOnly && <th className="border-l border-chestnut/15 px-3 pb-2 pt-2.5 font-semibold sm:px-4">{t("replacement")}</th>}
           </tr>
         </thead> */}
-        <tbody>
-          {returns.map((r) => {
-            const cancelled = r.status === "cancelled";
-            // replaced packs still to come: how much of them is pending
-            const pending = r.replaced && r.replaced.back < r.replaced.sent ? Math.round(((r.replaced.sent - r.replaced.back) / r.replaced.sent) * 100) : null;
-            return (
-              <tr key={r.transactionId} className={cn("border-t border-chestnut/15 first:border-t-0", cancelled && "opacity-60")}>
-                {/* the return: to its credit (or debit) note */}
-                <td className="p-0 align-top">
-                  <LogCell
-                    href={`/history/${r.transactionId}`}
-                    id={r.assignedId}
-                    day={logDay(new Date(`${r.returnDate}T12:00:00+05:30`), locale)}
-                    total={r.total}
-                    struck={cancelled}
-                    openLabel={t("open")}
-                    under={pending !== null && !cancelled ? <PendingBar share={pending} label={t("replacedPending", { share: pending })} /> : undefined}
-                  />
-                </td>
-                {/* the replacement sale: to its invoice */}
-                {!returnOnly && (
-                  <td className="border-l border-chestnut/15 p-0 align-top">
-                    {r.replacement ? (
-                      <LogCell
-                        href={`/history/${r.replacement.transactionId}`}
-                        id={r.replacement.assignedId}
-                        day={logDay(new Date(r.replacement.dateTime), locale)}
-                        total={r.replacement.total}
-                        struck={cancelled}
-                        openLabel={t("open")}
-                      />
-                    ) : (
-                      <span className="flex min-h-16 items-center px-3 py-2.5 font-semibold text-chestnut/40 sm:px-4">–</span>
-                    )}
+          <tbody>
+            {returns.map((r) => {
+              const cancelled = r.status === "cancelled";
+              // replaced packs still to come: how much of them is pending
+              const pending =
+                r.replaced && r.replaced.back < r.replaced.sent
+                  ? Math.round(((r.replaced.sent - r.replaced.back) / r.replaced.sent) * 100)
+                  : null;
+              return (
+                <tr
+                  key={r.transactionId}
+                  className={cn(
+                    "border-t border-chestnut/15 first:border-t-0",
+                    cancelled && "opacity-60",
+                  )}
+                >
+                  {/* the return: to its credit (or debit) note */}
+                  <td className="p-0 align-top">
+                    <LogCell
+                      href={`/history/${r.transactionId}`}
+                      id={r.assignedId}
+                      day={logDay(new Date(`${r.returnDate}T12:00:00+05:30`), locale)}
+                      total={r.total}
+                      struck={cancelled}
+                      openLabel={t("open")}
+                      under={
+                        pending !== null && !cancelled ? (
+                          <PendingBar
+                            share={pending}
+                            label={t("replacedPending", { share: pending })}
+                          />
+                        ) : undefined
+                      }
+                    />
                   </td>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                  {/* the replacement sale: to its invoice */}
+                  {!returnOnly && (
+                    <td className="border-l border-chestnut/15 p-0 align-top">
+                      {r.replacement ? (
+                        <LogCell
+                          href={`/history/${r.replacement.transactionId}`}
+                          id={r.replacement.assignedId}
+                          day={logDay(new Date(r.replacement.dateTime), locale)}
+                          total={r.replacement.total}
+                          struck={cancelled}
+                          openLabel={t("open")}
+                        />
+                      ) : (
+                        <span className="flex min-h-16 items-center px-3 py-2.5 font-semibold text-chestnut/40 sm:px-4">
+                          –
+                        </span>
+                      )}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
     </LogSection>
   );
 }
 
-// a log under a document (not printed): its small heading, then the ivory box; at most this tall, its rows scrolling
-// inside with the heading held at the top while they're in view
-export function LogSection({ id, heading, children }: { id: string; heading: string; children: ReactNode }) {
+// a log under a document (not printed): its small heading (anything `right` at its right end), then the ivory box; at
+// most this tall, its rows scrolling inside with the heading held at the top while they're in view
+export function LogSection({
+  id,
+  heading,
+  right,
+  children,
+}: {
+  id: string;
+  heading: string;
+  right?: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <section aria-labelledby={id} className="no-print mt-6 flex max-h-80 flex-col overflow-y-auto overscroll-contain rounded-control [scrollbar-width:thin]">
-      <h2 id={id} className="sticky top-0 z-10 bg-chestnut pb-2 text-xs font-semibold uppercase tracking-[0.08em] text-ivory/70">
-        {heading}
-      </h2>
-      <div className="on-ivory shrink-0 overflow-hidden rounded-control bg-ivory text-chestnut">{children}</div>
+    <section
+      aria-labelledby={id}
+      className="no-print mt-6 flex max-h-80 flex-col overflow-y-auto overscroll-contain rounded-control [scrollbar-width:thin]"
+    >
+      <div className="sticky top-0 z-10 flex min-h-9 items-center justify-between gap-3 bg-chestnut pb-2">
+        <h2 id={id} className="text-xs font-semibold uppercase tracking-[0.08em] text-ivory/70">
+          {heading}
+        </h2>
+        {right && <div className="flex shrink-0 items-center gap-3">{right}</div>}
+      </div>
+      <div className="on-ivory shrink-0 overflow-hidden rounded-control bg-ivory text-chestnut">
+        {children}
+      </div>
     </section>
   );
 }
@@ -113,7 +193,11 @@ export function LogCell({
 }) {
   return (
     <div className="relative flex min-h-16 flex-col gap-1.5 px-3 py-2.5 hover:bg-chestnut/[0.05] sm:flex-row sm:items-center sm:justify-between sm:gap-2.5 sm:px-4 sm:py-3">
-      <Link href={href} aria-label={`${openLabel}: ${id}`} className="absolute inset-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-chestnut" />
+      <Link
+        href={href}
+        aria-label={`${openLabel}: ${id}`}
+        className="absolute inset-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-chestnut"
+      />
       <span className="pointer-events-none flex min-w-0 flex-col gap-0.5">
         <span className="tabular flex items-center gap-1 text-sm font-semibold sm:text-[0.9375rem]">
           <Hash className="size-3.5 shrink-0" aria-hidden />
@@ -129,7 +213,14 @@ export function LogCell({
       </span>
       <span className="pointer-events-none flex shrink-0 items-center justify-between gap-1.5">
         <span className="flex flex-col gap-1.5 sm:items-end">
-          <span className={cn("tabular font-heading text-base font-bold leading-none sm:text-lg", struck && "line-through")}>{rupees(total)}</span>
+          <span
+            className={cn(
+              "tabular font-heading text-base font-bold leading-none sm:text-lg",
+              struck && "line-through",
+            )}
+          >
+            {rupees(total)}
+          </span>
           {under}
         </span>
         <ChevronRight className="size-5 text-chestnut/50" aria-hidden />
@@ -143,7 +234,14 @@ export function LogCell({
 function PendingBar({ share, label }: { share: number; label: string }) {
   return (
     <span className="flex w-28 flex-col gap-1 sm:items-end">
-      <span role="progressbar" aria-valuenow={100 - share} aria-valuemin={0} aria-valuemax={100} aria-label={label} className="block h-1.5 w-full overflow-hidden rounded-full bg-chestnut/12">
+      <span
+        role="progressbar"
+        aria-valuenow={100 - share}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={label}
+        className="block h-1.5 w-full overflow-hidden rounded-full bg-chestnut/12"
+      >
         <i className="block h-full rounded-full bg-chestnut" style={{ width: `${100 - share}%` }} />
       </span>
       <span className="tabular text-[0.6875rem] font-semibold text-chestnut/65">{label}</span>

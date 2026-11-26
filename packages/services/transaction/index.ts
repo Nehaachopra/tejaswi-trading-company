@@ -480,6 +480,44 @@ export default class TransactionService {
     return rows.map((r) => ({ transactionId: r.transactionId, assignedId: r.assignedId, date: r.date, total: Number(r.total), status: r.status === "cancelled" ? ("cancelled" as const) : ("active" as const) }));
   }
 
+  // what share of a sale's or purchase's packs went back on returns still in place (replaced ones too), 0 to 100
+  private async returnedShare(transactionId: string, type: TransactionType): Promise<number | null> {
+    let had = 0;
+    let back = 0;
+    if (type === "sale") {
+      const [h] = await db
+        .select({ q: sql<number>`coalesce(sum(${saleProductsTable.quantity}), 0)::int` })
+        .from(saleProductsTable)
+        .innerJoin(salesTable, eq(salesTable.id, saleProductsTable.saleId))
+        .where(eq(salesTable.transactionId, transactionId));
+      const [b] = await db
+        .select({ q: sql<number>`coalesce(sum(${saleReturnProductsTable.quantity}), 0)::int` })
+        .from(saleReturnProductsTable)
+        .innerJoin(saleReturnsTable, eq(saleReturnsTable.id, saleReturnProductsTable.returnId))
+        .innerJoin(transactionsTable, eq(transactionsTable.id, saleReturnsTable.transactionId))
+        .innerJoin(salesTable, eq(salesTable.id, saleReturnsTable.saleId))
+        .where(and(eq(salesTable.transactionId, transactionId), eq(transactionsTable.status, "active")));
+      had = h?.q ?? 0;
+      back = b?.q ?? 0;
+    } else if (type === "purchase") {
+      const [h] = await db
+        .select({ q: sql<number>`coalesce(sum(${purchaseProductsTable.quantity}), 0)::int` })
+        .from(purchaseProductsTable)
+        .innerJoin(purchasesTable, eq(purchasesTable.id, purchaseProductsTable.purchaseId))
+        .where(eq(purchasesTable.transactionId, transactionId));
+      const [b] = await db
+        .select({ q: sql<number>`coalesce(sum(${purchaseReturnProductsTable.quantity}), 0)::int` })
+        .from(purchaseReturnProductsTable)
+        .innerJoin(purchaseReturnsTable, eq(purchaseReturnsTable.id, purchaseReturnProductsTable.returnId))
+        .innerJoin(transactionsTable, eq(transactionsTable.id, purchaseReturnsTable.transactionId))
+        .innerJoin(purchasesTable, eq(purchasesTable.id, purchaseReturnsTable.purchaseId))
+        .where(and(eq(purchasesTable.transactionId, transactionId), eq(transactionsTable.status, "active")));
+      had = h?.q ?? 0;
+      back = b?.q ?? 0;
+    } else return null;
+    return had === 0 ? 0 : Math.min(100, Math.round((back / had) * 100));
+  }
+
   // the return a sale or purchase was made as the replacement for (a sale: the return's exchange sale; a purchase: one
   // its replaced packs came on), if any
   private async replacementFor(transactionId: string, type: TransactionType): Promise<TransactionModel["replacementFor"]> {
@@ -606,6 +644,7 @@ export default class TransactionService {
             : null,
       returns: t.type === "sale" ? await this.returnsOf(t.id) : t.type === "purchase" ? await this.purchaseReturnsOf(t.id) : [],
       replacementFor: await this.replacementFor(t.id, t.type),
+      returnedShare: await this.returnedShare(t.id, t.type),
       ...(t.type === "purchase_return"
         ? await this.replacementsOf(t.id)
         : t.type === "sale_return"

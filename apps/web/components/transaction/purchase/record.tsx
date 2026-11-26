@@ -116,8 +116,6 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
           <button type="button" onClick={() => window.print()} className={pill}>
             <Download className="size-4" aria-hidden /> {ti("download")}
           </button>
-          {/* Return: while something of it can still go back */}
-          {canAsk && <PurchaseReturnButton id={id} purchaseDay={d.invoiceDate} className={pill} />}
           {/* Edit purchase: greyed once its GSTR-3B month is filed, goods went back on it, or it's a return's replacement */}
           {canAsk &&
             (record.returned || record.cancelBlockedBy === "gstFiled" || record.cancelBlockedBy === "replacementPurchase" ? (
@@ -312,7 +310,13 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
       </article>
 
       {/* the purchase's returns, under it (each one's replacements are under its debit note) */}
-      <ReturnsLog returns={record.returns} returnOnly />
+      <ReturnsLog
+        returns={record.returns}
+        returnOnly
+        share={record.returnedShare}
+        // Return: while something of it can still go back (the admin's)
+        action={canAsk && <PurchaseReturnButton id={id} purchaseDay={d.invoiceDate} className={pill} />}
+      />
 
       {/* and its edits */}
       <EditLog edits={record.edits} />
