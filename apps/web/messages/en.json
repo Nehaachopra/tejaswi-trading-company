@@ -2052,7 +2052,8 @@
         "toPay": "To pay",
         "toReceive": "To receive",
         "leftToReceive": "Left to receive",
-        "missingCost": "Give every item a cost."
+        "missingCost": "Give every item a cost.",
+        "billLeft": "Bill left"
       }
     },
     "sale": {

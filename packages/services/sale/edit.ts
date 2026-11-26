@@ -6,6 +6,7 @@ import {
   duesTable,
   godownsTable,
   ledgerEntriesTable,
+  ledgersTable,
   partiesTable,
   productGodownsTable,
   saleOrderProductsTable,
@@ -33,9 +34,10 @@ import StockEngine, { type Tx } from "../stock/engine";
 import TransactionService from "../transaction";
 import { settleLedger } from "../transaction/settle";
 import { type EditSaleInputModel, editSaleInputModel, type SaleForEditModel } from "./edit-model";
+import { tdsOn } from "../receipt/model";
 import { figureSale } from "./figures";
 import SaleService from "./index";
-import type { SaleAddressInputModel, SaleIdInputModel, SavedSaleModel } from "./model";
+import { SALE_TDS_RATE, type SaleAddressInputModel, type SaleIdInputModel, type SavedSaleModel } from "./model";
 
 // the day and the month a moment falls in, in India
 const indiaDay = (at: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(at);
@@ -325,12 +327,30 @@ export default class SaleEditService {
       // at once; credit: nothing moves
       let received = 0;
       let refunded = 0;
+      // a customer's, as a cash sale's: the TDS they deducted on what came in, and an advance of theirs set off
+      let tds = 0;
+      let setOff = 0;
       if (input.kind === "cash") {
         if (balance > 0) {
           if (!customer && moved !== balance) throw new TRPCError({ code: "BAD_REQUEST", message: "Cash and bank must add up to what's left to receive." });
-          // (a customer's bill left as it was, still cash: nothing need come in now; what's left stays owed)
-          const sameBill = total === toPaise(Number(t.amount)) && sale.transactedIn === input.kind;
-          if (customer && (moved > balance || (moved <= 0 && !sameBill))) throw new TRPCError({ code: "BAD_REQUEST", message: "Receive some of what's left, and no more." });
+          if (customer) {
+            // their account besides this bill: what they owe from before, or an advance with us
+            const [l] = await tx.select({ balance: ledgersTable.balance, side: ledgersTable.balanceType }).from(ledgersTable).where(eq(ledgersTable.id, customer.ledgerId));
+            const account = l ? (l.side === "debit" ? 1 : -1) * toPaise(Number(l.balance)) : 0;
+            const besides = account - (due ? toPaise(due.amount) - paid : 0);
+            setOff = input.advanceSetOff ? Math.min(Math.max(0, -besides), balance) : 0;
+            const most = balance - setOff + Math.max(0, besides);
+            tds = input.tdsDeducted ? toPaise(tdsOn(moved / 100, SALE_TDS_RATE)) : 0;
+            // a paisa off the bill or all they owe from rounding is taken as exactly that
+            if (input.tdsDeducted) for (const target of [balance - setOff, most]) if (Math.abs(moved + tds - target) <= 1) tds = target - moved;
+            // (a bill left as it was, still cash: nothing need come in now; what's left stays owed)
+            const sameBill = total === toPaise(Number(t.amount)) && sale.transactedIn === input.kind;
+            if (moved + tds > most || (moved <= 0 && setOff === 0 && !sameBill)) throw new TRPCError({ code: "BAD_REQUEST", message: "Receive some of what they owe, and no more." });
+            if (tds > 0) {
+              if (!customer.party.pan && !input.customerPan) throw new TRPCError({ code: "BAD_REQUEST", message: "Give the customer's PAN." });
+              if (!customer.party.pan) await tx.update(partiesTable).set({ pan: input.customerPan }).where(eq(partiesTable.id, customer.party.id));
+            }
+          }
           received = moved;
         } else if (balance < 0) {
           if (moved !== -balance) throw new TRPCError({ code: "BAD_REQUEST", message: "Refund what was paid over, in full." });
@@ -349,7 +369,8 @@ export default class SaleEditService {
       for (const b of input.bankParts) moneyLedgers.push({ ledgerId: await settleLedger(tx, this.accounts, "bank", b.bankDetailsId), part: b, paise: toPaise(b.amount) });
       for (const m of moneyLedgers) raw.push({ ledgerId: m.ledgerId, paise: refunded > 0 ? -m.paise : m.paise });
       // the customer: owes the bill, less what's come in through this sale (now and before, TDS too), plus a refund
-      if (customer) raw.push({ ledgerId: customer.ledgerId, paise: total - (moneyAll + received - refunded) });
+      if (tds > 0) raw.push({ ledgerId: await this.accounts.ledgerId(tx, "tdsReceivable"), paise: tds });
+      if (customer) raw.push({ ledgerId: customer.ledgerId, paise: total - (moneyAll + received + tds - refunded) });
       else if (moneyAll + received - refunded !== total) throw new TRPCError({ code: "BAD_REQUEST", message: "Cash and bank must add up to the total." });
       if (off > 0) raw.push({ ledgerId: await this.accounts.ledgerId(tx, "discountGiven"), paise: off });
       raw.push({ ledgerId: await this.accounts.ledgerId(tx, "sale"), paise: -(priced.subtotal + chargeTaxable + roundOff) });
@@ -517,7 +538,7 @@ export default class SaleEditService {
           if (settled > 0) await tx.insert(dueSettlementsTable).values({ dueId, transactionId: t.id, amount: fromPaise(settled) });
         }
         // what came in now settles what they owe, oldest first, as a sale's does
-        if (received > 0) await this.dues.settleOldestIn(tx, { kind: "debtor", partyId: customer.party.id, transactionId: t.id, amount: received / 100 });
+        if (received + tds + setOff > 0) await this.dues.settleOldestIn(tx, { kind: "debtor", partyId: customer.party.id, transactionId: t.id, amount: (received + tds + setOff) / 100 });
       }
 
       // the credit period kept with the sale: credit with one has it (changed or added), anything else has none
@@ -555,6 +576,7 @@ export default class SaleEditService {
         { field: "remarks", old: sale.remarks, new: input.remarks },
         { field: "customer", old: sale.partyNameSnapshot, new: party?.name ?? input.buyer?.name ?? sale.partyNameSnapshot },
         ...(received > 0 ? [{ field: "received", old: null, new: received / 100 }] : []),
+        ...(tds > 0 ? [{ field: "tds", old: null, new: tds / 100 }] : []),
         ...(refunded > 0 ? [{ field: "refunded", old: null, new: refunded / 100 }] : []),
       ].filter((c) => JSON.stringify(c.old) !== JSON.stringify(c.new));
       // nothing changed: no edit is recorded

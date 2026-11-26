@@ -2052,7 +2052,8 @@
         "toPay": "ಪಾವತಿಸಬೇಕು",
         "toReceive": "ಹಿಂದೆ ಬರಬೇಕು",
         "leftToReceive": "ಬರಲು ಬಾಕಿ",
-        "missingCost": "ಪ್ರತಿ ಐಟಂಗೆ ಬೆಲೆ ಹಾಕಿ."
+        "missingCost": "ಪ್ರತಿ ಐಟಂಗೆ ಬೆಲೆ ಹಾಕಿ.",
+        "billLeft": "ಬಿಲ್ ಬಾಕಿ"
       }
     },
     "sale": {

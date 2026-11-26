@@ -26,6 +26,17 @@ export const editSaleInputModel = z
     // cash: what's received now (or refunded, when the bill went down), in cash and bank accounts
     cashAmount: rupeesModel.default(0),
     bankParts: z.array(moreBankPartModel).max(5).default([]),
+    // cash, to a saved customer: they deducted TDS from what they paid (the law's rate), their PAN when none is saved,
+    // and an advance of theirs set off against the bill
+    tdsDeducted: z.boolean().default(false),
+    advanceSetOff: z.boolean().default(false),
+    customerPan: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z]{5}\d{4}[A-Z]$/, "A PAN is 5 letters, 4 digits and a letter.")
+      .nullable()
+      .default(null),
     // credit: days until it's due (none: no set period)
     creditPeriodDays: z.number().int().min(0).max(365).nullable().default(null),
     // a walk-in put on credit: the customer, picked or added now

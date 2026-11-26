@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { moreBankPartModel } from "../payment/model";
 import { imageUrlModel } from "../product/model";
+import { partyUpiIdModel } from "../party/model";
+import { appOfUpi } from "../bank/upi-handles";
 
 const idModel = z.string().uuid();
 const rupeesModel = z.number().min(0).max(9_999_999_999_999).multipleOf(0.01);
@@ -35,6 +37,13 @@ export const editPurchaseInputModel = z
     // cash: what's paid now (or taken back, when the bill went down), from cash and bank accounts
     cashAmount: rupeesModel.default(0),
     bankParts: z.array(moreBankPartModel).max(5).default([]),
+    // cash, the bill up: an advance already with the supplier set off against it (as much as it takes)
+    advanceSetOff: z.boolean().default(false),
+    // a part paid by UPI to a supplier with no UPI ID saved: the one typed for it, kept on them for next time
+    supplierUpiId: partyUpiIdModel
+      .refine((u) => appOfUpi(u) !== null, "That isn't a UPI handle (the part after @).")
+      .nullable()
+      .default(null),
     // credit: days until it's due (none: no set period)
     creditPeriodDays: z.number().int().min(0).max(365).nullable().default(null),
     vehicleNumber: z
@@ -66,7 +75,7 @@ export const purchaseForEditModel = z.object({
   supplierInvoiceNumber: z.string(),
   kind: z.enum(["cash", "credit"]),
   creditPeriodDays: z.number().int().nullable(),
-  supplier: z.object({ ledgerId: idModel, partyId: idModel, name: z.string() }),
+  supplier: z.object({ ledgerId: idModel, partyId: idModel, name: z.string(), upiIds: z.array(z.string()) }),
   supplyType: z.enum(["intra", "inter"]),
   // each item once: how many (fixed), a pack's rate before GST, the discount off the line, its GST %
   lines: z.array(z.object({ productId: idModel, name: z.string(), quantity: z.number().int(), rateBeforeGst: z.number(), discount: z.number(), gstRate: z.number() })),

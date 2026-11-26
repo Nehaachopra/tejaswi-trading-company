@@ -2,15 +2,19 @@
 
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { FieldMessage } from "~/components/ui/field-message";
+import { Note } from "~/components/ui/note";
+import { Switch } from "~/components/ui/switch";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 import { FixedBanner, TypedBanner } from "../shared/amount-banner";
 import { type AccountCardsApi } from "../shared/account-cards/types";
 import { Figure, type LeftItem, PaymentStage as SharedStage } from "../shared/payment-stage";
+import { PanPart } from "../sale/payment-stage";
+import { SALE_TDS_RATE } from "../sale/state";
 import { OriginalReceived } from "./original-received";
 import { useSaleEdit } from "./state";
 
@@ -23,6 +27,8 @@ export function PaymentStage() {
   const { t, credit, refunding, walkIn, editPaid, editLeft, received, total, tried } = e;
   const tr = useTranslations("transactions.receipt.form");
   const [originalOpen, setOriginalOpen] = useState(false);
+  const tdsLabel = useId();
+  const panBad = tried && e.panNeeded && !/^[A-Z]{5}\d{4}[A-Z]$/.test(e.pan);
   const saleCards = useEditCards();
   // a refund goes out of the cards: how it was paid, what's left to refund
   const cards: AccountCardsApi = refunding ? { ...saleCards, labels: { ...saleCards.labels, mode: t("edit.paidBy"), barLeft: t("edit.leftToRefund") } } : saleCards;
@@ -39,6 +45,8 @@ export function PaymentStage() {
   return (
     <SharedStage
       idPrefix="sale-edit"
+      // their PAN (TDS on, an amount in, none saved), as a cash sale's
+      top={e.tdsOnIt && received > 0 && e.panNeeded && <PanPart pan={e.pan} setPan={e.setPan} bad={panBad} />}
       breakupLabel={t("breakup")}
       amount={received}
       placed={e.gridTotal}
@@ -56,13 +64,14 @@ export function PaymentStage() {
             label={t("toReceiveOnly")}
             value={e.receivedText}
             onChange={e.typeReceived}
-            max={e.editDueLeft}
-            invalid={tried && received === 0}
+            max={e.most}
+            invalid={tried && received === 0 && e.setOff === 0}
+            required={e.setOff === 0}
           />
         )
       }
       breakup={{
-        heldAdvance: 0,
+        heldAdvance: e.heldAdvance,
         advanceLabel: tr("advancePart"),
         // (a walk-in has no account, so no old due)
         oldDue: e.hasAccount ? e.oldDue : null,
@@ -70,7 +79,7 @@ export function PaymentStage() {
         bill: total,
         billLabel: t("thisBill"),
         subTotalLabel: t("subTotal"),
-        setOff: { on: false, flip: () => {}, amount: 0, label: t("setOff") },
+        setOff: { on: e.setOffOn, flip: e.setSetOffOn, amount: e.setOff, label: t("setOff") },
         due: e.dueNow,
         dueLabel: tr("due"),
         // what the original sale received taken off, its ⌄ opening where it came in; then what's received now taken
@@ -105,7 +114,21 @@ export function PaymentStage() {
           </>
         ),
         pay: null,
+        // the TDS they deducted (a customer's cash): a switch, its rate once on
+        afterPay: e.tdsCan && (
+          <Figure
+            label={
+              <span className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span id={tdsLabel}>{e.tc("sum.tds")}</span>
+                <Switch small on={e.tdsOnIt} onFlip={e.flipTds} labelledBy={tdsLabel} />
+                {e.tdsOnIt && <span className="tabular text-xs font-semibold">{SALE_TDS_RATE}%</span>}
+              </span>
+            }
+            amount={e.tdsAmount > 0 ? `− ${rupees(e.tdsAmount)}` : rupees(0)}
+          />
+        ),
         left,
+        footer: e.tdsOnIt && received > 0 && <Note className="text-chestnut/70">{tr("tdsNote194Q")}</Note>,
       }}
     />
   );

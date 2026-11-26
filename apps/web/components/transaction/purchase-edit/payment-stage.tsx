@@ -1,24 +1,30 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
+import { FieldMessage } from "~/components/ui/field-message";
 import { rupees } from "~/lib/format";
 
 import { type AccountCardsApi } from "../shared/account-cards/types";
-import { FixedBanner } from "../shared/amount-banner";
+import { FixedBanner, TypedBanner } from "../shared/amount-banner";
 import { DueStage } from "../shared/due-stage";
-import { Figure, PaymentStage as SharedStage } from "../shared/payment-stage";
+import { Figure, type LeftItem, Line, PaymentStage as SharedStage } from "../shared/payment-stage";
+import { AutoSwitch } from "../shared/split-grid";
+import { UpiIdField } from "../shared/upi-id-field";
 import { usePurchaseEdit } from "./state";
 
-// an edit's payment stage. Cash: on the shared one, a fixed amount and a card for each place it moves through: the bill
-// below what was paid, the supplier gives the rest back (To receive, no cap, as a purchase return's refund); the bill
-// up, the rise is paid now (To pay, each place never more than it holds). Credit: the due stage, the bill less what was
-// paid, what we'll owe them after (an advance with them when it's below nothing) and the credit period (only when it
-// is on credit)
+// an edit's payment stage. Credit: the due stage (the bill, what was paid, what we'll owe after, the credit period).
+// Cash with the bill up: the purchase form's card: what's left with arrows to the breakup, To pay (typed, never more
+// than cash and the banks hold together), Left to pay with Auto, the cards. Cash with the bill down: To receive (the
+// whole cut, fixed) and a card for each place it comes into, as a purchase return's refund
 export function PaymentStage() {
   const e = usePurchaseEdit();
   const tr = useTranslations("transactions.receipt.form");
-  const cards = useMoveCards();
+  const payCards = usePaidCards();
+  const backCards = useBackCards();
+  // typed past what cash and the banks hold: cut to it, and it says so (until typed again)
+  const [cut, setCut] = useState(false);
 
   if (e.credit)
     return (
@@ -28,41 +34,158 @@ export function PaymentStage() {
         paid={e.paid > 0 ? { label: e.te("alreadyPaid"), amount: e.paid } : null}
         due={e.owedAfter}
         after={e.advanceAfter > 0 && <Figure label={e.ts("advanceLeft")} amount={rupees(e.advanceAfter)} />}
-        days={e.asksDays ? e.creditDays : undefined}
-        setDays={e.asksDays ? e.setCreditDays : undefined}
+        days={e.creditDays}
+        setDays={e.setCreditDays}
         tried={e.tried}
       />
     );
 
+  if (e.takingBack)
+    return (
+      <SharedStage
+        idPrefix="purchase-edit"
+        breakup={null}
+        breakupLabel={e.ts("breakup")}
+        amount={e.moving}
+        placed={e.splitTotal}
+        leftLabel={e.te("leftToReceive")}
+        nothingLeftLabel={tr("nothingLeft")}
+        cards={backCards}
+        amountBox={<FixedBanner label={e.te("toReceive")} amount={e.moving} />}
+      />
+    );
+
+  const amountBad = e.tried && e.payNow === 0 && e.setOff === 0;
+  // what's left of the advance: what wasn't set off, and what's paid past all that's due
+  const advanceLeft = Math.round((e.heldAdvance - e.setOff + e.advance) * 100) / 100;
+  const left: LeftItem[] =
+    e.dueLeft > 0 && advanceLeft > 0
+      ? [
+          { key: "advance", label: e.tpf("advanceLeft"), amount: advanceLeft },
+          { key: "due", label: e.tpf("leftDue"), amount: e.dueLeft },
+        ]
+      : e.dueLeft > 0
+        ? [{ key: "due", label: e.tpf("leftDue"), amount: e.dueLeft }]
+        : advanceLeft > 0 || (e.heldAdvance > 0 && e.oldDue === 0)
+          ? [{ key: "advance", label: e.tpf("advanceLeft"), amount: advanceLeft }]
+          : [{ key: "due", label: e.tpf("leftDue"), amount: 0 }];
+  // on the left: Due left always, ₹0 too (with an advance left, under it)
+  const leftSide = left.some((l) => l.key === "due") ? left : [...left, { key: "due", label: e.tpf("leftDue"), amount: 0 }];
+
   return (
     <SharedStage
       idPrefix="purchase-edit"
-      breakup={null}
-      breakupLabel={e.ts("breakup")}
-      amount={e.moving}
+      breakupLabel={e.t("breakup")}
+      leftSide={leftSide}
+      // To pay: never more than cash and the banks hold together, typing past it is cut there with a warning
+      amountBox={
+        <>
+          <TypedBanner
+            id="paid-field"
+            label={e.t("toPayAmount")}
+            value={e.paidText}
+            onChange={(v) => {
+              setCut(false);
+              e.typePaid(v);
+            }}
+            max={e.payCap ?? undefined}
+            onCapped={() => setCut(true)}
+            invalid={amountBad}
+            required={e.setOff === 0}
+          />
+          {cut && e.payCap !== null && (
+            <Line
+              value={
+                <FieldMessage tone="warning" className="mt-0">
+                  {e.tpf("capOnly", { amount: rupees(e.payCap) })}
+                </FieldMessage>
+              }
+            />
+          )}
+        </>
+      }
+      amount={e.payNow}
       placed={e.splitTotal}
-      leftLabel={e.takingBack ? e.te("leftToReceive") : e.tpf("leftToPay")}
-      nothingLeftLabel={e.takingBack ? tr("nothingLeft") : e.tpf("nothingLeft")}
-      cards={cards}
-      amountBox={<FixedBanner label={e.takingBack ? e.te("toReceive") : e.te("toPay")} amount={e.moving} />}
+      leftLabel={e.tpf("leftToPay")}
+      nothingLeftLabel={e.tpf("nothingLeft")}
+      // Auto beside Left to pay: the word over its switch (it fills the cards from what each holds)
+      leftSlot={<AutoSwitch stacked on={e.splitAuto} set={e.setSplitAuto} />}
+      cards={payCards}
+      breakup={{
+        heldAdvance: e.heldAdvance,
+        advanceLabel: e.tpf("advancePart"),
+        oldDue: e.oldDue,
+        oldDueLabel: e.t("oldDue"),
+        // this bill: what's left of it after what was paid towards it
+        bill: e.billLeft,
+        billLabel: e.te("billLeft"),
+        subTotalLabel: e.t("subTotal"),
+        setOff: { on: e.setOffOn, flip: e.setSetOffOn, amount: e.setOff, label: e.ts("setOff") },
+        due: e.dueNow,
+        dueLabel: e.tpf("due"),
+        pay: { label: e.tpf("payGroup"), toggleLabel: e.tpf("towardsGroup"), amount: e.payNow, whole: e.payNow, towardsOld: e.towardsOld, towardsBill: e.towardsBill, paidLabel: e.tpf("paidShare") },
+        left,
+      }}
     />
   );
 }
 
-// the cards: money coming back as a receipt's (no cap, balances hidden), money paid out as a payment's (each place
-// never more than it holds, balances shown); how each account moved it and its reference
-function useMoveCards(): AccountCardsApi {
+// the cards with a payment's words and parts (every field a row), as a purchase's: capped at what each place holds,
+// Auto, the supplier's QR in each card paying by UPI (their UPI ID asked once when none is kept)
+function usePaidCards(): AccountCardsApi {
+  const e = usePurchaseEdit();
+  return {
+    value: e.payNow,
+    places: e.places,
+    setText: e.setSplitText,
+    setMode: e.setBankMode,
+    tried: e.tried,
+    capAtHeld: true,
+    meterOutside: true,
+    modeRows: true,
+    placeFirst: true,
+    fieldRows: true,
+    auto: { on: e.splitAuto, set: e.setSplitAuto },
+    qrItems: e.qrItems,
+    qrIdLabel: e.tpf("supplierUpi"),
+    qrId: () => ({ hideId: e.upiId.editing, onEdit: () => e.upiId.setEditing(true) }),
+    upiPart: (place) =>
+      place.id === e.places.find((x) => x.amount > 0 && x.mode === "upi")?.id ? (
+        <UpiIdField row show={e.asksUpi && !e.upiKept} label={e.tpf("supplierUpi")} state={e.upiId} />
+      ) : null,
+    refs: e.refs,
+    setRefs: e.setRefs,
+    refLeft: e.refLeft,
+    setRefLeft: e.setRefLeft,
+    labels: {
+      breakdown: e.tpf("breakdown"),
+      account: e.tpf("account"),
+      balance: e.tpf("balance"),
+      accountAmount: e.tc("q.amount"),
+      anotherAccount: e.tpf("anotherAccount"),
+      removeAccount: e.tc("removeAccount"),
+      mode: e.tpf("paidBy"),
+      modeMissing: e.tpf("pickMode"),
+      barLeft: e.tpf("leftToPay"),
+      barDone: e.tpf("nothingLeft"),
+      capLeft: (amount) => e.tpf("capLeft", { amount }),
+      capOnly: (amount) => e.tpf("capOnly", { amount }),
+    },
+  };
+}
+
+// the cards for money coming back, as a receipt's (no cap, balances hidden), how each account received it
+function useBackCards(): AccountCardsApi {
   const e = usePurchaseEdit();
   const tr = useTranslations("transactions.receipt.form");
-  const back = e.takingBack;
   return {
     value: e.moving,
     places: e.places,
     setText: e.setSplitText,
     setMode: e.setBankMode,
     tried: e.tried,
-    capAtHeld: !back,
-    hideHeld: back,
+    capAtHeld: false,
+    hideHeld: true,
     meterOutside: true,
     modeRows: true,
     placeFirst: true,
@@ -77,16 +200,15 @@ function useMoveCards(): AccountCardsApi {
     labels: {
       breakdown: e.tpf("breakdown"),
       account: e.tpf("account"),
-      balance: e.tpf("balance"),
-      accountAmount: back ? tr("accountAmount") : e.tc("q.amount"),
+      accountAmount: tr("accountAmount"),
       anotherAccount: e.tpf("anotherAccount"),
       removeAccount: e.tc("removeAccount"),
-      mode: back ? tr("receivedBy") : e.tpf("paidBy"),
-      modeMissing: back ? tr("pickMode") : e.tpf("pickMode"),
-      barLeft: back ? e.te("leftToReceive") : e.tpf("leftToPay"),
-      barDone: back ? tr("nothingLeft") : e.tpf("nothingLeft"),
-      capLeft: (amount) => (back ? tr("capLeft", { amount }) : e.tpf("capLeft", { amount })),
-      capOnly: (amount) => (back ? tr("capLeft", { amount }) : e.tpf("capOnly", { amount })),
+      mode: tr("receivedBy"),
+      modeMissing: tr("pickMode"),
+      barLeft: e.te("leftToReceive"),
+      barDone: tr("nothingLeft"),
+      capLeft: (amount) => tr("capLeft", { amount }),
+      capOnly: (amount) => tr("capLeft", { amount }),
     },
   };
 }

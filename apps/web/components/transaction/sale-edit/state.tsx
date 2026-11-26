@@ -25,7 +25,8 @@ import type { StateCode } from "../../account/party/party-kinds";
 import type { Pack, ProductGroup } from "../../product/products/product-tile";
 import type { LedgerChoice, Pickable } from "../pickers/ledger-picker";
 import { usePhoneMatches } from "../pickers/party-finder";
-import { lineFigures } from "../sale/state";
+import { tdsOn } from "../receipt/shared";
+import { lineFigures, SALE_TDS_RATE } from "../sale/state";
 import { refOkFor } from "../shared/bank-mode";
 import { moveCard, useCardHistory } from "../shared/card-steps";
 import { momentOf } from "../shared/form-basics";
@@ -176,16 +177,37 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
     : picked?.party
       ? Math.max(0, balanceOf(picked))
       : 0;
-  const dueNow = round2(oldDue + total);
+  // a customer's cash with something left to receive, as a cash sale's: an advance of theirs (their account besides this
+  // bill, in credit) set off unless switched off, the TDS they deducted (a switch) and their PAN when none is saved
+  const tdsCan = kind === "cash" && !walkIn && balance > 0;
+  const heldAdvance = tdsCan && ledger?.party ? Math.max(0, round2(-(balanceOf(ledger) - (sale.total - editPaid)))) : 0;
+  const [setOffOn, setSetOffOn] = useState(true);
+  const setOff = tdsCan && setOffOn ? Math.min(heldAdvance, editDueLeft) : 0;
+  const [tdsOnIt, setTdsOnIt] = useState(false);
+  const tdsIs = tdsCan && tdsOnIt;
+  const [pan, setPan] = useState("");
+  const panNeeded = tdsIs && !ledger?.party?.hasPan;
+  const panOk = !panNeeded || /^[A-Z]{5}\d{4}[A-Z]$/.test(pan);
+  // the most they can pay now: what's left of this bill (less the advance set off) and all they owe from before
+  const most = round2(editDueLeft - setOff + oldDue);
+  const dueNow = round2(oldDue + total - setOff);
   // credit: what they'll owe after this bill (what was paid towards it taken off)
   const creditDue = Math.max(0, round2(oldDue + balance));
   // what's received now: a customer types any part of what's left; a walk-in pays all of it; a refund gives back what's
   // paid over
   const [receivedText, setReceivedText] = useState("");
-  const received = credit ? 0 : balance < 0 ? -balance : walkIn ? balance : Math.min(parseAmount(receivedText) ?? 0, balance);
-  // what stays owed on the account: the old due and this bill, less what was paid and what's taken now (a refund gives
-  // back only what's paid over, so the old due stays)
-  const editLeft = refunding ? oldDue : Math.max(0, round2(oldDue + editDueLeft - received));
+  const received = credit ? 0 : balance < 0 ? -balance : walkIn ? balance : Math.min(parseAmount(receivedText) ?? 0, most);
+  // the TDS on what came in (a paisa off the bill or all they owe from rounding taken as exactly that), and what it
+  // settles; it goes to the older dues first, then this bill
+  let tdsAmount = tdsIs && received > 0 ? tdsOn(received, SALE_TDS_RATE) : 0;
+  if (tdsIs && received > 0)
+    for (const target of [round2(editDueLeft - setOff), most]) if (Math.abs(round2(received + tdsAmount) - target) < 0.015) tdsAmount = round2(target - received);
+  const settles = round2(received + tdsAmount);
+  const towardsOld = tdsCan ? Math.min(settles, oldDue) : 0;
+  const towardsBill = tdsCan ? Math.min(round2(settles - towardsOld), round2(editDueLeft - setOff)) : 0;
+  // what stays owed on the account: the old due and this bill, less what was paid, the advance set off and what's
+  // settled now (a refund gives back only what's paid over, so the old due stays)
+  const editLeft = refunding ? oldDue : Math.max(0, round2(oldDue + editDueLeft - setOff - settles));
 
   // cash: a card each for cash and every bank account, what came in (or went out) typed
   const [gridTexts, setGridTexts] = useState<Record<string, string>>({});
@@ -243,7 +265,7 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
     customer: !needsCustomer || customer?.kind === "ledger" || (customer?.kind === "party" && !matched && partyOk(newParty, true)),
     // credit: its period never more than 365 days
     // (nothing about the money changed: nothing to take now)
-    payment: untouched || (credit ? creditDays === "" || Number(creditDays) <= 365 : balance === 0 || (received > 0 && intoOk)),
+    payment: untouched || (credit ? creditDays === "" || Number(creditDays) <= 365 : balance === 0 || (((received > 0 && intoOk) || (received === 0 && setOff > 0)) && panOk)),
     details: day !== "",
   };
   const missingOf = (s: EditStep) =>
@@ -255,8 +277,10 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
           ? t("missing.customer")
           : credit
             ? tp("missing.creditDays")
-            : received === 0
+            : received === 0 && setOff === 0
               ? t("missing.received")
+              : !panOk
+                ? t("missing.pan")
               : gridTotal < received
                 ? t("missing.left", { amount: rupees(round2(received - gridTotal)) })
                 : t("missing.into");
@@ -376,6 +400,9 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
           ? gridAccs.map((p) => ({ bankDetailsId: p.id, amount: p.amount, mode: p.mode!, referenceNumber: refOf(p.id, p.mode).trim() || null }))
           : [],
       // a walk-in put on credit: the customer picked or added now (billed and sent to their own address)
+      tdsDeducted: tdsIs && received > 0,
+      advanceSetOff: setOff > 0,
+      customerPan: panNeeded ? pan : null,
       customerLedgerId: needsCustomer && customer?.kind === "ledger" ? customer.ledger.id : null,
       newCustomer: needsCustomer && customer?.kind === "party" ? partyInput(newParty) : null,
       // otherwise where it was billed and sent, as saved (a walk-in's typed name, phone and addresses too)
@@ -439,6 +466,21 @@ export function useSaleEditState({ sale, ledger, products, banks, saveEdit, savi
     hasAccount: !!ledger?.party || !!picked?.party,
     received,
     receivedText,
+    tdsCan,
+    tdsOnIt: tdsIs,
+    flipTds: setTdsOnIt,
+    tdsAmount,
+    settles,
+    towardsOld,
+    towardsBill,
+    pan,
+    setPan,
+    panNeeded,
+    heldAdvance,
+    setOffOn,
+    setSetOffOn,
+    setOff,
+    most,
     typeReceived: setReceivedText,
     gridPlaces,
     setGridText: (id: string, text: string) => setGridTexts((all) => ({ ...all, [id]: text })),

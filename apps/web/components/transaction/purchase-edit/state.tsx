@@ -1,6 +1,6 @@
 "use client";
 
-import type { BankMode, RouterInputs } from "@repo/trpc/client";
+import { appOfUpi, type BankMode, type RouterInputs, upiFormatOk } from "@repo/trpc/client";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { createContext, useContext, useState } from "react";
@@ -19,6 +19,7 @@ import { billNumberOk } from "../purchase/state";
 import { refOkFor } from "../shared/bank-mode";
 import { moveCard, useCardHistory } from "../shared/card-steps";
 import { momentOf } from "../shared/form-basics";
+import type { QrItem } from "../shared/qr-spot";
 import type { GridPlace } from "../shared/split-grid";
 
 // the stages, in order, as an edited sale's: the cart (prices only), cash or credit and the payment (only when money
@@ -107,62 +108,116 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
   const costsOk = figures.every((f) => f.rate > 0);
   const pricesChanged = lines.some((l) => rateOf(l) !== Math.round(savedLine(l.productId).rateBeforeGst * 100));
 
-  // the money, asked whenever the total changed: cash or credit. The bill up: cash pays the rise now, credit owes it.
-  // The bill down: cash, the supplier pays the cut back now (as a return's cash refund); credit, it comes off what we
-  // owe (past it, an advance)
+  // the money, asked whenever the total changed: cash or credit. The bill up, cash: any amount paid now, as a purchase's
+  // payment (older dues first; past all that's due an advance), an advance with them set off unless switched off;
+  // credit owes it. The bill down, cash: the supplier pays the whole cut back now (as a return's cash refund); credit,
+  // it comes off what we owe (past it, an advance)
   const paid = p.paid;
   const rise = round2(total - p.total);
   const asksMoney = pricesChanged && rise !== 0;
   const [kind, setKind] = useState<"cash" | "credit" | null>(null);
-  // cash, as a return's cash refund: the whole cut comes back now, or the whole rise is paid now
-  const cashBack = asksMoney && kind === "cash" && rise < 0 ? -rise : 0;
-  const cashPay = asksMoney && kind === "cash" && rise > 0 ? rise : 0;
-  const takingBack = cashBack > 0;
-  const paying = cashPay > 0;
-  const moving = takingBack ? cashBack : cashPay;
-  // the Due card: on credit only
   const credit = kind === "credit";
-  // the credit period: asked only on credit
-  const asksDays = kind === "credit";
-  // what we'll owe them after: with cash taken back, that much more again (it came out of what was paid)
+  const asksDays = credit;
+  const takingBack = asksMoney && kind === "cash" && rise < 0;
+  const paying = asksMoney && kind === "cash" && rise > 0;
   const [creditDays, setCreditDays] = useState(() => (p.kind === "credit" && p.creditPeriodDays !== null ? String(p.creditPeriodDays) : p.kind === "credit" ? "" : "30"));
-  // the supplier's account: what we owe them besides this bill, and after the edit (an advance when below nothing)
-  const oldDue = Math.max(0, round2(p.supplierBalance - (p.total - paid)));
-  const after = round2(p.supplierBalance + rise + cashBack - cashPay);
+  // the supplier's account besides this bill: what we owe them from before, or an advance with them
+  const besides = round2(p.supplierBalance - (p.total - paid));
+  const oldDue = Math.max(0, besides);
+  const heldAdvance = Math.max(0, -besides);
+  // what's left of this bill (after what was paid towards it), the advance set off, and all that's due with older dues
+  const billLeft = Math.max(0, round2(total - paid));
+  const [setOffOn, setSetOffOn] = useState(true);
+  const setOff = paying && setOffOn ? Math.min(heldAdvance, billLeft) : 0;
+  const dueNow = round2(oldDue + billLeft - setOff);
+  // paying: what's paid now, as typed; it goes to the older dues first, then this bill; past both, an advance
+  const [paidText, setPaidText] = useState("");
+  const payNow = paying ? (parseAmount(paidText) ?? 0) : 0;
+  const towardsOld = Math.min(payNow, oldDue);
+  const towardsBill = Math.min(round2(payNow - towardsOld), round2(billLeft - setOff));
+  const advance = payNow > dueNow ? round2(payNow - dueNow) : 0;
+  const dueLeft = Math.max(0, round2(dueNow - payNow));
+  // what moves now: what's paid, or the whole cut coming back
+  const cashBack = takingBack ? -rise : 0;
+  const moving = paying ? payNow : cashBack;
+  // what we'll owe them after: credit, the change on top of what we owe; cash, less what's paid, more what came back
+  const after = round2(p.supplierBalance + rise + cashBack - payNow);
   const owedAfter = Math.max(0, after);
   const advanceAfter = Math.max(0, -after);
 
-  // where the money moves: cash and every bank account. Paid out: never more than each holds today
-  const [splitTexts, setSplitTexts] = useState<Record<string, string>>({});
+  // where the money moves: cash and every bank account. Paid out (as a purchase's): Auto fills them from what each
+  // holds, never more than it holds; coming back: typed, no cap
+  const [typedSplit, setTypedSplit] = useState<Record<string, string> | null>(null);
   const [bankModes, setBankModes] = useState<Record<string, BankMode | null>>({});
   const [refs, setRefs] = useState<Record<string, { mode: BankMode; text: string }>>({});
   const [refLeft, setRefLeft] = useState<string[]>([]);
-  const places: GridPlace[] = [{ id: "cash" }, ...(money?.banks ?? []).map((b) => ({ id: b.id }))].map((x) => {
+  const placeList = [{ id: "cash", held: money?.cash ?? null }, ...(money?.banks ?? []).map((b) => ({ id: b.id, held: b.available }))];
+  const autoSplit = (() => {
+    let need = moving;
+    return Object.fromEntries(
+      placeList.map((x) => {
+        const take = round2(Math.max(0, Math.min(x.held ?? Infinity, need)));
+        need = round2(need - take);
+        return [x.id, take > 0 ? String(take) : ""];
+      }),
+    );
+  })();
+  const split = typedSplit ?? (paying ? autoSplit : {});
+  const places: GridPlace[] = placeList.map((x) => {
     const b = money?.banks.find((y) => y.id === x.id);
     return {
       id: x.id,
       name: x.id === "cash" ? tc("cash") : b ? bankNameIn(b.bankName, locale) : "",
       sub: x.id === "cash" ? null : `••${b?.last4 ?? ""}`,
-      held: x.id === "cash" ? (money?.cash ?? null) : (b?.available ?? null),
-      text: splitTexts[x.id] ?? "",
-      amount: Number(splitTexts[x.id]) || 0,
+      held: x.held,
+      text: split[x.id] ?? "",
+      amount: Number(split[x.id]) || 0,
       mode: x.id === "cash" ? null : (bankModes[x.id] ?? null),
     };
   });
   const splitTotal = round2(places.reduce((a, x) => a + x.amount, 0));
   const banksUsed = places.filter((x) => x.id !== "cash" && x.amount > 0);
   const refOf = (id: string, m: BankMode | null) => (m && refs[id]?.mode === m ? refs[id]!.text : "");
+  // the most that can be paid now: what cash and every bank account hold together
+  const payCap = places.every((x) => x.held !== null) ? round2(places.reduce((a, x) => a + Math.max(0, x.held!), 0)) : null;
   const overHeld = paying && places.some((x) => x.held !== null && x.amount > x.held);
   const splitOk = splitTotal === moving && !overHeld && banksUsed.every((x) => x.mode !== null && refOkFor(x.mode, refOf(x.id, x.mode)));
-  // what moves changed: the cards start again
-  const [splitFor, setSplitFor] = useState(moving);
-  if (splitFor !== moving) {
-    setSplitFor(moving);
-    setSplitTexts({});
+  const setSplitText = (id: string, text: string) => setTypedSplit((was) => ({ ...(was ?? (paying ? autoSplit : {})), [id]: text }));
+  // Auto switched off by hand empties every card, as a payment's
+  const setSplitAuto = (on: boolean) => setTypedSplit(on ? null : {});
+  // what's paid changed: the cards start again
+  function typePaid(text: string) {
+    setPaidText(text);
+    setTypedSplit((was) => (was === null ? null : {}));
+  }
+  // cash or credit, or what comes back, changed: the cards start again
+  const [splitFor, setSplitFor] = useState(`${kind}|${cashBack}`);
+  if (splitFor !== `${kind}|${cashBack}`) {
+    setSplitFor(`${kind}|${cashBack}`);
+    setTypedSplit(null);
     setBankModes({});
     setRefs({});
     setRefLeft([]);
   }
+
+  // an account paying by UPI, as a purchase's: the supplier's UPI ID (saved on them) fills the box; with none it's asked
+  // in the card (it may be left empty), and a new one is kept on them. Once there's one, each card paying by UPI shows
+  // the supplier's QR
+  const savedUpis = p.supplier.upiIds.map((u) => u.toLowerCase()).filter((u) => upiFormatOk(u));
+  const [typedUpi, setTypedUpi] = useState(savedUpis[0] ?? "");
+  const [upiLeft, setUpiLeft] = useState(false);
+  const [upiEditing, setUpiEditing] = useState(false);
+  const typedUpiShapeOk = upiFormatOk(typedUpi.trim());
+  const typedUpiOk = typedUpiShapeOk && (appOfUpi(typedUpi) !== null || savedUpis.includes(typedUpi.trim().toLowerCase()));
+  const asksUpi = paying && banksUsed.some((x) => x.mode === "upi");
+  const upiTypedBad = asksUpi && typedUpi.trim() !== "" && !typedUpiOk;
+  const upiKept = !upiEditing && typedUpiOk && (upiLeft || savedUpis.includes(typedUpi.trim().toLowerCase()));
+  const qrItems: QrItem[] =
+    !asksUpi || !typedUpiOk
+      ? []
+      : places
+          .filter((x) => x.amount > 0 && x.mode === "upi")
+          .map((x) => ({ key: x.id, title: `${x.name} ${x.sub ?? ""}`.trim(), upiIds: [typedUpi.trim().toLowerCase()], payee: p.supplier.name, amount: x.amount }));
 
   // when each stage is filled in; Next or Save tapped with something missing shows it in red
   const [tried, setTried] = useState(false);
@@ -174,7 +229,11 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
   const complete: Record<EditStep, boolean> = {
     cart: costsOk && total > 0,
     money: kind !== null,
-    payment: credit ? !asksDays || creditDays === "" || Number(creditDays) <= 365 : moving === 0 || splitOk,
+    payment: credit
+      ? creditDays === "" || Number(creditDays) <= 365
+      : paying
+        ? (payNow > 0 || setOff > 0) && (payCap === null || payNow <= payCap) && (payNow === 0 || splitOk) && !upiTypedBad
+        : splitOk,
     bill: billNumberOk(billNumber) && billDay !== "" && !billBusy,
     details: true,
   };
@@ -186,7 +245,11 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
         : s === "payment"
           ? credit
             ? t("missing.creditDays")
-            : splitTotal < moving
+            : paying && payNow === 0 && setOff === 0
+              ? t("missing.paid")
+              : upiTypedBad
+                ? t("missing.upi")
+                : splitTotal < moving
               ? t("missing.left", { amount: rupees(round2(moving - splitTotal)) })
               : t("missing.into")
           : s === "bill"
@@ -290,6 +353,8 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
         lines: lines.map((l) => ({ productId: l.productId, rateBeforeGst: rateOf(l) / 100 })),
         kind: k,
         creditPeriodDays: k === "credit" ? (asksMoney ? (creditDays === "" ? null : Number(creditDays)) : p.creditPeriodDays) : null,
+        advanceSetOff: setOff > 0,
+        supplierUpiId: asksUpi && typedUpiOk && !savedUpis.includes(typedUpi.trim().toLowerCase()) ? typedUpi.trim().toLowerCase() : null,
         cashAmount: moving > 0 ? (places[0]?.amount ?? 0) : 0,
         bankParts: moving > 0 ? banksUsed.map((x) => ({ bankDetailsId: x.id, amount: x.amount, mode: x.mode!, referenceNumber: refOf(x.id, x.mode).trim() || null })) : [],
         vehicleNumber: vehicle.trim() || null,
@@ -334,11 +399,31 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
     paying,
     moving,
     oldDue,
+    heldAdvance,
+    billLeft,
+    setOffOn,
+    setSetOffOn,
+    setOff,
+    dueNow,
+    paidText,
+    typePaid,
+    payNow,
+    payCap,
+    towardsOld,
+    towardsBill,
+    advance,
+    dueLeft,
     owedAfter,
     advanceAfter,
     places,
-    setSplitText: (id: string, text: string) => setSplitTexts((all) => ({ ...all, [id]: text })),
+    setSplitText,
+    splitAuto: typedSplit === null,
+    setSplitAuto,
     setBankMode: (id: string, mode: BankMode | null) => setBankModes((all) => ({ ...all, [id]: mode })),
+    asksUpi,
+    upiKept,
+    qrItems,
+    upiId: { typed: typedUpi, setTyped: setTypedUpi, shapeOk: typedUpiShapeOk, ok: typedUpiOk, left: upiLeft, setLeft: setUpiLeft, editing: upiEditing, setEditing: setUpiEditing, tried },
     splitTotal,
     refs,
     setRefs,

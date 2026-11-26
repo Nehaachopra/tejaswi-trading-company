@@ -6,6 +6,7 @@ import {
   duesTable,
   ledgerEntriesTable,
   ledgersTable,
+  partyUpiIdsTable,
   productCostHistoryTable,
   productsTable,
   purchaseProductsTable,
@@ -187,7 +188,12 @@ export default class PurchaseEditService {
         supplierInvoiceNumber: purchase.supplierInvoiceNumber,
         kind: purchase.transactedIn as "cash" | "credit",
         creditPeriodDays: credit?.days ?? null,
-        supplier: { ledgerId: supplier.id, partyId: purchase.partyId!, name: supplier.name },
+        supplier: {
+          ledgerId: supplier.id,
+          partyId: purchase.partyId!,
+          name: supplier.name,
+          upiIds: (await tx.select({ upiId: partyUpiIdsTable.upiId }).from(partyUpiIdsTable).where(eq(partyUpiIdsTable.partyId, purchase.partyId!))).map((u) => u.upiId),
+        },
         supplyType: purchase.supplyType as "intra" | "inter",
         lines: [...byProduct.values()].map(({ gross, off, ...l }) => ({ ...l, rateBeforeGst: Math.round(gross / l.quantity) / 100, discount: off / 100 })),
         freightCharges: Number(purchase.freightAmount),
@@ -250,14 +256,21 @@ export default class PurchaseEditService {
       const paid = due ? settlements.reduce((a, s) => a + toPaise(s.amount), 0) : -moneyAll;
       const balance = total - paid;
       const moved = toPaise(input.cashAmount) + input.bankParts.reduce((a, b) => a + toPaise(b.amount), 0);
-      // cash, as a return's cash refund: a bill up pays the whole rise now; a bill down, the supplier pays the whole cut
-      // back now (what we owe them stays as it was, as a return's cash refund leaves it); credit: nothing moves
+      // cash: a bill up pays any amount now, as a purchase's payment (older dues first, past all of it an advance), an
+      // advance already with them set off when asked; a bill down, the supplier pays the whole cut back now (what we owe
+      // them stays as it was, as a return's cash refund leaves it); credit: nothing moves
       const oldTotal = toPaise(Number(t.amount));
       let paidNow = 0;
       let takenBack = 0;
+      let setOff = 0;
       if (input.kind === "cash") {
         if (total > oldTotal) {
-          if (moved !== total - oldTotal) throw new TRPCError({ code: "BAD_REQUEST", message: "Pay the rise in full." });
+          // an advance with them besides this bill: their account less what this bill still owed
+          const [l] = await tx.select({ balance: ledgersTable.balance, side: ledgersTable.balanceType }).from(ledgersTable).where(eq(ledgersTable.id, supplier.id));
+          const account = l ? (l.side === "credit" ? 1 : -1) * toPaise(Number(l.balance)) : 0;
+          const besides = account - ((due ? toPaise(due.amount) : oldTotal) - paid);
+          setOff = input.advanceSetOff ? Math.min(Math.max(0, -besides), Math.max(0, total - paid)) : 0;
+          if (moved <= 0 && setOff === 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Pay some money now, or set off the advance." });
           paidNow = moved;
         } else if (total < oldTotal) {
           if (moved !== oldTotal - total) throw new TRPCError({ code: "BAD_REQUEST", message: "Take back the cut in full." });
@@ -371,7 +384,9 @@ export default class PurchaseEditService {
         }
       }
       // what's paid now settles what we owe them, the oldest first, as a purchase's payment does
-      if (paidNow > 0) await this.dues.settleOldestIn(tx, { kind: "creditor", partyId: purchase.partyId!, transactionId: t.id, amount: paidNow / 100 });
+      if (paidNow + setOff > 0) await this.dues.settleOldestIn(tx, { kind: "creditor", partyId: purchase.partyId!, transactionId: t.id, amount: (paidNow + setOff) / 100 });
+      // a UPI ID typed for them in the payment goes on the supplier, for next time
+      if (input.supplierUpiId) await tx.insert(partyUpiIdsTable).values({ partyId: purchase.partyId!, upiId: input.supplierUpiId }).onConflictDoNothing();
 
       // the credit period kept with the purchase: credit with one has it, anything else has none
       const [creditBefore] = await tx

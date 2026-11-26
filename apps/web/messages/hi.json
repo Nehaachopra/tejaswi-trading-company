@@ -2052,7 +2052,8 @@
         "toPay": "चुकाना है",
         "toReceive": "वापस मिलना है",
         "leftToReceive": "मिलना बाकी",
-        "missingCost": "हर आइटम की कीमत डालें।"
+        "missingCost": "हर आइटम की कीमत डालें।",
+        "billLeft": "बिल बाकी"
       }
     },
     "sale": {

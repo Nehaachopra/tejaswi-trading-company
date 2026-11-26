@@ -103,46 +103,7 @@ export function PaymentStage() {
       leftSide={leftSide}
       // their PAN (TDS on, an amount in, none saved): under its own heading above the Received heading (the stage's own
       // name is hidden then)
-      top={
-        askPan && (
-          <>
-            <section className="flex min-w-0 flex-col gap-2.5 sm:max-w-[calc(50%-1.5rem)]">
-              <h3 className={partHeading}>PAN</h3>
-              <Row
-                htmlFor="pan-field"
-                label={
-                  <>
-                    {t("pan")}
-                    <RequiredMark />
-                  </>
-                }
-              >
-                <input
-                  id="pan-field"
-                  value={e.pan}
-                  maxLength={10}
-                  autoCapitalize="characters"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  placeholder="ABCDE1234F"
-                  onChange={(ev) =>
-                    e.setPan(
-                      ev.target.value
-                        .toUpperCase()
-                        .replace(/[^A-Z0-9]/g, "")
-                        .slice(0, 10),
-                    )
-                  }
-                  aria-invalid={panBad || undefined}
-                  className={cn("tabular min-h-11 w-full min-w-0 px-3 text-base uppercase placeholder:text-chestnut/60", fieldClass(panBad))}
-                />
-              </Row>
-              {panBad && <FieldMessage className={cn("mt-0", underValue)}>{t("panBad")}</FieldMessage>}
-            </section>
-            <h3 className={cn(partHeading, "-mb-2")}>{t("steps.received")}</h3>
-          </>
-        )
-      }
+      top={askPan && <PanPart pan={e.pan} setPan={e.setPan} bad={panBad} />}
       // To receive: typed (a customer's)
       amountBox={
         <TypedBanner
@@ -184,6 +145,50 @@ export function PaymentStage() {
         footer: tdsOnIt && filled && <Note className="text-chestnut/70">{tr("tdsNote194Q")}</Note>,
       }}
     />
+  );
+}
+
+// the customer's PAN (TDS on, an amount in, none saved): under its own heading, above the Received heading (the stage's
+// own name is hidden then). The sale's and its edit's
+export function PanPart({ pan, setPan, bad }: { pan: string; setPan: (v: string) => void; bad: boolean }) {
+  const t = useTranslations("transactions.sale");
+  return (
+    <>
+      <section className="flex min-w-0 flex-col gap-2.5 sm:max-w-[calc(50%-1.5rem)]">
+        <h3 className={partHeading}>PAN</h3>
+        <Row
+          htmlFor="pan-field"
+          label={
+            <>
+              {t("pan")}
+              <RequiredMark />
+            </>
+          }
+        >
+          <input
+            id="pan-field"
+            value={pan}
+            maxLength={10}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="ABCDE1234F"
+            onChange={(ev) =>
+              setPan(
+                ev.target.value
+                  .toUpperCase()
+                  .replace(/[^A-Z0-9]/g, "")
+                  .slice(0, 10),
+              )
+            }
+            aria-invalid={bad || undefined}
+            className={cn("tabular min-h-11 w-full min-w-0 px-3 text-base uppercase placeholder:text-chestnut/60", fieldClass(bad))}
+          />
+        </Row>
+        {bad && <FieldMessage className={cn("mt-0", underValue)}>{t("panBad")}</FieldMessage>}
+      </section>
+      <h3 className={cn(partHeading, "-mb-2")}>{t("steps.received")}</h3>
+    </>
   );
 }
 
