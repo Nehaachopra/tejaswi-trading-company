@@ -6,7 +6,7 @@ import { rupees } from "~/lib/format";
 
 import { CartCards } from "../shared/cart-cards";
 import { CartStage as SharedStage } from "../shared/cart-stage";
-import { ProductDetailsCard, SETTLE_ICON } from "./product-details-card";
+import { ProductDetailsCard } from "./product-details-card";
 import { useReturnEntry } from "./state";
 
 // shown, not typed: the return keeps the sale's discount and charges
@@ -45,7 +45,6 @@ export function CartStage() {
           detailRows={(row) => {
             const back = Number(lineOf(row.productId).quantity) || 0;
             const settle = lineOf(row.productId).settle;
-            const Icon = settle ? SETTLE_ICON[settle] : null;
             return [
               { key: "rate", label: ts("rate"), value: rupees(saleLine(row.productId).rate) },
               {
@@ -61,21 +60,8 @@ export function CartStage() {
                     row.quantity.toLocaleString("en-IN")
                   ),
               },
-              // once some come back: replaced or refunded, with its icon
-              ...(back > 0 && settle
-                ? [
-                    {
-                      key: "settle",
-                      label: t("settleLabel"),
-                      value: (
-                        <span className="inline-flex items-center gap-1.5">
-                          {Icon && <Icon className="size-4" aria-hidden />}
-                          {t(`settle.${settle}`)}
-                        </span>
-                      ),
-                    },
-                  ]
-                : []),
+              // once some come back: Mode, and the one chosen (Replace or Refund)
+              ...(back > 0 && settle ? [{ key: "settle", label: t("modeLabel"), value: t(`settle.${settle}`) }] : []),
             ];
           }}
         />

@@ -37,15 +37,18 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   const [draft, setDraft] = useState<ReturnLine>(() => lineOf(pack.productId));
   const [step, setStep] = useState<"first" | "second">("first");
   const close = () => setCardFor(null);
+  const price = round2(line.rate * (1 + line.gstRate / 100));
   const name = `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}`;
 
   // the figures: how many come back, placed in godowns, going out again (replaced), and what they come to with GST, in
-  // paise (a replaced one: nothing, the new packs take its place)
+  // paise (replaced or refunded alike)
   const quantity = Number(draft.quantity) || 0;
   const placed = placedOf(draft);
   const out = Object.values(draft.out).reduce((a, v) => a + (Number(v) || 0), 0);
   const value = Math.round(line.rate * 100) * quantity;
-  const total = draft.settle === "replace" ? 0 : value + Math.round((value * line.gstRate) / 100);
+  const total = value + Math.round((value * line.gstRate) / 100);
+  // undo: one already on the return with its quantity cleared (or 0) shows Save, which takes it off the return
+  const undo = !!lines[pack.productId] && quantity < 1;
   // Next or Save tapped with something missing: marked red, said under the button
   const [tried, setTried] = useState(false);
   const bad = {
@@ -83,7 +86,8 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
   }
   const pick = (s: Settle) => {
     setTried(false);
-    setDraft((d) => ({ ...d, settle: s }));
+    // Refund: the godowns a replacement would have left from start empty again
+    setDraft((d) => ({ ...d, settle: s, out: s === "refund" ? {} : d.out }));
   };
 
   return (
@@ -96,8 +100,13 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
       removeLabel={t("removeFromReturn")}
       headings={{ basis: ts("basis"), current: ts("current"), new: ts("new") }}
       rows={[
-        // the price it sold at, with GST: shown, not changed
-        { key: "price", label: ts("priceGst"), current: rupees(round2(line.rate * (1 + line.gstRate / 100))), input: <span /> },
+        // the price it sold at, with GST: shown under New only, never changed
+        {
+          key: "price",
+          label: ts("priceGst"),
+          current: "",
+          input: <span className="tabular text-right font-bold">{rupees(price)}</span>,
+        },
         // how many were sold and can still come back, and how many come back
         {
           key: "quantity",
@@ -108,6 +117,8 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
               autoFocus
               value={draft.quantity}
               max={line.canReturn}
+              // down to 0: one already on the return can be undone
+              min={lines[pack.productId] ? 0 : 1}
               label={`${t("returning")}: ${name}`}
               invalid={tried && bad.quantity}
               // a new quantity: all of it into the main godown, and the replacement's godowns picked again
@@ -176,8 +187,8 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
       }}
       total={total}
       error={error}
-      actionLabel={step === "first" ? t("next") : ts("saveLine")}
-      onDone={step === "first" ? next : done}
+      actionLabel={step === "first" && !undo ? t("next") : ts("saveLine")}
+      onDone={step === "first" ? (undo ? () => (putLine(pack.productId, emptyLine()), close()) : next) : done}
     />
   );
 }

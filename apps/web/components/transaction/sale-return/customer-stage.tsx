@@ -3,13 +3,37 @@
 import { useTranslations } from "next-intl";
 
 import { PartyFields } from "../../account/party/party-fields";
+import { PartyPick } from "../pickers/party-finder";
 import { PartySearchView } from "../shared/customer-stage";
+import { PartyEditor } from "../shared/party-editor";
+import { PickedCard } from "../shared/picked-card";
 import { buyerParty, useReturnEntry } from "./state";
 
-// a walk-in's refund on credit: who it goes to, as a credit sale's customer stage: a search over the customers, the
-// picked one with Edit and Change; + New party asks a new customer's details right here, the sale's name and phone
-// filled in
+// the refund's customer. The sale's own: shown as picked with Edit only (their details changed right here; never
+// another customer). A walk-in's refund on credit: who it goes to, as a credit sale's customer stage: a search over
+// the customers, the picked one with Edit and Change; + New party asks a new customer's details right here, the
+// sale's name and phone filled in
 export function CustomerStage() {
+  const { customerLedger } = useReturnEntry();
+  return customerLedger?.party ? <SaleCustomer /> : <PickCustomer />;
+}
+
+// the sale's customer: who they are, with Edit
+function SaleCustomer() {
+  const { customerLedger, setCustomerLedger, editingCustomer, setEditingCustomer } = useReturnEntry();
+  const ledger = customerLedger!;
+  return (
+    <div className="flex flex-col gap-4">
+      <PickedCard onEdit={() => setEditingCustomer((on) => !on)}>
+        <PartyPick ledger={ledger} party={ledger.party!} />
+      </PickedCard>
+      {editingCustomer && <PartyEditor rows ledger={ledger} setLedger={setCustomerLedger} close={() => setEditingCustomer(false)} />}
+    </div>
+  );
+}
+
+// a walk-in's refund on credit: a customer searched for, or added now
+function PickCustomer() {
   const { tc, sale, complete, pickedChoice, setPickedChoice, newParty, setNewParty, editingCustomer, setEditingCustomer, matched, tried, setTried } =
     useReturnEntry();
   const ts = useTranslations("transactions.sale");

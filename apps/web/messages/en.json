@@ -2301,13 +2301,8 @@
         "cart": "Cart",
         "items": "Items",
         "amount": "Amount",
-        "settle": "Refund or buy",
         "refund": "Refund",
         "details": "Details"
-      },
-      "modes": {
-        "exchange": "Buy something else",
-        "refund": "Refund"
       },
       "price": "Price + GST",
       "priceGst": "Price + GST",
@@ -2350,11 +2345,9 @@
       "reasonOther": "What was it?",
       "saving": "Saving…",
       "save": "Save return",
-      "toNewSale": "Next: new sale",
       "missing": {
         "items": "Pick what's coming back.",
         "godowns": "Put every pack back in a godown.",
-        "mode": "Pick refund or buy something else.",
         "cap": "Only {amount} can be paid back.",
         "left": "{amount} is still to be placed.",
         "into": "Say how each account paid.",
@@ -2414,7 +2407,6 @@
       "soldWord": "sold",
       "allComingBack": "Everything is coming back.",
       "quantityReturned": "Quantity returned",
-      "returnType": "Return type",
       "date": "Date",
       "remarks": "Remarks",
       "bill": "Bill",
@@ -2426,6 +2418,7 @@
       "removeFromReturn": "Take off the return",
       "toRefund": "To refund",
       "receivedIn": "Item received in",
+      "modeLabel": "Mode",
       "quantityAndGodowns": "Quantity and godowns",
       "settleLabel": "Replace or refund",
       "next": "Next",

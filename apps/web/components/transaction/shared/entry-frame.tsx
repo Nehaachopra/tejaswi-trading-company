@@ -257,8 +257,9 @@ export function SummaryLines<S extends string>({
   reachable,
   onPick,
 }: {
-  // what kind of transaction it is ("Sale", "Purchase order"): the first line, Type over it
-  type: string;
+  // what kind of transaction it is ("Sale", "Purchase order"): the first line, Type over it (none: no Type line, as a
+  // return's)
+  type?: string;
   items: SummaryItem<S>[];
   current: S;
   reachable: (s: S) => boolean;
@@ -270,13 +271,15 @@ export function SummaryLines<S extends string>({
   );
   return (
     <dl className="flex flex-col border-t border-chestnut/15">
-      {/* the transaction's type, always first: Type, and under it what it is, as the other lines */}
-      <div className="flex flex-col items-start gap-0.5 border-b border-chestnut/15 py-2">
-        <dt className="text-[0.65rem] font-semibold uppercase tracking-[0.08em] opacity-60">
-          {t("summaryType")}
-        </dt>
-        <dd className="w-full truncate font-semibold">{type}</dd>
-      </div>
+      {/* the transaction's type, first: Type, and under it what it is, as the other lines */}
+      {type && (
+        <div className="flex flex-col items-start gap-0.5 border-b border-chestnut/15 py-2">
+          <dt className="text-[0.65rem] font-semibold uppercase tracking-[0.08em] opacity-60">
+            {t("summaryType")}
+          </dt>
+          <dd className="w-full truncate font-semibold">{type}</dd>
+        </div>
+      )}
       {lines.map((l) => (
         <button
           key={l.key}

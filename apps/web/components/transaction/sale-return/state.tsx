@@ -23,9 +23,9 @@ import type { GodownSpot } from "../shared/product-details-card";
 import type { GridPlace } from "../shared/split-grid";
 
 // the stages, in order, as a sale's: the cart (how many of each come back, each replaced or refunded), then with any
-// refunded: Refund or Buy something else, a customer's refund in cash or on credit, the payment (paid back, or what's
-// left on their account); then the reason, remarks, day and Save (Buy something else: on to its new sale)
-export type ReturnStep = "cart" | "settle" | "money" | "customer" | "payment" | "details";
+// refunded: the refund in cash or on credit, the customer (the sale's, only editable; a walk-in's on credit: picked or
+// added now), the payment (paid back, or what's left on their account); then the reason, remarks, day and Save
+export type ReturnStep = "cart" | "money" | "customer" | "payment" | "details";
 
 export const REASONS = ["damaged", "shortage", "wrong_item", "other"] as const;
 export type Reason = (typeof REASONS)[number];
@@ -136,7 +136,7 @@ const accountOf = (l: Pickable) => {
 export const buyerParty = (sale: SaleForReturn): PartyDraft => ({ ...emptyParty(), name: sale.buyer?.name ?? "", phone: sale.buyer?.phone ?? "" });
 
 // everything the return form holds and works out. Made once in ReturnEntry; every stage reads it with useReturnEntry()
-export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn; onExchange: (h: ExchangeHandoff) => void }) {
+export function useReturnEntryState({ sale, ledger }: { sale: SaleForReturn; ledger: Pickable | null }) {
   const t = useTranslations("transactions.saleReturn");
   const ts = useTranslations("transactions.sale");
   const tc = useTranslations("transactions.chat");
@@ -145,11 +145,9 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
   const { products, stock, money, loading, loadFailed, retry } = useReturnSources();
   const { saveRefund, saving: savingNow, saved } = useSaveReturn();
 
-  // the answers: each item's quantity and godowns, Exchange or Refund, a customer's refund in cash or on credit, the
+  // the answers: each item's quantity and godowns, Replace or Refund, a customer's refund in cash or on credit, the
   // money split, the day, the reason and remarks
   const [lines, setLines] = useState<Record<string, ReturnLine>>({});
-  // with any refunded: Refund, or Buy something else (the refund goes on a new sale)
-  const [mode, setMode] = useState<"exchange" | "refund" | null>(null);
   const [refundIn, setRefundIn] = useState<"cash" | "credit" | null>(null);
   const [splitTexts, setSplitTexts] = useState<Record<string, string>>({});
   const [bankModes, setBankModes] = useState<Record<string, BankMode | null>>({});
@@ -223,7 +221,7 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
   // with an item replaced, a walk-in's refund is paid back (no Cash or credit); with none refunded, what rounding leaves
   // over stays on a customer's account, or a walk-in gets it back in cash
   const askRefundIn = !(walkIn && hasReplace);
-  const refundsNow = hasRefund ? mode === "refund" : refund > 0;
+  const refundsNow = hasRefund || refund > 0;
   const refundWay: "cash" | "credit" | null = !refundsNow ? null : !hasRefund ? (walkIn ? "cash" : "credit") : askRefundIn ? refundIn : "cash";
   const cashRefund = refundWay === "cash";
   const payBack = cashRefund ? refund : 0;
@@ -233,6 +231,8 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
   const [pickedChoice, setPickedChoice] = useState<LedgerChoice>(null);
   const [newParty, setNewParty] = useState<PartyDraft>(() => buyerParty(sale));
   const [editingCustomer, setEditingCustomer] = useState(false);
+  // the sale's customer, as the Customer card shows them (Edit changes their details)
+  const [customerLedger, setCustomerLedger] = useState<Pickable | null>(ledger);
   const picked = pickedChoice?.kind === "ledger" ? pickedChoice.ledger : null;
   const matches = usePhoneMatches(needsCustomer && pickedChoice?.kind === "party" ? newParty.phone : "", "customer");
   const matched = matches[0] ?? null;
@@ -284,20 +284,17 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
   const reasonOk = reasonKind !== null && (reasonKind !== "other" || reason.trim() !== "");
   const complete: Record<ReturnStep, boolean> = {
     cart: linesOk && total > 0,
-    settle: mode !== null,
     money: refundIn !== null,
     customer: !needsCustomer || pickedChoice?.kind === "ledger" || (pickedChoice?.kind === "party" && !matched && partyOk(newParty, true)),
     payment: payBack === 0 || autoCash || ((payCap === null || payBack <= payCap) && splitOk),
     details: day !== "" && reasonOk,
   };
-  // with any refunded: Refund or Buy something else. A refund asks cash or credit (not a walk-in's with an item replaced;
-  // a walk-in's on credit: then who it goes to), then shows the payment or the due; Buy something else, and a return
-  // all replaced, go straight to Details
+  // with any refunded: cash or credit (not a walk-in's with an item replaced), the customer (the sale's; a walk-in's on
+  // credit: who it goes to), then the payment or the due; a return all replaced goes straight to Details
   const STEPS: ReturnStep[] = [
     "cart",
-    ...(hasRefund ? (["settle"] as ReturnStep[]) : []),
-    ...(hasRefund && mode === "refund"
-      ? ([...(askRefundIn ? ["money"] : []), ...(needsCustomer ? ["customer"] : []), "payment"] as ReturnStep[])
+    ...(hasRefund
+      ? ([...(askRefundIn ? ["money"] : []), ...(needsCustomer || customerLedger ? ["customer"] : []), "payment"] as ReturnStep[])
       : []),
     "details",
   ];
@@ -337,15 +334,10 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
     if (!complete[current]) return guide();
     show(STEPS[index + 1]!);
   }
-  // Exchange or Refund picked: moves straight on (a chip-only stage)
-  function pickMode(m: "exchange" | "refund") {
-    setMode(m);
-    show(m === "exchange" ? "details" : askRefundIn ? "money" : "payment");
-  }
   // a refund in cash or on credit: moves straight on (a walk-in's on credit: to who it goes to)
   function pickRefundIn(k: "cash" | "credit") {
     setRefundIn(k);
-    show(walkIn && k === "credit" ? "customer" : "payment");
+    show((walkIn && k === "credit") || customerLedger ? "customer" : "payment");
   }
 
   // what each stage still needs, once Next or Save was tapped
@@ -354,9 +346,7 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
       ? chosen === 0
         ? t("missing.items")
         : t("missing.godowns")
-      : s === "settle"
-        ? t("missing.mode")
-        : s === "money"
+      : s === "money"
           ? t("missing.refundIn")
           : s === "customer"
             ? ts("missing.customer")
@@ -407,23 +397,6 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
     if (!ready) {
       setAt(STEPS[firstOpen]!);
       return guide();
-    }
-    // Buy something else goes on to its new sale, which saves both
-    if (hasRefund && mode === "exchange") {
-      onExchange({
-        saleReturn: returnInput(),
-        total,
-        saleAssignedId: sale.assignedId,
-        customer: customer ? { ledgerId: customer.ledgerId, partyId: customer.partyId } : null,
-        buyer: customer ? null : { name: sale.buyer?.name ?? "", phone: sale.buyer?.phone ?? "" },
-        replaced: Object.entries(lines)
-          .filter(([, l]) => l.settle === "replace")
-          .map(([productId, l]) => {
-            const s = saleLine(productId);
-            return { productId, quantity: Number(l.quantity), rate: Math.round(s.rate * 100), gstRate: s.gstRate, godowns: l.out };
-          }),
-      });
-      return;
     }
     setSaving(true);
     setSaveError(null);
@@ -477,8 +450,6 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
     figures: f,
     total,
     chosen,
-    mode,
-    pickMode,
     refundIn,
     pickRefundIn,
     customer,
@@ -489,6 +460,8 @@ export function useReturnEntryState({ sale, onExchange }: { sale: SaleForReturn;
     setNewParty,
     editingCustomer,
     setEditingCustomer,
+    customerLedger,
+    setCustomerLedger,
     matched,
     setTried,
     cashRefund,

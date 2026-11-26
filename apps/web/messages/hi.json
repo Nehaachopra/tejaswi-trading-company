@@ -2301,13 +2301,8 @@
         "cart": "कार्ट",
         "items": "आइटम",
         "amount": "राशि",
-        "settle": "पैसे वापस या खरीद",
         "refund": "रिफंड",
         "details": "विवरण"
-      },
-      "modes": {
-        "exchange": "कुछ और खरीदें",
-        "refund": "पैसे वापस"
       },
       "price": "कीमत + GST",
       "priceGst": "कीमत + GST",
@@ -2350,11 +2345,9 @@
       "reasonOther": "क्या था?",
       "saving": "सेव हो रहा है…",
       "save": "वापसी सेव करें",
-      "toNewSale": "आगे: नई बिक्री",
       "missing": {
         "items": "चुनें क्या वापस आ रहा है।",
         "godowns": "हर पैक किसी गोदाम में रखें।",
-        "mode": "पैसे वापस या कुछ और खरीदें चुनें।",
         "cap": "केवल {amount} लौटाया जा सकता है।",
         "left": "{amount} अभी रखना बाकी है।",
         "into": "बताएँ हर खाते से कैसे दिया।",
@@ -2414,7 +2407,6 @@
       "soldWord": "बेचा",
       "allComingBack": "सब कुछ वापस आ रहा है।",
       "quantityReturned": "वापस मात्रा",
-      "returnType": "वापसी का प्रकार",
       "date": "तारीख",
       "remarks": "टिप्पणी",
       "bill": "बिल",
@@ -2426,6 +2418,7 @@
       "removeFromReturn": "वापसी से हटाएँ",
       "toRefund": "लौटाना है",
       "receivedIn": "माल आया",
+      "modeLabel": "तरीका",
       "quantityAndGodowns": "मात्रा और गोदाम",
       "settleLabel": "बदलें या पैसे वापस",
       "next": "आगे",

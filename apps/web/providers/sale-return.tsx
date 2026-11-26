@@ -23,11 +23,16 @@ function useAfterSave() {
 // what they owe, the last day a return can be made, and why it can't take one. Only while `enabled` (the admin's)
 export function useSaleForReturn(transactionId: string, enabled = true) {
   const q = trpc.transactions.saleReturn.forReturn.useQuery({ transactionId }, { enabled });
+  // the customer's ledger, as the Customer card shows it (Edit changes their details)
+  const partyId = q.data?.customer?.partyId ?? null;
+  const ledger = trpc.accounts.ledger.pickable.useQuery({ purpose: "receipt", receiptKind: "customer", partyId }, { enabled: enabled && !!partyId });
+  const reads = [q, ...(partyId ? [ledger] : [])];
   return {
     sale: q.data,
-    loading: enabled && q.isPending,
-    loadFailed: q.isError,
-    retry: () => void q.refetch(),
+    ledger: partyId ? (ledger.data?.[0] ?? null) : null,
+    loading: enabled && reads.some((r) => r.isPending),
+    loadFailed: reads.some((r) => r.isError),
+    retry: () => reads.forEach((r) => r.isError && void r.refetch()),
   };
 }
 

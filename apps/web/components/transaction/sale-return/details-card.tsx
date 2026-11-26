@@ -1,6 +1,5 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
 
 import { DateInput } from "~/components/ui/date-input";
 import { FieldMessage } from "~/components/ui/field-message";
@@ -16,8 +15,7 @@ import { PlacePicker } from "../shared/place-picker";
 import { type Reason, REASON_MAX, REASONS, useReturnEntry } from "./state";
 
 // the Details card: why it came back (an accordion of the reasons, every one open until one is picked; Other asks
-// what), then the remarks (typed or spoken), each a row: label left, box right; the day and Save (an exchange: Next, to
-// its new sale) follow, last
+// what), then the remarks (typed or spoken), each a row: label left, box right; the day and Save follow, last
 export function DetailsCard() {
   const { t, tc, reasonKind, setReasonKind, reason, setReason, remarks, setRemarks, tried } = useReturnEntry();
   const reasonBad = tried && (reasonKind === null || (reasonKind === "other" && reason.trim() === ""));
@@ -59,10 +57,10 @@ export function DetailsCard() {
   );
 }
 
-// the day as a row (today until changed; never before the sale), then Save with the total on it (an exchange: Next, to
-// the new sale), and why a save failed
+// the day as a row (today until changed; never before the sale), then Save with the total on it, and why a save
+// failed
 export function SaveBlock() {
-  const { t, tc, sale, day, setDay, tried, total, mode, saving, save, saveError } = useReturnEntry();
+  const { t, tc, sale, day, setDay, tried, total, saving, save, saveError } = useReturnEntry();
   const today = indiaDay(new Date());
   const min = indiaDay(new Date(sale.dateTime));
   const max = sale.lastDay < today ? sale.lastDay : today;
@@ -96,11 +94,6 @@ export function SaveBlock() {
           <>
             <Spinner className="size-5" />
             <span>{t("saving")}</span>
-          </>
-        ) : mode === "exchange" ? (
-          <>
-            <span>{t("toNewSale")}</span>
-            <ArrowRight className="size-5" aria-hidden />
           </>
         ) : (
           <>
