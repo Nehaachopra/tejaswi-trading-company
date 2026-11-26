@@ -273,7 +273,8 @@ export function CreditNoteView({ id, history, shareKey }: { id: string; history?
       </article>
 
       {/* the sale it made for the items it replaced (from History), as the Returns rows */}
-      {history && <ReplacementsLog replacements={history.record.replacements} />}
+      {/* (a sale's replaced items go out with the return: all back) */}
+      {history && <ReplacementsLog replacements={history.record.replacements} share={history.record.replacements.length > 0 ? 100 : null} />}
     </main>
   );
 }

@@ -403,6 +403,7 @@ export function DebitNoteView({
         <ReplacementsLog
           replacements={history.record.replacements}
           show={history.record.replacementsSent > 0}
+          share={history.record.replacementsSent > 0 ? Math.round(((history.record.replacementsSent - history.record.replacementsOwed) / history.record.replacementsSent) * 100) : null}
           action={
             canRecord && (
               <Link href={`/history/${id}/replacement`} className={pill}>
