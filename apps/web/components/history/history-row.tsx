@@ -35,7 +35,7 @@ export function HistoryRow({ row }: { row: HistoryRowData }) {
         <span className="flex min-w-0 flex-col gap-1">
           <span className="flex items-baseline gap-2 text-[0.9375rem] font-semibold">
             {tt(row.type)}
-            {cancelled && <span className="text-xs font-semibold text-chestnut/60">{t("cancelled")}</span>}
+            {cancelled && <span className="rounded-control bg-chestnut/60 px-2 py-1 text-[0.75rem] font-semibold leading-none text-ivory">{t("cancelled")}</span>}
             {/* a sale with goods back on it: Returned (all of it) or Part returned, as the Edited badge but on red */}
             {!cancelled && row.returned && (
               <span className="rounded-control bg-danger px-2 py-1 text-[0.75rem] font-semibold leading-none text-ivory">

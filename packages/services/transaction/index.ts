@@ -288,6 +288,8 @@ export default class TransactionService {
           ne(transactionsTable.type, "opening_balance"),
           // a sale return shows under its sale (its log), not as a row of its own
           ne(transactionsTable.type, "sale_return"),
+          // a return's replacement sale shows under that return (its sale's Returns log), not as a row of its own
+          sql`not exists (select 1 from ${saleReturnsTable} sr inner join ${salesTable} s on s.id = sr.exchange_sale_id inner join ${transactionsTable} rt on rt.id = sr.transaction_id where s.transaction_id = ${transactionsTable.id} and rt.status = 'active')`,
           viewer.role === "admin" ? undefined : eq(transactionsTable.createdById, viewer.id),
           input.types.length ? inArray(transactionsTable.type, input.types) : undefined,
           input.status ? eq(transactionsTable.status, input.status) : undefined,
@@ -364,6 +366,16 @@ export default class TransactionService {
       .innerJoin(salesTable, eq(salesTable.id, saleReturnsTable.saleId))
       .where(eq(salesTable.transactionId, saleTransactionId))
       .orderBy(asc(transactionsTable.dateTime), asc(transactionsTable.createdAt));
+    // each replacement sale: its ID, when, and its total
+    const saleIds = rows.map((r) => r.exchangeSaleId).filter((id): id is string => !!id);
+    const replacements =
+      saleIds.length === 0
+        ? []
+        : await db
+            .select({ saleId: salesTable.id, transactionId: transactionsTable.id, assignedId: transactionsTable.assignedId, dateTime: transactionsTable.dateTime, total: transactionsTable.amount })
+            .from(salesTable)
+            .innerJoin(transactionsTable, eq(transactionsTable.id, salesTable.transactionId))
+            .where(inArray(salesTable.id, saleIds));
     return rows.map((r) => ({
       transactionId: r.transactionId,
       assignedId: r.assignedId,
@@ -372,6 +384,10 @@ export default class TransactionService {
       total: Number(r.total),
       settledIn: r.exchangeSaleId ? "exchange" : (r.transactedIn as "cash" | "credit" | "both"),
       status: r.status === "cancelled" ? "cancelled" : "active",
+      replacement: (() => {
+        const s = replacements.find((x) => x.saleId === r.exchangeSaleId);
+        return s ? { transactionId: s.transactionId, assignedId: s.assignedId, dateTime: s.dateTime, total: Number(s.total) } : null;
+      })(),
     }));
   }
 

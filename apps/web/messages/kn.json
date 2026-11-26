@@ -2856,15 +2856,10 @@
     "editSale": "ಮಾರಾಟ ಬದಲಿಸಿ",
     "returns": "ಹಿಂತಿರುಗಿದವು",
     "returned": "ಹಿಂತಿರುಗಿದೆ",
+    "returnColumn": "ಹಿಂತಿರುಗಿಸಿದ್ದು",
+    "replacement": "ಬದಲಿ",
     "partReturned": "ಭಾಗಶಃ ಹಿಂತಿರುಗಿದೆ",
     "open": "ತೆರೆಯಿರಿ",
-    "returnItems": "{count, plural, =1 {1 ಐಟಂ} other {# ಐಟಂಗಳು}}",
-    "settledIn": {
-      "cash": "ಹಣ ಹಿಂತಿರುಗಿಸಲಾಗಿದೆ",
-      "credit": "ಖಾತೆಯಲ್ಲಿ ಹೊಂದಿಸಲಾಗಿದೆ",
-      "both": "ಹಣ ಹಿಂತಿರುಗಿಸಿ ಖಾತೆಯಲ್ಲಿ ಹೊಂದಿಸಲಾಗಿದೆ",
-      "exchange": "ಬದಲಾಯಿಸಲಾಗಿದೆ"
-    },
     "editLog": {
       "title": "ಬದಲಾವಣೆಗಳು",
       "fields": {

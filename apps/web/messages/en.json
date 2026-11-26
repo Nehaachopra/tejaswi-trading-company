@@ -2856,15 +2856,10 @@
     "editSale": "Edit sale",
     "returns": "Returns",
     "returned": "Returned",
+    "returnColumn": "Return",
+    "replacement": "Replacement",
     "partReturned": "Part returned",
     "open": "Open",
-    "returnItems": "{count, plural, =1 {1 item} other {# items}}",
-    "settledIn": {
-      "cash": "paid back",
-      "credit": "adjusted in account",
-      "both": "paid back and adjusted in account",
-      "exchange": "exchanged"
-    },
     "editLog": {
       "title": "Edits",
       "fields": {

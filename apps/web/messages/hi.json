@@ -2856,15 +2856,10 @@
     "editSale": "बिक्री बदलें",
     "returns": "वापसी",
     "returned": "वापस",
+    "returnColumn": "वापसी",
+    "replacement": "बदले में",
     "partReturned": "आंशिक वापस",
     "open": "खोलें",
-    "returnItems": "{count, plural, =1 {1 आइटम} other {# आइटम}}",
-    "settledIn": {
-      "cash": "पैसे लौटाए",
-      "credit": "खाते में समायोजित",
-      "both": "पैसे लौटाए और खाते में समायोजित",
-      "exchange": "बदले में"
-    },
     "editLog": {
       "title": "बदलाव",
       "fields": {

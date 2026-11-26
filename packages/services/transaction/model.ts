@@ -95,6 +95,8 @@ export const transactionModel = transactionSummaryModel.extend({
       total: z.number(),
       settledIn: z.enum(["cash", "credit", "both", "exchange"]),
       status: z.enum(["active", "cancelled"]),
+      // the sale it made for the items it replaced (none: nothing replaced)
+      replacement: z.object({ transactionId: idModel, assignedId: z.string(), dateTime: z.date(), total: z.number() }).nullable(),
     }),
   ),
   // its edits, newest first: when, by whom, and each field changed from what to what
