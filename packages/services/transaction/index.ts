@@ -117,7 +117,8 @@ export default class TransactionService {
         companySnapshot: await this.settings.get("company", tx),
       })
       .returning({ id: transactionsTable.id });
-    await this.engine.post(tx, { transactionId: created!.id, dateTime: input.dateTime, lines: input.lines, isContra: input.isContra });
+    // (nothing to post: a purchase return whose packs were all swapped)
+    if (input.lines.length > 0) await this.engine.post(tx, { transactionId: created!.id, dateTime: input.dateTime, lines: input.lines, isContra: input.isContra });
     return { id: created!.id, assignedId };
   }
 

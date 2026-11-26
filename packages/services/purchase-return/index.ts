@@ -197,6 +197,11 @@ export default class PurchaseReturnService {
       const supplier = await this.supplierOf(tx, purchase.partyId);
       // the bill as it stands (after any earlier returns), and what's been paid towards it
       const before = this.bill(loaded, (i) => i.bought - i.returned);
+      // each pack's free stock now (what isn't reserved for orders)
+      const free = await tx
+        .select({ id: productsTable.id, free: productsTable.unreservedQuantity })
+        .from(productsTable)
+        .where(inArray(productsTable.id, [...items.keys()]));
       return {
         transactionId: t.id,
         assignedId: t.assignedId,
@@ -218,6 +223,7 @@ export default class PurchaseReturnService {
           bought: i.bought,
           returned: i.returned,
           canReturn: i.bought - i.returned,
+          free: free.find((x) => x.id === i.productId)?.free ?? 0,
           price: Math.round(rateOf(i) * (1 + i.gstRate / 100)) / 100,
           rate: rateOf(i) / 100,
           gstRate: i.gstRate,

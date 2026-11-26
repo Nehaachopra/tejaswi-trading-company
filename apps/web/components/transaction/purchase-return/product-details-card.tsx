@@ -117,7 +117,8 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
             <QuantityBox
               autoFocus
               value={draft.quantity}
-              max={line.canReturn}
+              // never more than can go back, nor more than is free (the rest is reserved for orders)
+              max={Math.min(line.canReturn, line.free)}
               // down to 0: one already on the return can be undone
               min={lines[pack.productId] ? 0 : 1}
               label={`${t("returning")}: ${name}`}

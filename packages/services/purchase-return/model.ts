@@ -124,6 +124,8 @@ export const purchaseForReturnModel = z.object({
       bought: z.number().int(),
       returned: z.number().int(),
       canReturn: z.number().int(),
+      // the free stock of it now (what isn't reserved for orders): never more can leave
+      free: z.number().int(),
       // a pack's rate with GST and before it, and its GST %
       price: z.number(),
       rate: z.number(),
