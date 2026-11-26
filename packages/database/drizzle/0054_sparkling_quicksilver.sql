@@ -1,0 +1,1 @@
+ALTER TABLE "sale_return_products" ADD COLUMN "replaced" boolean DEFAULT false NOT NULL;
