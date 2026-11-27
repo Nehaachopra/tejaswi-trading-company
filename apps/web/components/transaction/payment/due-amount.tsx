@@ -11,11 +11,11 @@ import { AutoSwitch } from "../shared/split-grid";
 import { usePaymentCards } from "./paid-from";
 import { usePaymentEntry } from "./state";
 
-// a supplier's Amount stage, on the shared one. On the left: Due left (or Advance left) with its arrow, Repay typed (the
+// the Amount stage of a payment against a due (a supplier, a loan repaid), on the shared one. On the left: Due left (or Advance left) with its arrow, Repay typed (the
 // mic in the icon column), To pay with its own arrow; every row ends in the same icon column. On the right each arrow's
 // breakup: the due's (Due, Repaid, what's left) and the payment's (Repaid, the TDS and any
 // reverse-charge GST taken off, To pay). The cards stay below the stage (PaidFrom)
-export function SupplierAmount({
+export function DueAmount({
   top,
   repay,
   problems,
@@ -88,7 +88,7 @@ export function SupplierAmount({
 
   return (
     <SharedStage
-      idPrefix="supplier-payment"
+      idPrefix="due-payment"
       top={top}
       breakup={null}
       ownBreakup={dueRows}

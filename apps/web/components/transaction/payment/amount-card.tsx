@@ -17,7 +17,7 @@ import { usePaymentEntry } from "./state";
 import { FailNote, CapWarning } from "./notes";
 import { PaidFrom } from "./paid-from";
 import { DueFlow } from "../shared/fold-group";
-import { SupplierAmount } from "./supplier-amount";
+import { DueAmount } from "./due-amount";
 
 export function AmountCard() {
   const {
@@ -165,7 +165,7 @@ export function AmountCard() {
   );
   // where every problem and note about a value goes: under the value side, starting at the boxes' left edge (a
   // supplier's sit in a row's value column already)
-  const underValue = toSupplier ? "" : "ml-auto w-[60%]";
+  const underValue = toSupplier || kind === "loanRepaid" ? "" : "ml-auto w-[60%]";
   // the amount's box: large and bold, chestnut once filled
   const amountBox = "min-h-12 pl-11 font-heading text-xl font-bold tabular";
   // typed past the most it can be: cut there, and the warning says why
@@ -415,11 +415,12 @@ export function AmountCard() {
       </section>
   );
 
-  // a supplier: Due left, Repay and To pay on the left, each arrow's breakup on the right (the shared stage's look)
-  if (toSupplier)
+  // a supplier or a loan repaid: Due left, Repay and To pay on the left, each arrow's breakup on the right (the shared
+  // stage's look)
+  if (toSupplier || kind === "loanRepaid")
     return (
       <div className="flex flex-col gap-4">
-        <SupplierAmount
+        <DueAmount
           // the PAN above Due left, well apart from the rest
           top={panSection && <div className="mb-4 sm:max-w-[calc(50%-1.5rem)]">{panSection}</div>}
           repay={{
@@ -439,7 +440,7 @@ export function AmountCard() {
               {amountProblems}
             </div>
           }
-          left={{ label: leftRow!.label as string, amount: leftRow!.amount ?? 0 }}
+          left={{ label: (leftRow?.label as string) ?? t("leftDue"), amount: leftRow?.amount ?? 0 }}
           taken={[
             ...typedRows.filter((r) => r.key === "tds"),
             ...(hasRcmRow
