@@ -280,7 +280,11 @@ function Advance({ row }: { row: Row }) {
   return row.employee.advanceLeft <= 0 ? (
     <>—</>
   ) : (
-    <span className="text-danger">{amount(row.employee.advanceLeft)}</span>
+    // taken back: a − before it, as it comes off the total
+    <span className="text-danger">
+      {row.take ? "− " : ""}
+      {amount(row.employee.advanceLeft)}
+    </span>
   );
 }
 
