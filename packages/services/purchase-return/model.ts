@@ -200,6 +200,8 @@ export const debitNoteModel = z.object({
       productId: idModel,
       title: z.string(),
       hsn: z.string().nullable(),
+      // how it was settled: paid back (refund) or the same packs again (replace)
+      settled: z.enum(["refund", "replace"]),
       quantity: z.number().int(),
       rate: z.number(),
       discount: z.number(),

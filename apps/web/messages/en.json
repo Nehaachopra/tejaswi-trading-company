@@ -2194,6 +2194,9 @@
         "loadError": "Couldn't load the sale. Check your connection and try again."
       },
       "invoice": {
+        "settled": "Settled",
+        "settledRefund": "Refund",
+        "settledReplace": "Replace",
         "title": "Tax Invoice",
         "loading": "Loading…",
         "loadError": "Couldn't load the invoice. Check your connection and try again.",

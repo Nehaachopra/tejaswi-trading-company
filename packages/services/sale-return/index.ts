@@ -705,19 +705,29 @@ export default class SaleReturnService {
       .leftJoin(categoriesTable, eq(categoriesTable.id, productsTable.categoryId))
       .where(eq(saleReturnProductsTable.returnId, r.id))
       .orderBy(asc(saleReturnProductsTable.createdAt), asc(saleReturnProductsTable.id));
-    const byProduct = new Map<string, { title: string; hsn: string | null; gstRate: number; quantity: number; gross: number; off: number; gst: number }>();
+    // replaced now: the products on the exchange's sale (it holds only those)
+    const replacedNow = new Set(
+      r.exchangeSaleId
+        ? (await db.select({ productId: saleProductsTable.productId }).from(saleProductsTable).where(eq(saleProductsTable.saleId, r.exchangeSaleId))).map((x) => x.productId)
+        : [],
+    );
+    // a line for each product and how it was settled (replaced now or later: replace; otherwise refund)
+    const byProduct = new Map<string, { productId: string; settled: "refund" | "replace"; title: string; hsn: string | null; gstRate: number; quantity: number; gross: number; off: number; gst: number }>();
     for (const x of parts) {
-      const line = byProduct.get(x.productId) ?? { title: x.name, hsn: x.p.hsn8Digit ?? x.p.hsn4Digit ?? null, gstRate: x.gstRate, quantity: 0, gross: 0, off: 0, gst: 0 };
+      const settled = x.srp.replaced || replacedNow.has(x.productId) ? ("replace" as const) : ("refund" as const);
+      const key = `${x.productId}:${settled}`;
+      const line = byProduct.get(key) ?? { productId: x.productId, settled, title: x.name, hsn: x.p.hsn8Digit ?? x.p.hsn4Digit ?? null, gstRate: x.gstRate, quantity: 0, gross: 0, off: 0, gst: 0 };
       line.quantity += x.srp.quantity;
       line.gross += toPaise(x.srp.grossProductPrice);
       line.off += toPaise(x.srp.discountAmount);
       line.gst += toPaise(x.srp.gstAmount);
-      byProduct.set(x.productId, line);
+      byProduct.set(key, line);
     }
-    const lines = [...byProduct.entries()].map(([productId, l]) => ({
-      productId,
+    const lines = [...byProduct.values()].map((l) => ({
+      productId: l.productId,
       title: l.title,
       hsn: l.hsn,
+      settled: l.settled,
       quantity: l.quantity,
       rate: Math.round(l.gross / l.quantity) / 100,
       discount: l.off / 100,

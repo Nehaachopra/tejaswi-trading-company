@@ -31,7 +31,7 @@ const pill =
 // /transaction/purchase-return/[id]/debit-note: a purchase return as our debit note, in the credit note's frame. Our
 // details beside the note's (its number and day, the supplier's bill it's against and its day, our purchase number, how
 // it was settled, the supplier's credit note when they gave one, the reason), the remarks under them; who it's to (the
-// supplier); the items back (quantity, a pack's rate, the discount off the line, taxable value, GST % and the GST by
+// supplier); the items back (how each was settled, quantity, a pack's rate, taxable value, GST % and the GST by
 // tax, total); then the breakup (the cash discount given back, the round off) closing in the amount debited, in words
 // too. A cancelled one carries a CANCELLED stamp. Sent on WhatsApp when the supplier's phone is kept
 // `history`: opened from a purchase's Returns in History: back goes to the purchase (a return is never cancelled);
@@ -292,11 +292,9 @@ export function DebitNoteView({
                   <th className={cn(cell, "w-10 border-r font-semibold")}>{ti("sl")}</th>
                   <th className={cn(cell, "border-r font-semibold")}>{ti("particulars")}</th>
                   <th className={cn(cell, "border-r font-semibold")}>HSN</th>
+                  <th className={cn(cell, "border-r font-semibold")}>{ti("settled")}</th>
                   <th className={cn(cell, "border-r text-right font-semibold")}>{ti("qty")}</th>
                   <th className={cn(cell, "border-r text-right font-semibold")}>{ti("price")}</th>
-                  <th className={cn(cell, "border-r text-right font-semibold")}>
-                    {ti("discount")}
-                  </th>
                   <th className={cn(cell, "border-r text-right font-semibold")}>{ti("taxable")}</th>
                   <th className={cn(cell, "border-r text-right font-semibold")}>
                     {ti("gstPercent")}
@@ -314,13 +312,13 @@ export function DebitNoteView({
               </thead>
               <tbody>
                 {d.lines.map((l, i) => (
-                  <tr key={l.productId} className="align-top">
+                  <tr key={`${l.productId}:${l.settled}`} className="align-top">
                     <td className={cn(cell, "border-r")}>{i + 1}</td>
                     <td className={cn(cell, "border-r")}>{titleCase(l.title)}</td>
                     <td className={cn(cell, "border-r")}>{l.hsn ?? ""}</td>
+                    <td className={cn(cell, "border-r")}>{ti(l.settled === "replace" ? "settledReplace" : "settledRefund")}</td>
                     <td className={cn(cell, "border-r text-right")}>{l.quantity}</td>
                     <td className={cn(cell, "border-r text-right")}>{money(l.rate)}</td>
-                    <td className={cn(cell, "border-r text-right")}>{money(l.discount)}</td>
                     <td className={cn(cell, "border-r text-right")}>{money(l.taxable)}</td>
                     <td className={cn(cell, "border-r text-right")}>{l.gstRate}%</td>
                     {intra ? (
@@ -351,11 +349,9 @@ export function DebitNoteView({
                   <td className={cn(cell, "border-r")} />
                   <td className={cn(cell, "border-r")}>{ti("total")}</td>
                   <td className={cn(cell, "border-r")} />
+                  <td className={cn(cell, "border-r")} />
                   <td className={cn(cell, "border-r text-right")}>{quantity}</td>
                   <td className={cn(cell, "border-r")} />
-                  <td className={cn(cell, "border-r text-right")}>
-                    {money(sum((l) => l.discount))}
-                  </td>
                   <td className={cn(cell, "border-r text-right")}>
                     {money(sum((l) => l.taxable))}
                   </td>
