@@ -178,7 +178,8 @@ export function SalaryTable() {
 }
 
 // the total, as a payment's To pay: its name left, the figure in the chestnut box (55%, as the stage's rows); then what
-// cash and the banks hold (the admin only: staff see no balances), and in red under the total when it's more than that
+// cash and the banks hold (the admin only: staff see no balances), the balance after the salaries, and in red under it
+// all when they come to more than there is
 function TotalRows({ held, short }: { held: number | null; short: boolean }) {
   const { t, value } = useSalaryEntry();
   return (
@@ -194,6 +195,19 @@ function TotalRows({ held, short }: { held: number | null; short: boolean }) {
           <div className="flex min-w-0 items-center gap-2">
             <span className="flex min-h-11 min-w-0 flex-1 items-center text-sm">{t("heldBar")}</span>
             <span className="w-[55%] shrink-0 pr-4 text-right text-base font-semibold">{rupees(held)}</span>
+          </div>
+          {/* what's left after the salaries, under a line: green while there's enough, red (taken off) when short */}
+          <div
+            className={cn(
+              "flex min-w-0 items-center gap-2 border-t border-chestnut/30 pt-1",
+              short ? "text-danger" : "text-success",
+            )}
+          >
+            <span className="flex min-h-11 min-w-0 flex-1 items-center text-sm font-semibold">{t("heldBalance")}</span>
+            <span className="w-[55%] shrink-0 pr-4 text-right text-base font-bold">
+              {short ? "− " : ""}
+              {rupees(Math.abs(Math.round((held - value) * 100) / 100))}
+            </span>
           </div>
           {short && (
             <p role="alert" className="ml-auto flex w-[55%] items-start gap-1.5 text-sm font-medium text-danger">
