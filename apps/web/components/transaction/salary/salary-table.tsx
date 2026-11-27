@@ -36,11 +36,10 @@ export function SalaryTable() {
     refreshEmployees,
     tried,
   } = useSalaryEntry();
-  // what cash and the bank accounts hold together, and what's left after the ticked salaries (the admin only: staff
-  // see no balances)
+  // what cash and the bank accounts hold together, and whether the ticked salaries come to more (the admin only:
+  // staff see no balances)
   const held = Number.isFinite(available) ? available : null;
-  const leftAfter = held === null ? 0 : Math.round((held - value) * 100) / 100;
-  const short = leftAfter < 0;
+  const short = held !== null && value > held;
   if (table.length === 0) return <p className="text-sm">{t("nothingOwed")}</p>;
   const allOn = table.every((r) => r.on);
   const editingRow = table.find((r) => r.employee.employeeId === editingId);
@@ -101,40 +100,11 @@ export function SalaryTable() {
               </tr>
             ))}
           </tbody>
-          {/* the total, then what cash and the banks hold and what's left after the salaries: each name right beside
-              its figure, at the right end under the Total column */}
-          <tfoot>
-            {/* the total in the chestnut box, as the phone's total and a payment's To pay */}
-            <tr className="font-heading text-lg font-bold [&>td]:px-2 [&>td]:pt-3">
-              <td colSpan={5} />
-              <td className="whitespace-nowrap text-right align-middle">{t("table.total")}</td>
-              <td className="text-right">
-                <span className="inline-flex min-h-11 min-w-28 items-center justify-end rounded-control bg-chestnut px-3.5 text-ivory">
-                  {amount(value)}
-                </span>
-              </td>
-            </tr>
-            {held !== null && (
-              <>
-                <tr className="text-sm [&>td]:px-2 [&>td]:pt-2">
-                  <td colSpan={5} />
-                  <td className="whitespace-nowrap text-right">{t("heldBar")}</td>
-                  <td className="text-right">{amount(held)}</td>
-                </tr>
-                <tr className={cn("font-semibold [&>td]:px-2 [&>td]:pt-1", short && "text-danger")}>
-                  <td colSpan={5} />
-                  {/* a line above Left, as under a sum (Cash + bank less the total) */}
-                  <td className="whitespace-nowrap border-t border-chestnut/30 !pt-1.5 text-right">
-                    <LeftLabel short={short} />
-                  </td>
-                  <td className="border-t border-chestnut/30 !pt-1.5 text-right">
-                    {amount(Math.abs(leftAfter))}
-                  </td>
-                </tr>
-              </>
-            )}
-          </tfoot>
         </table>
+      </div>
+      {/* wider screens: the total under the table, at its right, in the payment's row look */}
+      <div className="hidden sm:ml-auto sm:block sm:w-[calc(50%-1.5rem)]">
+        <TotalRows held={held} short={short} />
       </div>
 
       {/* the phone: a card a row */}
@@ -180,31 +150,10 @@ export function SalaryTable() {
             </div>
           </div>
         ))}
-        {/* the total and what's left: stuck just above the bottom bar while the rows scroll under it, on the card's
+        {/* the total and what cash + bank hold: stuck just above the bottom bar while the rows scroll under it, on the card's
             ivory edge to edge, so it's always in view */}
         <div className="sticky bottom-[calc(4rem+1px+env(safe-area-inset-bottom))] z-10 -mx-4 flex flex-col gap-2.5 bg-ivory px-4 pb-3 pt-2 shadow-[0_-6px_8px_-6px] shadow-chestnut/25">
-          <p className="flex items-center justify-between rounded-control bg-chestnut px-4 py-3 font-heading text-lg font-bold text-ivory">
-            <span>{t("table.total")}</span>
-            <span className="tabular">{rupees(value)}</span>
-          </p>
-          {/* what cash and the banks hold, then what's left after the salaries */}
-          {held !== null && (
-            <div className="tabular flex flex-col gap-1.5 px-4 text-sm">
-              <p className="flex items-center justify-between gap-3">
-                <span>{t("heldBar")}</span>
-                <span>{rupees(held)}</span>
-              </p>
-              <p
-                className={cn(
-                  "flex items-center justify-between gap-3 border-t border-chestnut/30 pt-1.5 font-semibold",
-                  short && "text-danger",
-                )}
-              >
-                <LeftLabel short={short} />
-                <span>{rupees(Math.abs(leftAfter))}</span>
-              </p>
-            </div>
-          )}
+          <TotalRows held={held} short={short} />
         </div>
       </div>
 
@@ -228,17 +177,33 @@ export function SalaryTable() {
   );
 }
 
-// what's left after the salaries: "Left", or in red "Short by" with the warning icon after it when they come to more than
-// there is
-function LeftLabel({ short }: { short: boolean }) {
-  const { t } = useSalaryEntry();
-  return short ? (
-    <span className="inline-flex items-center gap-1.5">
-      {t("heldShort")}
-      <CircleAlert className="size-4 shrink-0" aria-hidden />
-    </span>
-  ) : (
-    <span>{t("heldLeft")}</span>
+// the total, as a payment's To pay: its name left, the figure in the chestnut box (55%, as the stage's rows); then what
+// cash and the banks hold (the admin only: staff see no balances), and in red under the total when it's more than that
+function TotalRows({ held, short }: { held: number | null; short: boolean }) {
+  const { t, value } = useSalaryEntry();
+  return (
+    <div className="tabular flex flex-col gap-2.5">
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="flex min-h-11 min-w-0 flex-1 items-center text-sm font-semibold">{t("table.total")}</span>
+        <span className="flex min-h-14 w-[55%] shrink-0 items-center justify-end break-all rounded-control bg-chestnut px-4 pt-1 font-heading text-2xl font-bold leading-none text-ivory">
+          {rupees(value)}
+        </span>
+      </div>
+      {held !== null && (
+        <>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="flex min-h-11 min-w-0 flex-1 items-center text-sm">{t("heldBar")}</span>
+            <span className="w-[55%] shrink-0 pr-4 text-right text-base font-semibold">{rupees(held)}</span>
+          </div>
+          {short && (
+            <p role="alert" className="ml-auto flex w-[55%] items-start gap-1.5 text-sm font-medium text-danger">
+              <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <span>{t("heldShort", { amount: rupees(Math.round((value - held) * 100) / 100) })}</span>
+            </p>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 

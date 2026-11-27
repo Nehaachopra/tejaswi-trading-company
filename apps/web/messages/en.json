@@ -1967,8 +1967,7 @@
       "splitShort": "{amount} still needs to be paid.",
       "oneSource": "An advance is paid from one place: cash or one bank account.",
       "heldBar": "Cash + bank",
-      "heldLeft": "Left",
-      "heldShort": "Short by"
+      "heldShort": "Short by {amount}. Untick someone or pay fewer months."
     },
     "purchase": {
       "title": "Purchase",
