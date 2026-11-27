@@ -203,6 +203,19 @@ export function useSalaryEntryState({
     setTypedSplit(on ? null : {});
   }
 
+  // a salary's new total (employees or months changed) starts the Amount stage again: every card empty, Auto off, no
+  // way paid or reference kept. An advance's amount is typed on that stage itself, so it's left alone
+  const lastTotal = useRef(value);
+  useEffect(() => {
+    if (lastTotal.current === value) return;
+    lastTotal.current = value;
+    if (kind !== "salary") return;
+    setTypedSplit({});
+    setBankModes({});
+    setBankRefs({});
+    setRefLeft([]);
+  }, [value]);
+
   // the accounts a bank payment goes through, each needing how it paid (a reference that fits, if typed)
   const bankIdsUsed = placesUsed.filter((p) => p.id !== "cash").map((p) => p.id);
   const banksOk = bankIdsUsed.every(
