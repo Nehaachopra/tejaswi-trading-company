@@ -100,11 +100,18 @@ export type Breakup = {
 // (the due, the advance, or both, an arrow on each opening the breakup), then the amount's box; the breakup on the right
 // (on a phone the stage slides to it, ‹ Breakup back). Without one (a walk-in sale): only the amount. Once there's an
 // amount: Left to receive / Left to pay with its slider, pinned under the header while the account cards below scroll
-// (on a computer the cards start below the breakup). `top`: what comes first (a sale's PAN, an exchange's figures)
+// (on a computer the cards start below the breakup). `top`: what comes first (a sale's PAN, an exchange's figures).
+// `ownBreakup`: the breakup's rows in place of a Breakup's (a payment's due). `second`: a row under the amount's box with
+// its own arrow and its own breakup (a payment's To pay), under the first on a computer, slid to on a phone. No
+// `cards`: no Left to pay and no cards (the payment has its own below the stage)
+// no `box`: the row alone, its icon column left empty
+export type SecondBreakup = { label: ReactNode; value: ReactNode; title: string; box?: ReactNode };
 export function PaymentStage({
   idPrefix,
   top,
   breakup,
+  ownBreakup,
+  second,
   breakupLabel,
   leftSide = [],
   amountBox,
@@ -118,6 +125,8 @@ export function PaymentStage({
   idPrefix: string;
   top?: ReactNode;
   breakup: Breakup | null;
+  ownBreakup?: ReactNode;
+  second?: SecondBreakup;
   breakupLabel: string;
   // the rows of what's left on the left, each opening the breakup
   leftSide?: LeftItem[];
@@ -130,7 +139,7 @@ export function PaymentStage({
   nothingLeftLabel: string;
   // beside Left to pay (a purchase's Auto)
   leftSlot?: ReactNode;
-  cards: AccountCardsApi;
+  cards?: AccountCardsApi;
 }) {
   const filled = amount > 0;
   const breakupId = `${idPrefix}-breakup`;
@@ -141,8 +150,11 @@ export function PaymentStage({
   const [breakupOpen, setBreakupOpen] = useState(true);
   const [slid, setSlid] = useState(false);
   const shown = phone ? slid : breakupOpen;
+  // the second row's breakup: open beside on a computer; on a phone which breakup the stage slid to
+  const [secondOpen, setSecondOpen] = useState(true);
+  const [slidTo, setSlidTo] = useState<"first" | "second">("first");
   const [towardsOpen, setTowardsOpen] = useState(false);
-  const withBreakup = breakup !== null;
+  const withBreakup = breakup !== null || ownBreakup !== undefined;
 
   // a phone's two panels: as tall as the one showing, the other kept out of reach
   const mainRef = useRef<HTMLDivElement>(null);
@@ -175,18 +187,21 @@ export function PaymentStage({
     const watch = new ResizeObserver(fit);
     for (const el of [amountsRef.current, breakupRef.current, stickyRef.current]) if (el) watch.observe(el);
     return () => watch.disconnect();
-  }, [phone, breakupOpen, filled, withBreakup]);
+  }, [phone, breakupOpen, secondOpen, filled, withBreakup]);
   // on sliding, the cursor goes to the back arrow (or back to the arrow that opened it)
   const back = useRef<HTMLButtonElement>(null);
   const arrowRow = useRef<HTMLButtonElement>(null);
-  const slide = (to: boolean) => {
+  const secondArrow = useRef<HTMLButtonElement>(null);
+  const slide = (to: boolean, which: "first" | "second" = slidTo) => {
+    if (to) setSlidTo(which);
     setSlid(to);
-    setTimeout(() => (to ? back : arrowRow).current?.focus({ preventScroll: true, focusVisible: false } as FocusOptions), 320);
+    const from = which === "second" ? secondArrow : arrowRow;
+    setTimeout(() => (to ? back : from).current?.focus({ preventScroll: true, focusVisible: false } as FocusOptions), 320);
   };
 
   // what's still to place in cash and the bank cards below, filling as they take their parts; green with a tick once
   // nothing is left. Pinned under the header while the cards scroll
-  const leftToPlace = filled && (
+  const leftToPlace = filled && cards && (
     <div ref={stickyRef} className="sticky top-16 z-10 -mx-1 flex flex-col gap-2.5 bg-ivory px-1 pb-1 sm:w-[calc(50%-1rem)]">
       <Line
         label={leftLabel}
@@ -206,14 +221,14 @@ export function PaymentStage({
     </div>
   );
   // where it goes: a card for each place, once there's an amount (on a computer, starting below the breakup)
-  const accountCards = filled && (
+  const accountCards = filled && cards && (
     <div className="flex flex-col gap-2.5 border-t border-chestnut/15 pt-4" style={{ marginTop: 6 + (phone || !withBreakup ? 0 : beside.push) }}>
       <AccountCards key={amount} api={cards} />
     </div>
   );
 
   // no breakup (a walk-in sale): what comes first, the amount, then what's left to place and the cards
-  if (!breakup)
+  if (!withBreakup)
     return (
       <div className="flex flex-col gap-1.5 sm:gap-2.5">
         {top}
@@ -223,7 +238,7 @@ export function PaymentStage({
       </div>
     );
 
-  const subTotal = Math.round(((breakup.oldDue ?? 0) + breakup.bill) * 100) / 100;
+  const subTotal = breakup ? Math.round(((breakup.oldDue ?? 0) + breakup.bill) * 100) / 100 : 0;
 
   // the amounts: what's left (an arrow on each line opening the breakup), then the amount's box
   const amounts = (
@@ -231,8 +246,8 @@ export function PaymentStage({
       <button
         ref={arrowRow}
         type="button"
-        onClick={() => (phone ? slide(true) : setBreakupOpen((o) => !o))}
-        aria-expanded={shown}
+        onClick={() => (phone ? slide(true, "first") : setBreakupOpen((o) => !o))}
+        aria-expanded={phone ? slid && slidTo === "first" : shown}
         aria-controls={breakupId}
         aria-label={breakupLabel}
         className="group flex w-full flex-col gap-1 text-left"
@@ -253,11 +268,44 @@ export function PaymentStage({
         ))}
       </button>
       {amountBox}
+      {/* the second row (a payment's To pay): its arrow opens its own breakup */}
+      {second && (
+        <Line
+          label={second.label}
+          value={second.value}
+          slot={
+            second.box && (
+            <button
+              ref={secondArrow}
+              type="button"
+              onClick={() => (phone ? slide(true, "second") : setSecondOpen((o) => !o))}
+              aria-expanded={phone ? slid && slidTo === "second" : secondOpen}
+              aria-controls={`${breakupId}-second`}
+              aria-label={second.title}
+              className="grid size-9 place-items-center rounded-control transition-colors hover:bg-chestnut/10"
+            >
+              <ChevronRight className={cn("size-5 transition-transform", !phone && secondOpen && "rotate-180")} aria-hidden />
+            </button>
+            )
+          }
+        />
+      )}
     </div>
   );
 
-  // the breakup
-  const breakupBox = (
+  // the second row's breakup
+  const secondBox = second?.box && (
+    <div id={`${breakupId}-second`} className="flex min-w-0 flex-col gap-2.5 rounded-control bg-chestnut/[0.04] p-3">
+      {second.box}
+    </div>
+  );
+
+  // the breakup: its own rows, or a Breakup's
+  const breakupBox = !breakup ? (
+    <div id={breakupId} className="flex min-w-0 flex-col gap-2.5 rounded-control bg-chestnut/[0.04] p-3">
+      {ownBreakup}
+    </div>
+  ) : (
     <div id={breakupId} className="flex min-w-0 flex-col gap-2.5 rounded-control bg-chestnut/[0.04] p-3">
       {breakup.heldAdvance > 0 && (
         <Figure label={breakup.advanceLabel} amount={rupees(breakup.heldAdvance)} className="mb-3.5 border-b border-chestnut/30 pb-2" />
@@ -323,9 +371,9 @@ export function PaymentStage({
               <div ref={sideRef} inert={!slid} className="flex w-1/2 min-w-0 flex-col gap-1 p-1">
                 <button ref={back} type="button" onClick={() => slide(false)} className="flex min-h-11 w-full items-center gap-1.5 text-left text-sm font-semibold">
                   <ChevronLeft className="size-5 shrink-0" aria-hidden />
-                  {breakupLabel}
+                  {secondBox && slidTo === "second" ? second.title : breakupLabel}
                 </button>
-                {breakupBox}
+                {secondBox && slidTo === "second" ? secondBox : breakupBox}
               </div>
             </div>
           </div>
@@ -336,9 +384,10 @@ export function PaymentStage({
             <div ref={amountsRef} className="w-[calc(50%-1.5rem)]">
               {amounts}
             </div>
-            {breakupOpen && (
-              <div ref={breakupRef} className="absolute right-0 top-0 w-[calc(50%-1.5rem)]">
-                {breakupBox}
+            {(breakupOpen || (secondBox && secondOpen)) && (
+              <div ref={breakupRef} className="absolute right-0 top-0 flex w-[calc(50%-1.5rem)] flex-col gap-3">
+                {breakupOpen && breakupBox}
+                {secondOpen && secondBox}
               </div>
             )}
           </>

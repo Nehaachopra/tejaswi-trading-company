@@ -14,7 +14,8 @@ import { UpiField } from "./bank-cards";
 // card itself with what each holds (the admin only), then its amount, how it was paid, the party's QR for UPI and its
 // reference. Nothing is picked above the cards: all in cash, all from the bank or both is whatever the cards say. The
 // cash-limit warning closes it
-export function PaidFrom() {
+// `noCards`: a supplier's cards come with the shared stage (under its Left to pay slider), only the warning here
+export function PaidFrom({ noCards = false }: { noCards?: boolean }) {
   const { t, into, cashLimit, cashTodayFailed, retryCashToday, cashThatDay, overCashLimit } =
     usePaymentEntry();
   const cardsApi = usePaymentCards();
@@ -22,7 +23,7 @@ export function PaidFrom() {
     <>
       {/* a card per place, Auto or not */}
       {/* keyed by the amount: another amount starts with a fresh card */}
-      {into !== null && (
+      {!noCards && into !== null && (
         // a faint line sets the cards apart from the amount and its breakup above
         <div className="border-t border-chestnut/15 pt-4">
           <AccountCards key={cardsApi.value} api={cardsApi} />
@@ -54,7 +55,7 @@ export function PaidFrom() {
 
 // the cards with a payment's words and parts: capped at what each place holds, Auto, no bar, how it was paid as rows,
 // the payee's UPI ID box
-function usePaymentCards(): AccountCardsApi {
+export function usePaymentCards(): AccountCardsApi {
   const e = usePaymentEntry();
   const { t, tc } = e;
   return {

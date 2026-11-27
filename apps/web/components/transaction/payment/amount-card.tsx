@@ -17,6 +17,7 @@ import { usePaymentEntry } from "./state";
 import { FailNote, CapWarning } from "./notes";
 import { PaidFrom } from "./paid-from";
 import { DueFlow } from "../shared/fold-group";
+import { SupplierAmount } from "./supplier-amount";
 
 export function AmountCard() {
   const {
@@ -162,14 +163,30 @@ export function AmountCard() {
       aria-hidden
     />
   );
-  // where every problem and note about a value goes: under the value side, starting at the boxes' left edge
-  const underValue = "ml-auto w-[60%]";
+  // where every problem and note about a value goes: under the value side, starting at the boxes' left edge (a
+  // supplier's sit in a row's value column already)
+  const underValue = toSupplier ? "" : "ml-auto w-[60%]";
   // the amount's box: large and bold, chestnut once filled
   const amountBox = "min-h-12 pl-11 font-heading text-xl font-bold tabular";
+  // typed past the most it can be: cut there, and the warning says why
+  const capped = (most: number) =>
+    setCapNote(
+      // labour with nobody named, cut at its limit: the warning links to naming them instead
+      skipped && most === LABOUR_SKIP_MAX
+        ? { key: "labour", text: "" }
+        : // a tax cut at what it owes: says so, as a loan's does
+          kind === "taxPaid" && taxOwed !== null && most === taxOwed
+          ? { key: "amount", text: t("taxLeft", { amount: rupees(most) }) }
+          : { key: "amount", text: t("capOnly", { amount: rupees(most) }) },
+    );
   // the amount's box, typed or spoken: a bill (a supplier's Repay, any other payment's amount) or, on a GST bill,
   // To pay
   const amountInput = (onType: (raw: string) => void, paid = false) => (
-    <MicField onText={(said) => saidAmount(said, onType)}>
+    <MicField onText={(said) => saidAmount(said, onType)}>{amountField(onType, paid)}</MicField>
+  );
+  // the box itself, ₹ and what's typed (a supplier's Repay has its mic in the row's icon column instead)
+  const amountField = (onType: (raw: string) => void, paid = false) => (
+    <>
       {rupeeMark}
       <NumberInput
         id="amount-field"
@@ -179,17 +196,7 @@ export function AmountCard() {
           keyedAmount.current = v;
           onType(v);
         }}
-        onCapped={(most) =>
-          setCapNote(
-            // labour with nobody named, cut at its limit: the warning links to naming them instead
-            skipped && most === LABOUR_SKIP_MAX
-              ? { key: "labour", text: "" }
-              : // a tax cut at what it owes: says so, as a loan's does
-                kind === "taxPaid" && taxOwed !== null && most === taxOwed
-                ? { key: "amount", text: t("taxLeft", { amount: rupees(most) }) }
-                : { key: "amount", text: t("capOnly", { amount: rupees(most) }) },
-          )
-        }
+        onCapped={capped}
         decimals={2}
         maxDigits={13}
         max={cap}
@@ -203,7 +210,7 @@ export function AmountCard() {
           paid && value > 0 && !amountOver && !tooMuch && "bg-chestnut text-ivory caret-ivory shadow-none",
         )}
       />
-    </MicField>
+    </>
   );
   const billInput = amountInput(typeAmount);
   // every payment in the same two parts, the payment under the due.
@@ -391,6 +398,64 @@ export function AmountCard() {
       : headTds === "contract"
         ? "1–2"
         : "10";
+
+  // their PAN, only while TDS is taken and none is on record
+  const panSection = showPan && (
+      <section className="flex min-w-0 flex-col gap-2.5">
+        {tdsAmount > 0 && noPan && !panGiven && (
+          <p
+            role="status"
+            className="flex items-center gap-2 rounded-control bg-chestnut/10 p-2 rounded-bl-none text-sm font-medium"
+          >
+            <Info className="size-4 shrink-0" aria-hidden />
+            <span className="font-semibold">{t("panHint", { rate: panRate })}</span>
+          </p>
+        )}
+        {panField()}
+      </section>
+  );
+
+  // a supplier: Due left, Repay and To pay on the left, each arrow's breakup on the right (the shared stage's look)
+  if (toSupplier)
+    return (
+      <div className="flex flex-col gap-4">
+        <SupplierAmount
+          // the PAN above Due left, well apart from the rest
+          top={panSection && <div className="mb-4 sm:max-w-[calc(50%-1.5rem)]">{panSection}</div>}
+          repay={{
+            value: billText,
+            onChange: (v) => {
+              setCapNote(null);
+              keyedAmount.current = v;
+              typeAmount(v);
+            },
+            max: cap,
+            onCapped: capped,
+            invalid: amountOver || tooMuch || (tried && value === 0),
+          }}
+          problems={
+            // under Repay's box, as wide as it (clear of the icon column); gone when there's nothing to say
+            <div className="ml-auto mr-12 flex w-[55%] min-w-0 flex-col gap-1.5 [&:not(:has(*))]:hidden">
+              {amountProblems}
+            </div>
+          }
+          left={{ label: leftRow!.label as string, amount: leftRow!.amount ?? 0 }}
+          taken={[
+            ...typedRows.filter((r) => r.key === "tds"),
+            ...(hasRcmRow
+              ? [{ key: "rcmOff", label: t("rcmRow", { rate: tax?.rcm?.rate ?? 18 }), amount: rcmGst }]
+              : []),
+          ]}
+          notes={
+            <>
+              {breakdownNotes}
+              {taxFailed && <FailNote text={t("taxFailed")} retry={retryTax} />}
+            </>
+          }
+        />
+        <PaidFrom noCards />
+      </div>
+    );
 
   return (
     <div className="flex flex-col gap-4">
