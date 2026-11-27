@@ -10,9 +10,9 @@ export function SalaryCards() {
   return <AccountCards api={useSalaryCards()} />;
 }
 
-// the cards with a salary's words and parts, laid out as a payment's (every field a row): capped at what each place
+// the cards with a salary's words and parts (the stage puts its meter, Left to pay, outside them), laid out as a payment's (every field a row): capped at what each place
 // holds, Auto, no QR (the employees aren't paid by scanning one)
-function useSalaryCards(): AccountCardsApi {
+export function useSalaryCards(): AccountCardsApi {
   const e = useSalaryEntry();
   const { tc, tpf } = e;
   // each bank account's reference, kept with how it paid (one typed before a way was picked is left out)

@@ -12,7 +12,10 @@ import { cn } from "~/lib/utils";
 import { LedgerSearch } from "../pickers/ledger-picker";
 import { chip, input, saidAmount } from "../shared/form-basics";
 import { PartyEditor } from "../shared/party-editor";
-import { SalaryCards } from "./salary-cards";
+import { FixedBanner } from "../shared/amount-banner";
+import { PaymentStage } from "../shared/payment-stage";
+import { AutoSwitch } from "../shared/split-grid";
+import { SalaryCards, useSalaryCards } from "./salary-cards";
 import { SalaryTable } from "./salary-table";
 import { useSalaryEntry } from "./state";
 
@@ -79,12 +82,12 @@ export function PayCard() {
   );
 }
 
-// the Amount card, as a payment's. A salary: where it's paid from (a bank card per place, as a payment's), the meter
-// over them saying what's left to pay, so no total above them. An advance: what they still owe, then the amount on the
+// the Amount card, as a payment's. A salary: To pay, Left to pay pinned under it, then where it's paid from (a bank
+// card per place, as a payment's). An advance: what they still owe, then the amount on the
 // left and where it's paid from on the right
 export function AmountCard() {
   const { t, kind, employee } = useSalaryEntry();
-  if (kind === "salary") return <SalaryCards />;
+  if (kind === "salary") return <SalaryAmount />;
   return (
     <div className="flex flex-col gap-4">
       {/* what they still owe, then the amount: rows as a payment's, as wide as its left side */}
@@ -151,5 +154,27 @@ function AdvanceAmount() {
         </FieldMessage>
       )}
     </>
+  );
+}
+
+// a salary's Amount stage, on the shared one: To pay in the chestnut box, Left to pay with its slider and Auto pinned
+// under it while the cards below scroll, then a card per place
+function SalaryAmount() {
+  const { tpf, value, places, splitAuto, setSplitAuto } = useSalaryEntry();
+  const cards = { ...useSalaryCards(), meterOutside: true };
+  const placed = Math.round(places.reduce((sum, p) => sum + p.amount, 0) * 100) / 100;
+  return (
+    <PaymentStage
+      idPrefix="salary-payment"
+      breakup={null}
+      breakupLabel=""
+      amountBox={<FixedBanner label={tpf("toPay")} amount={value} />}
+      amount={value}
+      placed={placed}
+      leftLabel={tpf("leftToPay")}
+      nothingLeftLabel={tpf("nothingLeft")}
+      leftSlot={<AutoSwitch stacked on={splitAuto} set={setSplitAuto} />}
+      cards={cards}
+    />
   );
 }
