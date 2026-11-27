@@ -1,3 +1,5 @@
+import { Fragment, type ReactNode } from "react";
+
 import { cn } from "~/lib/utils";
 
 // the parts the sale invoice and the vouchers share, so they read as one family: the title line, the table's last
@@ -42,6 +44,30 @@ export function LeftQuantity({ billed, returned }: { billed: number; returned: n
       </span>
       <span className="hidden print:inline">{billed}</span>
     </>
+  );
+}
+
+// the details the screen shows in place of the document's own (printed only): a row each, label left and value right,
+// two pairs to a row on a wider screen (one alone at the end runs across); remarks, only when typed, across the bottom
+export function ScreenDetails({ rows, remarks }: { rows: { key: string; label: string; value: ReactNode }[]; remarks: { label: string; text: string | null } }) {
+  return (
+    <div className="grid grid-cols-[auto_1fr] sm:grid-cols-[auto_1fr_auto_1fr] print:hidden">
+      {rows.map((r, i) => {
+        const alone = i % 2 === 0 && i === rows.length - 1;
+        return (
+          <Fragment key={r.key}>
+            <span className={cn(cell, "border-b border-r font-medium")}>{r.label}</span>
+            <span className={cn(cell, "border-b break-words", alone ? "sm:col-span-3" : i % 2 === 0 && "sm:border-r")}>{r.value}</span>
+          </Fragment>
+        );
+      })}
+      {remarks.text && (
+        <>
+          <span className={cn(cell, "border-b border-r font-medium")}>{remarks.label}</span>
+          <span className={cn(cell, "border-b break-words sm:col-span-3")}>{remarks.text}</span>
+        </>
+      )}
+    </div>
   );
 }
 

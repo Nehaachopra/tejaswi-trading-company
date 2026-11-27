@@ -20,7 +20,7 @@ import { cn } from "~/lib/utils";
 import type { HistoryTransaction } from "~/providers/history";
 import { type DebitNote, useDebitNote, useDebitNoteShareKey } from "~/providers/purchase-return";
 
-import { Breakup, DocHead, LAST_COL, Remarks } from "../done/document-parts";
+import { Breakup, DocHead, LAST_COL, ScreenDetails, Remarks } from "../done/document-parts";
 import { ReplacementsLog } from "../../history/replacements-log";
 import { band, cell, dated, Detail, money } from "../done/voucher";
 
@@ -227,7 +227,7 @@ export function DebitNoteView({
                 <span>GSTIN : {c.gstin}</span>
               </div>
             </div>
-            <div className="flex min-w-0 flex-col border-b border-chestnut/40">
+            <div className="hidden min-w-0 flex-col border-b border-chestnut/40 print:flex">
               <div className="grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_1fr_auto_1fr] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
                 <Detail
                   label={t("number")}
@@ -269,6 +269,16 @@ export function DebitNoteView({
             </div>
           </div>
 
+          {/* on the screen: just the number, date, how it was settled, the reason and remarks (when typed) */}
+          <ScreenDetails
+            rows={[
+              { key: "number", label: t("number"), value: <span className="font-bold">{d.assignedId}</span> },
+              { key: "dated", label: ti("dated"), value: dated(`${d.noteDate}T12:00:00+05:30`) },
+              { key: "settled", label: t("settled"), value: settled },
+              { key: "reason", label: tr("reason"), value: d.reasonKind === "other" ? d.reason : tr(`reasons.${d.reasonKind}`) },
+            ]}
+            remarks={{ label: ti("remarks"), text: d.remarks }}
+          />
           {/* who it's to, the supplier: on the screen, on top */}
           <div className="order-first border-b border-chestnut/40 print:order-none">
             <p className={cn(band, "break-words")}>

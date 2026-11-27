@@ -18,7 +18,7 @@ import { CancelledNote } from "../../history/cancelled-note";
 import { EditedNote } from "../../history/edited-note";
 import { EditLog } from "../../history/edit-log";
 import { ReturnsLog } from "../../history/returns-log";
-import { Breakup, DocHead, LAST_COL, LeftQuantity, Remarks } from "../done/document-parts";
+import { Breakup, DocHead, LAST_COL, ScreenDetails, LeftQuantity, Remarks } from "../done/document-parts";
 import { band, cell, dated, Detail, money } from "../done/voucher";
 import { PurchaseReturnButton } from "../purchase-return/return-button";
 
@@ -151,8 +151,8 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
 
         <div className="border border-chestnut/40">
           {/* who the bill is from, and the purchase's details */}
-          <div className="grid sm:grid-cols-[1fr_1.5fr]">
-            <div className="flex min-w-0 flex-col border-b border-chestnut/40 sm:border-r">
+          <div className="grid print:grid-cols-[1fr_1.5fr]">
+            <div className="flex min-w-0 flex-col border-b border-chestnut/40 print:border-r">
               <p className={cn(band, "break-words")}>
                 {t("from")}: {titleCase(d.supplier.name)}
               </p>
@@ -172,7 +172,7 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
                 {d.supplier.gstin && <span>GSTIN : {d.supplier.gstin}</span>}
               </div>
             </div>
-            <div className="flex min-w-0 flex-col border-b border-chestnut/40">
+            <div className="hidden min-w-0 flex-col border-b border-chestnut/40 print:flex">
               <div className="grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_1fr_auto_1fr] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
                 <Detail label={t("number")} value={<span className="font-bold">{d.assignedId}</span>} />
                 <Detail label={t("dated")} value={dated(`${d.invoiceDate}T12:00:00+05:30`)} />
@@ -186,6 +186,17 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
             </div>
           </div>
 
+          {/* on the screen: just the number, date, the supplier's bill, payment, vehicle and remarks (when typed) */}
+          <ScreenDetails
+            rows={[
+              { key: "number", label: t("number"), value: <span className="font-bold">{d.assignedId}</span> },
+              { key: "dated", label: t("dated"), value: dated(`${d.invoiceDate}T12:00:00+05:30`) },
+              { key: "bill", label: t("billNumber"), value: d.supplierInvoiceNumber },
+              { key: "payment", label: t("payment"), value: terms },
+              { key: "vehicle", label: t("vehicle"), value: d.vehicleNumber ?? "—" },
+            ]}
+            remarks={{ label: ti("remarks"), text: d.remarks }}
+          />
           {/* the items, as the invoice's columns (no HSN); sideways on a phone; at most five rows tall on the screen */}
           <div className="max-h-[294px] overflow-auto print:max-h-none print:overflow-visible">
             <table className="tabular w-full min-w-[38rem] border-collapse text-[0.8125rem] [&_td]:px-1.5 [&_th]:px-1.5">

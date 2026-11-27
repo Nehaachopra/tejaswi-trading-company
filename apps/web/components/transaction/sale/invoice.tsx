@@ -21,7 +21,7 @@ import { EditLog } from "../../history/edit-log";
 import { ReturnsLog } from "../../history/returns-log";
 import { ReturnButton } from "../sale-return/return-button";
 
-import { Breakup, DocHead, LAST_COL, LeftQuantity, Remarks } from "../done/document-parts";
+import { Breakup, DocHead, LAST_COL, ScreenDetails, LeftQuantity, Remarks } from "../done/document-parts";
 import { band, cell, dated, Detail, money } from "../done/voucher";
 
 type Invoice = RouterOutputs["transactions"]["sale"]["invoice"];
@@ -245,8 +245,8 @@ export function SaleInvoice({
                 <span>FSSAI No : {c.fssai}</span>
               </div>
             </div>
-            {/* the details, then our terms and the remarks under their last row */}
-            <div className="flex min-w-0 flex-col border-b border-chestnut/40">
+            {/* the details, then our terms and the remarks under their last row (printed only) */}
+            <div className="hidden min-w-0 flex-col border-b border-chestnut/40 print:flex">
             <div className="grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_1fr_auto_1fr] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
               <Detail
                 label={t("number")}
@@ -274,6 +274,16 @@ export function SaleInvoice({
             </div>
           </div>
 
+          {/* on the screen: just the number, date, payment, vehicle and remarks (when typed) */}
+          <ScreenDetails
+            rows={[
+              { key: "number", label: t("number"), value: <span className="font-bold">{d.assignedId}</span> },
+              { key: "dated", label: t("dated"), value: dated(`${d.invoiceDate}T12:00:00+05:30`) },
+              { key: "payment", label: t("payment"), value: terms },
+              { key: "vehicle", label: t("vehicle"), value: d.vehicleNumber ?? "—" },
+            ]}
+            remarks={{ label: t("remarks"), text: d.remarks }}
+          />
           {/* who it's billed to, and where it goes: on the screen, on top */}
           <div className={cn("order-first grid border-b border-chestnut/40 print:order-none print:grid-cols-2", d.billTo && "sm:grid-cols-2")}>
             <div className={cn("flex min-w-0 flex-col border-b border-chestnut/40 sm:border-b-0 print:border-r", d.billTo && "sm:border-r")}>
