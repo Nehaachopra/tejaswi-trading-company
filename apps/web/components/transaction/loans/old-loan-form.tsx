@@ -73,6 +73,17 @@ export function useOldLoan(given: boolean) {
   const termsDone =
     value > 0 && dated !== "" && !Object.values(loanProblems(terms)).some(Boolean) && !dueBad;
 
+  // what comes under the source (who, a lender, the amount and terms): cleared when the source changes
+  const resetBelow = () => {
+    setWho(null);
+    setNewParty(emptyParty());
+    setBankLender(emptyLender());
+    setAmount("");
+    setDated(indiaDay(new Date()));
+    setTerms(emptyLoan());
+    setDueOn("");
+    setFailed(null);
+  };
   // a fresh form, each time + Old loan is tapped
   const reset = () => {
     setWho(null);
@@ -138,6 +149,7 @@ export function useOldLoan(given: boolean) {
     failed,
     saving: add.isPending,
     reset,
+    resetBelow,
     save,
   };
 }
@@ -165,6 +177,7 @@ export function OldLoanWho({
     given,
     lender,
     setLender,
+    resetBelow,
     setTerms,
     bank,
     bankLender,
@@ -183,14 +196,16 @@ export function OldLoanWho({
         <div className="grid gap-x-6 sm:grid-cols-2">
           <div className={pickRow}>
             <span>
-              {tl("lender")}
+              {tl("source")}
               <RequiredMark />
             </span>
             <PlacePicker
-              label={tl("lender")}
+              label={tl("source")}
               places={LENDERS.map((l) => ({ id: l, name: tl(`lenders.${l}`), disabled: false }))}
               value={lender}
               onPick={(l) => {
+                // another source: everything under it starts again (no leftovers from the one before)
+                if (l !== lender) resetBelow();
                 setLender(l);
                 // a bank's interest is usually monthly; it can still be changed
                 if (l !== "individual")

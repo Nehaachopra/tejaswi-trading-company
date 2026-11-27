@@ -1354,6 +1354,7 @@
     "loan": {
       "rate": "Interest % / year",
       "lender": "Who gave the loan",
+      "source": "Source",
       "lenders": {
         "bank": "Bank",
         "nbfc": "NBFC",
