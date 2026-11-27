@@ -17,6 +17,7 @@ import { usePaymentEntry } from "./state";
 // reverse-charge GST taken off, To pay). The cards stay below the stage (PaidFrom)
 export function DueAmount({
   top,
+  names,
   repay,
   problems,
   left,
@@ -25,6 +26,8 @@ export function DueAmount({
 }: {
   // above Due left: their PAN, only while TDS is taken and none is on record
   top?: ReactNode;
+  // the box's name and what it's called in the breakups (a tax: Amount, Paid; otherwise Repay, Repaid)
+  names?: { box: string; done: string };
   // Repay, typed (or said into its mic), cut at what can be paid; and its problems under it
   repay: { value: string; onChange: (raw: string) => void; max?: number; onCapped: (most: number) => void; invalid: boolean };
   problems: ReactNode;
@@ -49,7 +52,7 @@ export function DueAmount({
     <>
       <TypedBanner
         id="amount-field"
-        label={t("repay")}
+        label={names?.box ?? t("repay")}
         value={repay.value}
         onChange={repay.onChange}
         max={repay.max}
@@ -69,7 +72,7 @@ export function DueAmount({
       ) : (
         <Figure label={t("due")} amount={rupees(dueShown ?? 0)} />
       )}
-      <Figure label={t("repaid")} amount={`− ${rupees(settlesTotal)}`} />
+      <Figure label={names?.done ?? t("repaid")} amount={`− ${rupees(settlesTotal)}`} />
       <LeftRow label={left.label} amount={left.amount} />
     </>
   );
@@ -77,7 +80,7 @@ export function DueAmount({
   // the payment's breakup: Repaid, what comes off it, To pay on chestnut
   const payRows = (
     <>
-      <Figure label={t("repaid")} amount={rupees(repaid)} />
+      <Figure label={names?.done ?? t("repaid")} amount={rupees(repaid)} />
       {taken.map((r) => (
         <Figure key={r.key} label={r.label} amount={r.amount === null ? "—" : `− ${rupees(r.amount)}`} />
       ))}

@@ -179,7 +179,7 @@ export function AmountCard() {
       skipped && most === LABOUR_SKIP_MAX
         ? { key: "labour", text: "" }
         : // a tax cut at what it owes: says so, as a loan's does
-          kind === "taxPaid" && taxOwed !== null && most === Math.round(taxOwed)
+          kind === "taxPaid" && taxOwed !== null && most === taxOwed
           ? { key: "amount", text: t("taxLeft", { amount: rupees(most) }) }
           : { key: "amount", text: t("capOnly", { amount: rupees(most) }) },
     );
@@ -427,6 +427,7 @@ export function AmountCard() {
         <DueAmount
           // the PAN above Due left, well apart from the rest
           top={panSection && <div className="mb-4 sm:max-w-[calc(50%-1.5rem)]">{panSection}</div>}
+          names={kind === "taxPaid" ? { box: tc("q.amount"), done: t("paidShare") } : undefined}
           repay={{
             value: billText,
             onChange: (v) => {
@@ -469,7 +470,7 @@ export function AmountCard() {
         <ExpenseAmount
           input={{
             id: "amount-field",
-            label: t("repay"),
+            label: tc("q.amount"),
             value: billText,
             onChange: (v) => {
               setCapNote(null);

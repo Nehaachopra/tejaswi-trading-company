@@ -397,9 +397,16 @@ export function usePaymentEntryState({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the TDS answer comes
   }, [interestInfo, tdsInfo, tax]);
   // a bill typed, spoken or filled in: the amount handed over starts at it, then the TDS is taken out
-  // an expense or a tax is paid in whole rupees: the box keeps what's typed (₹1,000.56), what's booked is rounded (₹1,001)
-  const wholeKind = kind === "expense" || kind === "taxPaid";
-  const wholeOf = (raw: string) => (wholeKind && raw !== "" ? String(Math.round(Number(raw) || 0)) : raw);
+  // an expense or a tax is paid in whole rupees: the box keeps what's typed (₹1,000.56), To pay is rounded (an expense
+  // to the nearest rupee, ₹1,001; a tax up, so its due is always paid in full)
+  const wholeOf = (raw: string) =>
+    raw === ""
+      ? raw
+      : kind === "expense"
+        ? String(Math.round(Number(raw) || 0))
+        : kind === "taxPaid"
+          ? String(Math.ceil(Math.round((Number(raw) || 0) * 100) / 100))
+          : raw;
   const setBill = (typed: string) => {
     const raw = wholeOf(typed);
     setBillText(typed);
@@ -412,8 +419,7 @@ export function usePaymentEntryState({
     autoFilled.current = false;
     setBill(raw);
   };
-  // filled in: already rounded where it's whole rupees, so the box shows what's paid
-  const payTotal = (goal: number) => setBill(wholeOf(String(goal)));
+  const payTotal = (goal: number) => setBill(String(goal));
   // an expense on a GST bill: To pay is typed, what's handed over; the server works the GST and any TDS back out of it
   const typePaid = (typed: string) => {
     const raw = wholeOf(typed);
@@ -877,7 +883,7 @@ export function usePaymentEntryState({
     kind === "loanRepaid" && loan
       ? loan.left
       : taxOwed !== null
-        ? Math.round(taxOwed)
+        ? taxOwed
         : skipped
           ? LABOUR_SKIP_MAX
           : undefined;
