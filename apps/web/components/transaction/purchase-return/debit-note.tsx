@@ -229,13 +229,13 @@ export function DebitNoteView({
             </div>
             <div className="hidden min-w-0 flex-col border-b border-chestnut/40 print:flex">
               <div className="grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_auto_auto_auto] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
-                <Detail
+                <Detail nowrap
                   label={t("number")}
                   value={<span className="font-bold">{d.assignedId}</span>}
                 />
-                <Detail label={ti("dated")} value={dated(`${d.noteDate}T12:00:00+05:30`)} />
-                <Detail label={t("bill")} value={d.purchase.supplierInvoiceNumber} />
-                <Detail
+                <Detail nowrap label={ti("dated")} value={dated(`${d.noteDate}T12:00:00+05:30`)} />
+                <Detail nowrap label={t("bill")} value={d.purchase.supplierInvoiceNumber} />
+                <Detail nowrap
                   label={t("billDate")}
                   value={dated(`${d.purchase.invoiceDate}T12:00:00+05:30`)}
                 />

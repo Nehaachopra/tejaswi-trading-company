@@ -93,12 +93,12 @@ export const cell = "border-chestnut/40 px-2 py-1.5";
 export const band =
   "bg-chestnut px-2 py-1.5 font-heading text-base font-bold text-ivory print:bg-[#3b1f14]";
 
-// one label and its value in the details grid
-export function Detail({ label, value }: { label: string; value: React.ReactNode }) {
+// one label and its value in the details grid (`nowrap`: the value stays on one line; the label wraps instead)
+export function Detail({ label, value, nowrap = false }: { label: string; value: React.ReactNode; nowrap?: boolean }) {
   return (
     <>
       <span className={cn(cell, "border-b border-r font-medium")}>{label}</span>
-      <span className={cn(cell, "border-b border-r tabular")}>{value ?? "—"}</span>
+      <span className={cn(cell, "border-b border-r tabular", nowrap && "whitespace-nowrap")}>{value ?? "—"}</span>
     </>
   );
 }

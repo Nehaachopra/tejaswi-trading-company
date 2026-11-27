@@ -153,10 +153,10 @@ export function CreditNoteView({ id, history, shareKey }: { id: string; history?
             </div>
             <div className="hidden min-w-0 flex-col border-b border-chestnut/40 print:flex">
               <div className="grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_auto_auto_auto] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
-                <Detail label={t("number")} value={<span className="font-bold">{d.assignedId}</span>} />
-                <Detail label={ti("dated")} value={dated(`${d.noteDate}T12:00:00+05:30`)} />
-                <Detail label={t("invoice")} value={d.sale.assignedId} />
-                <Detail label={t("invoiceDate")} value={dated(`${d.sale.invoiceDate}T12:00:00+05:30`)} />
+                <Detail nowrap label={t("number")} value={<span className="font-bold">{d.assignedId}</span>} />
+                <Detail nowrap label={ti("dated")} value={dated(`${d.noteDate}T12:00:00+05:30`)} />
+                <Detail nowrap label={t("invoice")} value={d.sale.assignedId} />
+                <Detail nowrap label={t("invoiceDate")} value={dated(`${d.sale.invoiceDate}T12:00:00+05:30`)} />
                 {/* how it was settled (paid back, adjusted in their account, or exchanged against a new sale; each part it
                     has), alone on its row */}
                 <span className={cn(cell, "border-b border-r font-medium")}>{t("settled")}</span>
