@@ -148,6 +148,12 @@ export function ReceiptSuccess({
   };
   // a loan given: the loan's amount, never what they owe in all (no balances on a success card)
   const loanGiven = isPayment && paymentGet.saved?.paidFor === "loanGiven" ? paymentGet.saved.amount : null;
+  // an expense: its head (Rent, Electricity…) and what's booked to it, TDS included
+  const paid = paymentGet.saved;
+  const expense =
+    isPayment && paid?.paidFor === "expense"
+      ? { head: paid.paidToName, booked: Math.round((paid.amount + (paid.tdsAmount ?? 0)) * 100) / 100 }
+      : null;
 
   return (
     <main className={`${PAGE} pb-28`}>
@@ -255,6 +261,16 @@ export function ReceiptSuccess({
               <p className="flex items-baseline justify-between gap-4 py-3">
                 <span className="text-sm font-semibold">{ownPayment("loanAmount")}</span>
                 <span className="font-heading text-xl font-bold">{rupees(loanGiven)}</span>
+              </p>
+            </div>
+          )}
+
+          {/* an expense: its head and its amount */}
+          {expense && (
+            <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
+              <p className="flex items-baseline justify-between gap-4 py-3">
+                <span className="min-w-0 truncate text-sm font-semibold">{expense.head}</span>
+                <span className="shrink-0 font-heading text-xl font-bold">{rupees(expense.booked)}</span>
               </p>
             </div>
           )}
