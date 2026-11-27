@@ -244,7 +244,8 @@ export type ReceiptKind = z.infer<typeof receiptKindModel>;
 // the sub-groups a party's ledger can sit in (a landlord's Rent payable aside, which its own pages use)
 export const PARTY_MASTERS = ["debtors", "creditors", "debtorCreditors", "parties", "personalLenders", "agents", "employees"];
 
-export const OWN_SCREEN_LEDGERS = ["sale", "purchase", "saleReturn", "purchaseReturn", "salary", "badDebts", "discountGiven", "interestPaid"];
+// Round off too: only the paise a tax payment is rounded by go there, never picked as an expense
+export const OWN_SCREEN_LEDGERS = ["sale", "purchase", "saleReturn", "purchaseReturn", "salary", "badDebts", "discountGiven", "interestPaid", "roundOff"];
 
 // whether a journal entry (Others) can use a ledger: one of our own heads only. Never cash or a bank account (their
 // own pages move money), never a party, lender, landlord or employee (their dues would go out of step), never one only

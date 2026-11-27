@@ -1534,6 +1534,7 @@
         "fromBoth": "cash and this bank account"
       },
       "success": {
+        "taxPaid": "{tax} paid",
         "loanAmount": "Loan amount",
         "title": "Payment successfully created",
         "loadError": "Couldn't load the payment. Check your connection and try again."

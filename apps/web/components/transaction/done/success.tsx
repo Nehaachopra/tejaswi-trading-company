@@ -148,8 +148,13 @@ export function ReceiptSuccess({
   };
   // a loan given: the loan's amount, never what they owe in all (no balances on a success card)
   const loanGiven = isPayment && paymentGet.saved?.paidFor === "loanGiven" ? paymentGet.saved.amount : null;
-  // an expense: its head (Rent, Electricity…) and what's booked to it, TDS included
+  // a tax paid: just which tax (CGST, SGST, IGST, TDS, TCS, read off its ledger's name) and the amount
   const paid = paymentGet.saved;
+  const taxPaid =
+    isPayment && paid?.paidFor === "taxPaid"
+      ? { tax: (/[csi]?gst|tds|tcs/i.exec(paid.paidToName)?.[0] ?? paid.paidToName).toUpperCase(), amount: paid.amount }
+      : null;
+  // an expense: its head (Rent, Electricity…) and what's booked to it, TDS included
   const expense =
     isPayment && paid?.paidFor === "expense"
       ? { head: paid.paidToName, booked: Math.round((paid.amount + (paid.tdsAmount ?? 0)) * 100) / 100 }
@@ -271,6 +276,16 @@ export function ReceiptSuccess({
               <p className="flex items-baseline justify-between gap-4 py-3">
                 <span className="min-w-0 truncate text-sm font-semibold">{titleCase(expense.head)}</span>
                 <span className="shrink-0 font-heading text-xl font-bold">{rupees(expense.booked)}</span>
+              </p>
+            </div>
+          )}
+
+          {/* a tax paid: which tax and the amount */}
+          {taxPaid && (
+            <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
+              <p className="flex items-baseline justify-between gap-4 py-3">
+                <span className="min-w-0 truncate text-sm font-semibold">{ownPayment("taxPaid", { tax: taxPaid.tax })}</span>
+                <span className="shrink-0 font-heading text-xl font-bold">{rupees(taxPaid.amount)}</span>
               </p>
             </div>
           )}

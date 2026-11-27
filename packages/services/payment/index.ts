@@ -187,6 +187,17 @@ export default class PaymentService {
       const lines: PostingLine[] = [
         { ledgerId: input.paidFor === "interestPaid" ? await this.accounts.ledgerId(tx, "interestPaid") : to.id, side: "debit", amount: Math.round((toLedger - (bill?.gst ?? 0) + (rcm?.gst ?? 0)) * 100) / 100 },
       ];
+      // a tax paid rounded up to the rupee: the payable takes only what it owes (it closes at nil), the paise past it go
+      // to Round off (a ledger nothing else can pick)
+      if (input.paidFor === "taxPaid") {
+        const owes = Math.max(0, -toPaise(held((await this.accounts.balances([to.id])).get(to.id)?.today)));
+        const over = toPaise(input.amount) - owes;
+        if (over >= 100) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That's more than this tax owes." });
+        if (over > 0) {
+          lines[0]!.amount = owes / 100;
+          lines.push({ ledgerId: await this.accounts.ledgerId(tx, "roundOff"), side: "debit", amount: over / 100 });
+        }
+      }
       if (src.cashLedger && src.cashPart > 0) lines.push({ ledgerId: src.cashLedger, side: "credit", amount: src.cashPart / 100 });
       if (src.bankLedger && src.bankPart > 0) lines.push({ ledgerId: src.bankLedger, side: "credit", amount: src.bankPart / 100 });
       for (const b of src.more) lines.push({ ledgerId: b.ledger, side: "credit", amount: b.part / 100 });
@@ -211,9 +222,12 @@ export default class PaymentService {
         for (const s of RCM_SPLITS) {
           if (to.id !== (await this.accounts.ledgerId(tx, s.payable))) continue;
           const heads = await this.rcmWaitingIn(tx, s, to.id);
-          if (toPaise(input.amount) > heads.reduce((sum, h) => sum + h.left, 0)) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That's more reverse-charge GST than is owed." });
-          lines.push({ ledgerId: await this.accounts.ledgerId(tx, s.input), side: "debit", amount: input.amount });
-          let rest = toPaise(input.amount);
+          // a tax is paid rounded up to the rupee, so up to that much over what's owed (₹1,235 on ₹1,234.56)
+          const owed = heads.reduce((sum, h) => sum + h.left, 0);
+          if (toPaise(input.amount) > Math.ceil(owed / 100) * 100) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That's more reverse-charge GST than is owed." });
+          // only what's owed moves to input credit; the paise past it stay on the payable, paid ahead
+          let rest = Math.min(toPaise(input.amount), owed);
+          if (rest > 0) lines.push({ ledgerId: await this.accounts.ledgerId(tx, s.input), side: "debit", amount: rest / 100 });
           for (const h of heads) {
             const take = Math.min(rest, h.left);
             if (take > 0) lines.push({ ledgerId: h.ledgerId, side: "credit", amount: take / 100 });
