@@ -496,19 +496,21 @@ export function ReceiptVoucher({
               <Download className="size-4" aria-hidden /> {t("download")}
             </button>
           )}
-          {/* Edit receipt (the admin's, from History): greyed for a scrap sale once its GSTR-1 month is filed; a tap or
-              hover says why */}
+          {/* Edit receipt or Edit payment (the admin's, from History): greyed once its GST month is filed (a scrap
+              sale's GSTR-1, a payment's GSTR-3B) or a payment's reverse-charge GST is paid; a tap or hover says why */}
           {h &&
-            !isPayment &&
             history.isAdmin &&
             !cancelled &&
-            (record?.cancelBlockedBy === "gstFiled" ? (
-              <BlockedButton className={pill} reason={th("editBlocked.gstFiledScrap")}>
-                <Pencil className="size-4" aria-hidden /> {th("editReceipt")}
+            (record?.cancelBlockedBy === "gstFiled" || (isPayment && record?.cancelBlockedBy === "rcmPaid") ? (
+              <BlockedButton
+                className={pill}
+                reason={isPayment ? th(`payment.editBlocked.${record!.cancelBlockedBy as "gstFiled" | "rcmPaid"}`) : th("editBlocked.gstFiledScrap")}
+              >
+                <Pencil className="size-4" aria-hidden /> {th(isPayment ? "editPayment" : "editReceipt")}
               </BlockedButton>
             ) : (
               <Link href={`/history/${id}/edit`} className={pill}>
-                <Pencil className="size-4" aria-hidden /> {th("editReceipt")}
+                <Pencil className="size-4" aria-hidden /> {th(isPayment ? "editPayment" : "editReceipt")}
               </Link>
             ))}
         </div>

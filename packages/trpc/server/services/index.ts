@@ -11,6 +11,7 @@ import LenderService from "@repo/services/lender";
 import OtherService from "@repo/services/other";
 import PartyService from "@repo/services/party";
 import PaymentService from "@repo/services/payment";
+import PaymentEditService from "@repo/services/payment/edit";
 import PurchaseService from "@repo/services/purchase";
 import SaleService from "@repo/services/sale";
 import SaleEditService from "@repo/services/sale/edit";
@@ -66,6 +67,7 @@ export const purchaseService = new PurchaseService(accountsService, transactionS
 export const purchaseReturnService = new PurchaseReturnService(accountsService, transactionService, partyService);
 
 export const paymentService = new PaymentService(accountsService, transactionService, partyService);
+export const paymentEditService = new PaymentEditService(accountsService, transactionService, partyService);
 
 export const contraService = new ContraService(accountsService, transactionService);
 

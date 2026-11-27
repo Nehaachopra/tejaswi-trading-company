@@ -22,6 +22,7 @@ import { placeOfBusinessModel } from "@repo/services/setting/model";
 import { createPurchaseReturnInputModel, debitNoteModel, pendingReplacementModel, purchaseForReturnModel, purchaseReturnIdInputModel, receiveReplacementInputModel, receivedReplacementModel, savedPurchaseReturnModel } from "@repo/services/purchase-return/model";
 import { createSaleReturnInputModel, creditNoteModel, exchangeInputModel, pendingSaleReplacementModel, saleForReturnModel, saleReturnIdInputModel, savedSaleReturnModel, sendReplacementInputModel } from "@repo/services/sale-return/model";
 import { editReceiptInputModel, receiptForEditModel } from "@repo/services/receipt/edit-model";
+import { editPaymentInputModel, paymentForEditModel } from "@repo/services/payment/edit-model";
 import { createReceiptInputModel, receiptIdInputModel, receiptModel, receiptShareKeyModel, savedReceiptModel, sharedReceiptInputModel } from "@repo/services/receipt/model";
 import {
   cashTodayInputModel,
@@ -57,7 +58,7 @@ import { createDrawingInputModel, drawingIdInputModel, drawingModel, savedDrawin
 import { paySalariesInputModel, paySalaryInputModel, salaryEmployeeModel, salaryIdInputModel, salaryPaymentModel } from "@repo/services/salary/model";
 import { noteKey, opensNote, opensSale, opensVoucher, saleKey, voucherKey } from "@repo/services/transaction/share-link";
 
-import { accountsService, contraService, documentService, drawingService, dueService, otherService, paymentService, purchaseEditService, purchaseReturnService, purchaseService, receiptEditService, receiptService, salaryService, saleEditService, saleReturnService, saleService, settingService, transactionService } from "../../services";
+import { accountsService, contraService, documentService, drawingService, dueService, otherService, paymentEditService, paymentService, purchaseEditService, purchaseReturnService, purchaseService, receiptEditService, receiptService, salaryService, saleEditService, saleReturnService, saleService, settingService, transactionService } from "../../services";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 import { checkDate, limitSaves, onceFor } from "../../guards";
 
@@ -329,6 +330,30 @@ const paymentRouter = router({
       return (input.saveKey ? onceFor(ctx.session.user.id, input.saveKey, save) : save()).then((p) => {
         if (p.rcm) storeDocumentsSoon();
         return ctx.session.user.role === "admin" ? p : { ...p, balances: null };
+      });
+    }),
+
+  // a payment as its edit form opens it (the admin's)
+  forEdit: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/payments/{transactionId}/edit", tags: ["transactions"] } })
+    .input(paymentIdInputModel)
+    .output(paymentForEditModel)
+    .query(({ input }) => paymentEditService.forEdit(input)),
+
+  // an edit saved (the admin's): dated today or before, within the saves a minute, once per form
+  edit: adminProcedure
+    .meta({ openapi: { method: "POST", path: "/transactions/payments/{transactionId}/edit", tags: ["transactions"] } })
+    .input(editPaymentInputModel)
+    .output(z.object({ transactionId: z.string().uuid() }))
+    .mutation(({ ctx, input }) => {
+      checkDate(input.payment.dateTime, ctx.session.user.role);
+      const save = () => {
+        limitSaves(ctx.session.user.id);
+        return paymentEditService.edit(input, ctx.session.user);
+      };
+      return (input.payment.saveKey ? onceFor(ctx.session.user.id, input.payment.saveKey, save) : save()).then((r) => {
+        storeDocumentsSoon();
+        return r;
       });
     }),
 

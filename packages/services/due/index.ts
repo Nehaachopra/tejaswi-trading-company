@@ -102,6 +102,21 @@ export default class DueService {
   // the dues still open, oldest first, with what's left of each; locked when inside a save, so two payments can't
   // settle the same rupee
   private async open(q: Tx | typeof db, where: SQL | undefined, lock = false) {
+    return (await this.dues(q, where, lock)).filter((d) => d.left > 0);
+  }
+
+  // one loan as it stands, open or settled (an edited repayment may have closed it): what's left without `besides`'s
+  // own settlement of it, so the edit sees the loan as it was before that payment
+  async loanWithout(q: Tx | typeof db, dueId: string, besides: string) {
+    const [due] = await this.dues(q, eq(duesTable.id, dueId));
+    if (!due) return null;
+    const [own] = await q.select({ amount: dueSettlementsTable.amount }).from(dueSettlementsTable).where(and(eq(dueSettlementsTable.dueId, dueId), eq(dueSettlementsTable.transactionId, besides)));
+    const left = Number(fromPaise(toPaise(String(due.left)) + toPaise(own?.amount ?? "0")));
+    return { ...due, left, overdue: left > 0 && due.dueOn !== null && due.dueOn < todayInIndia() };
+  }
+
+  // the dues matching `where`, with what's left of each (settled ones too)
+  private async dues(q: Tx | typeof db, where: SQL | undefined, lock = false) {
     const query = q
       .select({ d: duesTable, branch: lendersTable.branch, t: { assignedId: transactionsTable.assignedId, dateTime: transactionsTable.dateTime, subType: transactionsTable.subType }, settled: settledPaise })
       .from(duesTable)
@@ -136,8 +151,7 @@ export default class DueService {
           interestRate: d.interestRate === null ? null : Number(d.interestRate),
           frequency: d.frequency,
         };
-      })
-      .filter((d) => d.left > 0);
+      });
   }
 
   // inside a save: a party's dues of one kind settled oldest first, up to the amount; what's beyond them is on

@@ -124,7 +124,7 @@ export default class TransactionService {
   }
 
   // why a transaction can't be cancelled, if it can't
-  private async cancelBlockedBy(q: Pick<Tx, "select">, t: { id: string; type: TransactionType; status: string; dateTime: Date }): Promise<TransactionModel["cancelBlockedBy"]> {
+  async cancelBlockedBy(q: Pick<Tx, "select">, t: { id: string; type: TransactionType; status: string; dateTime: Date }): Promise<TransactionModel["cancelBlockedBy"]> {
     if (t.status === "cancelled") return "cancelled";
     // an opening balance is changed on the Opening balances page, not cancelled
     if (t.type === "opening_balance") return "openingBalance";

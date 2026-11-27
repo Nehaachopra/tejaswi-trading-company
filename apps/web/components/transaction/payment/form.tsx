@@ -54,9 +54,9 @@ function PaymentEntry({ isAdmin, onDiscard }: { isAdmin: boolean; onDiscard: () 
   );
 }
 
-// the page: what shows while it loads or can't, then the card on its own with the summary
-
-function PaymentEntryView() {
+// the page: what shows while it loads or can't, then the card on its own with the summary. An edit (History) shows it
+// under its own title
+export function PaymentEntryView({ title }: { title?: string }) {
   const {
     t,
     tc,
@@ -119,28 +119,31 @@ function PaymentEntryView() {
     askingAdvance,
     gridShort,
     showPan,
+    editing,
   } = usePaymentEntry();
+  const heading = title ?? tp("title");
   // the balances first, so cash and bank show what they hold from the start
   if (loading)
     return (
-      <EntryNote title={tp("title")} loading>
+      <EntryNote title={heading} loading>
         {tc("looking")}
       </EntryNote>
     );
   // cash and the banks couldn't be had, even after the retries: say so, and Try again
   if (loadFailed)
     return (
-      <EntryNote title={tp("title")} failed onRetry={retryLoad}>
+      <EntryNote title={heading} failed onRetry={retryLoad}>
         {t("loadFailed")}
       </EntryNote>
     );
   // nothing to pay from (the admin sees cash and every bank at ₹0)
   if (sources && banks && !canCash && !canBank)
-    return <EntryNote title={tp("title")}>{t("nothingToPay")}</EntryNote>;
+    return <EntryNote title={heading}>{t("nothingToPay")}</EntryNote>;
 
   // a line for each card answered; Paid from goes back to the Amount card it's in
   const items: SummaryItem<Step>[] = summary
-    .filter((l) => l.step === "source" || steps.includes(l.step))
+    // (an edit's Paid for, and who was paid, stay as saved: shown, not gone back to)
+    .filter((l) => l.step === "source" || steps.includes(l.step) || (editing && (l.step === "kind" || l.step === "payee")))
     .map((l) => ({
       key: l.heading ?? l.step,
       step: l.step === "source" ? "amount" : l.step,
@@ -149,7 +152,7 @@ function PaymentEntryView() {
     }));
   const lines = (
     <SummaryLines
-      type={tp("title")}
+      type={heading}
       items={items}
       current={current}
       reachable={reachable}
@@ -163,7 +166,7 @@ function PaymentEntryView() {
   // on a phone the same summary folded into a bar
   return (
     <EntryPage
-      title={tp("title")}
+      title={heading}
       summaryLabel={t("summary")}
       showBar={kind !== null}
       bar={

@@ -3,6 +3,7 @@ import { and, asc, db, eq, gte, inArray, isNotNull, lt, lte, ne, or, sql } from 
 import { bankDetailsTable, dueSettlementsTable, duesTable, ledgerEntriesTable, ledgersTable, lendersTable, partiesTable, partyAddressesTable, partyPaidBeforeTable, partyUpiIdsTable, paymentsTable, transactionBankDetailsTable, transactionsTable } from "@repo/database/schema";
 
 import AccountsService from "../accounts";
+import LedgerEngine from "../accounts/engine";
 import { type ActorModel, fitsPaymentKind, type LedgerSummaryModel, type PaymentKind, type PostingLine, type TdsType } from "../accounts/model";
 import { fromPaise, toPaise } from "../accounts/money";
 import { queueDocument } from "../document/queue";
@@ -83,11 +84,21 @@ export default class PaymentService {
     private readonly parties = new PartyService(accounts),
     private readonly dues = new DueService(accounts, transactions, parties),
     private readonly settings = new SettingService(),
+    private readonly engine = new LedgerEngine(),
   ) {}
 
   async create(rawInput: CreatePaymentInputModel, actor: ActorModel): Promise<SavedPaymentModel> {
     const input = createPaymentInputModel.parse(rawInput);
-    const saved = await db.transaction(async (tx) => {
+    const saved = await db.transaction((tx) => this.saveIn(tx, input, actor, null));
+
+    const [payment, balances] = await Promise.all([this.get({ transactionId: saved.t.id }), this.balances({ transactionId: saved.t.id })]);
+    return { ...payment, balances };
+  }
+
+  // the save itself, inside a database transaction: a new payment, or (`over`, an edit) the same payment written again
+  // under its own number, its old ledger effect, dues and rows already taken away by the edit
+  async saveIn(tx: Tx, input: CreatePaymentInputModel, actor: ActorModel, over: { id: string; assignedId: string } | null) {
+    {
       // a loan repaid or its interest: the loan we took, which says who it goes to
       const loan = input.dueId ? await this.dues.loanIn(tx, input.dueId, "loanTaken") : null;
       // who it went to: the lender, an existing ledger, a new party (a supplier in Creditors; anyone else in Parties
@@ -236,7 +247,12 @@ export default class PaymentService {
         }
       }
 
-      const t = await this.transactions.create(tx, { type: "payment", dateTime: input.dateTime, amount: input.amount, remarks: input.remarks, lines }, actor);
+      // a new payment gets its number; an edited one keeps its own and posts again on its (new) day
+      const t = over ?? (await this.transactions.create(tx, { type: "payment", dateTime: input.dateTime, amount: input.amount, remarks: input.remarks, lines }, actor));
+      if (over) {
+        await tx.update(transactionsTable).set({ dateTime: input.dateTime, amount: fromPaise(toPaise(input.amount)), remarks: input.remarks }).where(eq(transactionsTable.id, over.id));
+        await this.engine.post(tx, { transactionId: over.id, dateTime: input.dateTime, lines });
+      }
 
       // the party's (or an expense's payee's) default address and the bank account as they are now, kept with the
       // payment so its voucher reads the same on any later date
@@ -360,10 +376,7 @@ export default class PaymentService {
         await this.dues.createIn(tx, { kind: "loanGiven", party, transactionId: t.id, amount: input.amount, dueOn, terms });
       }
       return { t };
-    });
-
-    const [payment, balances] = await Promise.all([this.get({ transactionId: saved.t.id }), this.balances({ transactionId: saved.t.id })]);
-    return { ...payment, balances };
+    }
   }
 
   // a supplier's TDS under section 194Q for a payment: in a year turned on in Settings (last year's turnover above ₹10

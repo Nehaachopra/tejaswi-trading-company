@@ -584,6 +584,12 @@ export default class AccountsService {
     return this.withParties(matches.filter(allowed).slice(0, PICK_LIMIT));
   }
 
+  // one ledger as the picker shows it (its balance today and the party behind it), for a form opened on a saved pick
+  async pickedById(id: string): Promise<PickedLedgerModel | null> {
+    const [l] = await this.withParties(await this.summariesWhere(eq(ledgersTable.id, id)));
+    return l ?? null;
+  }
+
   // each ledger with the party behind it (its default address's town), for the picker to show who it is
   private async withParties(ledgers: LedgerSummaryModel[]): Promise<PickedLedgerModel[]> {
     const ids = ledgers.map((l) => l.referenceId).filter((id): id is string => id !== null);

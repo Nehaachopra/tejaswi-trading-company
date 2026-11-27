@@ -3116,6 +3116,7 @@
     "paidCredit": "Credit",
     "noReplacements": "No replacements yet.",
     "editReceipt": "Edit receipt",
+    "editPayment": "Edit payment",
     "receipt": {
       "title": "Receipt",
       "kinds": {
@@ -3160,7 +3161,23 @@
       "transactionId": "Transaction ID"
     },
     "payment": {
-      "title": "Payment"
+      "title": "Payment",
+      "edit": {
+        "title": "Edit payment",
+        "loading": "Loading…",
+        "loadFailed": "Couldn't load the payment. Check the connection and try again.",
+        "save": "Save changes",
+        "saving": "Saving…",
+        "done": "Payment edited",
+        "number": "Transaction ID",
+        "amount": "Amount",
+        "viewPayment": "View payment"
+      },
+      "editBlocked": {
+        "cancelled": "Can't edit: this payment is cancelled.",
+        "gstFiled": "Can't edit: this month's GSTR-3B is filed.",
+        "rcmPaid": "Can't edit: its reverse-charge GST is already paid. Cancel that Tax paid payment first."
+      }
     }
   }
 }

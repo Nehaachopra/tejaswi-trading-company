@@ -10,10 +10,13 @@ import { PurchaseEditForm } from "../transaction/purchase-edit/form";
 import { PurchaseEditSuccess } from "../transaction/purchase-edit/success";
 import { SaleEditForm } from "../transaction/sale-edit/form";
 import { SaleEditSuccess } from "../transaction/sale-edit/success";
+import { PaymentEditForm } from "./payment/edit/form";
+import { PaymentEditSuccess } from "./payment/edit/success";
 import { ReceiptEditForm } from "./receipt/edit/form";
 import { ReceiptEditSuccess } from "./receipt/edit/success";
 
-// /history/[id]/edit (and its done page): a sale's edit form, a purchase's or a receipt's, by what the transaction is
+// /history/[id]/edit (and its done page): a sale's edit form, a purchase's, a receipt's or a payment's, by what the
+// transaction is
 export function EditRoute({ id, done = false }: { id: string; done?: boolean }) {
   const t = useTranslations("history");
   const { transaction, loading, notFound } = useHistoryTransaction(id);
@@ -30,6 +33,7 @@ export function EditRoute({ id, done = false }: { id: string; done?: boolean }) 
       </p>
     );
   if (transaction.type === "receipt") return done ? <ReceiptEditSuccess id={id} /> : <ReceiptEditForm id={id} />;
+  if (transaction.type === "payment") return done ? <PaymentEditSuccess id={id} /> : <PaymentEditForm id={id} />;
   if (transaction.type === "purchase") return done ? <PurchaseEditSuccess id={id} /> : <PurchaseEditForm id={id} />;
   return done ? <SaleEditSuccess id={id} /> : <SaleEditForm id={id} />;
 }

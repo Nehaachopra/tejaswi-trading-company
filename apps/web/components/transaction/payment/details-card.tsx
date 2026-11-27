@@ -7,8 +7,7 @@ import { RequiredMark } from "~/components/ui/required-mark";
 import { Spinner } from "~/components/ui/icons/spinner";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
-import { indiaDay } from "../../account/balance";
-import { earliestDay } from "../shared/form-basics";
+import { useTranslations } from "next-intl";
 import { CashRefField } from "../shared/bank-mode";
 import { REFERENCE_MAX, REMARKS_MAX, input } from "./shared";
 import { usePaymentEntry } from "./state";
@@ -43,10 +42,12 @@ export function DetailsCard() {
   );
 }
 
-// the day, then Save with the amount on it, and why a save failed
+// the day, then Save with the amount on it, and why a save failed. An edit (History) keeps the day in its own month,
+// picked on the app's calendar, and saves its changes
 export function SaveBlock() {
-  const { tc, tp, isAdmin, creating, day, setDay, saveError, tried, total, saving, save } =
+  const { tc, tp, creating, day, setDay, dayMin, dayMax, editing, saveError, tried, total, saving, save } =
     usePaymentEntry();
+  const te = useTranslations("history.payment.edit");
   return (
     <>
       <label className="mb-3 flex flex-col gap-2.5 text-xs font-semibold sm:max-w-72">
@@ -56,14 +57,11 @@ export function SaveBlock() {
         </span>
         <DateInput
           value={day}
-          min={earliestDay(isAdmin)}
-          max={indiaDay(new Date())}
+          min={dayMin || undefined}
+          max={dayMax}
+          calendar={editing}
           // a day typed outside what the picker offers is left as it was
-          onChange={(d) =>
-            setDay(
-              d !== "" && (d > indiaDay(new Date()) || d < (earliestDay(isAdmin) ?? "")) ? day : d,
-            )
-          }
+          onChange={(d) => setDay(d !== "" && (d > dayMax || d < dayMin) ? day : d)}
           calendarLabel={tc("q.date")}
           aria-invalid={(tried && day === "") || undefined}
           className={input(day === "")}
@@ -82,11 +80,11 @@ export function SaveBlock() {
         {saving || creating ? (
           <>
             <Spinner className="size-5" />
-            <span>{tp("saving")}</span>
+            <span>{editing ? te("saving") : tp("saving")}</span>
           </>
         ) : (
           <>
-            <span>{tp("save")}</span>
+            <span>{editing ? te("save") : tp("save")}</span>
             <span className="tabular">{rupees(total)}</span>
           </>
         )}

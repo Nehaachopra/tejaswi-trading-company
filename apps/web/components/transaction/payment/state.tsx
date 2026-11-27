@@ -3,7 +3,7 @@
 import { ERROR_MS } from "~/components/ui/field-message";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { dayInWords } from "~/components/ui/date-input";
 import { bankNameIn } from "~/lib/bank-names";
 
@@ -40,6 +40,8 @@ import { useOldLoan } from "../loans/old-loan-form";
 import { usePhoneMatches } from "../pickers/party-finder";
 import { type TdsType } from "../pickers/tds-type-picker";
 import { createContext, useContext } from "react";
+import { type PaymentForEdit } from "~/providers/payment-edit";
+import { earliestDay } from "../shared/form-basics";
 import {
   Loan,
   SummaryLine,
@@ -61,15 +63,76 @@ import {
 
 let morePartKeys = 0;
 
+// a saved payment being edited (from History): the payment as saved, and its own save over it
+export type PaymentEdit = {
+  saved: PaymentForEdit;
+  save: (input: Parameters<ReturnType<typeof usePayment>["savePayment"]>[0]) => Promise<unknown>;
+  saving: boolean;
+  done: boolean;
+};
+
+// an effect for a change only: it skips the first render, so what an edit starts from isn't wiped as the form opens
+// (for a new payment nothing is there yet, so skipping it changes nothing)
+function useOnChange(effect: () => void, deps: unknown[]) {
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    effect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the caller's own deps
+  }, deps);
+}
+
+// what an edit starts from: the saved answers, in the form's own shapes
+function seedOf(e: PaymentEdit | undefined) {
+  if (!e) return null;
+  const s = e.saved;
+  const first = s.banks[0] ?? null;
+  const more = s.banks.slice(1);
+  const into: "cash" | "bank" | "both" = s.banks.length === 0 ? "cash" : s.cashAmount > 0 ? "both" : "bank";
+  // a GST bill's To pay is typed (what was handed over); otherwise the bill, TDS and all
+  const bill = s.gst ? s.amount : Math.round((s.amount + s.tdsAmount) * 100) / 100;
+  return {
+    into,
+    bankId: first?.bankDetailsId ?? null,
+    bankMode: first?.mode ?? null,
+    firstAmount: first ? String(first.amount) : "",
+    cashPart: into === "both" ? String(s.cashAmount) : "",
+    moreParts: more.map((b) => ({ key: `acc-${b.bankDetailsId}`, bankId: b.bankDetailsId, amount: String(b.amount), mode: b.mode })),
+    gridTyped: {
+      cash: into === "cash" ? String(s.amount) : s.cashAmount > 0 ? String(s.cashAmount) : "",
+      ...Object.fromEntries(s.banks.map((b) => [b.bankDetailsId, String(b.amount)])),
+    } as Record<string, string>,
+    gridModes: Object.fromEntries(s.banks.map((b) => [b.bankDetailsId, b.mode])) as Record<string, BankMode | null>,
+    refs: Object.fromEntries(
+      s.banks.filter((b) => b.mode && b.referenceNumber).map((b) => [b.bankDetailsId, { mode: b.mode!, text: b.referenceNumber! }]),
+    ) as Record<string, { mode: BankMode; text: string }>,
+    amount: String(s.amount),
+    bill,
+    billText: String(bill),
+    to: s.to ? ({ kind: "ledger", ledger: s.to } as LedgerChoice) : null,
+    payee: s.payee ? ({ kind: "ledger", ledger: s.payee } as LedgerChoice) : null,
+    day: indiaDay(s.dateTime),
+  };
+}
+
 // everything the payment form holds and works out: what's typed, what the server says, and the moves between
 // cards. Made once in PaymentEntry; every card reads it with usePaymentEntry()
 export function usePaymentEntryState({
   isAdmin,
   onDiscard,
+  edit,
 }: {
   isAdmin: boolean;
   onDiscard: () => void;
+  edit?: PaymentEdit;
 }) {
+  // editing: the saved payment and what the form starts from
+  const editing = !!edit;
+  const ed = edit?.saved;
+  const [seed] = useState(() => seedOf(edit));
   const t = useTranslations("transactions.payment.form");
   const tc = useTranslations("transactions.chat");
   const tpick = useTranslations("transactions.picker");
@@ -86,22 +149,36 @@ export function usePaymentEntryState({
   // the bank accounts, what cash and each account hold today (null for staff), and the save
   const {
     banks,
-    sources,
+    sources: sourcesNow,
     loading,
     loadFailed,
     retryLoad,
     savePayment,
-    saving: creating,
-    saved,
+    saving: newSaving,
+    saved: newSaved,
   } = usePayment();
+  const creating = edit ? edit.saving : newSaving;
+  const saved = edit ? edit.done : newSaved;
+  // editing: cash and each account hold what they do today and what this payment took out of them
+  const sources =
+    ed && sourcesNow
+      ? {
+          ...sourcesNow,
+          cash: sourcesNow.cash === null ? null : Math.round((sourcesNow.cash + ed.cashAmount) * 100) / 100,
+          banks: sourcesNow.banks.map((b) => {
+            const own = ed.banks.find((x) => x.bankDetailsId === b.id)?.amount ?? 0;
+            return { ...b, available: b.available === null ? null : Math.round((b.available + own) * 100) / 100 };
+          }),
+        }
+      : sourcesNow;
 
   // the answers
   // where it's paid from: cash, one bank account, or cash and a bank account together
-  const [into, setInto] = useState<"cash" | "bank" | "both" | null>(null);
-  const [bankId, setBankId] = useState<string | null>(null);
+  const [into, setInto] = useState<"cash" | "bank" | "both" | null>(seed?.into ?? null);
+  const [bankId, setBankId] = useState<string | null>(seed?.bankId ?? null);
   // paid from both: the cash part (the bank pays the rest); filled with what cash holds until it's typed
-  const [cashPart, setCashPart] = useState("");
-  const cashPartAuto = useRef(true);
+  const [cashPart, setCashPart] = useState(seed?.cashPart ?? "");
+  const cashPartAuto = useRef(!seed);
   // Cash + Bank: which part's field is being typed in, and the bank's as typed (the cash part is kept; the bank's follows)
   const [partTyping, setPartTyping] = useState<"cash" | "bank" | null>(null);
   // an amount typed past what can be paid is cut to the most; this says why, under that field, until it's typed again
@@ -113,14 +190,25 @@ export function usePaymentEntryState({
     return () => clearTimeout(timer);
   }, [capNote]);
   const [bankTyped, setBankTyped] = useState("");
-  const [amount, setAmount] = useState("");
-  const [kind, setKind] = useState<PaymentKind | null>(null);
-  const [to, setTo] = useState<LedgerChoice>(null);
+  const [amount, setAmount] = useState(seed?.amount ?? "");
+  const [kind, setKind] = useState<PaymentKind | null>(ed?.paidFor ?? null);
+  const [toPicked, setTo] = useState<LedgerChoice>(seed?.to ?? null);
+  // editing: the ledger it was paid to shows its balance as it was before this payment, however it's picked
+  const withoutOwn = (c: LedgerChoice): LedgerChoice => {
+    if (!ed?.to || c?.kind !== "ledger" || c.ledger.id !== ed.to.id || !c.ledger.balance) return c;
+    const today = c.ledger.balance.today;
+    const signed = Math.round(((today.side === "debit" ? 1 : -1) * today.amount - ed.toEffect) * 100) / 100;
+    return {
+      kind: "ledger",
+      ledger: { ...c.ledger, balance: { ...c.ledger.balance, today: { ...today, amount: Math.abs(signed), side: signed < 0 ? "credit" : "debit" } } },
+    };
+  };
+  const to = withoutOwn(toPicked);
   const [newParty, setNewParty] = useState<PartyDraft>(() => emptyParty());
   // an expense head added here: the TDS its payments carry
   const [newHeadTds, setNewHeadTds] = useState<TdsType | null>(null);
   // an expense to a head with TDS: who was paid (a party found, or one added here)
-  const [payee, setPayee] = useState<LedgerChoice>(null);
+  const [payee, setPayee] = useState<LedgerChoice>(seed?.payee ?? null);
   const [newPayee, setNewPayee] = useState<PartyDraft>(() => emptyParty());
   // a PAN for someone with none on record, where TDS is at the higher rate because of it
   // the PAN as typed in its box, and the one Saved: only a Saved PAN counts (for the TDS and on their record), so
@@ -134,35 +222,42 @@ export function usePaymentEntryState({
   // casual labour paid with nobody named
   const [payeeSkipped, setPayeeSkipped] = useState(false);
   // rent: the landlord it was paid to
-  const [landlordId, setLandlordId] = useState<string | null>(null);
-  const [gstMode, setGstMode] = useState<GstMode>("none");
-  const [gstin, setGstin] = useState("");
-  const [billNumber, setBillNumber] = useState("");
-  const [billDate, setBillDate] = useState("");
-  const [billRate, setBillRate] = useState<(typeof BILL_RATES)[number] | null>(null);
-  const [loan, setLoan] = useState<Loan | null>(null);
-  const [terms, setTerms] = useState<LoanDraft>(emptyLoan);
-  const [dueOn, setDueOn] = useState("");
-  const [day, setDay] = useState(() => indiaDay(new Date()));
+  const [landlordId, setLandlordId] = useState<string | null>(ed?.payeeLandlordId ?? null);
+  const [gstMode, setGstMode] = useState<GstMode>(ed?.gst ? "bill" : "none");
+  const [gstin, setGstin] = useState(ed?.gst?.gstin ?? "");
+  const [billNumber, setBillNumber] = useState(ed?.gst?.billNumber ?? "");
+  const [billDate, setBillDate] = useState(ed?.gst?.billDate ?? "");
+  const [billRate, setBillRate] = useState<(typeof BILL_RATES)[number] | null>(
+    (ed?.gst?.rate as (typeof BILL_RATES)[number] | undefined) ?? null,
+  );
+  const [loan, setLoan] = useState<Loan | null>(ed?.loan ?? null);
+  const [terms, setTerms] = useState<LoanDraft>(() =>
+    ed?.loanTerms ? { rate: String(ed.loanTerms.interestRate), frequency: ed.loanTerms.frequency } : emptyLoan(),
+  );
+  const [dueOn, setDueOn] = useState(ed?.loanTerms?.dueOn ?? "");
+  const [day, setDay] = useState(() => seed?.day ?? indiaDay(new Date()));
+  // the days it can be dated: an edit within its own month; a new one today or before (staff a few days back)
+  const dayMin = ed?.dayMin ?? earliestDay(isAdmin) ?? "";
+  const dayMax = ed?.dayMax ?? indiaDay(new Date());
   // how the bank's part was paid (UPI already, once the QR's bank was confirmed)
-  const [bankMode, setBankMode] = useState<BankMode | null>(null);
+  const [bankMode, setBankMode] = useState<BankMode | null>(seed?.bankMode ?? null);
   // more accounts after the first, each with what it pays and how; the first account pays the rest
-  const [moreParts, setMoreParts] = useState<MorePart[]>([]);
+  const [moreParts, setMoreParts] = useState<MorePart[]>(seed?.moreParts ?? []);
   // what card 1's account pays, typed
-  const [firstAmount, setFirstAmount] = useState("");
+  const [firstAmount, setFirstAmount] = useState(seed?.firstAmount ?? "");
   // Bank picked: the accounts' list opens by itself (back to 0 once an account is picked, so it doesn't open again)
   const [accountsOpen, setAccountsOpen] = useState(0);
   // the account cards folded to their one-line summary (by key; the first is "first")
   const [foldedCards, setFoldedCards] = useState<string[]>([]);
   const setMorePart = (key: string, patch: Partial<MorePart>) =>
     setMoreParts((all) => all.map((m) => (m.key === key ? { ...m, ...patch } : m)));
-  const [remarks, setRemarks] = useState("");
+  const [remarks, setRemarks] = useState(ed?.remarks ?? "");
   // each bank account's UTR or cheque number (by card key; the first is "first"), with how it was paid when typed: one
   // typed for another way of paying is dropped. A box left shows what's wrong with it
-  const [refs, setRefs] = useState<Record<string, { mode: BankMode; text: string }>>({});
+  const [refs, setRefs] = useState<Record<string, { mode: BankMode; text: string }>>(seed?.refs ?? {});
   const [refLeft, setRefLeft] = useState<string[]>([]);
   // a cash payment's own reference (a bill or voucher number), beside the remarks
-  const [cashRef, setCashRef] = useState("");
+  const [cashRef, setCashRef] = useState(ed?.cashReferenceNumber ?? "");
   // rent: the months being paid, and each godown's rent a month where it's changed for this payment
   const [rentMonths, setRentMonths] = useState("1");
   const [rentEdits, setRentEdits] = useState<Record<string, string>>({});
@@ -174,7 +269,7 @@ export function usePaymentEntryState({
   // next tap, so a part shown after a pick (the bank account after Paid by) never opens red
   useEffect(() => setTried(false), [amount, into, bankId, bankMode, cashPart, moreParts]);
   // another place to pay from starts with the first account alone
-  useEffect(() => setMoreParts([]), [into]);
+  useOnChange(() => setMoreParts([]), [into]);
 
   // what's typed, worked out
   const value = Number(amount) || 0;
@@ -202,7 +297,19 @@ export function usePaymentEntryState({
   const canBank = (banks?.length ?? 0) > 0 && hasMoney(banksHeld);
   const loanOf = kind !== null && LOAN_KINDS.includes(kind);
   const toParty = kind !== null && PARTY_KINDS.includes(kind);
-  const { loans, loansLoading, loansFailed, retryLoans } = useOpenLoans(loanOf);
+  const { loans: loansNow, loansLoading, loansFailed, retryLoans } = useOpenLoans(loanOf);
+  // editing: the loan it was on, as it was before this payment (it may since have closed)
+  const edLoan = ed?.loan ?? null;
+  const loans = useMemo(
+    () =>
+      edLoan && loansNow
+        ? [
+            ...(loansNow.some((l) => l.id === edLoan.id) || edLoan.left <= 0 ? [] : [edLoan]),
+            ...loansNow.map((l) => (l.id === edLoan.id ? edLoan : l)),
+          ]
+        : loansNow,
+    [edLoan, loansNow],
+  );
   // an old loan being added in the Paid to card, and the one just added, picked once the list has it
   const [addingOldLoan, setAddingOldLoan] = useState(false);
   // its form: who on Paid to, the rest on Loan terms, whose Next adds it
@@ -283,15 +390,15 @@ export function usePaymentEntryState({
       setPanEditing(false);
     }
   };
-  useEffect(() => {
+  useOnChange(() => {
     setPan("");
     setSavedPan("");
     setPanEditing(false);
     setPanLeft(false);
-  }, [kind, to, payee, landlordId, loan?.id]);
+  }, [kind, toPicked, payee, landlordId, loan?.id]);
 
   // staff don't see balances: once typing pauses, the server says whether the amount fits
-  const [askedAmount, setAskedAmount] = useState(0);
+  const [askedAmount, setAskedAmount] = useState(() => Number(seed?.amount) || 0);
   // the amount as last typed by hand in its box (not filled in by the website or a button)
   const keyedAmount = useRef<string | null>(null);
   useEffect(() => {
@@ -365,7 +472,7 @@ export function usePaymentEntryState({
     if (askedAmount === value && taxAnswered) setShowPan(panNeeded);
   }, [askedAmount, value, panNeeded, taxAnswered]);
   // another payee starts without it
-  useEffect(() => setShowPan(false), [kind, to, payee, landlordId, loan?.id]);
+  useOnChange(() => setShowPan(false), [kind, toPicked, payee, landlordId, loan?.id]);
   // an expense's TDS depends on who was paid, so it's open until they're picked
   const tdsKnown = tdsInfo !== null || hasPayee || interestInfo !== null;
   // the amount typed is without TDS and reverse-charge GST; with them, it must still fit what the source holds
@@ -376,14 +483,17 @@ export function usePaymentEntryState({
   // out of it and the rest is handed over, so once the TDS is known the amount handed over (`amount`) moves until it
   // and the TDS make the bill (reverse-charge GST goes on top, to the government); a few tries, so it can't chase a
   // limit for ever. With no TDS the two are the same
-  const [billText, setBillText] = useState("");
+  const [billText, setBillText] = useState(seed?.billText ?? "");
   // another kind starts with an empty box: nothing typed or worked out for the one before stays in it
-  useEffect(() => setBillText(""), [kind]);
+  useOnChange(() => setBillText(""), [kind]);
   const [totalGoal, setTotalGoal] = useState<{ total: number; tries: number } | null>(null);
   const [interestMonths, setInterestMonths] = useState("12");
   // interest typed in, from a statement: it replaces what the months come to, until the months are changed
-  const [interestTyped, setInterestTyped] = useState<string | null>(null);
-  useEffect(() => setInterestTyped(null), [loan?.id]);
+  // (an edited interest payment starts with what was paid, as typed)
+  const [interestTyped, setInterestTyped] = useState<string | null>(
+    ed?.paidFor === "interestPaid" && seed ? String(seed.bill) : null,
+  );
+  useOnChange(() => setInterestTyped(null), [loan?.id]);
   useEffect(() => {
     if (!totalGoal || (!interestInfo && !tdsInfo && !tax) || totalGoal.tries >= 6) return;
     const gap = Math.round((total - rcmAmount - totalGoal.total) * 100) / 100;
@@ -449,7 +559,7 @@ export function usePaymentEntryState({
   // the godown-by-godown breakup, opened from its total; open from the start while a rent is still to be typed
   const [rentOpen, setRentOpen] = useState(false);
   // another landlord starts from their own rent
-  useEffect(() => {
+  useOnChange(() => {
     setRentMonths("1");
     setRentEdits({});
     setEditingRent(null);
@@ -465,8 +575,22 @@ export function usePaymentEntryState({
     : rentCalc
       ? Math.round(monthlyRent * Number(rentMonths) * 100) / 100
       : 0;
+  // (an edit starts with its saved bill: it isn't worked out again until the months or the rent change)
+  const calcSeen = useRef<number | null>(seed?.bill ?? null);
   useEffect(() => {
     if (!calc) return;
+    if (calcSeen.current !== null) {
+      // rent: the saved bill as months of what the godowns come to, or else as one month's rent
+      if (rentCalc && calcDue !== calcSeen.current) {
+        const saved = calcSeen.current;
+        const months = monthlyRent > 0 ? saved / monthlyRent : 0;
+        if (Number.isInteger(months) && months >= 1) setRentMonths(String(months));
+        else setRentEdits(Object.fromEntries(rentRows.map((row, i) => [row.id, i === 0 ? String(Math.round((saved - rentRows.slice(1).reduce((sum, r) => sum + (Number(rentOf(r)) || 0), 0)) * 100) / 100) : rentOf(row)])));
+        return;
+      }
+      if (calcDue === calcSeen.current) calcSeen.current = null;
+      return;
+    }
     setBill(calcDue > 0 ? String(calcDue) : "");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the worked-out figure changes
   }, [calc, calcDue]);
@@ -660,8 +784,8 @@ export function usePaymentEntryState({
   // amount is the bank's main part (bankId, firstAmount, bankMode), the others its more parts, the cash box the cash part
   const usesGrid = into === "bank" || into === "both";
   // null is Auto; it starts off, everything empty
-  const [gridTyped, setGridTyped] = useState<Record<string, string> | null>({});
-  const [gridModes, setGridModes] = useState<Record<string, BankMode | null>>({});
+  const [gridTyped, setGridTyped] = useState<Record<string, string> | null>(seed?.gridTyped ?? {});
+  const [gridModes, setGridModes] = useState<Record<string, BankMode | null>>(seed?.gridModes ?? {});
   const gridIds = ["cash", ...(banks ?? []).map((b) => b.id)];
   const gridHeld = (id: string) => (id === "cash" ? cashHeld : bankHeld(id));
   const gridFilled = (() => {
@@ -849,7 +973,8 @@ export function usePaymentEntryState({
       : dueShown !== null && to?.kind === "ledger"
         ? to.ledger.id
         : null;
-  const filledFor = useRef<string | null>(null);
+  // (an edit's pick is filled in already: what was paid stays)
+  const filledFor = useRef<string | null>(ed ? (ed.loan?.id ?? ed.to?.id ?? null) : null);
   // a filled-in amount belongs to its pick: picking someone else clears it (one that was typed stays)
   const autoFilled = useRef(false);
   const pickKey =
@@ -991,15 +1116,15 @@ export function usePaymentEntryState({
   };
   // the cards that apply now, shown up to the first one not yet filled in
   const steps: Step[] = [
-    "kind",
+    ...(editing ? [] : (["kind"] as Step[])),
     "to",
-    ...(headTds ? (["payee"] as Step[]) : []),
+    ...(headTds && !(editing && complete.payee) ? (["payee"] as Step[]) : []),
     ...(asksGst ? (["gst"] as Step[]) : []),
     ...(kind === "loanGiven" || oldLoanOn ? (["terms"] as Step[]) : []),
     "amount",
     "details",
   ];
-  const [at, setAt] = useState<Step>("kind");
+  const [at, setAt] = useState<Step>(editing ? "to" : "kind");
   // a card that no longer applies (loan terms, once it isn't a loan given) gives way to the amount
   const current: Step = steps.includes(at) ? at : "amount";
 
@@ -1012,11 +1137,13 @@ export function usePaymentEntryState({
   const firstOpen = steps.findIndex((s) => !complete[s]);
   const ready = firstOpen === -1;
   // a summary line can go back to any card up to the first one not yet filled in
-  const reachable = (s: Step) => steps.indexOf(s) <= (ready ? steps.length - 1 : firstOpen);
+  // (a card not shown, as an edit's Paid for, can't be gone back to)
+  const reachable = (s: Step) =>
+    steps.includes(s) && steps.indexOf(s) <= (ready ? steps.length - 1 : firstOpen);
   // phones: the summary folded into a bar above the card
   const [summaryOpen, setSummaryOpen] = useState(false);
   // the phone's Back goes to the card before; each card moved to is remembered as a step back
-  const remember = useCardHistory<Step>("kind", (card) => {
+  const remember = useCardHistory<Step>(editing ? "to" : "kind", (card) => {
     moveCard(() => {
       setTried(false);
       setAt(card);
@@ -1156,8 +1283,11 @@ export function usePaymentEntryState({
   ];
 
   // leaving with something entered asks first (not after a save, which goes on to the payment's page)
+  // (an edit asks only once something differs from how it opened)
+  const editKey = JSON.stringify([kind, toPicked, payee, landlordId, loan?.id, amount, into, gridTyped, gridModes, gstMode, gstin, billNumber, billDate, billRate, terms, dueOn, day, refs, cashRef, remarks]);
+  const openedKey = useRef(editKey);
   const { dialog: leaveDialog } = useLeaveGuard(
-    !saved && (value > 0 || kind !== null || remarks !== ""),
+    !saved && (editing ? editKey !== openedKey.current : value > 0 || kind !== null || remarks !== ""),
     onDiscard,
   );
 
@@ -1278,7 +1408,7 @@ export function usePaymentEntryState({
       return setSaving(false);
     setSaveError(null);
     try {
-      const r = await savePayment({
+      const input: Parameters<typeof savePayment>[0] = {
         saveKey,
         dateTime: momentOf(day),
         paidFor: kind!,
@@ -1326,7 +1456,10 @@ export function usePaymentEntryState({
                 referenceNumber: refOf({ key: m.bankId!, mode: m.mode! }) || null,
               })),
         remarks,
-      });
+      };
+      // an edit saves over the saved payment (and goes on to its own done page)
+      if (edit) return void (await edit.save(input));
+      const r = await savePayment(input);
       // on to the payment's own page (the save put it in hand); replace, so going back doesn't land on the filled form
       router.replace(`/transaction/payment/${r.transactionId}`);
     } catch (err) {
@@ -1687,6 +1820,9 @@ export function usePaymentEntryState({
     save,
     isAdmin,
     onDiscard,
+    editing,
+    dayMin,
+    dayMax,
   };
 }
 
