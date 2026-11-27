@@ -127,7 +127,7 @@ export function ReturnsLog({
   );
 }
 
-// a log heading's share: a thin bar filled ivory, its words beside it ("40% returned")
+// a log heading's share: a thin bar filled ivory (green at 100%), its words beside it ("40% returned")
 export function HeadShare({ share, label, onLeftSide }: { share: number; label: string, onLeftSide: boolean }) {
   return (
     <span className="mr-auto flex items-center gap-2 sm:mr-0">
@@ -140,7 +140,8 @@ export function HeadShare({ share, label, onLeftSide }: { share: number; label: 
         aria-label={label}
         className="block h-1.5 w-20 overflow-hidden rounded-full bg-ivory/20"
       >
-        <i className="block h-full rounded-full bg-ivory" style={{ width: `${share}%` }} />
+        {/* all of it (100%): green */}
+        <i className={cn("block h-full rounded-full", share >= 100 ? "bg-success" : "bg-ivory")} style={{ width: `${share}%` }} />
       </span>
       {!onLeftSide && <span className="tabular text-xs font-semibold text-ivory/70">{label}</span>}
     </span>
