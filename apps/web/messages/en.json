@@ -1941,6 +1941,8 @@
         "title": "Salary paid successfully",
         "loading": "Loading the payment…",
         "loadError": "Couldn't load the payment. Check your connection and try again.",
+        "salaryPaid": "Salary paid",
+        "advancePaid": "Advance paid",
         "paidCount": "{count, plural, one {# payment saved} other {# payments saved}}"
       },
       "heads": {

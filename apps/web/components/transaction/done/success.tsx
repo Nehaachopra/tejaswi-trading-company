@@ -154,6 +154,13 @@ export function ReceiptSuccess({
     isPayment && paid?.paidFor === "taxPaid"
       ? { tax: (/[csi]?gst|tds|tcs/i.exec(paid.paidToName)?.[0] ?? paid.paidToName).toUpperCase(), amount: paid.amount }
       : null;
+  // a salary or an advance: what was paid (every employee's together when many were paid)
+  const salaryPaid = isSalary && salaryGet.saved
+    ? {
+        kind: salaryGet.saved.kind,
+        amount: Math.round((many ?? [salaryGet.saved]).reduce((sum, m) => sum + m.amount, 0) * 100) / 100,
+      }
+    : null;
   // an expense: its head (Rent, Electricity…) and what's booked to it, TDS included
   const expense =
     isPayment && paid?.paidFor === "expense"
@@ -276,6 +283,18 @@ export function ReceiptSuccess({
               <p className="flex items-baseline justify-between gap-4 py-3">
                 <span className="min-w-0 truncate text-sm font-semibold">{titleCase(expense.head)}</span>
                 <span className="shrink-0 font-heading text-xl font-bold">{rupees(expense.booked)}</span>
+              </p>
+            </div>
+          )}
+
+          {/* a salary or an advance: what was paid */}
+          {salaryPaid && (
+            <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
+              <p className="flex items-baseline justify-between gap-4 py-3">
+                <span className="text-sm font-semibold">
+                  {ownSalary(salaryPaid.kind === "advance" ? "advancePaid" : "salaryPaid")}
+                </span>
+                <span className="font-heading text-xl font-bold">{rupees(salaryPaid.amount)}</span>
               </p>
             </div>
           )}
