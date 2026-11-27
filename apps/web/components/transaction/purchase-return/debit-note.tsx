@@ -51,6 +51,8 @@ export function DebitNoteView({
   const ti = useTranslations("transactions.sale.invoice");
   const tr = useTranslations("transactions.purchaseReturn");
   const th = useTranslations("history");
+  // opened from History: its History look on the screen (printed, the success card and shared links: as issued)
+  const h = !!history;
   const shared = shareKey !== undefined;
   const { note: d, loading, loadFailed } = useDebitNote(id, shareKey);
   const link = useDebitNoteShareKey(id, !shared);
@@ -195,7 +197,7 @@ export function DebitNoteView({
       </div>
 
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
-        <DocHead title={t("title")} screenTitle={tr("title")} jurisdiction={ti("jurisdiction", { place: c.jurisdiction })} />
+        <DocHead title={t("title")} screenTitle={history ? tr("title") : undefined} jurisdiction={ti("jurisdiction", { place: c.jurisdiction })} />
         {cancelled && (
           <div
             aria-hidden
@@ -207,10 +209,10 @@ export function DebitNoteView({
           </div>
         )}
 
-        <div className="flex flex-col border border-chestnut/40 print:block">
+        <div className={cn("border border-chestnut/40", h && "flex flex-col print:block")}>
           {/* our details (printed only), and the note's */}
-          <div className="grid print:grid-cols-[1fr_1.5fr]">
-            <div className="hidden min-w-0 flex-col border-b border-chestnut/40 print:flex print:border-r">
+          <div className={cn("grid", h ? "print:grid-cols-[1fr_1.5fr]" : "sm:grid-cols-[1fr_1.5fr]")}>
+            <div className={cn("flex min-w-0 flex-col border-b border-chestnut/40 sm:border-r", h && "hidden print:flex print:border-r")}>
               <p className={band}>{c.name}</p>
               <div className={cn(cell, "flex flex-col gap-0.5 break-words")}>
                 <span>{c.address}</span>
@@ -227,7 +229,7 @@ export function DebitNoteView({
                 <span>GSTIN : {c.gstin}</span>
               </div>
             </div>
-            <div className="hidden min-w-0 flex-col border-b border-chestnut/40 print:flex">
+            <div className={cn("flex min-w-0 flex-col border-b border-chestnut/40", h && "hidden print:flex")}>
               <div className="grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_auto_auto_auto] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
                 <Detail nowrap
                   label={t("number")}
@@ -270,6 +272,7 @@ export function DebitNoteView({
           </div>
 
           {/* on the screen: just the number, date, how it was settled, the reason and remarks (when typed) */}
+          {h && (
           <ScreenDetails
             rows={[
               { key: "number", label: t("number"), value: <span className="font-bold">{d.assignedId}</span> },
@@ -279,8 +282,9 @@ export function DebitNoteView({
             ]}
             remarks={{ label: ti("remarks"), text: d.remarks }}
           />
+          )}
           {/* who it's to, the supplier: on the screen, on top */}
-          <div className="order-first border-b border-chestnut/40 print:order-none">
+          <div className={cn("border-b border-chestnut/40", h && "order-first print:order-none")}>
             <p className={cn(band, "break-words")}>
               {t("to")}: {supplier}
             </p>
@@ -298,7 +302,7 @@ export function DebitNoteView({
           <div className="max-h-[294px] overflow-auto print:max-h-none print:overflow-visible">
             <table className="tabular w-full min-w-[40rem] border-collapse text-[0.8125rem] [&_td]:px-1.5 [&_th]:px-1.5">
               <thead>
-                <tr className="text-left [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-chestnut [&>th]:text-ivory [&>th]:border-ivory/30 [&>th]:shadow-[inset_0_-1px_0_rgb(90_42_26/0.4)] print:[&>th]:static print:[&>th]:bg-ivory print:[&>th]:text-chestnut print:[&>th]:border-chestnut/40">
+                <tr className={cn("text-left [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-ivory [&>th]:shadow-[inset_0_-1px_0_rgb(90_42_26/0.4)] print:[&>th]:static", h && "[&>th]:bg-chestnut [&>th]:text-ivory [&>th]:border-ivory/30 print:[&>th]:bg-ivory print:[&>th]:text-chestnut print:[&>th]:border-chestnut/40")}>
                   <th className={cn(cell, "w-10 border-r font-semibold")}>{ti("sl")}</th>
                   <th className={cn(cell, "border-r font-semibold")}>{ti("particulars")}</th>
                   <th className={cn(cell, "border-r font-semibold")}>HSN</th>
@@ -389,14 +393,14 @@ export function DebitNoteView({
             <span aria-hidden className="hidden sm:block" />
             <Breakup rows={breakup} label={t("amount")} amount={`₹${money(d.total)}`} />
           </div>
-          <div className="hidden border-t border-chestnut/40 print:grid print:grid-cols-[12rem_1fr]">
+          <div className={cn("grid border-t border-chestnut/40 sm:grid-cols-[12rem_1fr]", h && "hidden print:grid")}>
             <span className={cn(cell, "font-semibold sm:border-r")}>{ti("inWords")}</span>
             <span className={cell}>{amountInWords(d.total)}</span>
           </div>
         </div>
 
-        <p className="hidden pt-2 font-semibold print:block">{ti("computerGenerated")}</p>
-        <div className="mt-12 hidden items-end justify-between gap-6 print:flex">
+        <p className={cn("pt-2 font-semibold", h && "hidden print:block")}>{ti("computerGenerated")}</p>
+        <div className={cn("mt-12 flex items-end justify-between gap-6", h && "hidden print:flex")}>
           <p>{ti("receiver")}</p>
           <p className="font-semibold">{ti("signatory")}</p>
         </div>

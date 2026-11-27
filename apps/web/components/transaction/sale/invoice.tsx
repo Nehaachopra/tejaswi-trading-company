@@ -79,6 +79,8 @@ export function SaleInvoice({
   const cancelled = d.status === "cancelled";
   // the admin's Return and Edit sale, from History, while it's live (Edit greyed when it can't be)
   const record = history?.record;
+  // opened from History: its History look on the screen (printed, the success card and shared links: as issued)
+  const h = !!history;
   // how many of each product went back on its returns (History only): its row shows what's left
   const returnedOf = new Map((record?.returnedLines ?? []).map((r) => [r.productId, r.quantity]));
   const canAsk = !!history?.isAdmin && !cancelled;
@@ -214,7 +216,7 @@ export function SaleInvoice({
 
       {/* the invoice itself */}
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
-        <DocHead title={t("title")} screenTitle={ts("title")} jurisdiction={t("jurisdiction", { place: c.jurisdiction })} />
+        <DocHead title={t("title")} screenTitle={history ? ts("title") : undefined} jurisdiction={t("jurisdiction", { place: c.jurisdiction })} />
         {/* a cancelled sale: a faded CANCELLED stamp across it (printed too), over everything but not in the way */}
         {cancelled ? (
           <DocStamp label={th("stamp")} tone="danger" />
@@ -224,10 +226,10 @@ export function SaleInvoice({
         )}
         {cancelled && <p className="sr-only">{t("cancelled")}</p>}
 
-        <div className="flex flex-col border border-chestnut/40 print:block">
+        <div className={cn("border border-chestnut/40", h && "flex flex-col print:block")}>
           {/* our details (printed only), and the invoice's */}
-          <div className="grid print:grid-cols-[1fr_1.5fr]">
-            <div className="hidden min-w-0 flex-col border-b border-chestnut/40 print:flex print:border-r">
+          <div className={cn("grid", h ? "print:grid-cols-[1fr_1.5fr]" : "sm:grid-cols-[1fr_1.5fr]")}>
+            <div className={cn("flex min-w-0 flex-col border-b border-chestnut/40 sm:border-r", h && "hidden print:flex print:border-r")}>
               <p className={band}>{c.name}</p>
               <div className={cn(cell, "flex flex-col gap-0.5 break-words")}>
                 <span>{c.address}</span>
@@ -246,7 +248,7 @@ export function SaleInvoice({
               </div>
             </div>
             {/* the details, then our terms and the remarks under their last row (printed only) */}
-            <div className="hidden min-w-0 flex-col border-b border-chestnut/40 print:flex">
+            <div className={cn("flex min-w-0 flex-col border-b border-chestnut/40", h && "hidden print:flex")}>
             <div className="grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_1fr_auto_1fr] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
               <Detail
                 label={t("number")}
@@ -263,7 +265,7 @@ export function SaleInvoice({
               <span className={cn(cell, "border-b border-r font-medium")}>{t("vehicle")}</span>
               <span className={cn(cell, "tabular border-b sm:col-span-3 sm:border-r-0!")}>{d.vehicleNumber ?? "—"}</span>
             </div>
-            <div className={cn(cell, "hidden border-b break-words print:block")}>
+            <div className={cn(cell, "border-b break-words", h && "hidden print:block")}>
               <span className="font-semibold">{t("terms")}:</span>
               <ol className="mt-0.5 list-decimal pl-4 text-xs">
                 <li>{t("term1")}</li>
@@ -275,6 +277,7 @@ export function SaleInvoice({
           </div>
 
           {/* on the screen: just the number, date, payment, vehicle and remarks (when typed) */}
+          {h && (
           <ScreenDetails
             rows={[
               { key: "number", label: t("number"), value: <span className="font-bold">{d.assignedId}</span> },
@@ -284,9 +287,10 @@ export function SaleInvoice({
             ]}
             remarks={{ label: t("remarks"), text: d.remarks }}
           />
+          )}
           {/* who it's billed to, and where it goes: on the screen, on top */}
-          <div className={cn("order-first grid border-b border-chestnut/40 print:order-none print:grid-cols-2", d.billTo && "sm:grid-cols-2")}>
-            <div className={cn("flex min-w-0 flex-col border-b border-chestnut/40 sm:border-b-0 print:border-r", d.billTo && "sm:border-r")}>
+          <div className={cn("grid border-b border-chestnut/40", h ? cn("order-first print:order-none print:grid-cols-2", d.billTo && "sm:grid-cols-2") : "sm:grid-cols-2")}>
+            <div className={cn("flex min-w-0 flex-col border-b border-chestnut/40 sm:border-b-0", h && !d.billTo ? "print:border-r" : "sm:border-r")}>
               <p className={cn(band, "break-words")}>
                 {t("billTo")}: {buyer}
               </p>
@@ -312,7 +316,7 @@ export function SaleInvoice({
               </div>
             </div>
             {/* on the screen only when it goes somewhere other than where it's billed */}
-            <div className={cn("min-w-0 flex-col", d.billTo ? "flex" : "hidden print:flex")}>
+            <div className={cn("flex min-w-0 flex-col", h && !d.billTo && "hidden print:flex")}>
               <p className={band}>{t("shipTo")}</p>
               <div className={cn(cell, "flex flex-col gap-0.5 break-words")}>
                 <span className="flex items-start gap-1.5">
@@ -334,7 +338,7 @@ export function SaleInvoice({
             <table className="tabular w-full min-w-[40rem] border-collapse text-[0.8125rem] [&_td]:px-1.5 [&_th]:px-1.5">
               <thead>
                 {/* held on top while the rows scroll (its bottom line drawn as a shadow, which stays with it) */}
-                <tr className="text-left [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-chestnut [&>th]:text-ivory [&>th]:border-ivory/30 [&>th]:shadow-[inset_0_-1px_0_rgb(90_42_26/0.4)] print:[&>th]:static print:[&>th]:bg-ivory print:[&>th]:text-chestnut print:[&>th]:border-chestnut/40">
+                <tr className={cn("text-left [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-ivory [&>th]:shadow-[inset_0_-1px_0_rgb(90_42_26/0.4)] print:[&>th]:static", h && "[&>th]:bg-chestnut [&>th]:text-ivory [&>th]:border-ivory/30 print:[&>th]:bg-ivory print:[&>th]:text-chestnut print:[&>th]:border-chestnut/40")}>
                   <th className={cn(cell, "w-10 border-r font-semibold")}>{t("sl")}</th>
                   <th className={cn(cell, "border-r font-semibold")}>{t("particulars")}</th>
                   <th className={cn(cell, "border-r font-semibold")}>HSN</th>
@@ -482,15 +486,15 @@ export function SaleInvoice({
           </div>
 
           {/* the amount in words */}
-          <div className="hidden border-t border-chestnut/40 print:grid print:grid-cols-[12rem_1fr]">
+          <div className={cn("grid border-t border-chestnut/40 sm:grid-cols-[12rem_1fr]", h && "hidden print:grid")}>
             <span className={cn(cell, "font-semibold sm:border-r")}>{t("inWords")}</span>
             <span className={cell}>{amountInWords(d.total)}</span>
           </div>
         </div>
 
         {/* computer generated, and the signatures */}
-        <p className="hidden pt-2 font-semibold print:block">{t("computerGenerated")}</p>
-        <div className="mt-12 hidden items-end justify-between gap-6 print:flex">
+        <p className={cn("pt-2 font-semibold", h && "hidden print:block")}>{t("computerGenerated")}</p>
+        <div className={cn("mt-12 flex items-end justify-between gap-6", h && "hidden print:flex")}>
           <p>{t("receiver")}</p>
           <p className="font-semibold">{t("signatory")}</p>
         </div>

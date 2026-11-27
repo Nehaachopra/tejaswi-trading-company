@@ -13,7 +13,7 @@ const cell = "border-chestnut/40 px-2 py-1.5";
 export const LAST_COL = "w-40 min-w-40 print:w-32! print:min-w-32!";
 
 // the title centred, with the jurisdiction on its line at the left, over our name; on a phone, under the title
-// (`screenTitle`: shown on the screen in its place, with no jurisdiction; the printed copy keeps both)
+// (`screenTitle`: shown in its place in History, with no jurisdiction; printed, the success card and shared links keep both)
 export function DocHead({ title, screenTitle, jurisdiction }: { title: string; screenTitle?: string; jurisdiction: string }) {
   return (
     <div className="grid gap-0.5 pb-2 sm:grid-cols-[1fr_auto_1fr] sm:items-end sm:gap-3">

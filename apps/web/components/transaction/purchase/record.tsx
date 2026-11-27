@@ -48,6 +48,8 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
   const ts = useTranslations("transactions.sale");
   const ti = useTranslations("transactions.sale.invoice");
   const th = useTranslations("history");
+  // always opened from History: its History look on the screen (printed: as it reads)
+  const h = true;
   const read = useSavedPurchase(id);
   if (read.loading)
     return (
@@ -151,7 +153,7 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
 
         <div className="border border-chestnut/40">
           {/* who the bill is from, and the purchase's details */}
-          <div className="grid print:grid-cols-[1fr_1.5fr]">
+          <div className={cn("grid", h ? "print:grid-cols-[1fr_1.5fr]" : "sm:grid-cols-[1fr_1.5fr]")}>
             <div className="flex min-w-0 flex-col border-b border-chestnut/40 print:border-r">
               <p className={cn(band, "break-words")}>
                 {t("from")}: {titleCase(d.supplier.name)}
@@ -172,7 +174,7 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
                 {d.supplier.gstin && <span>GSTIN : {d.supplier.gstin}</span>}
               </div>
             </div>
-            <div className="hidden min-w-0 flex-col border-b border-chestnut/40 print:flex">
+            <div className={cn("flex min-w-0 flex-col border-b border-chestnut/40", h && "hidden print:flex")}>
               <div className="grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_1fr_auto_1fr] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
                 <Detail label={t("number")} value={<span className="font-bold">{d.assignedId}</span>} />
                 <Detail label={t("dated")} value={dated(`${d.invoiceDate}T12:00:00+05:30`)} />
@@ -201,7 +203,7 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
           <div className="max-h-[294px] overflow-auto print:max-h-none print:overflow-visible">
             <table className="tabular w-full min-w-[38rem] border-collapse text-[0.8125rem] [&_td]:px-1.5 [&_th]:px-1.5">
               <thead>
-                <tr className="text-left [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-chestnut [&>th]:text-ivory [&>th]:border-ivory/30 [&>th]:shadow-[inset_0_-1px_0_rgb(90_42_26/0.4)] print:[&>th]:static print:[&>th]:bg-ivory print:[&>th]:text-chestnut print:[&>th]:border-chestnut/40">
+                <tr className={cn("text-left [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-ivory [&>th]:shadow-[inset_0_-1px_0_rgb(90_42_26/0.4)] print:[&>th]:static", h && "[&>th]:bg-chestnut [&>th]:text-ivory [&>th]:border-ivory/30 print:[&>th]:bg-ivory print:[&>th]:text-chestnut print:[&>th]:border-chestnut/40")}>
                   <th className={cn(cell, "w-10 border-r font-semibold")}>{ti("sl")}</th>
                   <th className={cn(cell, "border-r font-semibold")}>{ti("particulars")}</th>
                   <th className={cn(cell, "border-r text-right font-semibold")}>{ti("qty")}</th>
@@ -320,12 +322,12 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
             <span aria-hidden className="hidden sm:block" />
             <Breakup rows={breakup} label={t("amount")} amount={`₹${money(d.total)}`} />
           </div>
-          <div className="hidden border-t border-chestnut/40 print:grid print:grid-cols-[12rem_1fr]">
+          <div className={cn("grid border-t border-chestnut/40 sm:grid-cols-[12rem_1fr]", h && "hidden print:grid")}>
             <span className={cn(cell, "font-semibold sm:border-r")}>{ti("inWords")}</span>
             <span className={cell}>{amountInWords(d.total)}</span>
           </div>
         </div>
-        <p className="hidden pt-2 font-semibold print:block">{ti("computerGenerated")}</p>
+        <p className={cn("pt-2 font-semibold", h && "hidden print:block")}>{ti("computerGenerated")}</p>
       </article>
 
       {/* the purchase's returns, under it (each one's replacements are under its debit note) */}
