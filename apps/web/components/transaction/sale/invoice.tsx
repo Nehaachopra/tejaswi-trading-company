@@ -209,7 +209,12 @@ export function SaleInvoice({
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
         <DocHead title={t("title")} jurisdiction={t("jurisdiction", { place: c.jurisdiction })} />
         {/* a cancelled sale: a faded CANCELLED stamp across it (printed too), over everything but not in the way */}
-        {cancelled && <DocStamp label={th("stamp")} tone="danger" />}
+        {cancelled ? (
+          <DocStamp label={th("stamp")} tone="danger" />
+        ) : (
+          // every pack gone back: RETURNED
+          record?.returnedShare === 100 && <DocStamp label={th("stampReturned")} tone="chestnut" />
+        )}
         {cancelled && <p className="sr-only">{t("cancelled")}</p>}
 
         <div className="border border-chestnut/40">
@@ -453,11 +458,7 @@ export function SaleInvoice({
           {/* the breakup at the right, its figures under the table's Total */}
           <div className="grid border-t border-chestnut/40 sm:grid-cols-[1fr_auto]">
             <span aria-hidden className="hidden sm:block" />
-            {/* every pack gone back: a RETURNED stamp across the breakup */}
-            <div className="relative overflow-hidden">
-              <Breakup rows={breakup} label={t("amount")} amount={`₹${money(d.total)}`} />
-              {!cancelled && record?.returnedShare === 100 && <DocStamp label={th("stampReturned")} tone="chestnut" small />}
-            </div>
+            <Breakup rows={breakup} label={t("amount")} amount={`₹${money(d.total)}`} />
           </div>
 
           {/* the amount in words */}
