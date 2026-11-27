@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { CopyButton } from "~/components/ui/copy-button";
 import { PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/icons/spinner";
-import { rupees } from "~/lib/format";
+import { rupees, titleCase } from "~/lib/format";
 import {
   useSavedDeposit,
   useSavedDrawing,
@@ -269,7 +269,7 @@ export function ReceiptSuccess({
           {expense && (
             <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
               <p className="flex items-baseline justify-between gap-4 py-3">
-                <span className="min-w-0 truncate text-sm font-semibold">{expense.head}</span>
+                <span className="min-w-0 truncate text-sm font-semibold">{titleCase(expense.head)}</span>
                 <span className="shrink-0 font-heading text-xl font-bold">{rupees(expense.booked)}</span>
               </p>
             </div>
