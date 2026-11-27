@@ -228,7 +228,9 @@ export function usePurchaseEditState({ purchase: p, products, money, saveEdit, s
   const month = indiaDay(new Date(p.dateTime)).slice(0, 7);
   const monthEnd = indiaDay(new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0, 12)));
   const dayMin = `${month}-01`;
-  const dayMax = monthEnd < today ? monthEnd : today;
+  // with returns: not past the first one's day
+  const capped = monthEnd < today ? monthEnd : today;
+  const dayMax = p.firstReturnDate && p.firstReturnDate < capped ? p.firstReturnDate : capped;
   const complete: Record<EditStep, boolean> = {
     cart: costsOk && total > 0,
     money: kind !== null,

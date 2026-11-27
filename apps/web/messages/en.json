@@ -2044,6 +2044,8 @@
         "loadError": "Couldn't load the purchase."
       },
       "edit": {
+        "lockedRefunded": "Refunded on a return, so it stays as it was.",
+        "lockedPending": "Its replacement is still to come, so it stays as it was.",
         "title": "Edit purchase",
         "total": "Total",
         "save": "Save changes",
@@ -2248,6 +2250,8 @@
       "rate": "Rate",
       "pricePer": "Price / {unit}",
       "edit": {
+        "lockedRefunded": "Refunded on a return, so it stays as it was.",
+        "lockedPending": "Its replacement is still to go, so it stays as it was.",
         "title": "Edit sale",
         "noRemove": "An item can't be taken off in an edit. Use a sale return.",
         "total": "Total",
@@ -3052,6 +3056,11 @@
     "reasonLine": "Reason: {reason}",
     "stamp": "CANCELLED",
     "stampReturned": "RETURNED",
+    "editBlocked": {
+      "gstFiledSale": "Can't edit: this month's GSTR-1 is filed. Use a sale return instead.",
+      "gstFiledPurchase": "Can't edit: this month's GSTR-3B is filed. Use a purchase return instead.",
+      "replacement": "Can't edit: this is a return's replacement."
+    },
     "blocked": {
       "gstFiled": "Can't cancel: this month's GST return is filed. Use a sale return instead.",
       "salePaid": "Can't cancel: the customer has paid towards this sale. Cancel that receipt first.",

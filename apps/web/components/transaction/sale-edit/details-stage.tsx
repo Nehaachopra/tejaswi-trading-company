@@ -27,7 +27,9 @@ export function DetailsStage() {
     new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0, 12)),
   );
   const min = `${month}-01`;
-  const max = monthEnd < today ? monthEnd : today;
+  // with returns: not past the first one's day
+  const capped = monthEnd < today ? monthEnd : today;
+  const max = sale.firstReturnDate && sale.firstReturnDate < capped ? sale.firstReturnDate : capped;
   return (
     <>
       <div className="mb-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">

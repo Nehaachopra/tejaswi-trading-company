@@ -9,6 +9,7 @@ import {
   ledgersTable,
   partiesTable,
   productGodownsTable,
+  returnDeliveriesTable,
   saleOrderProductsTable,
   saleOrdersTable,
   saleProductsTable,
@@ -32,6 +33,7 @@ import SettingService from "../setting";
 import { saleOrderDelivered } from "../sale-order/delivered";
 import StockEngine, { type Tx } from "../stock/engine";
 import TransactionService from "../transaction";
+import { saleReturnLocks } from "../transaction/return-locks";
 import { settleLedger } from "../transaction/settle";
 import { type EditSaleInputModel, editSaleInputModel, type SaleForEditModel } from "./edit-model";
 import { tdsOn } from "../receipt/model";
@@ -135,19 +137,14 @@ export default class SaleEditService {
   private async blockedBy(q: Tx, t: { id: string; status: string; dateTime: Date }) {
     if (t.status === "cancelled") return "cancelled" as const;
     if (await this.transactions.filed(q, "gstr1", t.dateTime)) return "gstFiled" as const;
-    // goods came back on a return still in place (its figures rest on the sale's lines as they are), or it's an
-    // exchange's new sale
+    // a return's replacement: an exchange's new sale, or one a return's packs replaced later went out on (goods that
+    // came back on it don't block it: those items are locked instead)
     const [sale] = await q.select({ id: salesTable.id }).from(salesTable).where(eq(salesTable.transactionId, t.id));
     if (sale) {
-      const returned = await q
-        .select({ id: saleReturnsTable.id })
-        .from(saleReturnsTable)
-        .innerJoin(transactionsTable, eq(transactionsTable.id, saleReturnsTable.transactionId))
-        .where(and(eq(saleReturnsTable.saleId, sale.id), eq(transactionsTable.status, "active")))
-        .limit(1);
-      if (returned.length > 0) return "returned" as const;
       const [exchange] = await q.select({ id: saleReturnsTable.id }).from(saleReturnsTable).where(eq(saleReturnsTable.exchangeSaleId, sale.id));
-      if (exchange) return "exchange" as const;
+      if (exchange) return "replacement" as const;
+      const [delivery] = await q.select({ id: returnDeliveriesTable.id }).from(returnDeliveriesTable).where(eq(returnDeliveriesTable.deliveryTransactionId, t.id)).limit(1);
+      if (delivery) return "replacement" as const;
     }
     return null;
   }
@@ -250,6 +247,7 @@ export default class SaleEditService {
           receipts,
         },
         editBlockedBy: await this.blockedBy(tx, t),
+        ...(await saleReturnLocks(tx, sale.id).then((l) => ({ lockedLines: [...l.locked].map(([productId, why]) => ({ productId, why })), firstReturnDate: l.firstReturn }))),
       };
     });
   }
@@ -262,9 +260,11 @@ export default class SaleEditService {
       const blocked = await this.blockedBy(tx, t);
       if (blocked === "cancelled") throw new TRPCError({ code: "CONFLICT", message: "This sale is cancelled." });
       if (blocked === "gstFiled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That month's GSTR-1 is filed. Use a sale return instead." });
-      if (blocked === "returned") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Goods came back on this sale; it can't be edited now." });
-      if (blocked === "exchange") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "An exchange's sale can't be edited." });
+      if (blocked === "replacement") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A return's replacement can't be edited." });
       if (indiaMonth(input.dateTime) !== indiaMonth(t.dateTime)) throw new TRPCError({ code: "BAD_REQUEST", message: "The date stays in the sale's own month." });
+      // returns still in place: the day stays on or before the first one's
+      const locks = await saleReturnLocks(tx, sale.id);
+      if (locks.firstReturn && indiaDay(input.dateTime) > locks.firstReturn) throw new TRPCError({ code: "BAD_REQUEST", message: "The date can't move past this sale's first return." });
       if (oldParts.some((p) => !p.godownId)) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A godown this sale used is gone." });
 
       // every item kept, none fewer than before (fewer is a return)
@@ -277,6 +277,9 @@ export default class SaleEditService {
         const line = input.lines.find((l) => l.productId === productId);
         if (!line) throw new TRPCError({ code: "BAD_REQUEST", message: "An item can't be taken off in an edit. Use a sale return." });
         if (line.quantity < qty) throw new TRPCError({ code: "BAD_REQUEST", message: "A quantity can't go down in an edit. Use a sale return." });
+        // refunded, or its replacement still to go: as it was
+        if (locks.locked.has(productId) && (line.quantity !== qty || Math.abs(line.rateBeforeGst - (rateBefore.get(productId) ?? 0)) > 0.005))
+          throw new TRPCError({ code: "BAD_REQUEST", message: "An item refunded, or with its replacement still to go, stays as it was." });
       }
 
       const company = await this.settings.get("company", tx);
@@ -438,6 +441,8 @@ export default class SaleEditService {
         } else await tx.insert(saleProductsTable).values(values);
       }
       const gone = oldParts.filter((o) => !kept.has(o.id)).map((o) => o.id);
+      // a line goods came back on stays
+      if (gone.some((id) => locks.referenced.has(id))) throw new TRPCError({ code: "BAD_REQUEST", message: "A godown goods came back on stays on the sale." });
       if (gone.length > 0) await tx.delete(saleProductsTable).where(inArray(saleProductsTable.id, gone));
 
       // an open order this sale dispatches: complete once everything ordered has gone out

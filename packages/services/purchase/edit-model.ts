@@ -92,7 +92,11 @@ export const purchaseForEditModel = z.object({
   paid: z.number(),
   // the supplier's account now: what we owe them (plus) or hold with them as an advance (minus)
   supplierBalance: z.number(),
-  editBlockedBy: z.enum(["cancelled", "gstFiled", "returned", "replacement"]).nullable(),
+  // returns still in place: the items that can't change and why (refunded, or a replacement still pending), and the
+  // first return's day (the date can't move past it; none: null)
+  lockedLines: z.array(z.object({ productId: idModel, why: z.enum(["refunded", "pending"]) })),
+  firstReturnDate: z.string().nullable(),
+  editBlockedBy: z.enum(["cancelled", "gstFiled", "replacement"]).nullable(),
 });
 
 export type PurchaseForEditModel = z.infer<typeof purchaseForEditModel>;

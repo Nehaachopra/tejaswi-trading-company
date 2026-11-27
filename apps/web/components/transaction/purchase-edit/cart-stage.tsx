@@ -32,6 +32,11 @@ export function CartStage() {
           onOpen={setCardFor}
           onRemove={keep}
           canRemove={() => false}
+          // refunded, or its replacement still to come: as it was, saying why
+          lockedReason={(id) => {
+            const why = purchase.lockedLines.find((l) => l.productId === id)?.why;
+            return why ? te(why === "refunded" ? "lockedRefunded" : "lockedPending") : null;
+          }}
           showTotal={false}
           twoPerRow
         />

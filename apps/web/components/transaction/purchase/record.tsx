@@ -13,6 +13,7 @@ import type { HistoryTransaction } from "~/providers/history";
 import { useSavedPurchase } from "~/providers/purchase";
 
 import { DocStamp } from "../../history/doc-stamp";
+import { BlockedButton } from "../../history/blocked-button";
 import { CancelledNote } from "../../history/cancelled-note";
 import { EditedNote } from "../../history/edited-note";
 import { EditLog } from "../../history/edit-log";
@@ -119,12 +120,12 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
           <button type="button" onClick={() => window.print()} className={pill}>
             <Download className="size-4" aria-hidden /> {t("download")}
           </button>
-          {/* Edit purchase: greyed once its GSTR-3B month is filed, goods went back on it, or it's a return's replacement */}
+          {/* Edit purchase: greyed once its GSTR-3B month is filed or it's a return's replacement; a tap or hover says why */}
           {canAsk &&
-            (record.returned || record.cancelBlockedBy === "gstFiled" || record.cancelBlockedBy === "replacementPurchase" ? (
-              <button type="button" disabled className={pill}>
+            (record.cancelBlockedBy === "gstFiled" || record.replacementFor ? (
+              <BlockedButton className={pill} reason={th(record.cancelBlockedBy === "gstFiled" ? "editBlocked.gstFiledPurchase" : "editBlocked.replacement")}>
                 <Pencil className="size-4" aria-hidden /> {th("editPurchase")}
-              </button>
+              </BlockedButton>
             ) : (
               <Link href={`/history/${id}/edit`} className={pill}>
                 <Pencil className="size-4" aria-hidden /> {th("editPurchase")}

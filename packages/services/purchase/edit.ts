@@ -10,7 +10,6 @@ import {
   productCostHistoryTable,
   productsTable,
   purchaseProductsTable,
-  purchaseReturnsTable,
   purchasesTable,
   returnDeliveriesTable,
   salePurchaseCreditDetailsTable,
@@ -28,6 +27,7 @@ import PartyService from "../party";
 import { BANK_MODE_DB } from "../payment/model";
 import type { Tx } from "../stock/engine";
 import TransactionService from "../transaction";
+import { purchaseReturnLocks } from "../transaction/return-locks";
 import { settleLedger } from "../transaction/settle";
 import { weightedCost } from "./cost";
 import { type EditPurchaseInputModel, editPurchaseInputModel, type PurchaseForEditModel } from "./edit-model";
@@ -145,18 +145,11 @@ export default class PurchaseEditService {
     return [...net].filter(([id, p]) => p !== 0 && !bill.has(id) && id !== supplierLedgerId).map(([ledgerId, paise]) => ({ ledgerId, paise }));
   }
 
-  // why it can't be edited, if it can't: cancelled, its GSTR-3B month filed, goods gone back on it (a return's figures
-  // rest on its rates), or it's a return's replacement (bought at the original rate)
-  private async blockedBy(q: Tx, t: { id: string; status: string; dateTime: Date }, purchaseId: string) {
+  // why it can't be edited, if it can't: cancelled, its GSTR-3B month filed, or it's a return's replacement (bought at
+  // the original rate). Goods gone back on it don't block it: those items are locked instead
+  private async blockedBy(q: Tx, t: { id: string; status: string; dateTime: Date }) {
     if (t.status === "cancelled") return "cancelled" as const;
     if (await this.transactions.filed(q, "gstr3b", t.dateTime)) return "gstFiled" as const;
-    const returned = await q
-      .select({ id: purchaseReturnsTable.id })
-      .from(purchaseReturnsTable)
-      .innerJoin(transactionsTable, eq(transactionsTable.id, purchaseReturnsTable.transactionId))
-      .where(and(eq(purchaseReturnsTable.purchaseId, purchaseId), eq(transactionsTable.status, "active")))
-      .limit(1);
-    if (returned.length > 0) return "returned" as const;
     const [replacement] = await q.select({ id: returnDeliveriesTable.id }).from(returnDeliveriesTable).where(eq(returnDeliveriesTable.deliveryTransactionId, t.id)).limit(1);
     if (replacement) return "replacement" as const;
     return null;
@@ -207,7 +200,8 @@ export default class PurchaseEditService {
         total: Number(t.amount),
         paid: paid / 100,
         supplierBalance: await this.balanceOf(tx, supplier.id),
-        editBlockedBy: await this.blockedBy(tx, t, purchase.id),
+        editBlockedBy: await this.blockedBy(tx, t),
+        ...(await purchaseReturnLocks(tx, purchase.id).then((l) => ({ lockedLines: [...l.locked].map(([productId, why]) => ({ productId, why })), firstReturnDate: l.firstReturn }))),
       };
     });
   }
@@ -217,12 +211,14 @@ export default class PurchaseEditService {
     const input = editPurchaseInputModel.parse(rawInput);
     return db.transaction(async (tx) => {
       const { t, purchase, parts: oldParts, supplier, due, settlements } = await this.load(tx, input.transactionId, true);
-      const blocked = await this.blockedBy(tx, t, purchase.id);
+      const blocked = await this.blockedBy(tx, t);
       if (blocked === "cancelled") throw new TRPCError({ code: "CONFLICT", message: "This purchase is cancelled." });
       if (blocked === "gstFiled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That month's GSTR-3B is filed. Use a purchase return instead." });
-      if (blocked === "returned") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Goods went back on this purchase; it can't be edited now." });
       if (blocked === "replacement") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A replacement's purchase can't be edited." });
       if (indiaMonth(input.dateTime) !== indiaMonth(t.dateTime)) throw new TRPCError({ code: "BAD_REQUEST", message: "The date stays in the purchase's own month." });
+      // returns still in place: the day stays on or before the first one's
+      const locks = await purchaseReturnLocks(tx, purchase.id);
+      if (locks.firstReturn && indiaDay(input.dateTime) > locks.firstReturn) throw new TRPCError({ code: "BAD_REQUEST", message: "The date can't move past this purchase's first return." });
 
       // every item, once: the same pack sizes as before
       const ids = [...new Set(oldParts.map((p) => p.productId))];
@@ -233,6 +229,9 @@ export default class PurchaseEditService {
       const parts: Part[] = [];
       for (const l of input.lines) {
         for (const p of oldParts.filter((o) => o.productId === l.productId)) {
+          // refunded, or its replacement still to come: its rate as it was
+          if (locks.locked.has(l.productId) && p.quantity * toPaise(l.rateBeforeGst) !== p.gross)
+            throw new TRPCError({ code: "BAD_REQUEST", message: "An item refunded, or with its replacement still to come, stays as it was." });
           if (p.off > p.quantity * toPaise(l.rateBeforeGst)) throw new TRPCError({ code: "BAD_REQUEST", message: "The discount can't be more than the item's value." });
           parts.push({ ...p, gross: p.quantity * toPaise(l.rateBeforeGst) });
         }

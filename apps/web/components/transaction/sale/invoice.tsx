@@ -14,6 +14,7 @@ import type { HistoryTransaction } from "~/providers/history";
 import { useSaleInvoice, useSaleShareKey } from "~/providers/sale";
 
 import { DocStamp } from "../../history/doc-stamp";
+import { BlockedButton } from "../../history/blocked-button";
 import { CancelledNote } from "../../history/cancelled-note";
 import { EditedNote } from "../../history/edited-note";
 import { EditLog } from "../../history/edit-log";
@@ -189,12 +190,12 @@ export function SaleInvoice({
             <Download className="size-4" aria-hidden /> {t("download")}
           </button>
           {/* Return: while something of it can still come back */}
-          {/* Edit sale: greyed once its GSTR-1 month is filed, goods came back on it, or it's an exchange's sale */}
+          {/* Edit sale: greyed once its GSTR-1 month is filed or it's a return's replacement; a tap or hover says why */}
           {canAsk &&
-            (blocked === "gstFiled" || blocked === "saleReturned" || blocked === "exchangeSale" ? (
-              <button type="button" disabled className={pill}>
+            (blocked === "gstFiled" || record?.replacementFor ? (
+              <BlockedButton className={pill} reason={th(blocked === "gstFiled" ? "editBlocked.gstFiledSale" : "editBlocked.replacement")}>
                 <Pencil className="size-4" aria-hidden /> {th("editSale")}
-              </button>
+              </BlockedButton>
             ) : (
               <Link href={`/history/${id}/edit`} className={pill}>
                 <Pencil className="size-4" aria-hidden /> {th("editSale")}

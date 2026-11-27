@@ -1,8 +1,8 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { Lock, Pencil, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 import { packLabel, rupees, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
@@ -34,6 +34,7 @@ export function CartCards({
   showTotal = true,
   detailRows,
   canRemove,
+  lockedReason,
   twoPerRow = false,
 }: {
   lines: CartRow[];
@@ -48,10 +49,15 @@ export function CartCards({
   detailRows?: (line: CartRow) => { key: string; label: string; value: ReactNode }[];
   // whether a card has the bin (a sale return's: only once something of it is coming back)
   canRemove?: (productId: string) => boolean;
+  // why a card can't be changed (an edit's item refunded, or its replacement pending): a lock in place of the pen; a
+  // tap shows the reason under the card, a hover too
+  lockedReason?: (productId: string) => string | null;
   // two to a row at every width (the sale's Cart card, where the cart has half the card)
   twoPerRow?: boolean;
 }) {
   const t = useTranslations("transactions.sale");
+  // the locked card whose reason is showing
+  const [saidFor, setSaidFor] = useState<string | null>(null);
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <ul className={cn(GRID, twoPerRow && "sm:grid-cols-2")}>
@@ -60,27 +66,36 @@ export function CartCards({
           if (!found) return null;
           const { group, pack } = found;
           const label = `${productTitle(group)} ${packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}`;
+          const reason = lockedReason?.(line.productId) ?? null;
+          // a locked card says why instead of opening
+          const open = () => (reason ? setSaidFor((s) => (s === line.productId ? null : line.productId)) : onOpen(line.productId));
           return (
             <li
               key={line.productId}
-              onClick={() => onOpen(line.productId)}
+              onClick={open}
+              title={reason ?? undefined}
               className="row-arrive flex min-w-0 cursor-pointer flex-col gap-2 rounded-control border border-chestnut/15 p-2.5 hover:bg-chestnut/[0.03] sm:p-3.5"
             >
               {/* the pack chip (the card's button, for the keyboard), then the pen (change it) and the bin */}
               <div className="flex items-center justify-between gap-2">
                 <button
                   type="button"
-                  aria-haspopup="dialog"
-                  aria-label={`${t("change")}: ${label}`}
+                  aria-haspopup={reason ? undefined : "dialog"}
+                  aria-label={reason ? `${label}: ${reason}` : `${t("change")}: ${label}`}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onOpen(line.productId);
+                    open();
                   }}
                   className="inline-flex min-h-7 shrink-0 items-center rounded-control bg-chestnut px-2.5 text-xs font-semibold text-ivory"
                 >
                   {packLabel(pack.packSize, pack.packSizeCode, pack.packCount)}
                 </button>
                 <span className="flex shrink-0 items-center">
+                  {reason ? (
+                    <span className="grid size-8 shrink-0 place-items-center text-chestnut/60" aria-hidden>
+                      <Lock className="size-4" />
+                    </span>
+                  ) : (
                   <button
                     type="button"
                     aria-label={`${t("change")}: ${label}`}
@@ -93,6 +108,7 @@ export function CartCards({
                   >
                     <Pencil className="size-4" aria-hidden />
                   </button>
+                  )}
                   {(canRemove?.(line.productId) ?? true) && (
                     <button
                       type="button"
@@ -139,6 +155,12 @@ export function CartCards({
                   </p>
                 ))}
               </div>
+              {/* a locked card tapped: why */}
+              {reason && saidFor === line.productId && (
+                <p role="status" className="text-xs font-semibold text-danger">
+                  {reason}
+                </p>
+              )}
             </li>
           );
         })}
