@@ -188,7 +188,7 @@ export function CreditNoteView({ id, history, shareKey }: { id: string; history?
           <div className="max-h-[294px] overflow-auto print:max-h-none print:overflow-visible">
             <table className="tabular w-full min-w-[40rem] border-collapse text-[0.8125rem] [&_td]:px-1.5 [&_th]:px-1.5">
               <thead>
-                <tr className="text-left [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-ivory [&>th]:bg-[linear-gradient(rgb(92_47_29/0.05),rgb(92_47_29/0.05))] [&>th]:shadow-[inset_0_-1px_0_rgb(90_42_26/0.4)] print:[&>th]:static print:[&>th]:bg-none">
+                <tr className="text-left [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-chestnut [&>th]:text-ivory [&>th]:border-ivory/30 [&>th]:shadow-[inset_0_-1px_0_rgb(90_42_26/0.4)] print:[&>th]:static print:[&>th]:bg-ivory print:[&>th]:text-chestnut print:[&>th]:border-chestnut/40">
                   <th className={cn(cell, "w-10 border-r font-semibold")}>{ti("sl")}</th>
                   <th className={cn(cell, "border-r font-semibold")}>{ti("particulars")}</th>
                   <th className={cn(cell, "border-r font-semibold")}>HSN</th>

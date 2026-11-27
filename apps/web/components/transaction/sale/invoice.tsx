@@ -324,7 +324,7 @@ export function SaleInvoice({
             <table className="tabular w-full min-w-[40rem] border-collapse text-[0.8125rem] [&_td]:px-1.5 [&_th]:px-1.5">
               <thead>
                 {/* held on top while the rows scroll (its bottom line drawn as a shadow, which stays with it) */}
-                <tr className="text-left [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-ivory [&>th]:bg-[linear-gradient(rgb(92_47_29/0.05),rgb(92_47_29/0.05))] [&>th]:shadow-[inset_0_-1px_0_rgb(90_42_26/0.4)] print:[&>th]:static print:[&>th]:bg-none">
+                <tr className="text-left [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-chestnut [&>th]:text-ivory [&>th]:border-ivory/30 [&>th]:shadow-[inset_0_-1px_0_rgb(90_42_26/0.4)] print:[&>th]:static print:[&>th]:bg-ivory print:[&>th]:text-chestnut print:[&>th]:border-chestnut/40">
                   <th className={cn(cell, "w-10 border-r font-semibold")}>{t("sl")}</th>
                   <th className={cn(cell, "border-r font-semibold")}>{t("particulars")}</th>
                   <th className={cn(cell, "border-r font-semibold")}>HSN</th>
