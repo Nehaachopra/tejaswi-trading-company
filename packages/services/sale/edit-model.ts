@@ -136,7 +136,7 @@ export const saleForEditModel = z.object({
   lockedLines: z.array(z.object({ productId: idModel, why: z.enum(["refunded", "pending"]) })),
   firstReturnDate: z.string().nullable(),
   // a return's replacement (an exchange's sale, or packs replaced later going out): never edited
-  editBlockedBy: z.enum(["cancelled", "gstFiled", "replacement"]).nullable(),
+  editBlockedBy: z.enum(["cancelled", "gstFiled", "replacement", "returned"]).nullable(),
 });
 
 export type SaleForEditModel = z.infer<typeof saleForEditModel>;

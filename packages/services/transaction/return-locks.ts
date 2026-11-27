@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "@repo/database";
+import { and, asc, db, eq, inArray, sql } from "@repo/database";
 import {
   purchaseProductsTable,
   purchaseReturnProductsTable,
@@ -12,6 +12,9 @@ import {
 
 import type { Tx } from "../stock/engine";
 
+// inside a save, or a plain read
+type Q = Tx | typeof db;
+
 // what returns still in place hold fast on a sale or purchase being edited: the items refunded (any part) and those
 // whose replacement hasn't all gone out (or come in) yet can't change; the lines goods came back on stay; and the day
 // can't move past the first return's
@@ -22,6 +25,8 @@ export type ReturnLocks = {
   referenced: Set<string>;
   // the first return's day (YYYY-MM-DD); none: null
   firstReturn: string | null;
+  // every pack came back (refunded or replaced): nothing left to edit
+  allReturned: boolean;
 };
 
 // one return's lines, added up per product: how many were refunded, how many replaced later, and how many of those have
@@ -45,8 +50,15 @@ function lockedOf(
   return locked;
 }
 
+// every pack back, however it was settled: the returns' lines adding up to what was billed
+async function allReturnedOf(rows: { quantity: number }[], billed: PromiseLike<{ n: number }[]>) {
+  if (rows.length === 0) return false;
+  const [b] = await billed;
+  return rows.reduce((a, r) => a + r.quantity, 0) >= (b?.n ?? 0);
+}
+
 // each return's packs that have gone out (or come in) on sales or purchases still in place, per return and product
-async function deliveredOn(q: Tx, returnTransactionIds: string[]) {
+async function deliveredOn(q: Q, returnTransactionIds: string[]) {
   const out = new Map<string, number>();
   if (returnTransactionIds.length === 0) return out;
   const rows = await q
@@ -62,14 +74,14 @@ async function deliveredOn(q: Tx, returnTransactionIds: string[]) {
 }
 
 // a sale's: replaced now (on the return's exchange sale) is done; replaced later waits for its packs to go out
-export async function saleReturnLocks(q: Tx, saleId: string): Promise<ReturnLocks> {
+export async function saleReturnLocks(q: Q, saleId: string): Promise<ReturnLocks> {
   const returns = await q
     .select({ id: saleReturnsTable.id, transactionId: saleReturnsTable.transactionId, returnDate: saleReturnsTable.returnDate, exchangeSaleId: saleReturnsTable.exchangeSaleId })
     .from(saleReturnsTable)
     .innerJoin(transactionsTable, eq(transactionsTable.id, saleReturnsTable.transactionId))
     .where(and(eq(saleReturnsTable.saleId, saleId), eq(transactionsTable.status, "active")))
     .orderBy(asc(saleReturnsTable.returnDate));
-  if (returns.length === 0) return { locked: new Map(), referenced: new Set(), firstReturn: null };
+  if (returns.length === 0) return { locked: new Map(), referenced: new Set(), firstReturn: null, allReturned: false };
   const lines = await q
     .select({ returnId: saleReturnProductsTable.returnId, saleProductId: saleReturnProductsTable.saleProductId, productId: saleProductsTable.productId, quantity: saleReturnProductsTable.quantity, replaced: saleReturnProductsTable.replaced })
     .from(saleReturnProductsTable)
@@ -89,18 +101,19 @@ export async function saleReturnLocks(q: Tx, saleId: string): Promise<ReturnLock
     locked: lockedOf(rows, await deliveredOn(q, returns.map((r) => r.transactionId))),
     referenced: new Set(lines.map((l) => l.saleProductId)),
     firstReturn: returns[0]!.returnDate,
+    allReturned: await allReturnedOf(rows, q.select({ n: sql<number>`coalesce(sum(${saleProductsTable.quantity}), 0)::int` }).from(saleProductsTable).where(eq(saleProductsTable.saleId, saleId))),
   };
 }
 
 // a purchase's: replaced (now or later) waits for the supplier's packs to come in
-export async function purchaseReturnLocks(q: Tx, purchaseId: string): Promise<ReturnLocks> {
+export async function purchaseReturnLocks(q: Q, purchaseId: string): Promise<ReturnLocks> {
   const returns = await q
     .select({ id: purchaseReturnsTable.id, transactionId: purchaseReturnsTable.transactionId, returnDate: purchaseReturnsTable.returnDate })
     .from(purchaseReturnsTable)
     .innerJoin(transactionsTable, eq(transactionsTable.id, purchaseReturnsTable.transactionId))
     .where(and(eq(purchaseReturnsTable.purchaseId, purchaseId), eq(transactionsTable.status, "active")))
     .orderBy(asc(purchaseReturnsTable.returnDate));
-  if (returns.length === 0) return { locked: new Map(), referenced: new Set(), firstReturn: null };
+  if (returns.length === 0) return { locked: new Map(), referenced: new Set(), firstReturn: null, allReturned: false };
   const lines = await q
     .select({ returnId: purchaseReturnProductsTable.returnId, purchaseProductId: purchaseReturnProductsTable.purchaseProductId, productId: purchaseProductsTable.productId, quantity: purchaseReturnProductsTable.quantity, replaced: purchaseReturnProductsTable.replaced })
     .from(purchaseReturnProductsTable)
@@ -117,5 +130,6 @@ export async function purchaseReturnLocks(q: Tx, purchaseId: string): Promise<Re
     locked: lockedOf(rows, await deliveredOn(q, returns.map((r) => r.transactionId))),
     referenced: new Set(lines.map((l) => l.purchaseProductId)),
     firstReturn: returns[0]!.returnDate,
+    allReturned: await allReturnedOf(rows, q.select({ n: sql<number>`coalesce(sum(${purchaseProductsTable.quantity}), 0)::int` }).from(purchaseProductsTable).where(eq(purchaseProductsTable.purchaseId, purchaseId))),
   };
 }

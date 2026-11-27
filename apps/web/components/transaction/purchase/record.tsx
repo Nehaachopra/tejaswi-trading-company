@@ -120,10 +120,16 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
           <button type="button" onClick={() => window.print()} className={pill}>
             <Download className="size-4" aria-hidden /> {t("download")}
           </button>
-          {/* Edit purchase: greyed once its GSTR-3B month is filed or it's a return's replacement; a tap or hover says why */}
+          {/* Edit purchase: greyed once its GSTR-3B month is filed, it's a return's replacement, or every item went back;
+              a tap or hover says why */}
           {canAsk &&
-            (record.cancelBlockedBy === "gstFiled" || record.replacementFor ? (
-              <BlockedButton className={pill} reason={th(record.cancelBlockedBy === "gstFiled" ? "editBlocked.gstFiledPurchase" : "editBlocked.replacement")}>
+            (record.cancelBlockedBy === "gstFiled" || record.replacementFor || record.allReturned ? (
+              <BlockedButton
+                className={pill}
+                reason={th(
+                  record.cancelBlockedBy === "gstFiled" ? "editBlocked.gstFiledPurchase" : record.replacementFor ? "editBlocked.replacement" : "editBlocked.returnedPurchase",
+                )}
+              >
                 <Pencil className="size-4" aria-hidden /> {th("editPurchase")}
               </BlockedButton>
             ) : (

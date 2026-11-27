@@ -145,6 +145,8 @@ export default class SaleEditService {
       if (exchange) return "replacement" as const;
       const [delivery] = await q.select({ id: returnDeliveriesTable.id }).from(returnDeliveriesTable).where(eq(returnDeliveriesTable.deliveryTransactionId, t.id)).limit(1);
       if (delivery) return "replacement" as const;
+      // every item came back (refunded or replaced): nothing left to edit
+      if ((await saleReturnLocks(q, sale.id)).allReturned) return "returned" as const;
     }
     return null;
   }
@@ -261,6 +263,7 @@ export default class SaleEditService {
       if (blocked === "cancelled") throw new TRPCError({ code: "CONFLICT", message: "This sale is cancelled." });
       if (blocked === "gstFiled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That month's GSTR-1 is filed. Use a sale return instead." });
       if (blocked === "replacement") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A return's replacement can't be edited." });
+      if (blocked === "returned") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Every item on this sale came back; it can't be edited." });
       if (indiaMonth(input.dateTime) !== indiaMonth(t.dateTime)) throw new TRPCError({ code: "BAD_REQUEST", message: "The date stays in the sale's own month." });
       // returns still in place: the day stays on or before the first one's
       const locks = await saleReturnLocks(tx, sale.id);

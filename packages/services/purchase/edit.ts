@@ -152,6 +152,9 @@ export default class PurchaseEditService {
     if (await this.transactions.filed(q, "gstr3b", t.dateTime)) return "gstFiled" as const;
     const [replacement] = await q.select({ id: returnDeliveriesTable.id }).from(returnDeliveriesTable).where(eq(returnDeliveriesTable.deliveryTransactionId, t.id)).limit(1);
     if (replacement) return "replacement" as const;
+    // every item went back (refunded or replaced): nothing left to edit
+    const [purchase] = await q.select({ id: purchasesTable.id }).from(purchasesTable).where(eq(purchasesTable.transactionId, t.id));
+    if (purchase && (await purchaseReturnLocks(q, purchase.id)).allReturned) return "returned" as const;
     return null;
   }
 
@@ -215,6 +218,7 @@ export default class PurchaseEditService {
       if (blocked === "cancelled") throw new TRPCError({ code: "CONFLICT", message: "This purchase is cancelled." });
       if (blocked === "gstFiled") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "That month's GSTR-3B is filed. Use a purchase return instead." });
       if (blocked === "replacement") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "A replacement's purchase can't be edited." });
+      if (blocked === "returned") throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Every item on this purchase went back; it can't be edited." });
       if (indiaMonth(input.dateTime) !== indiaMonth(t.dateTime)) throw new TRPCError({ code: "BAD_REQUEST", message: "The date stays in the purchase's own month." });
       // returns still in place: the day stays on or before the first one's
       const locks = await purchaseReturnLocks(tx, purchase.id);

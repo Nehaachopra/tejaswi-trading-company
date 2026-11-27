@@ -11,6 +11,7 @@ import { undoPurchase } from "../purchase/undo";
 import { saleOrderDelivered } from "../sale-order/delivered";
 import StockEngine, { type Tx } from "../stock/engine";
 import AssignedIdCounter, { type Prefix } from "./assigned-id";
+import { purchaseReturnLocks, saleReturnLocks } from "./return-locks";
 import SettingService from "../setting";
 import {
   type CancelTransactionInputModel,
@@ -558,6 +559,19 @@ export default class TransactionService {
     };
   }
 
+  // a sale or purchase whose every pack came back, however it was settled
+  private async allReturned(transactionId: string, type: TransactionType) {
+    if (type === "sale") {
+      const [s] = await db.select({ id: salesTable.id }).from(salesTable).where(eq(salesTable.transactionId, transactionId));
+      return s ? (await saleReturnLocks(db, s.id)).allReturned : false;
+    }
+    if (type === "purchase") {
+      const [p] = await db.select({ id: purchasesTable.id }).from(purchasesTable).where(eq(purchasesTable.transactionId, transactionId));
+      return p ? (await purchaseReturnLocks(db, p.id)).allReturned : false;
+    }
+    return false;
+  }
+
   // how many of each product of a sale or purchase went back on returns still in place
   private async returnedLines(transactionId: string, type: TransactionType): Promise<{ productId: string; quantity: number }[]> {
     if (type === "sale")
@@ -784,6 +798,7 @@ export default class TransactionService {
       replacementFor: await this.replacementFor(t.id, t.type),
       returnedShare: await this.returnedShare(t.id, t.type),
       returnedLines: await this.returnedLines(t.id, t.type),
+      allReturned: await this.allReturned(t.id, t.type),
       ...(t.type === "purchase_return"
         ? await this.replacementsOf(t.id)
         : t.type === "sale_return"

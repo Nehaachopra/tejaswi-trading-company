@@ -190,10 +190,14 @@ export function SaleInvoice({
             <Download className="size-4" aria-hidden /> {t("download")}
           </button>
           {/* Return: while something of it can still come back */}
-          {/* Edit sale: greyed once its GSTR-1 month is filed or it's a return's replacement; a tap or hover says why */}
+          {/* Edit sale: greyed once its GSTR-1 month is filed, it's a return's replacement, or every item came back; a
+              tap or hover says why */}
           {canAsk &&
-            (blocked === "gstFiled" || record?.replacementFor ? (
-              <BlockedButton className={pill} reason={th(blocked === "gstFiled" ? "editBlocked.gstFiledSale" : "editBlocked.replacement")}>
+            (blocked === "gstFiled" || record?.replacementFor || record?.allReturned ? (
+              <BlockedButton
+                className={pill}
+                reason={th(blocked === "gstFiled" ? "editBlocked.gstFiledSale" : record?.replacementFor ? "editBlocked.replacement" : "editBlocked.returnedSale")}
+              >
                 <Pencil className="size-4" aria-hidden /> {th("editSale")}
               </BlockedButton>
             ) : (

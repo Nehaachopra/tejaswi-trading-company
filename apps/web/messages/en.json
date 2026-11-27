@@ -3057,6 +3057,8 @@
     "stamp": "CANCELLED",
     "stampReturned": "RETURNED",
     "editBlocked": {
+      "returnedSale": "Can't edit: every item on this sale came back.",
+      "returnedPurchase": "Can't edit: every item on this purchase went back.",
       "gstFiledSale": "Can't edit: this month's GSTR-1 is filed. Use a sale return instead.",
       "gstFiledPurchase": "Can't edit: this month's GSTR-3B is filed. Use a purchase return instead.",
       "replacement": "Can't edit: this is a return's replacement."

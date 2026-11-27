@@ -96,7 +96,7 @@ export const purchaseForEditModel = z.object({
   // first return's day (the date can't move past it; none: null)
   lockedLines: z.array(z.object({ productId: idModel, why: z.enum(["refunded", "pending"]) })),
   firstReturnDate: z.string().nullable(),
-  editBlockedBy: z.enum(["cancelled", "gstFiled", "replacement"]).nullable(),
+  editBlockedBy: z.enum(["cancelled", "gstFiled", "replacement", "returned"]).nullable(),
 });
 
 export type PurchaseForEditModel = z.infer<typeof purchaseForEditModel>;
