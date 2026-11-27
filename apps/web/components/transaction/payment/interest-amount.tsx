@@ -3,16 +3,13 @@
 import { useTranslations } from "next-intl";
 import { type ReactNode } from "react";
 
-import { NumberInput } from "~/components/ui/number-input";
-import { RequiredMark } from "~/components/ui/required-mark";
 import { rupees } from "~/lib/format";
-import { cn } from "~/lib/utils";
 
+import { TypedBanner } from "../shared/amount-banner";
 import { type AmountRow } from "../shared/amount-table";
-import { Figure, LeftRow, Line, PaymentStage as SharedStage } from "../shared/payment-stage";
+import { Figure, LeftRow, PaymentStage as SharedStage } from "../shared/payment-stage";
 import { AutoSwitch } from "../shared/split-grid";
 import { usePaymentCards } from "./paid-from";
-import { input } from "./shared";
 import { usePaymentEntry } from "./state";
 
 // interest paid's Amount stage, on the shared one (as a supplier's). On the left: Interest / month with its arrow (how
@@ -59,28 +56,21 @@ export function InterestAmount({
   // Months, then what stops it
   const rows = (
     <>
-      <Line
-        label={
-          <label htmlFor="months-field" className="flex items-center font-semibold">
-            {t("months")}
-            <RequiredMark />
-          </label>
-        }
-        value={
-          <NumberInput
-            id="months-field"
-            value={interestTyped !== null ? "" : interestMonths}
-            onChange={(v) => {
-              setInterestTyped(null);
-              setInterestMonths(atLeastOne(v));
-            }}
-            maxDigits={3}
-            max={120}
-            placeholder="--"
-            aria-invalid={monthsBad || undefined}
-            className={cn(input(monthsBad), "tabular text-right")}
-          />
-        }
+      {/* in the Repay box's look: the chestnut frame, what's typed in ivory, the mic beside */}
+      <TypedBanner
+        id="months-field"
+        label={t("months")}
+        value={interestTyped !== null ? "" : interestMonths}
+        onChange={(v) => {
+          setInterestTyped(null);
+          setInterestMonths(atLeastOne(v));
+        }}
+        max={120}
+        invalid={monthsBad}
+        rupee={false}
+        decimals={0}
+        maxDigits={3}
+        placeholder="--"
       />
       {problems}
     </>

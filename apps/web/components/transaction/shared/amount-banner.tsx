@@ -40,6 +40,10 @@ export function TypedBanner({
   invalid,
   required = true,
   onCapped,
+  rupee = true,
+  decimals = 2,
+  maxDigits = 13,
+  placeholder = "0",
 }: {
   id: string;
   label: string;
@@ -51,6 +55,11 @@ export function TypedBanner({
   required?: boolean;
   // typing past `max` (a purchase's cash and banks) cut there, to warn
   onCapped?: (most: number) => void;
+  // not money (interest's Months): no ₹, a whole number of a few digits
+  rupee?: boolean;
+  decimals?: number;
+  maxDigits?: number;
+  placeholder?: string;
 }) {
   return (
     // its name on the left, as any row's; the chestnut frame around the box only, as wide as the rows' figures (a tap
@@ -69,22 +78,25 @@ export function TypedBanner({
       >
         {/* the box: ₹ on its left, what's typed at its right */}
         <span className="relative block w-full min-w-0">
-          <IndianRupee
-            className="pointer-events-none absolute left-2.5 top-1/2 z-10 size-4 -translate-y-1/2 text-chestnut/70"
-            aria-hidden
-          />
+          {rupee && (
+            <IndianRupee
+              className="pointer-events-none absolute left-2.5 top-1/2 z-10 size-4 -translate-y-1/2 text-chestnut/70"
+              aria-hidden
+            />
+          )}
           <NumberInput
             id={id}
             value={value}
-            decimals={2}
-            maxDigits={13}
+            decimals={decimals}
+            maxDigits={maxDigits}
             max={max}
             onCapped={onCapped}
-            placeholder="0"
+            placeholder={placeholder}
             onChange={onChange}
             aria-invalid={invalid || undefined}
             className={cn(
-              "tabular min-h-10 w-full rounded-[8px] bg-ivory pl-8 pr-2.5 pt-1 text-right font-heading text-2xl font-bold text-chestnut caret-chestnut outline-none placeholder:text-chestnut/30 focus-visible:outline-none",
+              "tabular min-h-10 w-full rounded-[8px] bg-ivory pr-2.5 pt-1 text-right font-heading text-2xl font-bold text-chestnut caret-chestnut outline-none placeholder:text-chestnut/30 focus-visible:outline-none",
+              rupee ? "pl-8" : "pl-2.5",
               invalid && "ring-2 ring-ivory",
             )}
           />

@@ -19,6 +19,7 @@ import { PaidFrom } from "./paid-from";
 import { DueFlow } from "../shared/fold-group";
 import { DueAmount } from "./due-amount";
 import { InterestAmount } from "./interest-amount";
+import { PlainAmount } from "./plain-amount";
 
 export function AmountCard() {
   const {
@@ -166,7 +167,7 @@ export function AmountCard() {
   );
   // where every problem and note about a value goes: under the value side, starting at the boxes' left edge (a
   // supplier's sit in a row's value column already)
-  const underValue = toSupplier || kind === "loanRepaid" || interestCalc ? "" : "ml-auto w-[60%]";
+  const underValue = toSupplier || kind === "loanRepaid" || kind === "loanGiven" || interestCalc ? "" : "ml-auto w-[60%]";
   // the amount's box: large and bold, chestnut once filled
   const amountBox = "min-h-12 pl-11 font-heading text-xl font-bold tabular";
   // typed past the most it can be: cut there, and the warning says why
@@ -453,6 +454,33 @@ export function AmountCard() {
               {breakdownNotes}
               {taxFailed && <FailNote text={t("taxFailed")} retry={retryTax} />}
             </>
+          }
+        />
+        <PaidFrom noCards />
+      </div>
+    );
+
+  // a loan given: the amount in sale's typed box, then Left to pay and the cards (nothing to break down)
+  if (kind === "loanGiven")
+    return (
+      <div className="flex flex-col gap-4">
+        <PlainAmount
+          label={tc("q.amount")}
+          amount={{
+            value: billText,
+            onChange: (v) => {
+              setCapNote(null);
+              keyedAmount.current = v;
+              typeAmount(v);
+            },
+            max: cap,
+            onCapped: capped,
+            invalid: amountOver || tooMuch || (tried && value === 0),
+          }}
+          problems={
+            <div className="ml-auto mr-12 flex w-[55%] min-w-0 flex-col gap-1.5 [&:not(:has(*))]:hidden">
+              {amountProblems}
+            </div>
           }
         />
         <PaidFrom noCards />

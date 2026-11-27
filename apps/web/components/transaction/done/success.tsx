@@ -1,18 +1,14 @@
 "use client";
 
-import { Banknote, CircleAlert, CircleCheck, FileText, Landmark, Plus } from "lucide-react";
+import { CircleAlert, CircleCheck, FileText, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { CopyButton } from "~/components/ui/copy-button";
 import { PAGE } from "~/components/ui/page-styles";
 import { Spinner } from "~/components/ui/icons/spinner";
-import { useBankName } from "~/lib/bank-names";
 import { rupees } from "~/lib/format";
-import { cn } from "~/lib/utils";
-import { usePickableBanks } from "~/providers/accounts";
 import {
-  useMoneyHeld,
   useSavedDeposit,
   useSavedDrawing,
   useSavedOther,
@@ -27,8 +23,8 @@ import {
 import { NEW_TRANSACTION_HREF } from "../../shell/nav-items";
 
 // /transaction/receipt/[id], /transaction/payment/[id] and /transaction/deposit/[id], where a saved receipt, payment or
-// deposit lands (and a voucher returns to): that it worked, its number and voucher (a deposit has none), what the cash
-// or bank account it used holds now (the admin's only), and the way to a new transaction
+// deposit lands (and a voucher returns to): that it worked, its number and voucher (a deposit has none), and the way to
+// a new transaction. No balances: not what cash or a bank holds, nor what anyone owes in all
 export function ReceiptSuccess({
   id,
   flow = "receipt",
@@ -39,8 +35,6 @@ export function ReceiptSuccess({
   // salary paid to many in one save: the other payments' ids
   also?: string[];
 }) {
-  // bank names in the language picked
-  const bankName = useBankName();
   const base = useTranslations("transactions.receipt.success");
   // a payment's, deposit's or withdrawal's own words where it has them, the receipt's otherwise
   const ownPayment = useTranslations("transactions.payment.success");
@@ -69,7 +63,6 @@ export function ReceiptSuccess({
     flow !== "receipt" && own.has(key as never)
       ? own(key as never, values as never)
       : base(key as never, values as never)) as typeof base;
-  const tc = useTranslations("transactions.chat");
   const tf = useTranslations("transactions.receipt.form");
   const isPayment = flow === "payment";
   // a deposit, withdrawal or transfer: cash and an account, or two accounts; no voucher
@@ -153,50 +146,8 @@ export function ReceiptSuccess({
             }
           : (isPayment ? paymentGet : receiptGet).saved,
   };
-  // what cash and each bank account hold now, asked again so it includes this one (null for staff, who don't see them)
-  const sources = useMoneyHeld({ fresh: true });
-  const pickable = usePickableBanks();
-  // only once asked again, so it never shows what they held before this one
-  const held =
-    sources.money && sources.money.cash !== null && !sources.fetching ? sources.money : null;
-  // the account this one went into or out of: its name and what it holds now
-  const usedBank = held?.banks.find((b) => b.id === receipt.data?.bankDetailsId);
-  const usedBankName = usedBank
-    ? bankName(pickable.banks?.find((x) => x.id === usedBank.id)?.bankName ?? usedBank.bankName)
-    : "";
-  // the places it used, each with what it holds now: cash, the bank account, or both (a payment from cash and a bank)
-  const settledIn = receipt.data?.settledIn;
-  const used = [
-    ...(settledIn === "cash" || settledIn === "cashAndBank"
-      ? [{ key: "cash", bank: false, name: tc("cash"), held: held?.cash ?? 0 }]
-      : []),
-    ...(settledIn !== "cash" && usedBank
-      ? [
-          {
-            key: usedBank.id,
-            bank: true,
-            name: `${usedBankName} ••${usedBank.last4}`,
-            held: usedBank.available ?? 0,
-          },
-        ]
-      : []),
-    // split over more accounts: each more account it used
-    ...(receipt.data
-      ? receipt.data.moreBankParts.flatMap((m) => {
-          const b = held?.banks.find((x) => x.id === m.bankDetailsId);
-          return b
-            ? [
-                {
-                  key: b.id,
-                  bank: true,
-                  name: `${bankName(pickable.banks?.find((x) => x.id === b.id)?.bankName ?? b.bankName)} ••${b.last4}`,
-                  held: b.available ?? 0,
-                },
-              ]
-            : [];
-        })
-      : []),
-  ];
+  // a loan given: the loan's amount, never what they owe in all (no balances on a success card)
+  const loanGiven = isPayment && paymentGet.saved?.paidFor === "loanGiven" ? paymentGet.saved.amount : null;
 
   return (
     <main className={`${PAGE} pb-28`}>
@@ -298,28 +249,13 @@ export function ReceiptSuccess({
             </div>
           )}
 
-          {/* what the cash or bank accounts it used hold, a row each in one box */}
-          {held && used.length > 0 && (
+          {/* a loan given: its amount */}
+          {loanGiven !== null && (
             <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
-              {used.map((u, i) => (
-                <p
-                  key={u.key}
-                  className={cn(
-                    "flex items-center justify-between gap-4 py-3",
-                    i > 0 && "border-t border-chestnut/15",
-                  )}
-                >
-                  <span className="flex min-w-0 items-center gap-2 text-sm font-semibold">
-                    {u.bank ? (
-                      <Landmark className="size-4 shrink-0" aria-hidden />
-                    ) : (
-                      <Banknote className="size-4 shrink-0" aria-hidden />
-                    )}
-                    <span className="truncate">{t("balance", { where: u.name })}</span>
-                  </span>
-                  <span className="shrink-0 font-heading text-xl font-bold">{rupees(u.held)}</span>
-                </p>
-              ))}
+              <p className="flex items-baseline justify-between gap-4 py-3">
+                <span className="text-sm font-semibold">{ownPayment("loanAmount")}</span>
+                <span className="font-heading text-xl font-bold">{rupees(loanGiven)}</span>
+              </p>
             </div>
           )}
 

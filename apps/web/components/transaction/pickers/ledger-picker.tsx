@@ -293,9 +293,12 @@ export function LedgerSearch({
   besideNew,
   onEdit,
   locked = false,
+  asideOf,
 }: {
   // what's picked stays: no Change (a sale order's customer on its dispatch)
   locked?: boolean;
+  // beside a party, in the list and once picked, in place of their due (a loan given: what's left on their loans)
+  asideOf?: (ledger: Pickable, picked: boolean) => React.ReactNode;
   purpose: "receipt" | "payment";
   receiptKind: ReceiptKind | null;
   paymentKind?: PaymentKind | null;
@@ -361,7 +364,7 @@ export function LedgerSearch({
       {l.party ? (
         <>
           <PartyPick ledger={l} party={l.party} />
-          {owedBy && <PartyOwes ledger={l} owedBy={owedBy} />}
+          {asideOf ? asideOf(l, false) : owedBy && <PartyOwes ledger={l} owedBy={owedBy} />}
         </>
       ) : (
         <>
@@ -402,7 +405,9 @@ export function LedgerSearch({
         <PickedCard
           oneLine={!(value.kind === "ledger" && value.ledger.party)}
           aside={
-            value.kind === "ledger" && value.ledger.party && owedBy ? (
+            value.kind === "ledger" && value.ledger.party && asideOf ? (
+              asideOf(value.ledger, true)
+            ) : value.kind === "ledger" && value.ledger.party && owedBy ? (
               <PartyOwes ledger={value.ledger} owedBy={owedBy} picked />
             ) : undefined
           }

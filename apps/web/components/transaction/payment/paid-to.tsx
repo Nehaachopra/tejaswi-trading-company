@@ -37,6 +37,7 @@ import { PartyPick } from "../pickers/party-finder";
 import { TdsTypePicker } from "../pickers/tds-type-picker";
 import { Loan, chip } from "./shared";
 import { usePaymentEntry } from "./state";
+import { useOpenLoansOf } from "~/providers/dues";
 import { FailNote } from "./notes";
 
 // the loan: searched and picked like everyone else paid, each open one we took with what's left on it (a repayment can't
@@ -274,9 +275,26 @@ export function ToPicker() {
     setTried,
     complete,
   } = usePaymentEntry();
+  // a loan given: what's left on each party's open loans, beside them in the list and once picked
+  const tpick = useTranslations("transactions.picker");
+  const { loans: openGiven } = useOpenLoansOf({ kind: "loanGiven", partyId: null }, kind === "loanGiven");
+  const loanDueOf = (l: Pickable, picked: boolean) => {
+    const theirs = (openGiven ?? []).filter((d) => d.partyId === l.referenceId);
+    if (theirs.length === 0) return null;
+    const left = Math.round(theirs.reduce((sum, d) => sum + d.left, 0) * 100) / 100;
+    return (
+      // as a supplier's due: the amount level with the name, the words under it
+      <span className={cn("flex shrink-0 flex-col items-end gap-0.5 text-right", picked && "justify-between self-stretch")}>
+        <span className="tabular text-sm font-semibold">{rupees(left)}</span>
+        <span className="text-xs opacity-70">
+          {theirs.length > 1 ? tpick("loansDue", { count: theirs.length }) : tpick("loanDue")}
+        </span>
+      </span>
+    );
+  };
   // a supplier: sale's customer stage, the same shared view (search, picked with Edit and Change, "New party" with
   // Change over their details, phone first; back on it once complete, shown as picked)
-  if (kind === "supplier") {
+  if (kind === "supplier" || kind === "loanGiven") {
     const picked = to?.kind === "ledger" ? to.ledger : null;
     return (
       <PartySearchView
@@ -296,6 +314,7 @@ export function ToPicker() {
           canAdd: isAdmin,
           onEdit: isAdmin && picked?.party ? () => setEditingTo((on) => !on) : undefined,
           placeholder: tc("hints.from"),
+          asideOf: kind === "loanGiven" ? loanDueOf : undefined,
         }}
         editor={
           picked?.party
@@ -327,7 +346,8 @@ export function ToPicker() {
                 face: {
                   name: newParty.name,
                   shortName: newParty.shortName || null,
-                  types: ["supplier"],
+                  // a supplier added here is one; whoever a loan is given to has no role yet
+                  types: kind === "supplier" ? ["supplier"] : [],
                   phone: newParty.phone || null,
                   city: newParty.addresses[0]?.city || null,
                 },

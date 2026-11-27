@@ -377,6 +377,8 @@ export function usePaymentEntryState({
   // and the TDS make the bill (reverse-charge GST goes on top, to the government); a few tries, so it can't chase a
   // limit for ever. With no TDS the two are the same
   const [billText, setBillText] = useState("");
+  // another kind starts with an empty box: nothing typed or worked out for the one before stays in it
+  useEffect(() => setBillText(""), [kind]);
   const [totalGoal, setTotalGoal] = useState<{ total: number; tries: number } | null>(null);
   const [interestMonths, setInterestMonths] = useState("12");
   // interest typed in, from a statement: it replaces what the months come to, until the months are changed
@@ -1021,8 +1023,8 @@ export function usePaymentEntryState({
 
   // someone new being filled in: Change, beside the card's name, goes back to searching
   const changeOf = (s: Step) => {
-    // (a supplier's: Change sits on the "New party" card instead, as a sale's)
-    if (s === "to" && to?.kind === "party" && kind !== "supplier") {
+    // (a supplier's and a loan given's: Change sits on the "New party" card instead, as a sale's)
+    if (s === "to" && to?.kind === "party" && kind !== "supplier" && kind !== "loanGiven") {
       return () => {
         setTo(null);
         setGstMode("none");

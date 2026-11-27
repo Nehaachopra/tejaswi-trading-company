@@ -22,6 +22,8 @@ import {
   SummaryLines,
 } from "../shared/entry-frame";
 import { type Step, KINDS, input, chip } from "./shared";
+import { fieldRow } from "../shared/form-basics";
+import { cn } from "~/lib/utils";
 import { PaymentEntryProvider, usePaymentEntry, usePaymentEntryState } from "./state";
 import { AmountCard } from "./amount-card";
 import { SalaryHeads } from "./salary-heads";
@@ -318,16 +320,21 @@ function PaymentEntryView() {
               onChange={(patch) => setTerms((d) => ({ ...d, ...patch }))}
               tried={tried}
             />
-            <label className="flex flex-col gap-2.5 text-xs font-semibold sm:w-72">
-              {tc("q.dueOn")}
-              <DateInput
-                value={dueOn}
-                min={day}
-                onChange={setDueOn}
-                calendarLabel={tc("q.dueOn")}
-                className={input(dueOn !== "" && dueOn < day)}
-              />
-            </label>
+            {/* when it's due back, a row in the left column as the rate's */}
+            <div className="mt-4 grid gap-x-6 sm:grid-cols-2">
+              <label className={fieldRow}>
+                <span>{tc("q.dueOn")}</span>
+                <DateInput
+                  value={dueOn}
+                  min={day}
+                  onChange={setDueOn}
+                  calendarLabel={tc("q.dueOn")}
+                  aria-invalid={(dueOn !== "" && dueOn < day) || undefined}
+                  placeholder="—"
+                  className={cn(input(dueOn !== "" && dueOn < day), "text-sm font-medium")}
+                />
+              </label>
+            </div>
           </>
         );
 

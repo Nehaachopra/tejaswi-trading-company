@@ -1147,6 +1147,8 @@
       "searching": "Searching…",
       "narrow": "Showing the first 20. Type more to narrow.",
       "newParty": "New party",
+      "loanDue": "Loan due",
+      "loansDue": "{count} loans due",
       "change": "Change",
       "noTaxDue": "No tax is due right now.",
       "edit": "Edit details",
@@ -1532,6 +1534,7 @@
         "fromBoth": "cash and this bank account"
       },
       "success": {
+        "loanAmount": "Loan amount",
         "title": "Payment successfully created",
         "loadError": "Couldn't load the payment. Check your connection and try again."
       },
