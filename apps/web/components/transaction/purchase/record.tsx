@@ -136,12 +136,7 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
 
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
         <DocHead title={t("title")} jurisdiction="" />
-        {cancelled ? (
-          <DocStamp label={th("stamp")} tone="danger" />
-        ) : (
-          // every pack gone back: RETURNED
-          record.returnedShare === 100 && <DocStamp label={th("stampReturned")} tone="chestnut" />
-        )}
+        {cancelled && <DocStamp label={th("stamp")} tone="danger" />}
 
         <div className="border border-chestnut/40">
           {/* who the bill is from, and the purchase's details */}
@@ -299,7 +294,11 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
           {/* the breakup at the right, its figures under the table's Total */}
           <div className="grid border-t border-chestnut/40 sm:grid-cols-[1fr_auto]">
             <span aria-hidden className="hidden sm:block" />
-            <Breakup rows={breakup} label={t("amount")} amount={`₹${money(d.total)}`} />
+            {/* every pack gone back: a RETURNED stamp across the breakup */}
+            <div className="relative overflow-hidden">
+              <Breakup rows={breakup} label={t("amount")} amount={`₹${money(d.total)}`} />
+              {!cancelled && record.returnedShare === 100 && <DocStamp label={th("stampReturned")} tone="chestnut" small />}
+            </div>
           </div>
           <div className="grid border-t border-chestnut/40 sm:grid-cols-[12rem_1fr]">
             <span className={cn(cell, "font-semibold sm:border-r")}>{ti("inWords")}</span>
