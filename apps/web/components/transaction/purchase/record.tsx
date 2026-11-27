@@ -12,6 +12,7 @@ import { cn } from "~/lib/utils";
 import type { HistoryTransaction } from "~/providers/history";
 import { useSavedPurchase } from "~/providers/purchase";
 
+import { DocStamp } from "../../history/doc-stamp";
 import { CancelledNote } from "../../history/cancelled-note";
 import { EditedNote } from "../../history/edited-note";
 import { EditLog } from "../../history/edit-log";
@@ -135,12 +136,11 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
 
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
         <DocHead title={t("title")} jurisdiction="" />
-        {cancelled && (
-          <div aria-hidden className="pointer-events-none absolute inset-0 z-20 grid place-items-center">
-            <span className="-rotate-[24deg] rounded-control border-4 border-danger px-5 pb-1 pt-3 font-heading text-6xl font-bold tracking-[0.06em] text-danger opacity-35 sm:text-8xl">
-              {th("stamp")}
-            </span>
-          </div>
+        {cancelled ? (
+          <DocStamp label={th("stamp")} tone="danger" />
+        ) : (
+          // every pack gone back: RETURNED
+          record.returnedShare === 100 && <DocStamp label={th("stampReturned")} tone="chestnut" />
         )}
 
         <div className="border border-chestnut/40">

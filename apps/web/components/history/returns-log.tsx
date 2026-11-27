@@ -46,8 +46,8 @@ export function ReturnsLog({
       bare={returns.length === 0}
       right={
         <>
-          {/* only once something on any return was replaced */}
-          {share != null && returns.some((r) => r.replaced || r.replacement) && <HeadShare share={share} label={t("returnedShare", { share })} onLeftSide={true} />}
+          {/* once anything has gone back, refunded or replaced */}
+          {share != null && share > 0 && <HeadShare share={share} label={t("returnedShare", { share })} onLeftSide={true} />}
           {action}
         </>
       }

@@ -13,7 +13,7 @@ const round2 = (v: number) => Math.round(v * 100) / 100;
 
 // the Cart stage's product details card, as a purchase replacement's: Basis | Current | New for the price (as first sold,
 // not changed) and Quantity (Current: how many are to go; New: how many go now, nothing filled in), then the godowns they
-// leave from (never more than one holds; no Available column), and Save. Clearing the quantity of one already in takes
+// leave from (never more than one holds, with what each has), and Save. Clearing the quantity of one already in takes
 // it off
 export function ProductDetailsCard() {
   const { cardFor, packOf } = useSendEntry();
@@ -85,7 +85,6 @@ function CardBody({ group, pack }: { group: ProductGroup; pack: Pack }) {
         leftLabel: ts("leftToPlace"),
         invalid: tried && bad.godowns,
         capAtHeld: true,
-        hideHeld: true,
       }}
       total={figureOf(pack.productId, quantity).total}
       error={error}

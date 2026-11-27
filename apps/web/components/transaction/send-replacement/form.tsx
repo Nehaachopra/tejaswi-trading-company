@@ -10,12 +10,13 @@ import { usePendingSaleReplacement, useReturnSources } from "~/providers/sale-re
 import { ProductImage } from "../../product/products/product-tile";
 import { EntryNote, EntryPage, NextButton, StepCard, type SummaryItem, SummaryBar, SummaryCard, SummaryLines } from "../shared/entry-frame";
 import { CartStage } from "./cart-stage";
+import { CustomerStage } from "./customer-stage";
 import { DetailsCard, SaveBlock } from "./cards";
 import { type SendInput, SendProvider, type SendStep, useSendEntry, useSendState } from "./state";
 
 // /history/[id]/send-replacement, from Send replacement on a sale return's credit note (the admin's): the packs replaced
-// later going out to the customer, as a purchase replacement: 1 Cart: how many of each go and the godowns they leave
-// from; 2 Details: vehicle, date, remarks and Save. A summary on the right (a bar above on a phone). Saved, it lands on
+// later going out to the customer, as a purchase replacement: 1 Customer: the sale's, with Edit; 2 Cart: how many of each go and the godowns they leave
+// from; 3 Details: vehicle, date, remarks and Save. A summary on the right (a bar above on a phone). Saved, it lands on
 // the sale's success card
 export function SendReplacementForm({ id }: { id: string }) {
   const [round, setRound] = useState(0);
@@ -49,7 +50,7 @@ function Loader({ id, onDiscard }: { id: string; onDiscard: () => void }) {
     );
   // nothing left to go: said plainly
   if (read.pending.lines.length === 0) return <EntryNote title={t("title")}>{t("nothingLeft")}</EntryNote>;
-  return <Entry pending={read.pending} products={sources.products} stock={sources.stock} onDiscard={onDiscard} />;
+  return <Entry pending={read.pending} ledger={read.ledger} products={sources.products} stock={sources.stock} onDiscard={onDiscard} />;
 }
 
 // the state, made once, for every stage
@@ -64,13 +65,13 @@ function Entry(props: SendInput) {
 
 // the page: the stage on its own with Back and Next, and the summary
 function View() {
-  const { t, ts, tc, locale, pending, lines, nameOf, packOf, figureOf, total, vehicle, day, remarks, current, index, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, complete, missingOf, leaveDialog } =
+  const { t, ts, tc, locale, pending, customerLedger, lines, nameOf, packOf, figureOf, total, vehicle, day, remarks, current, index, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, complete, missingOf, leaveDialog } =
     useSendEntry();
   const title = t("titleFor", { number: pending.assignedId });
 
   // the summary: the customer, each item going (photo, name, how many, its total), the vehicle, the date, the remarks
   const summary: SummaryItem<SendStep>[] = [
-    { key: "customer", step: "cart", heading: t("customer"), value: pending.customerName },
+    { key: "customer", step: "customer", heading: t("customer"), value: customerLedger ? (customerLedger.party?.name ?? customerLedger.name) : pending.customerName },
     {
       key: "items",
       step: "cart",
@@ -129,7 +130,7 @@ function View() {
         missing={tried && !complete[current] ? missingOf(current) : null}
         end={current === "details" ? <SaveBlock /> : <NextButton onClick={next} />}
       >
-        {current === "cart" ? <CartStage /> : <DetailsCard />}
+        {current === "customer" ? <CustomerStage /> : current === "cart" ? <CartStage /> : <DetailsCard />}
       </StepCard>
     </EntryPage>
   );

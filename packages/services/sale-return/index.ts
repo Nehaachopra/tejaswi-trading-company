@@ -628,6 +628,7 @@ export default class SaleReturnService {
         returnDate: ret.returnDate,
         sale,
         customerName: loaded.sale.partyNameSnapshot,
+        partyId: loaded.sale.partyId,
         lines: [...items.values()]
           .filter((i) => i.replaced > i.gone)
           .map((i) => {

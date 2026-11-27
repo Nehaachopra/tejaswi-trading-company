@@ -192,6 +192,8 @@ export const pendingSaleReplacementModel = z.object({
   returnDate: z.string(),
   sale: z.object({ transactionId: idModel, assignedId: z.string() }),
   customerName: z.string(),
+  // the customer's party (a replacement later is a saved customer's)
+  partyId: idModel.nullable(),
   lines: z.array(z.object({ productId: idModel, name: z.string(), quantity: z.number().int(), rate: z.number(), gstRate: z.number() })),
 });
 

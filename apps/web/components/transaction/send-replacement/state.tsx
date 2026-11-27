@@ -11,14 +11,16 @@ import { type useReturnSources, useSendReplacement } from "~/providers/sale-retu
 
 import { indiaDay } from "../../account/balance";
 import { type Pack, type ProductGroup, productTitle } from "../../product/products/product-tile";
+import type { Pickable } from "../pickers/ledger-picker";
 import { moveCard, useCardHistory } from "../shared/card-steps";
 import { momentOf } from "../shared/form-basics";
 import type { GodownSpot } from "../shared/product-details-card";
 
 type Pending = RouterOutputs["transactions"]["saleReturn"]["pending"];
 
-// the stages: the cart (how many of each go, and the godowns they leave from), then vehicle, date, remarks and Save
-export type SendStep = "cart" | "details";
+// the stages: the customer (the sale's, with Edit), the cart (how many of each go, and the godowns they leave from),
+// then vehicle, date, remarks and Save
+export type SendStep = "customer" | "cart" | "details";
 
 // one item going out: how many, and how many leave each godown (as typed)
 export type GoLine = { quantity: string; from: Record<string, string> };
@@ -31,6 +33,7 @@ export const VEHICLE_MAX = 15;
 // what the form reads before it opens: the return's items still to go, the products (their pictures) and stock
 export type SendInput = {
   pending: Pending;
+  ledger: Pickable | null;
   products: ProductGroup[];
   stock: ReturnType<typeof useReturnSources>["stock"];
   onDiscard: () => void;
@@ -38,7 +41,7 @@ export type SendInput = {
 
 // everything the Send replacement form holds and works out. Made once in the form; every stage reads it with
 // useSendReplacementEntry()
-export function useSendState({ pending, products, stock, onDiscard }: SendInput) {
+export function useSendState({ pending, ledger, products, stock, onDiscard }: SendInput) {
   const t = useTranslations("transactions.saleReturn.send");
   const ts = useTranslations("transactions.sale");
   const tc = useTranslations("transactions.chat");
@@ -65,6 +68,10 @@ export function useSendState({ pending, products, stock, onDiscard }: SendInput)
         counting: g.beingCounted,
       }))
       .filter((g) => g.held > 0);
+
+  // the sale's customer, as the Customer card shows them (Edit changes their details)
+  const [customerLedger, setCustomerLedger] = useState<Pickable | null>(ledger);
+  const [editingCustomer, setEditingCustomer] = useState(false);
 
   // the answers: each item going (nothing filled in), the vehicle, the day, remarks
   const [lines, setLines] = useState<Record<string, GoLine>>({});
@@ -97,18 +104,18 @@ export function useSendState({ pending, products, stock, onDiscard }: SendInput)
   // when each stage is filled in; Next or Save tapped with something missing shows it in red
   const [tried, setTried] = useState(false);
   const linesOk = chosen > 0 && Object.values(lines).every((l) => placedOf(l.from) === (Number(l.quantity) || 0));
-  const complete: Record<SendStep, boolean> = { cart: linesOk, details: day !== "" };
+  const complete: Record<SendStep, boolean> = { customer: true, cart: linesOk, details: day !== "" };
   const missingOf = (s: SendStep) => (s === "cart" ? (chosen === 0 ? t("missingQuantity") : t("missing")) : t("missingDate"));
 
   // moving between stages: the phone's Back goes to the stage before
-  const STEPS: SendStep[] = ["cart", "details"];
-  const [current, setAt] = useState<SendStep>("cart");
+  const STEPS: SendStep[] = ["customer", "cart", "details"];
+  const [current, setAt] = useState<SendStep>("customer");
   const index = STEPS.indexOf(current);
   const firstOpen = STEPS.findIndex((s) => !complete[s]);
   const ready = firstOpen === -1;
   const reachable = (s: SendStep) => STEPS.indexOf(s) <= (ready ? STEPS.length - 1 : firstOpen);
   const [summaryOpen, setSummaryOpen] = useState(false);
-  const remember = useCardHistory<SendStep>("cart", (card) => {
+  const remember = useCardHistory<SendStep>("customer", (card) => {
     moveCard(() => {
       setTried(false);
       setAt(card);
@@ -192,6 +199,10 @@ export function useSendState({ pending, products, stock, onDiscard }: SendInput)
     tc,
     locale,
     pending,
+    customerLedger,
+    setCustomerLedger,
+    editingCustomer,
+    setEditingCustomer,
     packOf,
     pendingLine,
     nameOf,

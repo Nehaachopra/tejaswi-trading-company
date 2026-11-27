@@ -92,7 +92,17 @@ export function useCreditNoteShareKey(transactionId: string, enabled = true) {
 // a return's items replaced later, still to go out (the Send replacement form)
 export function usePendingSaleReplacement(transactionId: string) {
   const q = trpc.transactions.saleReturn.pending.useQuery({ transactionId });
-  return { pending: q.data, loading: q.isPending, loadFailed: q.isError, retry: () => void q.refetch() };
+  // the customer's ledger, as the Customer card shows it (Edit changes their details)
+  const partyId = q.data?.partyId ?? null;
+  const ledger = trpc.accounts.ledger.pickable.useQuery({ purpose: "receipt", receiptKind: "customer", partyId }, { enabled: !!partyId });
+  const reads = [q, ...(partyId ? [ledger] : [])];
+  return {
+    pending: q.data,
+    ledger: partyId ? (ledger.data?.[0] ?? null) : null,
+    loading: reads.some((r) => r.isPending),
+    loadFailed: reads.some((r) => r.isError),
+    retry: () => reads.forEach((r) => r.isError && void r.refetch()),
+  };
 }
 
 // replaced packs sent out later (a sale); then stock and History are asked again
