@@ -20,7 +20,7 @@ import { EditLog } from "../../history/edit-log";
 import { ReturnsLog } from "../../history/returns-log";
 import { ReturnButton } from "../sale-return/return-button";
 
-import { Breakup, DocHead, LAST_COL, Remarks } from "../done/document-parts";
+import { Breakup, DocHead, LAST_COL, LeftQuantity, Remarks } from "../done/document-parts";
 import { band, cell, dated, Detail, money } from "../done/voucher";
 
 type Invoice = RouterOutputs["transactions"]["sale"]["invoice"];
@@ -78,6 +78,8 @@ export function SaleInvoice({
   const cancelled = d.status === "cancelled";
   // the admin's Return and Edit sale, from History, while it's live (Edit greyed when it can't be)
   const record = history?.record;
+  // how many of each product went back on its returns (History only): its row shows what's left
+  const returnedOf = new Map((record?.returnedLines ?? []).map((r) => [r.productId, r.quantity]));
   const canAsk = !!history?.isAdmin && !cancelled;
   const blocked = record?.cancelBlockedBy && record.cancelBlockedBy !== "cancelled" ? record.cancelBlockedBy : null;
   // who it's billed to: their full name, never the short name (as the vouchers)
@@ -207,7 +209,7 @@ export function SaleInvoice({
 
       {/* the invoice itself */}
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
-        <DocHead title={t("title")} jurisdiction={t("jurisdiction", { place: c.jurisdiction })} />
+        <DocHead title={t("title")} screenTitle={ts("title")} jurisdiction={t("jurisdiction", { place: c.jurisdiction })} />
         {/* a cancelled sale: a faded CANCELLED stamp across it (printed too), over everything but not in the way */}
         {cancelled ? (
           <DocStamp label={th("stamp")} tone="danger" />
@@ -340,7 +342,7 @@ export function SaleInvoice({
               </thead>
               <tbody>
                 {d.lines.map((l, i) => (
-                  <tr key={l.productId} className="align-top">
+                  <tr key={l.productId} className={cn("align-top", (returnedOf.get(l.productId) ?? 0) >= l.quantity && "row-returned")}>
                     <td className={cn(cell, "border-r")}>{i + 1}</td>
                     {/* the category on top, then the brand and pack size */}
                     <td className={cn(cell, "border-r")}>
@@ -348,7 +350,9 @@ export function SaleInvoice({
                       {titleCase(l.title)} {packLabel(l.packSize, l.packSizeCode, l.packCount)}
                     </td>
                     <td className={cn(cell, "border-r")}>{l.hsn ?? ""}</td>
-                    <td className={cn(cell, "border-r text-right")}>{l.quantity}</td>
+                    <td className={cn(cell, "border-r text-right")}>
+                      <LeftQuantity billed={l.quantity} returned={returnedOf.get(l.productId) ?? 0} />
+                    </td>
                     <td className={cn(cell, "border-r text-right")}>{money(l.rate)}</td>
                     <td className={cn(cell, "border-r text-right")}>{money(l.discount)}</td>
                     <td className={cn(cell, "border-r text-right")}>{money(l.taxable)}</td>

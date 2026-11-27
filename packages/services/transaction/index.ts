@@ -558,6 +558,31 @@ export default class TransactionService {
     };
   }
 
+  // how many of each product of a sale or purchase went back on returns still in place
+  private async returnedLines(transactionId: string, type: TransactionType): Promise<{ productId: string; quantity: number }[]> {
+    if (type === "sale")
+      return db
+        .select({ productId: saleProductsTable.productId, quantity: sql<number>`sum(${saleReturnProductsTable.quantity})::int` })
+        .from(saleReturnProductsTable)
+        .innerJoin(saleProductsTable, eq(saleProductsTable.id, saleReturnProductsTable.saleProductId))
+        .innerJoin(saleReturnsTable, eq(saleReturnsTable.id, saleReturnProductsTable.returnId))
+        .innerJoin(transactionsTable, eq(transactionsTable.id, saleReturnsTable.transactionId))
+        .innerJoin(salesTable, eq(salesTable.id, saleReturnsTable.saleId))
+        .where(and(eq(salesTable.transactionId, transactionId), eq(transactionsTable.status, "active")))
+        .groupBy(saleProductsTable.productId);
+    if (type === "purchase")
+      return db
+        .select({ productId: purchaseProductsTable.productId, quantity: sql<number>`sum(${purchaseReturnProductsTable.quantity})::int` })
+        .from(purchaseReturnProductsTable)
+        .innerJoin(purchaseProductsTable, eq(purchaseProductsTable.id, purchaseReturnProductsTable.purchaseProductId))
+        .innerJoin(purchaseReturnsTable, eq(purchaseReturnsTable.id, purchaseReturnProductsTable.returnId))
+        .innerJoin(transactionsTable, eq(transactionsTable.id, purchaseReturnsTable.transactionId))
+        .innerJoin(purchasesTable, eq(purchasesTable.id, purchaseReturnsTable.purchaseId))
+        .where(and(eq(purchasesTable.transactionId, transactionId), eq(transactionsTable.status, "active")))
+        .groupBy(purchaseProductsTable.productId);
+    return [];
+  }
+
   // what share of a sale's or purchase's packs went back on returns still in place (replaced ones too), 0 to 100
   private async returnedShare(transactionId: string, type: TransactionType): Promise<number | null> {
     let had = 0;
@@ -758,6 +783,7 @@ export default class TransactionService {
       returns: t.type === "sale" ? await this.returnsOf(t.id) : t.type === "purchase" ? await this.purchaseReturnsOf(t.id) : [],
       replacementFor: await this.replacementFor(t.id, t.type),
       returnedShare: await this.returnedShare(t.id, t.type),
+      returnedLines: await this.returnedLines(t.id, t.type),
       ...(t.type === "purchase_return"
         ? await this.replacementsOf(t.id)
         : t.type === "sale_return"

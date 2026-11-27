@@ -114,6 +114,8 @@ export const transactionModel = transactionSummaryModel.extend({
   // a sale or purchase: what share of its packs went back on returns still in place (replaced ones too), 0 to 100;
   // other types: null
   returnedShare: z.number().nullable(),
+  // a sale or purchase: how many of each product went back on returns still in place (none back: left out); others: []
+  returnedLines: z.array(z.object({ productId: idModel, quantity: z.number().int() })),
   // a sale or purchase made as a return's replacement: that return (back goes to it); none: null
   replacementFor: z.object({ transactionId: idModel, assignedId: z.string() }).nullable(),
   // its edits, newest first: when, by whom, and each field changed from what to what

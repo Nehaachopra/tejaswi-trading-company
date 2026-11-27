@@ -11,14 +11,37 @@ const cell = "border-chestnut/40 px-2 py-1.5";
 export const LAST_COL = "w-40 min-w-40 print:w-32! print:min-w-32!";
 
 // the title centred, with the jurisdiction on its line at the left, over our name; on a phone, under the title
-export function DocHead({ title, jurisdiction }: { title: string; jurisdiction: string }) {
+// (`screenTitle`: shown on the screen in its place; the printed copy keeps `title`)
+export function DocHead({ title, screenTitle, jurisdiction }: { title: string; screenTitle?: string; jurisdiction: string }) {
   return (
     <div className="grid gap-0.5 pb-2 sm:grid-cols-[1fr_auto_1fr] sm:items-end sm:gap-3">
-      <p className="text-center font-heading text-2xl font-bold sm:col-start-2 sm:row-start-1">{title}</p>
+      <p className="text-center font-heading text-2xl font-bold sm:col-start-2 sm:row-start-1">
+        {screenTitle ? (
+          <>
+            <span className="print:hidden">{screenTitle}</span>
+            <span className="hidden print:inline">{title}</span>
+          </>
+        ) : (
+          title
+        )}
+      </p>
       <p className="text-center text-xs font-semibold sm:col-start-1 sm:row-start-1 sm:pb-1 sm:text-left">
         {jurisdiction}
       </p>
     </div>
+  );
+}
+
+// a row's quantity after its returns (on screen only): what was billed struck, what's left beside it; printed, as billed
+export function LeftQuantity({ billed, returned }: { billed: number; returned: number }) {
+  if (returned <= 0 || returned >= billed) return <>{billed}</>;
+  return (
+    <>
+      <span className="print:hidden">
+        <s className="opacity-60">{billed}</s> <b>{billed - returned}</b>
+      </span>
+      <span className="hidden print:inline">{billed}</span>
+    </>
   );
 }
 

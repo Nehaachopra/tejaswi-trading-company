@@ -17,7 +17,7 @@ import { CancelledNote } from "../../history/cancelled-note";
 import { EditedNote } from "../../history/edited-note";
 import { EditLog } from "../../history/edit-log";
 import { ReturnsLog } from "../../history/returns-log";
-import { Breakup, DocHead, LAST_COL, Remarks } from "../done/document-parts";
+import { Breakup, DocHead, LAST_COL, LeftQuantity, Remarks } from "../done/document-parts";
 import { band, cell, dated, Detail, money } from "../done/voucher";
 import { PurchaseReturnButton } from "../purchase-return/return-button";
 
@@ -63,6 +63,8 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
 
   const d = read.purchase;
   const record = history.record;
+  // how many of each product went back on its returns (History only): its row shows what's left
+  const returnedOf = new Map((record?.returnedLines ?? []).map((r) => [r.productId, r.quantity]));
   const cancelled = d.status === "cancelled";
   const canAsk = history.isAdmin && !cancelled;
   // the payment at the purchase: paid in full, on credit, or part paid with the rest due
@@ -205,10 +207,12 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
               </thead>
               <tbody>
                 {d.lines.map((l, i) => (
-                  <tr key={l.productId} className="align-top">
+                  <tr key={l.productId} className={cn("align-top", (returnedOf.get(l.productId) ?? 0) >= l.quantity && "row-returned")}>
                     <td className={cn(cell, "border-r")}>{i + 1}</td>
                     <td className={cn(cell, "border-r")}>{titleCase(l.name)}</td>
-                    <td className={cn(cell, "border-r text-right")}>{l.quantity}</td>
+                    <td className={cn(cell, "border-r text-right")}>
+                      <LeftQuantity billed={l.quantity} returned={returnedOf.get(l.productId) ?? 0} />
+                    </td>
                     <td className={cn(cell, "border-r text-right")}>{money(l.rate)}</td>
                     <td className={cn(cell, "border-r text-right")}>{money(l.discount)}</td>
                     <td className={cn(cell, "border-r text-right")}>{money(l.taxable)}</td>

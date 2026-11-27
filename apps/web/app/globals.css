@@ -127,8 +127,19 @@ input[type="search"]::-webkit-search-cancel-button {
   display: none;
 }
 
-/* printing a voucher (or saving it as a PDF): only the voucher, on white, at the top of the page */
+/* an invoice row whose every pack went back (on screen only): faded, one line straight through the whole row */
+.row-returned > td {
+  opacity: 0.6;
+  background-image: linear-gradient(transparent calc(50% - 0.75px), currentColor calc(50% - 0.75px), currentColor calc(50% + 0.75px), transparent calc(50% + 0.75px));
+}
+
 @media print {
+  .row-returned > td {
+    opacity: 1;
+    background-image: none;
+  }
+
+  /* printing a voucher (or saving it as a PDF): only the voucher, on white, at the top of the page */
   @page {
     margin: 12mm;
   }
