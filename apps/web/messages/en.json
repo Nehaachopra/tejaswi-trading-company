@@ -1535,6 +1535,9 @@
       },
       "success": {
         "taxPaid": "{tax} paid",
+        "supplierPaid": "Paid",
+        "loanRepaid": "Loan repaid",
+        "interestPaid": "Interest paid",
         "loanAmount": "Loan amount",
         "title": "Payment successfully created",
         "loadError": "Couldn't load the payment. Check your connection and try again."

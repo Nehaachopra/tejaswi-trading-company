@@ -1535,6 +1535,9 @@
       },
       "success": {
         "taxPaid": "{tax} चुकाया",
+        "supplierPaid": "चुकाया",
+        "loanRepaid": "कर्ज़ चुकाया",
+        "interestPaid": "ब्याज दिया",
         "loanAmount": "ऋण राशि",
         "title": "भुगतान सफलतापूर्वक बना",
         "loadError": "भुगतान लोड नहीं हुआ। कनेक्शन देखकर फिर कोशिश करें।"

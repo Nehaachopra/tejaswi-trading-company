@@ -154,6 +154,11 @@ export function ReceiptSuccess({
     isPayment && paid?.paidFor === "taxPaid"
       ? { tax: (/[csi]?gst|tds|tcs/i.exec(paid.paidToName)?.[0] ?? paid.paidToName).toUpperCase(), amount: paid.amount }
       : null;
+  // a supplier, a loan repaid or its interest: what was handed over
+  const handedKey =
+    isPayment && paid && (paid.paidFor === "supplier" || paid.paidFor === "loanRepaid" || paid.paidFor === "interestPaid")
+      ? ({ supplier: "supplierPaid", loanRepaid: "loanRepaid", interestPaid: "interestPaid" } as const)[paid.paidFor]
+      : null;
   // a salary or an advance: what was paid (every employee's together when many were paid)
   const salaryPaid = isSalary && salaryGet.saved
     ? {
@@ -229,6 +234,16 @@ export function ReceiptSuccess({
                   <FileText className="size-4" aria-hidden /> {t("voucher")}
                 </Link>
               )}
+            </div>
+          )}
+
+          {/* a supplier, a loan repaid or its interest: what was paid */}
+          {handedKey && paid && (
+            <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
+              <p className="flex items-baseline justify-between gap-4 py-3">
+                <span className="text-sm font-semibold">{ownPayment(handedKey)}</span>
+                <span className="font-heading text-xl font-bold">{rupees(paid.amount)}</span>
+              </p>
             </div>
           )}
 
