@@ -19,6 +19,7 @@ import {
   draftOk as partyOk,
   emptyDraft as emptyParty,
   type PartyDraft,
+  SECTION_TITLE,
 } from "../../account/party/party-fields";
 import { type LedgerChoice, type Pickable } from "../pickers/ledger-picker";
 import {
@@ -228,13 +229,14 @@ export function OldLoanWho({
         <FieldMessage className="mt-0">{t("oldLoanLender")}</FieldMessage>
       )}
 
+      {/* the lender (or who it was given to) as a heading, then its search, list and new lender under it */}
+      {lender !== null && <h3 className={SECTION_TITLE}>{given ? t("oldLoanTo") : tl("lenderPart")}</h3>}
+
       {/* a bank or NBFC: its lender and loan account */}
       {bank && (
         <LenderFields
           key={bank}
           type={bank}
-          // the lender, labelled on the left as every other row
-          label={tl("lenderPart")}
           draft={bankLender}
           onChange={(patch) => setBankLender((d) => ({ ...d, ...patch }))}
           tried={tried}
@@ -257,8 +259,6 @@ export function OldLoanWho({
             placeholder: t("hints.from"),
           }}
           newPartyCard={who?.kind === "party"}
-          // the lender (or who it was given to), labelled on the left as every other row
-          label={given ? t("oldLoanTo") : tl("lenderPart")}
           form={
             who?.kind === "party" &&
             newPartyDetails(newParty, setNewParty, matched, (m) =>

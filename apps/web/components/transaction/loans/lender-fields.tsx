@@ -17,7 +17,7 @@ import {
   PICK_TWO_COLUMNS,
 } from "~/components/ui/page-styles";
 import { PickedCard } from "../shared/picked-card";
-import { fieldRow, wideFieldRow } from "../shared/form-basics";
+import { fieldRow } from "../shared/form-basics";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
@@ -238,14 +238,11 @@ export function LenderFields({
   draft,
   onChange,
   tried,
-  label,
 }: {
   type: BankLender;
   draft: LenderDraft;
   onChange: (patch: Partial<LenderDraft>) => void;
   tried: boolean;
-  // the row's label on the left of who (an old loan's Lender); none: who alone, the full width
-  label?: string;
 }) {
   const t = useTranslations("transactions.lender");
   const lenders = useLenders(false);
@@ -321,18 +318,7 @@ export function LenderFields({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* with a label: on its left, as every other row, who on the right */}
-      {label ? (
-        <div className={wideFieldRow}>
-          <span>
-            {label}
-            <RequiredMark />
-          </span>
-          <div className="min-w-0">{whoPart}</div>
-        </div>
-      ) : (
-        whoPart
-      )}
+      {whoPart}
 
       {/* a new lender: its name and branch (an NBFC's PAN too) */}
       {draft.adding && !draft.picked && (

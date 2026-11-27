@@ -42,6 +42,7 @@ import {
 } from "@repo/services/payment/model";
 import {
   addOldDueInputModel,
+  updateLoanTermsInputModel,
   dueModel,
   duesBoardModel,
   listDuesInputModel,
@@ -440,6 +441,13 @@ const dueRouter = router({
     .input(addOldDueInputModel)
     .output(dueModel)
     .mutation(({ ctx, input }) => dueService.addOld(input, ctx.session.user)),
+
+  // an open loan's terms changed, from now on; the admin only
+  updateTerms: adminProcedure
+    .meta({ openapi: { method: "PATCH", path: "/transactions/dues/loans/terms", tags: ["transactions"] } })
+    .input(updateLoanTermsInputModel)
+    .output(dueModel)
+    .mutation(({ input }) => dueService.updateTerms(input)),
 });
 
 // money between cash and our bank accounts, recorded by the admin or staff: what every kind has, under its own path:

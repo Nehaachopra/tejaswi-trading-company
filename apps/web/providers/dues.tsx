@@ -47,3 +47,14 @@ export function useAddOldDue() {
     },
   };
 }
+
+// an open loan's terms changed, from now on: the saved loan comes back, and the dues are read again
+export function useUpdateLoanTerms() {
+  const utils = trpc.useUtils();
+  const update = trpc.transactions.due.updateTerms.useMutation();
+  return {
+    save: (input: In["updateTerms"]) => update.mutateAsync(input),
+    saving: update.isPending,
+    refresh: () => void utils.transactions.due.invalidate(),
+  };
+}

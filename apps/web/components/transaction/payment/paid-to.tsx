@@ -1,6 +1,8 @@
 "use client";
 
 import { Plus, Search } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
 import {
   ADD_ON_IVORY,
   PICK_LIST,
@@ -29,6 +31,7 @@ import { LenderEdit } from "../loans/lender-fields";
 import { PartySearchView } from "../shared/customer-stage";
 import { PartyEditor } from "../shared/party-editor";
 import { PickedCard } from "../shared/picked-card";
+import { LoanTermsEdit } from "../loans/loan-terms-edit";
 import { OldLoanWho } from "../loans/old-loan-form";
 import { PartyPick } from "../pickers/party-finder";
 import { TdsTypePicker } from "../pickers/tds-type-picker";
@@ -62,6 +65,9 @@ export function LoanCards() {
     oldLoan,
     tried,
   } = usePaymentEntry();
+  // the picked loan's terms being changed right here, from now on (the admin only)
+  const tl = useTranslations("transactions.loan");
+  const [editingTerms, setEditingTerms] = useState(false);
   // an old loan: who on this stage; its amount and terms on Loan terms, whose Next adds it
   if (addingOldLoan) {
     return (
@@ -102,7 +108,26 @@ export function LoanCards() {
           aside={
             <span className="tabular shrink-0 text-sm font-semibold">{rupees(loan.left)}</span>
           }
-          onEdit={isAdmin ? () => setEditingLoan((on) => !on) : undefined}
+          // Edit terms: the rate, how often, when it's due back (a lender's account and EMI); Edit: who it's with
+          more={
+            isAdmin
+              ? {
+                  label: tl("editTerms"),
+                  onClick: () => {
+                    setEditingLoan(false);
+                    setEditingTerms((on) => !on);
+                  },
+                }
+              : undefined
+          }
+          onEdit={
+            isAdmin
+              ? () => {
+                  setEditingTerms(false);
+                  setEditingLoan((on) => !on);
+                }
+              : undefined
+          }
           onChange={() => {
             setLoan(null);
             setTotalGoal(null);
@@ -113,6 +138,17 @@ export function LoanCards() {
             {detailLines(loan)}
           </span>
         </PickedCard>
+        {/* its terms, changed right here: the loan as saved comes back and stays picked */}
+        {editingTerms && (
+          <LoanTermsEdit
+            loan={loan}
+            onCancel={() => setEditingTerms(false)}
+            onSaved={(saved) => {
+              setEditingTerms(false);
+              setLoan(saved);
+            }}
+          />
+        )}
         {/* who gave it, changed right here: a lender's details, or a party's */}
         {editingLoan &&
           (loan.lenderId ? (

@@ -1355,6 +1355,8 @@
       "rate": "ब्याज % / साल",
       "lender": "ऋण किसने दिया",
       "lenderPart": "ऋणदाता",
+      "editTerms": "शर्तें बदलें",
+      "termsFailed": "शर्तें सेव नहीं हुईं। फिर कोशिश करें।",
       "source": "स्रोत",
       "lenders": {
         "bank": "बैंक",
@@ -1646,6 +1648,8 @@
         "months": "महीने",
         "tooMuch": "नकद और सभी बैंक खातों में मिलाकर अधिकतम {amount} है।",
         "interestDue": "ब्याज",
+        "loanLeft": "बाकी ऋण",
+        "interestMonthly": "ब्याज / माह",
         "rentDue": "कुल किराया",
         "rentPerMonth": "मासिक किराया",
         "godown": "गोदाम",

@@ -198,3 +198,24 @@ export const addOldDueInputModel = z
   .refine((d) => d.dueOn === null || d.dueOn >= d.dated, { message: "It can't be due before it was taken.", path: ["dueOn"] });
 
 export type AddOldDueInputModel = z.infer<typeof addOldDueInputModel>;
+
+// an open loan's terms changed, from now on: the rate a year, how often the interest is paid, when it's due back, and
+// a lender's loan its account number and EMI. What was paid before keeps what it was
+export const updateLoanTermsInputModel = z.object({
+  dueId: idModel,
+  interestRate: z.number().min(0).max(100).multipleOf(0.01),
+  frequency: z.enum(["monthly", "quarterly", "half_yearly", "yearly"]),
+  dueOn: dayModel.nullable().default(null),
+  loanAccountNumber: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .min(1)
+    .max(30)
+    .regex(/^[A-Z0-9/-]+$/, "Letters, digits, / and - only.")
+    .nullable()
+    .default(null),
+  emiAmount: amountModel.nullable().default(null),
+});
+
+export type UpdateLoanTermsInputModel = z.infer<typeof updateLoanTermsInputModel>;

@@ -1355,6 +1355,8 @@
       "rate": "Interest % / year",
       "lender": "Who gave the loan",
       "lenderPart": "Lender",
+      "editTerms": "Edit terms",
+      "termsFailed": "Couldn't save the terms. Try again.",
       "source": "Source",
       "lenders": {
         "bank": "Bank",
@@ -1646,6 +1648,8 @@
         "months": "Months",
         "tooMuch": "Cash and the bank accounts together hold at most {amount}.",
         "interestDue": "Interest",
+        "loanLeft": "Loan left",
+        "interestMonthly": "Interest / month",
         "rentDue": "Total rent",
         "rentPerMonth": "Rent per month",
         "godown": "Godown",

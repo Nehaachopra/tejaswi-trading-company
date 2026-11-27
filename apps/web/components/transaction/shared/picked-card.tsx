@@ -18,10 +18,13 @@ export function PickedCard({
   onEdit,
   onChange,
   oneLine = false,
+  more,
 }: {
   children: React.ReactNode;
   aside?: React.ReactNode;
   onEdit?: () => void;
+  // another action before Edit, in the same words-only look (a loan's Edit terms)
+  more?: { label: string; onClick: () => void };
   // none: the pick is kept (a sale order's customer on its dispatch)
   onChange?: () => void;
   oneLine?: boolean;
@@ -30,6 +33,11 @@ export function PickedCard({
   // Edit (when it can be changed here) and Change, which lets go of the pick
   const actions = (
     <>
+      {more && (
+        <button type="button" onClick={more.onClick} className={PICKED_ACTION}>
+          {more.label}
+        </button>
+      )}
       {onEdit && (
         <button type="button" onClick={onEdit} className={PICKED_ACTION}>
           {t("edit")}
@@ -42,7 +50,7 @@ export function PickedCard({
       )}
     </>
   );
-  const any = !!onEdit || !!onChange;
+  const any = !!more || !!onEdit || !!onChange;
   if (oneLine)
     return (
       <div className={PICKED}>

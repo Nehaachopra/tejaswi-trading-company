@@ -49,10 +49,6 @@ export const chip = (on: boolean) =>
 const rowBase =
   "grid grid-cols-[minmax(0,1fr)_62%] items-start gap-x-3 gap-y-1.5 text-sm font-normal [&>*:first-child]:flex [&>*:first-child]:items-center [&>*:nth-child(n+3)]:col-start-2";
 export const fieldRow = `${rowBase} [&>*:first-child]:min-h-11`;
-// a row the full width (a list or card on its right, an old loan's Lender) beside rows in a half-width column: its
-// name as wide as theirs, so every box starts on the same line; on a phone, as any row
-export const wideFieldRow =
-  "grid grid-cols-[minmax(0,1fr)_62%] items-start gap-x-3 gap-y-1.5 text-sm font-normal sm:grid-cols-[calc((100%-1.5rem)*0.19-0.75rem)_minmax(0,1fr)] [&>*:first-child]:flex [&>*:first-child]:min-h-11 [&>*:first-child]:items-center [&>*:nth-child(n+3)]:col-start-2";
 // the same beside an accordion: the name level with its first row (48px, or 56px with a second line)
 export const pickRow = `${rowBase} [&>*:first-child]:min-h-12`;
 export const pickRowTwo = `${rowBase} [&>*:first-child]:min-h-14`;

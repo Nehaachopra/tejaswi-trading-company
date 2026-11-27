@@ -27,6 +27,8 @@ import {
   type PartyDuesInputModel,
   type PartyDuesModel,
   partyDuesInputModel,
+  type UpdateLoanTermsInputModel,
+  updateLoanTermsInputModel,
   type WriteOffInputModel,
   writeOffInputModel,
 } from "./model";
@@ -311,6 +313,38 @@ export default class DueService {
   // the open loans of one kind, oldest first, for the chat to pick the one being repaid or paid interest on
   async openLoans(input: OpenLoansInputModel): Promise<DueModel[]> {
     return this.open(db, and(eq(duesTable.kind, DUE_KIND_DB[input.kind]), input.partyId ? eq(duesTable.partyId, input.partyId) : undefined));
+  }
+
+  // an open loan's terms changed, from now on (interest paid before keeps what it was): its rate, how often the interest
+  // is paid, when it's due back; a lender's loan its account number and EMI too, a party's loan has neither
+  async updateTerms(rawInput: UpdateLoanTermsInputModel): Promise<DueModel> {
+    const input = updateLoanTermsInputModel.parse(rawInput);
+    await db.transaction(async (tx) => {
+      const [due] = await this.open(tx, eq(duesTable.id, input.dueId), true);
+      if (!due) throw new TRPCError({ code: "NOT_FOUND", message: "That loan isn't open." });
+      if (!isLoan(due.kind)) throw new TRPCError({ code: "BAD_REQUEST", message: "Only a loan has terms." });
+      const lender = due.lenderId !== null;
+      if (lender && input.loanAccountNumber === null)
+        throw new TRPCError({ code: "BAD_REQUEST", message: "A lender's loan needs its account number." });
+      if (!lender && (input.loanAccountNumber !== null || input.emiAmount !== null))
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Only a lender's loan has an account number and EMI." });
+      // never due back before the day it was taken
+      const taken = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(due.dated);
+      if (input.dueOn !== null && input.dueOn < taken)
+        throw new TRPCError({ code: "BAD_REQUEST", message: "It can't be due before it was taken." });
+      await tx
+        .update(duesTable)
+        .set({
+          interestRate: String(input.interestRate),
+          frequency: input.frequency,
+          dueOn: input.dueOn,
+          loanAccountNumber: lender ? input.loanAccountNumber : null,
+          emiAmount: lender && input.emiAmount !== null ? String(input.emiAmount) : null,
+        })
+        .where(eq(duesTable.id, input.dueId));
+    });
+    const [due] = await this.open(db, eq(duesTable.id, input.dueId));
+    return due!;
   }
 
   // a due from before the app: posted against Capital on the day it was taken or billed (what we're owed up, Capital
