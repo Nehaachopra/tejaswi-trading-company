@@ -18,6 +18,7 @@ import PurchaseEditService from "@repo/services/purchase/edit";
 import SaleReturnService from "@repo/services/sale-return";
 import PurchaseReturnService from "@repo/services/purchase-return";
 import ReceiptService from "@repo/services/receipt";
+import ReceiptEditService from "@repo/services/receipt/edit";
 import SalaryService from "@repo/services/salary";
 import TransactionService from "@repo/services/transaction";
 import CategoryService from "@repo/services/category";
@@ -56,6 +57,7 @@ export const lenderService = new LenderService();
 export const transactionService = new TransactionService();
 
 export const receiptService = new ReceiptService(accountsService, transactionService, partyService);
+export const receiptEditService = new ReceiptEditService(accountsService, transactionService, partyService);
 export const saleService = new SaleService(accountsService, transactionService, partyService);
 export const saleEditService = new SaleEditService(accountsService, transactionService, partyService);
 export const purchaseEditService = new PurchaseEditService(accountsService, transactionService, partyService);

@@ -12,13 +12,9 @@ import SettingService from "../setting";
 import { BANK_MODE_DB, type BankMode, SETTLED_IN_DB, type SettledInModel } from "../payment/model";
 import { counterLedger, moneyPartsIn } from "../transaction/settle";
 import type { Tx } from "../stock/engine";
-import { type CreateReceiptInputModel, createReceiptInputModel, gstOutOf, NEW_LEDGER_FOR, SCRAP_GST, RECEIVED_FOR_DB, type ReceiptIdInputModel, type ReceiptModel, type SavedReceiptModel, tdsOn } from "./model";
+import { type CreateReceiptInputModel, createReceiptInputModel, gstOutOf, NEW_LEDGER_FOR, SCRAP_GST, RECEIPT_TDS_RATE, RECEIVED_FOR_DB, type ReceiptIdInputModel, type ReceiptModel, type SavedReceiptModel, tdsOn } from "./model";
 
 // the kind back from how the database keeps it
-// the TDS a party takes from what it pays us, by law: a buyer 0.1% under section 194Q (we have a PAN), a borrower 10% on
-// interest under section 194A
-const RECEIPT_TDS_RATE: Partial<Record<ReceiptKind, number>> = { customer: 0.1, interestReceived: 10 };
-
 const KIND_OF = Object.fromEntries(Object.entries(RECEIVED_FOR_DB).map(([k, v]) => [v, k])) as Record<string, ReceiptKind>;
 const MODE_OF = Object.fromEntries(Object.entries(BANK_MODE_DB).map(([k, v]) => [v, k])) as Record<string, BankMode>;
 const SETTLED_OF = Object.fromEntries(Object.entries(SETTLED_IN_DB).map(([k, v]) => [v, k])) as Record<string, SettledInModel>;

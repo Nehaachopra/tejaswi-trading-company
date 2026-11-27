@@ -6,7 +6,7 @@ import { getSession } from "~/lib/session";
 
 export const metadata: Metadata = { title: "Edit · Tejaswi trading company" };
 
-// editing a sale or a purchase from History; the admin's only (staff go back to it)
+// editing a sale, a purchase or a receipt from History; the admin's only (staff go back to it)
 export default async function EditSalePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await getSession();

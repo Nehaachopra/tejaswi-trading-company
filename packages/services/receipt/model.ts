@@ -20,6 +20,10 @@ export const NEW_LEDGER_FOR: Partial<Record<ReceiptKind, { head: "asset" | "inco
   otherIncome: { head: "income" },
 };
 
+// the TDS a party takes from what it pays us, by law: a buyer 0.1% under section 194Q (we have a PAN), a borrower 10% on
+// interest under section 194A
+export const RECEIPT_TDS_RATE: Partial<Record<ReceiptKind, number>> = { customer: 0.1, interestReceived: 10 };
+
 // the kinds as the database keeps them
 export const RECEIVED_FOR_DB = {
   customer: "customer",

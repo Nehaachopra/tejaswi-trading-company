@@ -10,8 +10,10 @@ import { PurchaseEditForm } from "../transaction/purchase-edit/form";
 import { PurchaseEditSuccess } from "../transaction/purchase-edit/success";
 import { SaleEditForm } from "../transaction/sale-edit/form";
 import { SaleEditSuccess } from "../transaction/sale-edit/success";
+import { ReceiptEditForm } from "./receipt/edit/form";
+import { ReceiptEditSuccess } from "./receipt/edit/success";
 
-// /history/[id]/edit (and its done page): a sale's edit form, or a purchase's, by what the transaction is
+// /history/[id]/edit (and its done page): a sale's edit form, a purchase's or a receipt's, by what the transaction is
 export function EditRoute({ id, done = false }: { id: string; done?: boolean }) {
   const t = useTranslations("history");
   const { transaction, loading, notFound } = useHistoryTransaction(id);
@@ -27,6 +29,7 @@ export function EditRoute({ id, done = false }: { id: string; done?: boolean }) 
         <CircleAlert className="size-4" aria-hidden /> {notFound ? t("notFound") : t("loadOneError")}
       </p>
     );
+  if (transaction.type === "receipt") return done ? <ReceiptEditSuccess id={id} /> : <ReceiptEditForm id={id} />;
   if (transaction.type === "purchase") return done ? <PurchaseEditSuccess id={id} /> : <PurchaseEditForm id={id} />;
   return done ? <SaleEditSuccess id={id} /> : <SaleEditForm id={id} />;
 }

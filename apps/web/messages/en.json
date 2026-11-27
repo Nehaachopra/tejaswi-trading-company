@@ -3062,7 +3062,8 @@
       "returnedPurchase": "Can't edit: every item on this purchase went back.",
       "gstFiledSale": "Can't edit: this month's GSTR-1 is filed. Use a sale return instead.",
       "gstFiledPurchase": "Can't edit: this month's GSTR-3B is filed. Use a purchase return instead.",
-      "replacement": "Can't edit: this is a return's replacement."
+      "replacement": "Can't edit: this is a return's replacement.",
+      "gstFiledScrap": "Can't edit: this month's GSTR-1 is filed."
     },
     "blocked": {
       "gstFiled": "Can't cancel: this month's GST return is filed. Use a sale return instead.",
@@ -3097,6 +3098,62 @@
     "replacedBack": "{share}% back",
     "paidCash": "Cash",
     "paidCredit": "Credit",
-    "noReplacements": "No replacements yet."
+    "noReplacements": "No replacements yet.",
+    "editReceipt": "Edit receipt",
+    "receipt": {
+      "title": "Receipt",
+      "voucher": "Voucher",
+      "howCameIn": "How it came in",
+      "details": "Details",
+      "id": "Receipt ID",
+      "date": "Date",
+      "tds": "TDS deducted ({rate}%)",
+      "towardsDues": "Towards dues",
+      "advance": "Left as advance",
+      "interest": "Interest",
+      "interestValue": "{rate}% a year, paid {frequency}",
+      "taxable": "Price before GST",
+      "phone": "Phone",
+      "remarks": "Remarks",
+      "kinds": {
+        "customer": "Customer payment",
+        "loanTaken": "Loan taken",
+        "loanReturned": "Loan given back",
+        "interestReceived": "Interest received",
+        "capital": "Capital",
+        "refund": "Refund",
+        "otherIncome": "Other income",
+        "scrap": "Scrap sale"
+      },
+      "edit": {
+        "title": "Edit receipt",
+        "loading": "Loading…",
+        "loadFailed": "Couldn't load the receipt. Check the connection and try again.",
+        "summary": "Summary",
+        "save": "Save changes",
+        "saving": "Saving…",
+        "done": "Receipt edited",
+        "number": "Transaction ID",
+        "amount": "Amount",
+        "viewReceipt": "View receipt",
+        "minLoan": "{amount} of this loan is already repaid, so the amount can't be less.",
+        "maxLoan": "Only {amount} was left on the loan.",
+        "spentCash": "That cash is already spent. At least {amount} must have come in cash.",
+        "spentBank": "That money is already spent. At least {amount} must have come into {bank}.",
+        "missing": {
+          "amount": "Enter the amount.",
+          "limit": "Fix the amount marked in red.",
+          "left": "{amount} is not placed yet. Put it in cash or a bank account.",
+          "spent": "Some money is already spent. Fix the place marked below.",
+          "into": "Pick how it came in, and check each reference.",
+          "date": "Pick the date."
+        },
+        "errors": {
+          "network": "Can't reach the server. Check your connection.",
+          "busy": "Too many saves at once. Wait a moment and try again.",
+          "failed": "Couldn't save the changes. Try again."
+        }
+      }
+    }
   }
 }
