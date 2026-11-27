@@ -228,7 +228,7 @@ export function DebitNoteView({
               </div>
             </div>
             <div className="hidden min-w-0 flex-col border-b border-chestnut/40 print:flex">
-              <div className="grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_1fr_auto_1fr] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
+              <div className="grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 sm:grid-cols-[auto_auto_auto_auto] sm:[&>*:nth-child(2n)]:border-r sm:[&>*:nth-child(4n)]:border-r-0">
                 <Detail
                   label={t("number")}
                   value={<span className="font-bold">{d.assignedId}</span>}
