@@ -121,7 +121,7 @@ const FLOWS: Record<
     repayKinds: ["loanReturned"],
   },
   payment: {
-    kinds: ["supplier", "loanRepaid", "interestPaid", "loanGiven", "expense", "taxPaid", "refund"],
+    kinds: ["supplier", "loanRepaid", "interestPaid", "loanGiven", "expense", "taxPaid"],
     partyKinds: ["supplier", "loanGiven", "refund"],
     plainKinds: ["expense"],
     tdsKind: "supplier",

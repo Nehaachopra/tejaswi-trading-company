@@ -22,7 +22,8 @@ export type Loan = RouterOutputs["transactions"]["due"]["openLoans"][number];
 export type Step =
   "kind" | "to" | "payee" | "gst" | "terms" | "rent" | "amount" | "source" | "details";
 
-// what it can be paid for, in the order people reach for them; which go to a party (found or added), and which name
+// what it can be paid for, in the order people reach for them (a customer's refund goes through a sale return, so it
+// isn't offered; one saved before still opens); which go to a party (found or added), and which name
 // an open loan we took
 export const KINDS: PaymentKind[] = [
   "supplier",
@@ -31,7 +32,6 @@ export const KINDS: PaymentKind[] = [
   "loanGiven",
   "expense",
   "taxPaid",
-  "refund",
 ];
 export const PARTY_KINDS: PaymentKind[] = ["supplier", "loanGiven", "refund"];
 export const LOAN_KINDS: PaymentKind[] = ["loanRepaid", "interestPaid"];
