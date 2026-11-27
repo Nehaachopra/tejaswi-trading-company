@@ -3102,19 +3102,6 @@
     "editReceipt": "Edit receipt",
     "receipt": {
       "title": "Receipt",
-      "voucher": "Voucher",
-      "howCameIn": "How it came in",
-      "details": "Details",
-      "id": "Receipt ID",
-      "date": "Date",
-      "tds": "TDS deducted ({rate}%)",
-      "towardsDues": "Towards dues",
-      "advance": "Left as advance",
-      "interest": "Interest",
-      "interestValue": "{rate}% a year, paid {frequency}",
-      "taxable": "Price before GST",
-      "phone": "Phone",
-      "remarks": "Remarks",
       "kinds": {
         "customer": "Customer payment",
         "loanTaken": "Loan taken",
@@ -3153,7 +3140,11 @@
           "busy": "Too many saves at once. Wait a moment and try again.",
           "failed": "Couldn't save the changes. Try again."
         }
-      }
+      },
+      "transactionId": "Transaction ID"
+    },
+    "payment": {
+      "title": "Payment"
     }
   }
 }

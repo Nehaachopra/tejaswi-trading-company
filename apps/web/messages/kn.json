@@ -3102,19 +3102,6 @@
     "editReceipt": "ರಸೀದಿ ಬದಲಿಸಿ",
     "receipt": {
       "title": "ರಸೀದಿ",
-      "voucher": "ವೋಚರ್",
-      "howCameIn": "ಹಣ ಹೇಗೆ ಬಂತು",
-      "details": "ವಿವರಗಳು",
-      "id": "ರಸೀದಿ ID",
-      "date": "ದಿನಾಂಕ",
-      "tds": "TDS ಕಡಿತ ({rate}%)",
-      "towardsDues": "ಬಾಕಿಗೆ",
-      "advance": "ಮುಂಗಡವಾಗಿ ಉಳಿದದ್ದು",
-      "interest": "ಬಡ್ಡಿ",
-      "interestValue": "ವರ್ಷಕ್ಕೆ {rate}%, {frequency} ಪಾವತಿ",
-      "taxable": "GST ಮೊದಲು ಬೆಲೆ",
-      "phone": "ಫೋನ್",
-      "remarks": "ಟಿಪ್ಪಣಿ",
       "kinds": {
         "customer": "ಗ್ರಾಹಕರ ಪಾವತಿ",
         "loanTaken": "ತೆಗೆದ ಸಾಲ",
@@ -3153,7 +3140,11 @@
           "busy": "ಒಂದೇ ಬಾರಿ ತುಂಬಾ ಉಳಿಸುವಿಕೆಗಳು. ಸ್ವಲ್ಪ ಕಾದು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
           "failed": "ಬದಲಾವಣೆ ಉಳಿಸಲಾಗಲಿಲ್ಲ. ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ."
         }
-      }
+      },
+      "transactionId": "ವ್ಯವಹಾರ ID"
+    },
+    "payment": {
+      "title": "ಪಾವತಿ"
     }
   }
 }

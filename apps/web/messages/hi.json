@@ -3102,19 +3102,6 @@
     "editReceipt": "रसीद बदलें",
     "receipt": {
       "title": "रसीद",
-      "voucher": "वाउचर",
-      "howCameIn": "पैसा कैसे आया",
-      "details": "विवरण",
-      "id": "रसीद ID",
-      "date": "तारीख",
-      "tds": "TDS काटा गया ({rate}%)",
-      "towardsDues": "बकाया में",
-      "advance": "एडवांस के रूप में",
-      "interest": "ब्याज",
-      "interestValue": "{rate}% सालाना, {frequency} भुगतान",
-      "taxable": "GST से पहले कीमत",
-      "phone": "फ़ोन",
-      "remarks": "टिप्पणी",
       "kinds": {
         "customer": "ग्राहक का भुगतान",
         "loanTaken": "लिया गया लोन",
@@ -3153,7 +3140,11 @@
           "busy": "एक साथ बहुत सारे सेव। थोड़ा रुककर फिर कोशिश करें।",
           "failed": "बदलाव सेव नहीं हुए। फिर कोशिश करें।"
         }
-      }
+      },
+      "transactionId": "ट्रांज़ैक्शन ID"
+    },
+    "payment": {
+      "title": "भुगतान"
     }
   }
 }

@@ -2,7 +2,7 @@
 
 import { Fragment } from "react";
 
-import { ArrowLeft, CircleAlert, Download, Flag, Mail, Phone } from "lucide-react";
+import { ArrowLeft, CircleAlert, Download, Flag, Mail, Pencil, Phone } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
@@ -12,6 +12,12 @@ import { amountInWords } from "~/lib/amount-words";
 import { useBankName } from "~/lib/bank-names";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
+import type { HistoryTransaction } from "~/providers/history";
+
+import { BlockedButton } from "../../history/blocked-button";
+import { CancelledNote } from "../../history/cancelled-note";
+import { EditedNote } from "../../history/edited-note";
+import { EditLog } from "../../history/edit-log";
 import { Breakup, type BreakupRow, DocHead, LAST_COL, Remarks } from "./document-parts";
 import {
   usePaymentShareKey,
@@ -142,7 +148,7 @@ function Sources({ r, label }: { r: Voucher; label: string }) {
     found.length > 0
       ? found
       : [{ key: "bank", name: t("bank"), mode: "—", account: "—", amount: r.amount }];
-  const th = cn(cell, "border-b border-r font-semibold last:border-r-0");
+  const thCell = cn(cell, "border-b border-r font-semibold last:border-r-0");
   const td = cn(cell, "border-r last:border-r-0");
   return (
     <div className="flex min-w-0 flex-col">
@@ -151,10 +157,10 @@ function Sources({ r, label }: { r: Voucher; label: string }) {
         <table className="tabular w-full border-collapse text-left">
           <thead>
             <tr>
-              <th className={th}>{t("source")}</th>
-              <th className={th}>{t("mode")}</th>
-              <th className={th}>{t("account")}</th>
-              <th className={cn(th, "text-right")}>{t("amount")}</th>
+              <th className={thCell}>{t("source")}</th>
+              <th className={thCell}>{t("mode")}</th>
+              <th className={thCell}>{t("account")}</th>
+              <th className={cn(thCell, "text-right")}>{t("amount")}</th>
             </tr>
           </thead>
           <tbody>
@@ -261,18 +267,26 @@ function whatsAppLink(
   return `https://wa.me/${to}?text=${encodeURIComponent(text)}`;
 }
 
+// a button's look on the chestnut page, as on the invoice
+const pill =
+  "on-ivory flex min-h-11 items-center justify-center gap-2 rounded-control bg-ivory px-3 text-sm font-semibold text-chestnut disabled:opacity-50 sm:px-4";
+
 // a receipt's voucher, laid out like our tax invoice: our details and the voucher's, who it came from with the
 // remarks beside it, the particulars, where it was received with the totals, the amount in words, and signatures.
 // It prints (or saves as a PDF) on its own. With a share key it's the customer's copy, opened from a link without a
-// login: only the download, no way back into the app and nothing to share
+// login: only the download, no way back into the app and nothing to share. Opened from History, as a sale's invoice:
+// on the screen only who it was with beside what it was for, its ID, day and remarks, then the particulars with the
+// breakup and where the money went; printed, the voucher as issued. Back goes to History, and the admin's Edit receipt
 export function ReceiptVoucher({
   id,
   shareKey,
   flow = "receipt",
+  history,
 }: {
   id: string;
   shareKey?: string;
   flow?: "receipt" | "payment";
+  history?: { record: HistoryTransaction; isAdmin: boolean };
 }) {
   const base = useTranslations("transactions.voucher");
   // a payment's own words where it has them (Paid to, Paid from ...), the receipt's otherwise
@@ -285,6 +299,11 @@ export function ReceiptVoucher({
     flow === "payment" ? "transactions.payment.kinds" : "transactions.receipt.kinds",
   );
   const particulars = useParticulars();
+  const th = useTranslations("history");
+  const ti = useTranslations("transactions.sale.invoice");
+  // opened from History: its History look on the screen (printed, the success card and shared links: as issued)
+  const h = !!history;
+  const record = history?.record;
   const shared = shareKey !== undefined;
   const isPayment = flow === "payment";
   const receiptOwn = useSavedReceipt(id, !shared && !isPayment);
@@ -392,7 +411,39 @@ export function ReceiptVoucher({
   const breakup: BreakupRow[] =
     off.length > 0 ? [{ key: "total", label: base("total"), value: `₹${money(gross)}` }, ...off] : [];
   // a column head in the particulars
-  const th = cn(cell, "border-r font-semibold");
+  const thCell = cn(cell, "border-r font-semibold");
+  const cancelled = r.status === "cancelled";
+  // who it was with: GSTIN or unregistered (reverse charge), the address, PAN, GSTIN and phone, a line each
+  const partyLines = (
+    <div className={cn(cell, "flex flex-col gap-0.5 break-words")}>
+      {r.rcm && !p?.address?.gstin && <span>{r.rcm.supplierGstin ? `GSTIN : ${r.rcm.supplierGstin}` : ownWords("unregistered")}</span>}
+      {p?.address && (
+        <>
+          <span className="flex items-start gap-1.5">
+            <Flag className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+            {[p.address.line1, p.address.line2, `${p.address.city} - ${p.address.postalCode}`]
+              .filter(Boolean)
+              .map((part) => titleCase(part!))
+              .join(", ")}
+          </span>
+          <span>
+            {t("state")}: {p.address.state} {t("code")}: {p.address.stateCode}
+          </span>
+        </>
+      )}
+      {r.tdsPan && <span>PAN : {r.tdsPan}</span>}
+      {(p?.address?.gstin || r.partyPhone) && (
+        <span className="flex flex-wrap gap-x-4">
+          {p?.address?.gstin && <span>GSTIN : {p.address.gstin}</span>}
+          {r.partyPhone && (
+            <span className="flex items-center gap-1.5">
+              <Phone className="size-3.5" aria-hidden /> +91 {r.partyPhone}
+            </span>
+          )}
+        </span>
+      )}
+    </div>
+  );
 
   return (
     <main className="mx-auto max-w-4xl px-4 pb-28 pt-6 sm:px-6">
@@ -405,20 +456,21 @@ export function ReceiptVoucher({
           <span className="hidden sm:block" />
         ) : (
           <Link
-            href={`/transaction/${flow}/${id}`}
+            href={h ? "/history" : `/transaction/${flow}/${id}`}
             className="flex min-h-11 items-center gap-1.5 text-sm font-medium"
           >
-            <ArrowLeft className="size-4" aria-hidden /> {t("back")}
+            <ArrowLeft className="size-4" aria-hidden /> {h ? th("title") : t("back")}
           </Link>
         )}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          {!shared && (
+        {/* (from History, on a phone the buttons sit two to a row) */}
+        <div className={cn(h ? "grid grid-cols-2" : "flex flex-col", "gap-2 sm:flex sm:flex-row sm:items-center")}>
+          {!shared && !(h && cancelled) && (
             <button
               type="button"
               disabled={!link.key}
               onClick={() => window.open(whatsAppLink(r, link.key!, t), "_blank", "noopener")}
               aria-label={t("whatsApp")}
-              className="on-ivory flex min-h-11 items-center justify-center gap-2 rounded-control bg-ivory px-3 text-sm font-semibold text-chestnut disabled:opacity-50 sm:px-4"
+              className={pill}
             >
               {/* "Share on", then the icon that says where */}
               <span className="whitespace-nowrap">{base("shareOn")}</span>
@@ -431,7 +483,7 @@ export function ReceiptVoucher({
               href={storedCopy.url}
               target="_blank"
               rel="noreferrer"
-              className="on-ivory flex min-h-11 items-center justify-center gap-2 rounded-control bg-ivory px-3 text-sm font-semibold text-chestnut sm:px-4"
+              className={pill}
             >
               <Download className="size-4" aria-hidden /> {t("download")}
             </a>
@@ -439,24 +491,60 @@ export function ReceiptVoucher({
             <button
               type="button"
               onClick={() => window.print()}
-              className="on-ivory flex min-h-11 items-center justify-center gap-2 rounded-control bg-ivory px-3 text-sm font-semibold text-chestnut sm:px-4"
+              className={pill}
             >
               <Download className="size-4" aria-hidden /> {t("download")}
             </button>
           )}
+          {/* Edit receipt (the admin's, from History): greyed for a scrap sale once its GSTR-1 month is filed; a tap or
+              hover says why */}
+          {h &&
+            !isPayment &&
+            history.isAdmin &&
+            !cancelled &&
+            (record?.cancelBlockedBy === "gstFiled" ? (
+              <BlockedButton className={pill} reason={th("editBlocked.gstFiledScrap")}>
+                <Pencil className="size-4" aria-hidden /> {th("editReceipt")}
+              </BlockedButton>
+            ) : (
+              <Link href={`/history/${id}/edit`} className={pill}>
+                <Pencil className="size-4" aria-hidden /> {th("editReceipt")}
+              </Link>
+            ))}
         </div>
       </div>
+      {/* a cancelled one: when, by whom and why; an edited one: when it was last edited, and by whom */}
+      {record && cancelled && <CancelledNote at={record.cancelledAt} by={record.cancelledByName} reason={record.cancelReason} />}
+      {record?.lastEditedAt && record.lastEditedByName && <EditedNote at={record.lastEditedAt} by={record.lastEditedByName} />}
 
       {/* the voucher itself: the same frame as the sale invoice; only the table's columns and the breakup differ */}
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
         <DocHead
           title={r.rcm ? ownWords("selfInvoiceTitle") : r.gst ? t("taxInvoiceTitle") : t("title")}
+          screenTitle={h ? th(isPayment ? "payment.title" : "receipt.title") : undefined}
           jurisdiction={t("jurisdiction", { place: r.company.jurisdiction })}
         />
 
         <div className="border border-chestnut/40">
-          {/* our details, and the voucher's with the remarks under them */}
-          <div className="grid sm:grid-cols-[1fr_1.5fr]">
+          {/* on the screen (History): who it was with, beside what it was for, its ID, day and remarks (when typed) */}
+          {h && (
+            <div className="grid border-b border-chestnut/40 sm:grid-cols-2 print:hidden">
+              <div className="flex min-w-0 flex-col border-b border-chestnut/40 sm:border-b-0 sm:border-r">
+                <p className={cn(band, "break-words")}>
+                  {t("from")}: {fromName}
+                </p>
+                {partyLines}
+              </div>
+              <div className="grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 [&>*:nth-last-child(-n+2)]:border-b-0">
+                <Detail label={t("for")} value={<span className="font-bold">{tk(r.kind as never)}</span>} />
+                <Detail label={th("receipt.transactionId")} value={<span className="font-bold">{r.assignedId}</span>} />
+                <Detail label={t("dated")} value={dated(r.dateTime)} />
+                {r.remarks && <Detail label={t("remarks")} value={r.remarks} />}
+              </div>
+            </div>
+          )}
+          {/* our details, and the voucher's with the remarks under them (printed only, from History) */}
+          <div className={cn("grid sm:grid-cols-[1fr_1.5fr]", h && "hidden print:grid")}>
             <div className="flex min-w-0 flex-col border-b border-chestnut/40 sm:border-r">
               <p className={band}>{r.company.name}</p>
               <div className={cn(cell, "flex flex-col gap-0.5 break-words")}>
@@ -532,43 +620,12 @@ export function ReceiptVoucher({
             </div>
           </div>
 
-          {/* who it was paid to or received from, the full width */}
-          <div className="flex min-w-0 flex-col border-b border-chestnut/40">
+          {/* who it was paid to or received from, the full width (from History: printed only) */}
+          <div className={cn("flex min-w-0 flex-col border-b border-chestnut/40", h && "hidden print:flex")}>
             <p className={cn(band, "break-words")}>
               {t("from")}: {fromName}
             </p>
-            <div className={cn(cell, "flex flex-col gap-0.5 break-words")}>
-              {r.rcm && !p?.address?.gstin && (
-                <span>
-                  {r.rcm.supplierGstin ? `GSTIN : ${r.rcm.supplierGstin}` : ownWords("unregistered")}
-                </span>
-              )}
-              {p?.address && (
-                <>
-                  <span className="flex items-start gap-1.5">
-                    <Flag className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-                    {[p.address.line1, p.address.line2, `${p.address.city} - ${p.address.postalCode}`]
-                      .filter(Boolean)
-                      .map((part) => titleCase(part!))
-                      .join(", ")}
-                  </span>
-                  <span>
-                    {t("state")}: {p.address.state} {t("code")}: {p.address.stateCode}
-                  </span>
-                </>
-              )}
-              {r.tdsPan && <span>PAN : {r.tdsPan}</span>}
-              {(p?.address?.gstin || r.partyPhone) && (
-                <span className="flex flex-wrap gap-x-4">
-                  {p?.address?.gstin && <span>GSTIN : {p.address.gstin}</span>}
-                  {r.partyPhone && (
-                    <span className="flex items-center gap-1.5">
-                      <Phone className="size-3.5" aria-hidden /> +91 {r.partyPhone}
-                    </span>
-                  )}
-                </span>
-              )}
-            </div>
+            {partyLines}
           </div>
 
           {/* the particulars: with GST, its code, taxable value, rate and each tax get columns; the last column is the
@@ -577,13 +634,13 @@ export function ReceiptVoucher({
             <table className={cn("tabular w-full border-collapse", gstCols && "min-w-[40rem]")}>
               <thead>
                 <tr className="border-b border-chestnut/40 text-left">
-                  <th className={cn(th, "w-12")}>{t("sl")}</th>
-                  <th className={th}>{t("particularsHead")}</th>
+                  <th className={cn(thCell, "w-12")}>{t("sl")}</th>
+                  <th className={thCell}>{t("particularsHead")}</th>
                   {gstCols && (
                     <>
-                      <th className={th}>{gstCols.code}</th>
-                      <th className={cn(th, "text-right")}>{ownWords("taxableValue")}</th>
-                      <th className={cn(th, "text-right")}>GST %</th>
+                      <th className={thCell}>{gstCols.code}</th>
+                      <th className={cn(thCell, "text-right")}>{ownWords("taxableValue")}</th>
+                      <th className={cn(thCell, "text-right")}>GST %</th>
                       {gstCols.taxes.map(([tax]) => (
                         <th key={tax} className={cn(th, "text-right")}>
                           {tax}
@@ -634,13 +691,13 @@ export function ReceiptVoucher({
             </div>
             <Breakup
               rows={breakup}
-              label={isPayment ? ownWords("amountPaid") : base("amountIn")}
+              label={h ? ti("amount") : isPayment ? ownWords("amountPaid") : base("amountIn")}
               amount={`₹${money(r.amount)}`}
             />
           </div>
 
           {/* the amount in words: the chestnut figure */}
-          <div className="grid border-t border-chestnut/40 sm:grid-cols-[12rem_1fr]">
+          <div className={cn("grid border-t border-chestnut/40 sm:grid-cols-[12rem_1fr]", h && "hidden print:grid")}>
             <span className={cn(cell, "font-semibold sm:border-r")}>{t("inWords")}</span>
             <span className={cell}>{amountInWords(r.amount)}</span>
           </div>
@@ -659,8 +716,8 @@ export function ReceiptVoucher({
         </div>
 
         {/* computer generated, and the signatures */}
-        <p className="pt-2 font-semibold">{t("computerGenerated")}</p>
-        <div className="mt-12 flex items-end justify-between gap-6">
+        <p className={cn("pt-2 font-semibold", h && "hidden print:block")}>{t("computerGenerated")}</p>
+        <div className={cn("mt-12 flex items-end justify-between gap-6", h && "hidden print:flex")}>
           <p>
             {t("receivedBy")}: {r.createdByName}
           </p>
@@ -680,6 +737,9 @@ export function ReceiptVoucher({
           </p>
         )}
       </article>
+
+      {/* and its edits */}
+      {record && <EditLog edits={record.edits} />}
     </main>
   );
 }
