@@ -462,6 +462,7 @@ export function PayeePicker() {
     skipped,
     payeeMatched,
     movesOn,
+    complete,
   } = usePaymentEntry();
   if (rent)
     return (
@@ -483,64 +484,79 @@ export function PayeePicker() {
         />
       </>
     );
+  // who was paid: sale's customer stage, as a supplier's Paid to (search, picked with Edit and Change, "New party" with
+  // Change over their details; back on it once complete, shown as picked), Skip beside + New party for labour
   return (
-    <>
-      <LedgerSearch
-        purpose="payment"
-        receiptKind={null}
-        paymentKind="supplier"
-        payee="other"
-        value={payee}
-        onChange={(c) => {
+    <PartySearchView
+      search={{
+        purpose: "payment",
+        receiptKind: null,
+        paymentKind: "supplier",
+        payee: "other",
+        value: payee,
+        onChange: (c) => {
           setPayee(c);
+          setEditingPayee(false);
           setPayeeSkipped(false);
           if (c?.kind === "party") setNewPayee(emptyParty());
           if (c?.kind === "ledger") movesOn();
-        }}
-        canAdd={isAdmin}
-        addParty
-        placeholder={tc("hints.from")}
-        onEdit={
-          isAdmin && payee?.kind === "ledger" && payee.ledger.party
-            ? () => setEditingPayee((on) => !on)
-            : undefined
-        }
-        besideNew={
-          canSkipPayee && (
-            <button
-              type="button"
-              aria-pressed={skipped}
-              // Skip goes straight on to the next card; tapped again (off) it stays to name someone
-              onClick={() => {
-                setPayeeSkipped(!skipped);
-                if (!skipped) movesOn();
-              }}
-              className={cn(chip(skipped), "min-h-11 px-5 text-sm font-semibold")}
-            >
-              {tc("skip")}
-            </button>
-          )
-        }
-      />
-      {editingPayee && payee?.kind === "ledger" && payee.ledger.party && (
-        <PartyEditor
-          rows
-          ledger={payee.ledger}
-          setLedger={(ledger) => setPayee({ kind: "ledger", ledger })}
-          close={() => setEditingPayee(false)}
-        />
-      )}
-      {payee?.kind === "party" && (
-        <NewPartyDetails
-          draft={newPayee}
-          setDraft={setNewPayee}
-          match={payeeMatched}
-          pickMatch={(m) => setPayee({ kind: "ledger", ledger: m })}
-          transporter={headTds === "contract" && headKey !== "labour"}
-          phoneOptional={payeePhoneOptional}
-        />
-      )}
-    </>
+        },
+        canAdd: isAdmin,
+        placeholder: tc("hints.from"),
+        onEdit: isAdmin && payee?.kind === "ledger" && payee.ledger.party ? () => setEditingPayee((on) => !on) : undefined,
+        besideNew: canSkipPayee && (
+          <button
+            type="button"
+            aria-pressed={skipped}
+            // Skip goes straight on to the next card; tapped again (off) it stays to name someone
+            onClick={() => {
+              setPayeeSkipped(!skipped);
+              if (!skipped) movesOn();
+            }}
+            className={cn(chip(skipped), "min-h-11 px-5 text-sm font-semibold")}
+          >
+            {tc("skip")}
+          </button>
+        ),
+      }}
+      editor={
+        payee?.kind === "ledger" && payee.ledger.party
+          ? {
+              open: editingPayee,
+              ledger: payee.ledger,
+              setLedger: (ledger) => setPayee({ kind: "ledger", ledger }),
+              close: () => setEditingPayee(false),
+            }
+          : null
+      }
+      form={
+        payee?.kind === "party" && (
+          <NewPartyDetails
+            draft={newPayee}
+            setDraft={setNewPayee}
+            match={payeeMatched}
+            pickMatch={(m) => setPayee({ kind: "ledger", ledger: m })}
+            transporter={headTds === "contract" && headKey !== "labour"}
+            phoneOptional={payeePhoneOptional}
+          />
+        )
+      }
+      newPartyCard={payee?.kind === "party"}
+      newDone={
+        payee?.kind === "party"
+          ? {
+              complete: complete.payee,
+              face: {
+                name: newPayee.name,
+                shortName: newPayee.shortName || null,
+                types: [],
+                phone: newPayee.phone || null,
+                city: newPayee.addresses[0]?.city || null,
+              },
+            }
+          : null
+      }
+    />
   );
 }
 

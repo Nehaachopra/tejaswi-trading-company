@@ -20,6 +20,8 @@ import { DueFlow } from "../shared/fold-group";
 import { DueAmount } from "./due-amount";
 import { InterestAmount } from "./interest-amount";
 import { PlainAmount } from "./plain-amount";
+import { ExpenseAmount, type PayRow } from "./expense-amount";
+import { LeftRow } from "../shared/payment-stage";
 
 export function AmountCard() {
   const {
@@ -167,7 +169,7 @@ export function AmountCard() {
   );
   // where every problem and note about a value goes: under the value side, starting at the boxes' left edge (a
   // supplier's sit in a row's value column already)
-  const underValue = toSupplier || kind === "loanRepaid" || kind === "loanGiven" || interestCalc ? "" : "ml-auto w-[60%]";
+  const underValue = toSupplier || kind === "loanRepaid" || kind === "loanGiven" || kind === "expense" || interestCalc ? "" : "ml-auto w-[60%]";
   // the amount's box: large and bold, chestnut once filled
   const amountBox = "min-h-12 pl-11 font-heading text-xl font-bold tabular";
   // typed past the most it can be: cut there, and the warning says why
@@ -510,6 +512,116 @@ export function AmountCard() {
       </div>
     );
 
+  // an expense: the box typed (Expense; rent's Months, under Rent / month with its godowns), To pay with its breakup
+  // on the right when there's one (the GST on the bill, the TDS, the reverse-charge GST), then Left to pay and the cards
+  if (kind === "expense") {
+    const tdsRows: PayRow[] = typedRows
+      .filter((r) => r.key === "tds")
+      .map((r) => ({ key: "tds", label: r.label, amount: r.amount, sign: "−" }));
+    // reverse-charge GST (rent from a landlord with no GSTIN, some expenses): on top, then taken off again, since it
+    // goes to the government, not to them
+    const rcmLabel = t("rcmRow", { rate: tax?.rcm?.rate ?? 18 });
+    const rcmRows: PayRow[] = hasRcmRow
+      ? [
+          { key: "rcm", label: rcmLabel, amount: rcmGst, sign: "+" },
+          {
+            key: "withRcm",
+            label: t("costGroup"),
+            amount: rcmGst === null ? null : Math.round((bill + rcmGst) * 100) / 100,
+            strong: true,
+          },
+        ]
+      : [];
+    const rcmOff: PayRow[] = hasRcmRow ? [{ key: "rcmOff", label: rcmLabel, amount: rcmGst, sign: "−" }] : [];
+    const problemsBox = (
+      <div className="ml-auto mr-12 flex w-[55%] min-w-0 flex-col gap-1.5 [&:not(:has(*))]:hidden">
+        {amountProblems}
+      </div>
+    );
+    const notesBox = (
+      <>
+        {breakdownNotes}
+        {taxFailed && <FailNote text={t("taxFailed")} retry={retryTax} />}
+      </>
+    );
+    const top = panSection && <div className="mb-4 sm:max-w-[calc(50%-1.5rem)]">{panSection}</div>;
+    // rent: Rent / month (its godowns on the right), Months typed; To pay is rent a month times the months
+    if (rentCalc)
+      return (
+        <div className="flex flex-col gap-4">
+          <ExpenseAmount
+            top={top}
+            first={{
+              item: { key: "rentMonth", label: t("totalRentPerMonth"), amount: monthlyRent },
+              label: t("totalRentPerMonth"),
+              box: rentGodowns(),
+            }}
+            input={{
+              id: "months-field",
+              label: t("months"),
+              value: rentMonths,
+              onChange: (v) => setRentMonths(atLeastOne(v)),
+              max: 120,
+              invalid: tried && Number(rentMonths) < 1,
+              rupee: false,
+              decimals: 0,
+              maxDigits: 3,
+              placeholder: "--",
+            }}
+            problems={problemsBox}
+            payRows={[
+              { key: "month", label: t("totalRentPerMonth"), amount: monthlyRent },
+              { key: "months", label: t("months"), amount: Number(rentMonths) || 0, sign: "×" },
+              { key: "rent", label: t("rentDue"), amount: bill, strong: true },
+              ...rcmRows,
+              ...tdsRows,
+              ...rcmOff,
+            ]}
+            notes={notesBox}
+          />
+          <PaidFrom noCards />
+        </div>
+      );
+    // any other expense: Expense typed. On a GST bill the expense and its GST are worked out of it; TDS comes off it
+    const payRows: PayRow[] | null = onGstBill
+      ? [
+          { key: "expense", label: t("expense"), amount: value > 0 ? expenseBefore : 0 },
+          { key: "gst", label: t("gstRow", { rate: gstInput.rate }), amount: value > 0 ? billGst : 0, sign: "+" },
+          { key: "bill", label: t("billAmount"), amount: bill, strong: true },
+          ...tdsRows,
+        ]
+      : hasRcmRow || (tdsApplies && tdsAmount > 0)
+        ? [{ key: "expense", label: t("expense"), amount: bill }, ...rcmRows, ...tdsRows, ...rcmOff]
+        : null;
+    // what's typed: the expense the TDS comes out of (a TDS head, reverse-charge GST); otherwise what's handed over,
+    // the GST and any TDS worked back out of it
+    const typeExpense = expenseTyped || !gstExpense ? typeAmount : typePaid;
+    return (
+      <div className="flex flex-col gap-4">
+        <ExpenseAmount
+          top={top}
+          input={{
+            id: "amount-field",
+            label: t("expense"),
+            value: billText,
+            onChange: (v) => {
+              setCapNote(null);
+              keyedAmount.current = v;
+              typeExpense(v);
+            },
+            max: cap,
+            onCapped: capped,
+            invalid: amountOver || tooMuch || (tried && value === 0),
+          }}
+          problems={problemsBox}
+          payRows={payRows}
+          notes={notesBox}
+        />
+        <PaidFrom noCards />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-6 sm:max-w-[calc(50%-1.5rem)]">
@@ -845,6 +957,60 @@ export function AmountCard() {
             </span>
           </button>
         </div>
+      </>
+    );
+  }
+
+  // rent's Rent / month breakup, on the right: each godown's rent a month (its pen changes it for this payment; many
+  // rows scroll), then their total on chestnut
+  function rentGodowns() {
+    return (
+      <>
+        <div className="flex min-w-0 flex-col text-sm">
+          <div className="flex justify-between gap-4 pb-2 text-xs font-semibold">
+            <span>{t("godown")}</span>
+            <span>{t("rentPerMonth")}</span>
+          </div>
+          <div className="max-h-64 overflow-y-auto overflow-x-hidden">
+            {rentRows.map((row) => {
+              const typing = editingRent === row.id || Number(rentOf(row)) < 1;
+              const low = tried && rentOf(row) === "";
+              return (
+                <div key={row.id} className="flex min-h-12 min-w-0 items-center gap-2 border-t border-chestnut/15 py-1">
+                  <span className="min-w-0 flex-1 truncate font-semibold">{row.name}</span>
+                  {typing ? (
+                    <NumberInput
+                      autoFocus={editingRent === row.id}
+                      value={rentOf(row)}
+                      onChange={(v) => setRentEdits((all) => ({ ...all, [row.id]: atLeastOne(v) }))}
+                      onBlur={() => setEditingRent(null)}
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), setEditingRent(null))}
+                      decimals={2}
+                      maxDigits={13}
+                      placeholder="0"
+                      aria-label={row.name}
+                      aria-invalid={low || undefined}
+                      className={cn(input(low), "tabular w-36 shrink-0 text-right")}
+                    />
+                  ) : (
+                    <>
+                      <span className="tabular min-w-0 break-all text-right">{rupees(Number(rentOf(row)))}</span>
+                      <button
+                        type="button"
+                        aria-label={`${t("rentPerMonth")}: ${row.name}`}
+                        onClick={() => setEditingRent(row.id)}
+                        className="grid size-9 shrink-0 place-items-center rounded-control hover:bg-chestnut/[0.08]"
+                      >
+                        <Pencil className="size-4" aria-hidden />
+                      </button>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <LeftRow label={t("totalRentPerMonth")} amount={monthlyRent} />
       </>
     );
   }

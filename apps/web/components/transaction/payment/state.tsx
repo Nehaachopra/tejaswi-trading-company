@@ -1031,12 +1031,6 @@ export function usePaymentEntryState({
         setPayeeSkipped(false);
       };
     }
-    if (s === "payee" && payee?.kind === "party") {
-      return () => {
-        setPayee(null);
-        setPayeeSkipped(false);
-      };
-    }
     return null;
   };
 

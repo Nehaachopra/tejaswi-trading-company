@@ -235,6 +235,12 @@ export function PaymentStage({
       <div className="flex flex-col gap-1.5 sm:gap-2.5">
         {top}
         {amountBox && <div className="sm:w-[calc(50%-1.5rem)]">{amountBox}</div>}
+        {/* the second row with nothing to break down (a plain expense's To pay): the row alone, its icon column empty */}
+        {second && (
+          <div className="sm:w-[calc(50%-1.5rem)]">
+            <Line label={second.label} value={second.value} />
+          </div>
+        )}
         {leftToPlace}
         {accountCards}
       </div>
