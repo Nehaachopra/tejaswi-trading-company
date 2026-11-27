@@ -293,6 +293,7 @@ export default class PurchaseReturnService {
           returnTransactionId: r.transactionId,
           saveKey: null,
           invoiceUrl: null,
+          vehicleNumber: null,
           remarks: null,
           supplierInvoiceNumber: input.replacementBillNumber!,
           dateTime: input.dateTime,
@@ -558,6 +559,7 @@ export default class PurchaseReturnService {
       lines: input.lines.map((l) => ({ productId: l.productId, quantity: l.quantity, rateBeforeGst: rateOf(loaded.items.get(l.productId)!) / 100, godowns: l.into })),
       kind: "credit",
       invoiceUrl: input.invoiceUrl,
+      vehicleNumber: input.vehicleNumber,
       remarks: input.remarks,
     });
     // what the return left with them before this bill: set off against it

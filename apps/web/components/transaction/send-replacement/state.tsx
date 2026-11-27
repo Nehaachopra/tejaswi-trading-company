@@ -27,9 +27,6 @@ export type GoLine = { quantity: string; from: Record<string, string> };
 
 export const placedOf = (from: Record<string, string>) => Object.values(from).reduce((a, v) => a + (Number(v) || 0), 0);
 
-// length follows sales.vehicle_number
-export const VEHICLE_MAX = 15;
-
 // what the form reads before it opens: the return's items still to go, the products (their pictures) and stock
 export type SendInput = {
   pending: Pending;

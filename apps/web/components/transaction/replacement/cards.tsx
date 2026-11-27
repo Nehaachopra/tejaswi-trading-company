@@ -10,13 +10,26 @@ import { cn } from "~/lib/utils";
 
 import { BillAttach } from "../purchase/bill-attach";
 import { BILL_NUMBER_MAX, billNumberOk } from "../purchase/state";
-import { fieldRow, input, REMARKS_MAX } from "../shared/form-basics";
+import { fieldRow, input, REMARKS_MAX, VEHICLE_MAX } from "../shared/form-basics";
 import { useReplacement } from "./state";
 
 // the Bill card, as a purchase's: the supplier's bill on top (a photo or PDF, optional), then its number (capital
 // letters, digits, / and - only) and its date (not before the return, never after today) side by side, each a row
 export function BillCard() {
-  const { tp, tc, pending, billNumber, setBillNumber, billDay, setBillDay, billUrl, setBillUrl, setBillBusy, today, tried } = useReplacement();
+  const {
+    tp,
+    tc,
+    pending,
+    billNumber,
+    setBillNumber,
+    billDay,
+    setBillDay,
+    billUrl,
+    setBillUrl,
+    setBillBusy,
+    today,
+    tried,
+  } = useReplacement();
   const numberBad = tried && !billNumberOk(billNumber);
   const dayBad = tried && billDay === "";
   const min = pending.returnDate;
@@ -70,16 +83,49 @@ export function BillCard() {
   );
 }
 
-// the Details card: the remarks (typed or spoken), half the card wide; Save follows
+// the Details card, as a purchase's: the vehicle the packs came in (optional; capital letters and digits only) and the
+// remarks (typed or spoken), each a row, side by side on a wider screen; Save follows
 export function DetailsCard() {
-  const { tc, remarks, setRemarks } = useReplacement();
+  const { ts, tc, vehicle, setVehicle, remarks, setRemarks } = useReplacement();
   return (
-    <label className={cn(fieldRow, "sm:w-[calc(50%-0.75rem)]")}>
-      <span>{tc("q.remarks")}</span>
-      <MicField onText={(said) => setRemarks((v) => (v.trim() ? `${v.trim()} ${said}` : said).slice(0, REMARKS_MAX))}>
-        <input value={remarks} maxLength={REMARKS_MAX} placeholder={tc("hints.remarks")} onChange={(e) => setRemarks(e.target.value)} className={cn(input(false), "pr-11")} />
-      </MicField>
-    </label>
+    <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+      <label className={fieldRow}>
+        <span>{ts("vehicle")}</span>
+        <input
+          value={vehicle}
+          maxLength={VEHICLE_MAX}
+          autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck={false}
+          placeholder="KA01AB1234"
+          onChange={(e) =>
+            setVehicle(
+              e.target.value
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "")
+                .slice(0, VEHICLE_MAX),
+            )
+          }
+          className={cn(input(false), "tabular uppercase")}
+        />
+      </label>
+      <label className={fieldRow}>
+        <span>{tc("q.remarks")}</span>
+        <MicField
+          onText={(said) =>
+            setRemarks((v) => (v.trim() ? `${v.trim()} ${said}` : said).slice(0, REMARKS_MAX))
+          }
+        >
+          <input
+            value={remarks}
+            maxLength={REMARKS_MAX}
+            placeholder={tc("hints.remarks")}
+            onChange={(e) => setRemarks(e.target.value)}
+            className={cn(input(false), "pr-11")}
+          />
+        </MicField>
+      </label>
+    </div>
   );
 }
 

@@ -8,8 +8,8 @@ import { RequiredMark } from "~/components/ui/required-mark";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
-import { fieldRow, input, REMARKS_MAX } from "../shared/form-basics";
-import { useSendEntry, VEHICLE_MAX } from "./state";
+import { fieldRow, input, REMARKS_MAX, VEHICLE_MAX } from "../shared/form-basics";
+import { useSendEntry } from "./state";
 
 // the Details card, as a purchase's: the vehicle the packs go in (optional; capital letters and digits only), the date
 // (not before the return, never after today) and the remarks (typed or spoken), each a row: label left, box right (side

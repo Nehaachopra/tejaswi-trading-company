@@ -64,7 +64,7 @@ export function useReplacementState({ pending, products, stock, onDiscard }: Rep
       counting: g.beingCounted,
     }));
 
-  // the answers: each item that came (nothing filled in), the bill, remarks
+  // the answers: each item that came (nothing filled in), the bill, the vehicle, remarks
   const [lines, setLines] = useState<Record<string, CameLine>>({});
   const lineOf = (id: string): CameLine => lines[id] ?? { quantity: "", into: {} };
   const putLine = (id: string, line: CameLine) =>
@@ -77,6 +77,7 @@ export function useReplacementState({ pending, products, stock, onDiscard }: Rep
   const [billDay, setBillDay] = useState(() => indiaDay(new Date()));
   const [billUrl, setBillUrl] = useState<string | null>(null);
   const [billBusy, setBillBusy] = useState(false);
+  const [vehicle, setVehicle] = useState("");
   const [remarks, setRemarks] = useState("");
   const today = indiaDay(new Date());
 
@@ -153,7 +154,7 @@ export function useReplacementState({ pending, products, stock, onDiscard }: Rep
 
   // leaving with something entered asks first (not after the save)
   const [saved, setSaved] = useState(false);
-  const { dialog: leaveDialog } = useLeaveGuard(!saved && (chosen > 0 || billNumber !== ""), onDiscard);
+  const { dialog: leaveDialog } = useLeaveGuard(!saved && (chosen > 0 || billNumber !== "" || vehicle !== ""), onDiscard);
 
   // the save: a purchase on the supplier's bill; then its success card
   const [saveKey] = useState(() => crypto.randomUUID());
@@ -184,6 +185,7 @@ export function useReplacementState({ pending, products, stock, onDiscard }: Rep
         supplierInvoiceNumber: billNumber.trim(),
         dateTime: momentOf(billDay),
         invoiceUrl: billUrl,
+        vehicleNumber: vehicle.trim() || null,
         remarks: remarks.trim() || null,
         lines: Object.entries(lines).map(([productId, l]) => ({
           productId,
@@ -231,6 +233,8 @@ export function useReplacementState({ pending, products, stock, onDiscard }: Rep
     setBillUrl,
     setBillBusy,
     today,
+    vehicle,
+    setVehicle,
     remarks,
     setRemarks,
     tried,

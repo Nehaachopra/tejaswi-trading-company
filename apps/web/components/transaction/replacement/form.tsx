@@ -16,7 +16,7 @@ import { ReplacementProvider, type ReplacementStep, useReplacement, useReplaceme
 
 // /history/[id]/replacement, from Record replacement on a return's debit note (the admin's): the packs the supplier
 // sent back on their own invoice, as a purchase: 1 Items: how many of each came and their godowns; 2 Bill: the supplier's
-// bill (its file, number and date); 3 Details: remarks and Save. A summary on the right (a bar above on a phone).
+// bill (its file, number and date); 3 Details: vehicle, remarks and Save. A summary on the right (a bar above on a phone).
 // Saved, it lands on the purchase's success card
 export function ReplacementForm({ id }: { id: string }) {
   const [round, setRound] = useState(0);
@@ -58,7 +58,7 @@ function Entry(props: Parameters<typeof useReplacementState>[0]) {
 
 // the page: the stage on its own with Back and Next, and the summary
 function View() {
-  const { t, tp, tc, locale, pending, lines, nameOf, packOf, figureOf, total, billNumber, billDay, remarks, current, index, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, complete, missingOf, leaveDialog } =
+  const { t, tp, ts, tc, locale, pending, lines, nameOf, packOf, figureOf, total, billNumber, billDay, vehicle, remarks, current, index, steps, reachable, summaryOpen, setSummaryOpen, show, next, tried, complete, missingOf, leaveDialog } =
     useReplacement();
   const title = t("titleFor", { number: pending.assignedId });
 
@@ -82,6 +82,7 @@ function View() {
     },
     { key: "bill", step: "bill", heading: tp("billNumber"), value: billNumber || null },
     { key: "billDate", step: "bill", heading: tp("billDate"), value: index >= steps.indexOf("bill") && billDay ? dayInWords(billDay, locale) : null },
+    { key: "vehicle", step: "details", heading: ts("vehicle"), value: vehicle || null },
     { key: "remarks", step: "details", heading: tc("q.remarks"), value: remarks.trim() || null },
   ];
   const linesView = (

@@ -96,8 +96,17 @@ export const receiveReplacementInputModel = z
     saveKey: z.string().uuid().nullable().default(null),
     supplierInvoiceNumber: billNumberModel,
     dateTime: z.coerce.date(),
-    // the supplier's bill's photo or PDF, and remarks
+    // the supplier's bill's photo or PDF, the vehicle the packs came in, and remarks
     invoiceUrl: imageUrlModel.nullable().default(null),
+    vehicleNumber: z
+      .string()
+      .trim()
+      .toUpperCase()
+      .max(15)
+      .regex(/^[A-Z0-9]*$/, "A vehicle number has only letters and digits.")
+      .transform((v) => (v === "" ? null : v))
+      .nullable()
+      .default(null),
     remarks: z.string().trim().max(1000).nullable().default(null),
     lines: z
       .array(z.object({ productId: idModel, quantity: z.number().int().min(1).max(99_999), into: z.array(godownPartModel).min(1, "Pick a godown.").max(20) }))

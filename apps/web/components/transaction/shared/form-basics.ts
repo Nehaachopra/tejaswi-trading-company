@@ -13,6 +13,9 @@ import { type Pickable } from "../pickers/ledger-picker";
 
 // remarks and a reference, as long as their columns hold (remarks 100, reference_number varchar 30)
 export const REMARKS_MAX = 100;
+
+// a vehicle number's length (sales.vehicle_number, purchases.vehicle_number)
+export const VEHICLE_MAX = 15;
 export const REFERENCE_MAX = 30;
 
 // a summary line: words, or a name with its amount on the right (an order's item: a small photo before the name and
