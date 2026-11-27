@@ -55,6 +55,7 @@ export function PartyEdit({
   asksTypes = true,
   rows = false,
   photo = !rows,
+  newPartyLook = false,
 }: {
   partyId: string;
   onSaved: (party: PartyModel) => void;
@@ -64,6 +65,8 @@ export function PartyEdit({
   rows?: boolean;
   // the profile picture beside the personal details (Entities)
   photo?: boolean;
+  // as a transaction's new party: the phone on top, the name and short name side by side, no email, the PAN set apart
+  newPartyLook?: boolean;
 }) {
   const t = useTranslations("accounts.party.form");
   const tc = useTranslations("transactions.chat");
@@ -117,7 +120,9 @@ export function PartyEdit({
         tried={tried}
         partyId={partyId}
         asksRemarks={false}
-        asksPan={false}
+        asksPan={newPartyLook}
+        phoneFirst={newPartyLook}
+        asksEmail={!newPartyLook}
         rows={rows}
         photo={photo}
       />

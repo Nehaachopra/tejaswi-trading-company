@@ -24,6 +24,8 @@ export function PartyEditor({
       partyId={ledger.referenceId!}
       asksTypes={asksTypes}
       rows={rows}
+      // as rows (a transaction's stage): laid out as its new party is
+      newPartyLook={rows}
       onCancel={close}
       onSaved={(saved) => {
         close();

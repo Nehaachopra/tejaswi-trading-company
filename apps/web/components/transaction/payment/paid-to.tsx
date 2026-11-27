@@ -26,6 +26,7 @@ import {
 } from "../../account/party/party-fields";
 import { HeadEdit, LedgerSearch, type Pickable } from "../pickers/ledger-picker";
 import { LenderEdit } from "../loans/lender-fields";
+import { PartySearchView } from "../shared/customer-stage";
 import { PartyEditor } from "../shared/party-editor";
 import { PickedCard } from "../shared/picked-card";
 import { OldLoanForm } from "../loans/old-loan-form";
@@ -225,7 +226,82 @@ export function ToPicker() {
     setEditingTo,
     matched,
     movesOn,
+    tried,
+    setTried,
+    complete,
   } = usePaymentEntry();
+  // a supplier: sale's customer stage, the same shared view (search, picked with Edit and Change, "New party" with
+  // Change over their details, phone first; back on it once complete, shown as picked)
+  if (kind === "supplier") {
+    const picked = to?.kind === "ledger" ? to.ledger : null;
+    return (
+      <PartySearchView
+        search={{
+          purpose: "payment",
+          receiptKind: null,
+          paymentKind: kind,
+          value: to,
+          onChange: (c) => {
+            setTo(c);
+            setEditingTo(false);
+            setGstMode("none");
+            if (c?.kind === "party") setNewParty(emptyParty());
+            // one picked from the list moves on by itself; someone new waits for their details
+            if (c?.kind === "ledger") movesOn("next");
+          },
+          canAdd: isAdmin,
+          onEdit: isAdmin && picked?.party ? () => setEditingTo((on) => !on) : undefined,
+          placeholder: tc("hints.from"),
+        }}
+        editor={
+          picked?.party
+            ? { open: editingTo, ledger: picked, setLedger: (ledger) => setTo({ kind: "ledger", ledger }), close: () => setEditingTo(false) }
+            : null
+        }
+        form={
+          to?.kind === "party" && (
+            // the phone, then the name and short name side by side, then the PAN set apart (as a sale's new customer)
+            <PartyFields
+              draft={newParty}
+              onChange={(patch) => setNewParty((d) => ({ ...d, ...patch }))}
+              tried={tried}
+              strict
+              asksRemarks={false}
+              onAddressesOpen={() => setTried(false)}
+              onlyPhone={!!matched}
+              rows
+              phoneFirst
+              asksEmail={false}
+            />
+          )
+        }
+        newPartyCard={to?.kind === "party"}
+        newDone={
+          to?.kind === "party"
+            ? {
+                complete: complete.to,
+                face: {
+                  name: newParty.name,
+                  shortName: newParty.shortName || null,
+                  types: ["supplier"],
+                  phone: newParty.phone || null,
+                  city: newParty.addresses[0]?.city || null,
+                },
+              }
+            : null
+        }
+        match={
+          to?.kind === "party" && matched
+            ? {
+                ledger: matched,
+                onUse: () => setTo({ kind: "ledger", ledger: matched }),
+                onChangePhone: () => setNewParty((d) => ({ ...d, phone: "" })),
+              }
+            : null
+        }
+      />
+    );
+  }
   return (
     <>
       <LedgerSearch
