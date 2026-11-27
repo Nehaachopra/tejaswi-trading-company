@@ -169,7 +169,7 @@ export function AmountCard() {
   );
   // where every problem and note about a value goes: under the value side, starting at the boxes' left edge (a
   // supplier's sit in a row's value column already)
-  const underValue = toSupplier || kind === "loanRepaid" || kind === "loanGiven" || kind === "expense" || interestCalc ? "" : "ml-auto w-[60%]";
+  const underValue = toSupplier || kind === "loanRepaid" || kind === "loanGiven" || kind === "taxPaid" || kind === "expense" || interestCalc ? "" : "ml-auto w-[60%]";
   // the amount's box: large and bold, chestnut once filled
   const amountBox = "min-h-12 pl-11 font-heading text-xl font-bold tabular";
   // typed past the most it can be: cut there, and the warning says why
@@ -419,9 +419,9 @@ export function AmountCard() {
       </section>
   );
 
-  // a supplier or a loan repaid: Due left, Repay and To pay on the left, each arrow's breakup on the right (the shared
-  // stage's look)
-  if (toSupplier || kind === "loanRepaid")
+  // a supplier, a loan repaid or a tax with what it owes known: Due left, Repay and To pay on the left, each arrow's
+  // breakup on the right (the shared stage's look)
+  if (toSupplier || kind === "loanRepaid" || (kind === "taxPaid" && dueShown !== null))
     return (
       <div className="flex flex-col gap-4">
         <DueAmount
@@ -457,6 +457,35 @@ export function AmountCard() {
               {taxFailed && <FailNote text={t("taxFailed")} retry={retryTax} />}
             </>
           }
+        />
+        <PaidFrom noCards />
+      </div>
+    );
+
+  // a tax whose dues aren't known (staff see no balances): Repay typed, To pay under it, then Left to pay and the cards
+  if (kind === "taxPaid")
+    return (
+      <div className="flex flex-col gap-4">
+        <ExpenseAmount
+          input={{
+            id: "amount-field",
+            label: t("repay"),
+            value: billText,
+            onChange: (v) => {
+              setCapNote(null);
+              keyedAmount.current = v;
+              typeAmount(v);
+            },
+            max: cap,
+            onCapped: capped,
+            invalid: amountOver || tooMuch || (tried && value === 0),
+          }}
+          problems={
+            <div className="ml-auto mr-12 flex w-[55%] min-w-0 flex-col gap-1.5 [&:not(:has(*))]:hidden">
+              {amountProblems}
+            </div>
+          }
+          payRows={null}
         />
         <PaidFrom noCards />
       </div>
