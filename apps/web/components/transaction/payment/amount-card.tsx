@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, IndianRupee, Info, Pencil } from "lucide-react";
+import { Check, ChevronDown, IndianRupee, Info, Pencil } from "lucide-react";
 import { useState } from "react";
 import { Note } from "~/components/ui/note";
 import { Reveal } from "~/components/ui/reveal";
@@ -415,7 +415,7 @@ export function AmountCard() {
             <span className="font-semibold">{t("panHint", { rate: panRate })}</span>
           </p>
         )}
-        {panField()}
+        {kind === "expense" ? panLine() : panField()}
       </section>
   );
 
@@ -1075,6 +1075,71 @@ export function AmountCard() {
               <Pencil className="size-4" aria-hidden />
             </button>
           </div>
+        )}
+      </div>
+    );
+  }
+
+  // an expense's PAN, in the stage's row look: PAN on the left, the box as wide as To pay, a tick in the icon column
+  // (saved: the PAN in plain words, the pen there instead)
+  function panLine() {
+    if (!showPan) return null;
+    const editing = savedPan === "" || panEditing;
+    const wrong = (panLeft || tried) && panBad;
+    return (
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <label htmlFor="pan-field" className="flex min-h-11 min-w-0 flex-1 items-center text-sm font-semibold">
+            PAN
+          </label>
+          {editing ? (
+            <input
+              id="pan-field"
+              autoFocus={panEditing}
+              value={pan}
+              maxLength={10}
+              placeholder="ABCDE1234F"
+              onChange={(e) => {
+                setPanLeft(false);
+                setPan(e.target.value.replace(/[^0-9a-z]/gi, "").toUpperCase());
+              }}
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), savePan())}
+              aria-invalid={wrong || undefined}
+              className={cn(input(wrong), "tabular w-[55%] shrink-0 text-right")}
+            />
+          ) : (
+            <span className="tabular flex min-h-11 w-[55%] shrink-0 items-center justify-end pr-3 text-base font-medium">
+              {savedPan}
+            </span>
+          )}
+          <span className="grid size-10 shrink-0 place-items-center">
+            {editing ? (
+              <button
+                type="button"
+                data-recheck
+                onClick={savePan}
+                aria-label={t("saveUpi")}
+                className="grid size-9 place-items-center rounded-control bg-chestnut text-ivory"
+              >
+                <Check className="size-5" strokeWidth={2.5} aria-hidden />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setPanEditing(true)}
+                aria-label={t("editUpi")}
+                className="grid size-9 place-items-center rounded-control hover:bg-chestnut/[0.08]"
+              >
+                <Pencil className="size-4" aria-hidden />
+              </button>
+            )}
+          </span>
+        </div>
+        {/* what's wrong, under the box (clear of the icon column) */}
+        {editing && wrong && (
+          <FieldMessage className="ml-auto mr-12 mt-0 w-[55%]">
+            {pan !== "" && !panTypedOk ? t("panBad") : t("panUnsavedTick")}
+          </FieldMessage>
         )}
       </div>
     );

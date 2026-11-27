@@ -387,15 +387,21 @@ export function usePaymentEntryState({
   useEffect(() => {
     if (!totalGoal || (!interestInfo && !tdsInfo && !tax) || totalGoal.tries >= 6) return;
     const gap = Math.round((total - rcmAmount - totalGoal.total) * 100) / 100;
-    if (Math.abs(gap) <= 0.01) return;
+    // an expense's To pay is in whole rupees (its TDS is rounded to match), so it's close enough within half a rupee
+    const whole = kind === "expense";
+    if (Math.abs(gap) <= (whole ? 0.5 : 0.01)) return;
     setTotalGoal({ ...totalGoal, tries: totalGoal.tries + 1 });
     // each rupee paid carries its share of TDS, so the step is that much smaller
-    setAmount(String(Math.round((value - (gap * (100 - tdsRate)) / 100) * 100) / 100));
+    const next = value - (gap * (100 - tdsRate)) / 100;
+    setAmount(String(whole ? Math.round(next) : Math.round(next * 100) / 100));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the TDS answer comes
   }, [interestInfo, tdsInfo, tax]);
   // a bill typed, spoken or filled in: the amount handed over starts at it, then the TDS is taken out
-  const setBill = (raw: string) => {
-    setBillText(raw);
+  // an expense is in whole rupees: the box keeps what's typed (₹1,000.56), what's booked is rounded (₹1,001)
+  const wholeOf = (raw: string) => (kind === "expense" && raw !== "" ? String(Math.round(Number(raw) || 0)) : raw);
+  const setBill = (typed: string) => {
+    const raw = wholeOf(typed);
+    setBillText(typed);
     const bill = Number(raw) || 0;
     setTotalGoal(bill > 0 ? { total: bill, tries: 0 } : null);
     setAmount(raw);
@@ -407,9 +413,10 @@ export function usePaymentEntryState({
   };
   const payTotal = (goal: number) => setBill(String(goal));
   // an expense on a GST bill: To pay is typed, what's handed over; the server works the GST and any TDS back out of it
-  const typePaid = (raw: string) => {
+  const typePaid = (typed: string) => {
+    const raw = wholeOf(typed);
     autoFilled.current = false;
-    setBillText(raw);
+    setBillText(typed);
     setTotalGoal(null);
     setAmount(raw);
   };

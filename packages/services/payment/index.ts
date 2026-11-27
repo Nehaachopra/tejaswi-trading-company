@@ -106,6 +106,8 @@ export default class PaymentService {
       }
       const src = await moneyPartsIn(tx, this.accounts, input);
 
+      // an expense is paid in whole rupees (₹1,000.56 is booked as ₹1,001)
+      if (input.paidFor === "expense" && !Number.isInteger(input.amount)) throw new TRPCError({ code: "BAD_REQUEST", message: "An expense is paid in whole rupees." });
       // an expense to a head with TDS names who was paid (a party already added, or a new one made now)
       const tdsType = input.paidFor === "expense" ? place.tdsType : null;
       // rent goes to a landlord, added in Entities; the other heads to a party

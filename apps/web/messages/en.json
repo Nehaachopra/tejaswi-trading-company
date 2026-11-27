@@ -1641,6 +1641,7 @@
         "costGroup": "Total cost",
         "towardsGroup": "Payment towards",
         "paidShare": "Paid",
+        "panUnsavedTick": "Tap ✓ to use this PAN.",
         "panUnsaved": "Tap Save to use this PAN.",
         "panBad": "A PAN is 5 letters, 4 digits and a letter.",
         "gstModes": {

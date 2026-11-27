@@ -1641,6 +1641,7 @@
         "costGroup": "ಒಟ್ಟು ವೆಚ್ಚ",
         "towardsGroup": "ಪಾವತಿ ಯಾವುದಕ್ಕೆ",
         "paidShare": "ಪಾವತಿಸಿದ್ದು",
+        "panUnsavedTick": "ಈ PAN ಬಳಸಲು ✓ ಒತ್ತಿ.",
         "panUnsaved": "ಈ PAN ಬಳಸಲು Save ಒತ್ತಿ.",
         "panBad": "PAN ನಲ್ಲಿ 5 ಅಕ್ಷರ, 4 ಅಂಕೆ ಮತ್ತು 1 ಅಕ್ಷರ ಇರುತ್ತವೆ.",
         "gstModes": {

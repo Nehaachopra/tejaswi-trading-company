@@ -198,22 +198,29 @@ export const CONTRACT_BILL_LIMIT = 30_000;
 
 // the TDS on this payment. Once the period's total passes its limit, TDS is on the whole period's amount (earlier
 // payments included), less the TDS already taken; what's paid is what's left after it, so the amount owed is found
-// back from it: owed − (rate × (before + owed) − taken) = paid. One contract bill over ₹30,000 has TDS on itself
+// back from it: owed − (rate × (before + owed) − taken) = paid. One contract bill over ₹30,000 has TDS on itself.
+// An expense's TDS is to the nearest rupee (section 288B), so a whole-rupee bill leaves a whole-rupee To pay; the
+// amount owed is then what's paid and that TDS make
 export function expenseTds(type: TdsType | "interest", paid: number, before: { owed: number; tds: number }, rate: number, gstRate = 0, periods = 1) {
   const r = rate / 100;
   // a bill's GST is in what's paid, but TDS and its limits go by the amount without it
   const g = gstRate / 100;
   const round = (v: number) => Math.round(v * 100) / 100;
+  const tdsRound = type === "interest" ? round : Math.round;
   const base = paid / (1 + g);
+  // the TDS on what's owed, rounded, and what's owed found again from it
+  const taken = (owed: number) => {
+    const tds = tdsRound(owed * (1 + g) - paid);
+    return { tds, owed: round((paid + tds) / (1 + g)) };
+  };
   // rent's limit is a month's, so a payment for several months has that many months' limit
   if (before.owed + base > EXPENSE_TDS_LIMIT[type] * periods) {
-    const owed = (paid + r * before.owed - before.tds) / (1 + g - r);
-    const tds = round(owed * (1 + g) - paid);
-    if (tds > 0) return { tds, on: round(before.owed + owed), taxable: round(owed) };
+    const { tds, owed } = taken((paid + r * before.owed - before.tds) / (1 + g - r));
+    if (tds > 0) return { tds, on: round(before.owed + owed), taxable: owed };
   }
   if (type === "contract" && base > CONTRACT_BILL_LIMIT) {
-    const owed = paid / (1 + g - r);
-    return { tds: round(owed * (1 + g) - paid), on: round(owed), taxable: round(owed) };
+    const { tds, owed } = taken(paid / (1 + g - r));
+    return { tds, on: owed, taxable: owed };
   }
   return { tds: 0, on: 0, taxable: round(base) };
 }

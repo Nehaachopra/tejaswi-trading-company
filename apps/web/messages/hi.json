@@ -1641,6 +1641,7 @@
         "costGroup": "कुल लागत",
         "towardsGroup": "भुगतान किस मद में",
         "paidShare": "चुकाया",
+        "panUnsavedTick": "यह PAN लगाने के लिए ✓ दबाएँ।",
         "panUnsaved": "यह PAN लगाने के लिए Save दबाएँ।",
         "panBad": "PAN में 5 अक्षर, 4 अंक और 1 अक्षर होते हैं।",
         "gstModes": {

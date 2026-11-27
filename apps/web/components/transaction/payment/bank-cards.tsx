@@ -422,6 +422,7 @@ export function UpiField({ row = false }: { row?: boolean }) {
       show={asksUpi && !kept}
       label={t(upiLabel)}
       row={row}
+      tick
       state={{
         typed: typedUpi,
         setTyped: setTypedUpi,

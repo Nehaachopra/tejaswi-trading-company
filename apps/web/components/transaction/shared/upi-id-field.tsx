@@ -1,6 +1,7 @@
 "use client";
 
-import { Pencil } from "lucide-react";
+import { Check, Pencil } from "lucide-react";
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { FieldMessage } from "~/components/ui/field-message";
@@ -24,11 +25,41 @@ export type UpiIdState = {
 
 // the payee's UPI ID, asked when they're paid by UPI and have none saved (a payment, a purchase): named for who's paid
 // (Supplier UPI ID …). In an account card (`row`): its name and a pen until the pen is tapped (with the ID once Saved);
-// then the box with Save under it. Out of a card: the box at once
-export function UpiIdField({ show, label, row = false, state }: { show: boolean; label: string; row?: boolean; state: UpiIdState }) {
+// then the box with Save under it (`tick`: a ✓ right beside the box instead, a payment's). Out of a card: the box at once
+export function UpiIdField({ show, label, row = false, tick = false, state }: { show: boolean; label: string; row?: boolean; tick?: boolean; state: UpiIdState }) {
   const t = useTranslations("transactions.payment.form");
   const { typed, setTyped, shapeOk, ok, left, setLeft, editing, setEditing, tried } = state;
   const bad = (left || tried) && typed.trim() !== "" && !ok;
+  // each Save / ✓ tap brings what's wrong back (it hides itself after a while)
+  const [recheck, setRecheck] = useState(0);
+  const keep = () => {
+    setLeft(true);
+    setRecheck((n) => n + 1);
+    if (ok) setEditing(false);
+  };
+  const box = (
+    <input
+      autoFocus={editing}
+      type="text"
+      inputMode="email"
+      autoCapitalize="none"
+      autoCorrect="off"
+      spellCheck={false}
+      value={typed}
+      maxLength={255}
+      onChange={(e) => {
+        setLeft(false);
+        setEditing(true);
+        setTyped(e.target.value.toLowerCase().replace(/[^a-z0-9.@_-]/g, ""));
+      }}
+      // its mistakes show once it's left; Enter keeps it
+      onBlur={() => setLeft(true)}
+      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), keep())}
+      placeholder="name@bank"
+      aria-invalid={bad || undefined}
+      className={input(bad)}
+    />
+  );
   return (
     <Reveal follow show={show} gap="0px">
       {row && !editing ? (
@@ -48,48 +79,44 @@ export function UpiIdField({ show, label, row = false, state }: { show: boolean;
           </span>
         </div>
       ) : (
-        // the box, then Save under it
+        // the box, then Save under it (or the ✓ beside it)
         <label className={row ? fieldRow : "flex flex-col gap-2 text-xs font-semibold"}>
           <span>{label}</span>
-          <input
-            autoFocus={editing}
-            type="text"
-            inputMode="email"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            value={typed}
-            maxLength={255}
-            onChange={(e) => {
-              setLeft(false);
-              setEditing(true);
-              setTyped(e.target.value.toLowerCase().replace(/[^a-z0-9.@_-]/g, ""));
-            }}
-            // its mistakes show once it's left
-            onBlur={() => setLeft(true)}
-            placeholder="name@bank"
-            aria-invalid={bad || undefined}
-            className={input(bad)}
-          />
+          <span className="flex min-w-0 items-center gap-2">
+            {box}
+            {tick && (
+              <button
+                type="button"
+                data-recheck
+                // a tap keeps the box from losing focus first
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={keep}
+                aria-label={t("saveUpi")}
+                className="grid size-11 shrink-0 place-items-center rounded-control bg-chestnut text-ivory"
+              >
+                <Check className="size-5" strokeWidth={2.5} aria-hidden />
+              </button>
+            )}
+          </span>
           {bad && (
-            <FieldMessage className="mt-0">
+            <FieldMessage key={recheck} className="mt-0">
               {shapeOk ? t("payeeUpiHandle", { handle: `@${typed.trim().split("@")[1]}` }) : t("payeeUpiBad")}
             </FieldMessage>
           )}
           {/* Save, under the box: the full width on a phone, at the right edge wider */}
-          <button
-            type="button"
-            // a tap keeps the box from losing focus first
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              setLeft(true);
-              if (ok) setEditing(false);
-            }}
-            disabled={typed.trim() === ""}
-            className="flex min-h-11 w-full items-center justify-center rounded-control bg-chestnut px-4 text-sm font-semibold text-ivory disabled:opacity-40 sm:w-auto sm:justify-self-end"
-          >
-            {t("saveUpi")}
-          </button>
+          {!tick && (
+            <button
+              type="button"
+              data-recheck
+              // a tap keeps the box from losing focus first
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={keep}
+              disabled={typed.trim() === ""}
+              className="flex min-h-11 w-full items-center justify-center rounded-control bg-chestnut px-4 text-sm font-semibold text-ivory disabled:opacity-40 sm:w-auto sm:justify-self-end"
+            >
+              {t("saveUpi")}
+            </button>
+          )}
         </label>
       )}
     </Reveal>
