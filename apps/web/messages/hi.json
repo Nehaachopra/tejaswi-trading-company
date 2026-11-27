@@ -1354,6 +1354,7 @@
     "loan": {
       "rate": "ब्याज % / साल",
       "lender": "ऋण किसने दिया",
+      "lenderPart": "ऋणदाता",
       "source": "स्रोत",
       "lenders": {
         "bank": "बैंक",

@@ -14,7 +14,7 @@ import { cn } from "~/lib/utils";
 import { type AddressDraft, AddressFields, emptyAddress, FieldRows, SECTION_TITLE } from "../../account/party/party-fields";
 import { LedgerSearch } from "../pickers/ledger-picker";
 import { PartyFace, PartyPick } from "../pickers/party-finder";
-import { chip, fieldRow } from "./form-basics";
+import { chip, fieldRow, wideFieldRow } from "./form-basics";
 import { PartyEditor } from "./party-editor";
 import { PickedCard } from "./picked-card";
 
@@ -37,6 +37,7 @@ export function PartySearchView({
   afterMatch,
   newDone,
   onNewChange,
+  label,
 }: {
   // the search, as LedgerSearch takes it (+ New party always offered where it may add); none: only the new party's
   // details (a cash purchase)
@@ -57,8 +58,23 @@ export function PartySearchView({
   newDone?: { complete: boolean; face: ComponentProps<typeof PartyFace> } | null;
   // someone new: what Change does (back to the search unless given; null: no Change, as an order's buyer)
   onNewChange?: (() => void) | null;
+  // the search's label on its left, as every other row (an old loan's Lender); none: the search the full width
+  label?: string;
 }) {
   const tpick = useTranslations("transactions.picker");
+  // with a label: the search (or "New party") on the right of it, as a row
+  const rowed = (node: ReactNode) =>
+    label ? (
+      <div className={wideFieldRow}>
+        <span>
+          {label}
+          <RequiredMark />
+        </span>
+        <div className="min-w-0">{node}</div>
+      </div>
+    ) : (
+      node
+    );
   // the new party's form shows until their details are complete when the stage opens; Edit opens it again
   const [formOpen, setFormOpen] = useState(() => !newDone?.complete);
   // Change for someone new: let go of them (and their form shows again for the next one)
@@ -83,7 +99,8 @@ export function PartySearchView({
     );
   return (
     <div className="flex flex-col gap-4">
-      {search && <LedgerSearch {...(search as Search)} addParty />}
+      {/* (with a label, someone new shows "New party" in its place, not an empty row) */}
+      {search && !(label && newPartyCard) && rowed(<LedgerSearch {...(search as Search)} addParty />)}
 
       {/* the picked one's details, changed right here */}
       {editor?.open && <PartyEditor rows ledger={editor.ledger} setLedger={editor.setLedger} close={editor.close} />}
@@ -95,11 +112,12 @@ export function PartySearchView({
       )}
 
       {/* someone new: Change goes back to the search, to pick one already added */}
-      {newPartyCard && (
-        <PickedCard oneLine onChange={onNewChange || search ? changeNew : undefined}>
-          <span className="min-w-0 flex-1 truncate font-semibold">{tpick("newParty")}</span>
-        </PickedCard>
-      )}
+      {newPartyCard &&
+        rowed(
+          <PickedCard oneLine onChange={onNewChange || search ? changeNew : undefined}>
+            <span className="min-w-0 flex-1 truncate font-semibold">{tpick("newParty")}</span>
+          </PickedCard>,
+        )}
 
       {form}
       {match && <MatchBox {...match} />}

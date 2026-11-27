@@ -18,6 +18,7 @@ import { FailNote, CapWarning } from "./notes";
 import { PaidFrom } from "./paid-from";
 import { DueFlow } from "../shared/fold-group";
 import { DueAmount } from "./due-amount";
+import { InterestAmount } from "./interest-amount";
 
 export function AmountCard() {
   const {
@@ -165,7 +166,7 @@ export function AmountCard() {
   );
   // where every problem and note about a value goes: under the value side, starting at the boxes' left edge (a
   // supplier's sit in a row's value column already)
-  const underValue = toSupplier || kind === "loanRepaid" ? "" : "ml-auto w-[60%]";
+  const underValue = toSupplier || kind === "loanRepaid" || interestCalc ? "" : "ml-auto w-[60%]";
   // the amount's box: large and bold, chestnut once filled
   const amountBox = "min-h-12 pl-11 font-heading text-xl font-bold tabular";
   // typed past the most it can be: cut there, and the warning says why
@@ -447,6 +448,29 @@ export function AmountCard() {
               ? [{ key: "rcmOff", label: t("rcmRow", { rate: tax?.rcm?.rate ?? 18 }), amount: rcmGst }]
               : []),
           ]}
+          notes={
+            <>
+              {breakdownNotes}
+              {taxFailed && <FailNote text={t("taxFailed")} retry={retryTax} />}
+            </>
+          }
+        />
+        <PaidFrom noCards />
+      </div>
+    );
+
+  // interest paid: Months, the interest and To pay on the left, To pay's breakup on the right (the shared stage's look)
+  if (interestCalc)
+    return (
+      <div className="flex flex-col gap-4">
+        <InterestAmount
+          top={panSection && <div className="mb-4 sm:max-w-[calc(50%-1.5rem)]">{panSection}</div>}
+          problems={
+            <div className="ml-auto mr-12 flex w-[55%] min-w-0 flex-col gap-1.5 [&:not(:has(*))]:hidden">
+              {amountProblems}
+            </div>
+          }
+          taken={typedRows.filter((r) => r.key === "tds")}
           notes={
             <>
               {breakdownNotes}

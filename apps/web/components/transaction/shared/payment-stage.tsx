@@ -154,7 +154,9 @@ export function PaymentStage({
   const [secondOpen, setSecondOpen] = useState(true);
   const [slidTo, setSlidTo] = useState<"first" | "second">("first");
   const [towardsOpen, setTowardsOpen] = useState(false);
-  const withBreakup = breakup !== null || ownBreakup !== undefined;
+  // a first breakup (Due left's), and any breakup at all (a second row's alone: interest's To pay)
+  const hasFirst = breakup !== null || ownBreakup !== undefined;
+  const withBreakup = hasFirst || !!second?.box;
 
   // a phone's two panels: as tall as the one showing, the other kept out of reach
   const mainRef = useRef<HTMLDivElement>(null);
@@ -243,6 +245,7 @@ export function PaymentStage({
   // the amounts: what's left (an arrow on each line opening the breakup), then the amount's box
   const amounts = (
     <div className="flex min-w-0 flex-col gap-2.5">
+      {hasFirst && (
       <button
         ref={arrowRow}
         type="button"
@@ -267,6 +270,7 @@ export function PaymentStage({
           />
         ))}
       </button>
+      )}
       {amountBox}
       {/* the second row (a payment's To pay): its arrow opens its own breakup */}
       {second && (
@@ -384,9 +388,9 @@ export function PaymentStage({
             <div ref={amountsRef} className="w-[calc(50%-1.5rem)]">
               {amounts}
             </div>
-            {(breakupOpen || (secondBox && secondOpen)) && (
+            {((hasFirst && breakupOpen) || (secondBox && secondOpen)) && (
               <div ref={breakupRef} className="absolute right-0 top-0 flex w-[calc(50%-1.5rem)] flex-col gap-3">
-                {breakupOpen && breakupBox}
+                {hasFirst && breakupOpen && breakupBox}
                 {secondOpen && secondBox}
               </div>
             )}

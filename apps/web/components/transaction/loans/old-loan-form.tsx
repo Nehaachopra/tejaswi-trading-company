@@ -33,6 +33,7 @@ import { emptyLoan, type LoanDraft, loanInput, loanProblems, LoanTerms } from ".
 import { usePhoneMatches } from "../pickers/party-finder";
 import { PartySearchView } from "../shared/customer-stage";
 import { fieldRow, pickRow } from "../shared/form-basics";
+import { PickedCard } from "../shared/picked-card";
 import { PlacePicker } from "../shared/place-picker";
 
 const LENDERS = ["bank", "nbfc", "individual"] as const;
@@ -155,11 +156,12 @@ export function useOldLoan(given: boolean) {
 }
 export type OldLoan = ReturnType<typeof useOldLoan>;
 
-// Paid to's part: the kind of lender (an accordion), then who
+// Paid to's part: "Old loan" with Change (back to the open loans) on top, the source (an accordion), then who
 export function OldLoanWho({
   loan,
   tried,
   newPartyDetails,
+  onChange,
 }: {
   loan: OldLoan;
   tried: boolean;
@@ -170,6 +172,8 @@ export function OldLoanWho({
     match: Pickable | null,
     pickMatch: (m: Pickable) => void,
   ) => React.ReactNode;
+  // Change on "Old loan": back to the open loans
+  onChange: () => void;
 }) {
   const t = useTranslations("transactions.chat");
   const tl = useTranslations("transactions.loan");
@@ -190,6 +194,10 @@ export function OldLoanWho({
   } = loan;
   return (
     <div className="flex flex-col gap-4">
+      {/* as a new party: "Old loan" on top, Change goes back to the open loans */}
+      <PickedCard oneLine onChange={onChange}>
+        <span className="min-w-0 flex-1 truncate font-semibold">{t("oldLoan")}</span>
+      </PickedCard>
       {/* first, for a loan we took, the kind of lender: it decides the TDS, and the rest of the form follows it */}
       {!given && (
         // as an accordion: all three open until one is picked, then closed to the pick
@@ -225,6 +233,8 @@ export function OldLoanWho({
         <LenderFields
           key={bank}
           type={bank}
+          // the lender, labelled on the left as every other row
+          label={tl("lenderPart")}
           draft={bankLender}
           onChange={(patch) => setBankLender((d) => ({ ...d, ...patch }))}
           tried={tried}
@@ -247,6 +257,8 @@ export function OldLoanWho({
             placeholder: t("hints.from"),
           }}
           newPartyCard={who?.kind === "party"}
+          // the lender (or who it was given to), labelled on the left as every other row
+          label={given ? t("oldLoanTo") : tl("lenderPart")}
           form={
             who?.kind === "party" &&
             newPartyDetails(newParty, setNewParty, matched, (m) =>

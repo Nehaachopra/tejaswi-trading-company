@@ -1354,6 +1354,7 @@
     "loan": {
       "rate": "Interest % / year",
       "lender": "Who gave the loan",
+      "lenderPart": "Lender",
       "source": "Source",
       "lenders": {
         "bank": "Bank",

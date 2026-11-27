@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Search } from "lucide-react";
+import { MapPin, Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -17,7 +17,7 @@ import {
   PICK_TWO_COLUMNS,
 } from "~/components/ui/page-styles";
 import { PickedCard } from "../shared/picked-card";
-import { fieldRow } from "../shared/form-basics";
+import { fieldRow, wideFieldRow } from "../shared/form-basics";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
@@ -238,11 +238,14 @@ export function LenderFields({
   draft,
   onChange,
   tried,
+  label,
 }: {
   type: BankLender;
   draft: LenderDraft;
   onChange: (patch: Partial<LenderDraft>) => void;
   tried: boolean;
+  // the row's label on the left of who (an old loan's Lender); none: who alone, the full width
+  label?: string;
 }) {
   const t = useTranslations("transactions.lender");
   const lenders = useLenders(false);
@@ -254,19 +257,86 @@ export function LenderFields({
   const noName = tried && draft.adding && draft.name.trim() === "";
   const noAccount = tried && !ACCOUNT_RE.test(draft.account);
 
+  // who: picked, being added ("New lender"), or being searched for
+  const whoPart = draft.picked ? (
+    // as a picked party shows: the name, then the branch under it with its pin
+    <PickedCard onChange={() => onChange({ picked: null })}>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="min-w-0 truncate font-heading text-base font-bold">
+          {draft.picked.name}
+        </span>
+        {draft.picked.branch && (
+          <span className="flex items-center gap-1 text-xs">
+            <MapPin className="size-3.5 shrink-0" aria-hidden />
+            <span className="min-w-0 truncate">{draft.picked.branch}</span>
+          </span>
+        )}
+      </span>
+    </PickedCard>
+  ) : draft.adding ? (
+    <PickedCard oneLine onChange={() => onChange({ adding: false, name: "", branch: "", pan: "" })}>
+      <span className="min-w-0 flex-1 truncate font-semibold">{t("new")}</span>
+    </PickedCard>
+  ) : (
+    <div className="flex flex-col gap-2">
+      <label className={cn(PICK_SEARCH, fieldClass(tried))}>
+        <Search className="size-4 shrink-0" aria-hidden />
+        <input
+          type="search"
+          value={search}
+          maxLength={60}
+          aria-label={t("search")}
+          placeholder={t("search")}
+          onChange={(e) => setSearch(e.target.value)}
+          className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-chestnut/60"
+        />
+        <MicButton onText={setSearch} />
+      </label>
+      <div className={cn(PICK_LIST, PICK_TWO_COLUMNS)}>
+        {shown.map((l) => (
+          <button
+            key={l.id}
+            type="button"
+            onClick={() => onChange({ picked: l })}
+            className={PICK_ROW}
+          >
+            <span className="min-w-0 flex-1 truncate font-semibold">{lenderLabel(l)}</span>
+          </button>
+        ))}
+        {shown.length === 0 && !lenders.loading && (
+          <p className="col-span-full px-1 py-2 text-sm">{t("none")}</p>
+        )}
+        <div className={PICK_NEW}>
+          <button
+            type="button"
+            onClick={() => onChange({ adding: true, name: search.trim() })}
+            className={ADD_ON_IVORY}
+          >
+            <Plus className="size-4" aria-hidden /> {t("new")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-4">
-      {/* who: picked, being added, or being searched for */}
-      {draft.picked ? (
-        <PickedCard oneLine onChange={() => onChange({ picked: null })}>
-          <span className="min-w-0 flex-1 truncate font-semibold">{lenderLabel(draft.picked)}</span>
-        </PickedCard>
-      ) : draft.adding ? (
+      {/* with a label: on its left, as every other row, who on the right */}
+      {label ? (
+        <div className={wideFieldRow}>
+          <span>
+            {label}
+            <RequiredMark />
+          </span>
+          <div className="min-w-0">{whoPart}</div>
+        </div>
+      ) : (
+        whoPart
+      )}
+
+      {/* a new lender: its name and branch (an NBFC's PAN too) */}
+      {draft.adding && !draft.picked && (
         <div className="flex flex-col gap-3">
-          {/* as a new party: "New lender" on top with Change (back to the search), then its details */}
-          <PickedCard oneLine onChange={() => onChange({ adding: false, name: "", branch: "", pan: "" })}>
-            <span className="min-w-0 flex-1 truncate font-semibold">{t("new")}</span>
-          </PickedCard>
           <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
             <label className={fieldRow}>
               <span>
@@ -322,51 +392,12 @@ export function LenderFields({
             </div>
           )}
         </div>
-      ) : (
-        <div className="flex flex-col gap-2">
-          <label className={cn(PICK_SEARCH, fieldClass(tried))}>
-            <Search className="size-4 shrink-0" aria-hidden />
-            <input
-              type="search"
-              value={search}
-              maxLength={60}
-              aria-label={t("search")}
-              placeholder={t("search")}
-              onChange={(e) => setSearch(e.target.value)}
-              className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-chestnut/60"
-            />
-            <MicButton onText={setSearch} />
-          </label>
-          <div className={cn(PICK_LIST, PICK_TWO_COLUMNS)}>
-            {shown.map((l) => (
-              <button
-                key={l.id}
-                type="button"
-                onClick={() => onChange({ picked: l })}
-                className={PICK_ROW}
-              >
-                <span className="min-w-0 flex-1 truncate font-semibold">{lenderLabel(l)}</span>
-              </button>
-            ))}
-            {shown.length === 0 && !lenders.loading && (
-              <p className="col-span-full px-1 py-2 text-sm">{t("none")}</p>
-            )}
-            <div className={PICK_NEW}>
-              <button
-                type="button"
-                onClick={() => onChange({ adding: true, name: search.trim() })}
-                className={ADD_ON_IVORY}
-              >
-                <Plus className="size-4" aria-hidden /> {t("new")}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* the loan's account there, once it's known who */}
+      {/* the loan's account number, then the EMI under it */}
       {(draft.picked || draft.adding) && (
-        <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+        <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 sm:*:col-start-1">
           <label className={fieldRow}>
             <span>
               {t("account")}

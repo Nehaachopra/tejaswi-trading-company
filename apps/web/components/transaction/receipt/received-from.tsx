@@ -71,6 +71,7 @@ export function LoanCards() {
         newPartyDetails={(draft, setDraft, match, pickMatch) => (
           <NewPartyDetails draft={draft} setDraft={setDraft} match={match} pickMatch={pickMatch} />
         )}
+        onChange={() => setAddingOldLoan(false)}
       />
     );
   }
