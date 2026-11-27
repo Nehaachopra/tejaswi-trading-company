@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CircleAlert, Download, Flag, Pencil, Phone, Receipt } from "lucide-react";
+import { ArrowLeft, CircleAlert, Flag, Pencil, Phone, Receipt } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
@@ -117,9 +117,6 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
               <Receipt className="size-4" aria-hidden /> {t("bill")}
             </a>
           )}
-          <button type="button" onClick={() => window.print()} className={pill}>
-            <Download className="size-4" aria-hidden /> {t("download")}
-          </button>
           {/* Edit purchase: greyed once its GSTR-3B month is filed, it's a return's replacement, or every item went back;
               a tap or hover says why */}
           {canAsk &&
@@ -312,12 +309,12 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
             <span aria-hidden className="hidden sm:block" />
             <Breakup rows={breakup} label={t("amount")} amount={`₹${money(d.total)}`} />
           </div>
-          <div className="grid border-t border-chestnut/40 sm:grid-cols-[12rem_1fr]">
+          <div className="hidden border-t border-chestnut/40 print:grid print:grid-cols-[12rem_1fr]">
             <span className={cn(cell, "font-semibold sm:border-r")}>{ti("inWords")}</span>
             <span className={cell}>{amountInWords(d.total)}</span>
           </div>
         </div>
-        <p className="pt-2 font-semibold">{ti("computerGenerated")}</p>
+        <p className="hidden pt-2 font-semibold print:block">{ti("computerGenerated")}</p>
       </article>
 
       {/* the purchase's returns, under it (each one's replacements are under its debit note) */}

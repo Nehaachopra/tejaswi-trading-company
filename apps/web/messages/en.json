@@ -2030,7 +2030,6 @@
         "loadError": "Couldn't load the purchase. Check your connection and try again."
       },
       "record": {
-        "download": "Download reference",
         "title": "Purchase",
         "number": "Purchase no.",
         "dated": "Dated",
@@ -2421,6 +2420,7 @@
         "newTransaction": "New transaction"
       },
       "note": {
+        "download": "Download credit note",
         "title": "Credit note",
         "back": "Back",
         "number": "Credit note no.",
@@ -2576,6 +2576,7 @@
         "newTransaction": "New transaction"
       },
       "note": {
+        "download": "Download debit note",
         "title": "Debit note",
         "back": "Back",
         "number": "Debit note no.",

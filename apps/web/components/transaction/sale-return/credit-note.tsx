@@ -117,13 +117,13 @@ export function CreditNoteView({ id, history, shareKey }: { id: string; history?
             </button>
           )}
           <button type="button" onClick={() => window.print()} className={cn(pill, !canShare && "col-span-2")}>
-            <Download className="size-4" aria-hidden /> {ti("download")}
+            <Download className="size-4" aria-hidden /> {t("download")}
           </button>
         </div>
       </div>
 
       <article className="print-area on-ivory relative overflow-hidden rounded-control bg-ivory p-3 text-sm text-chestnut sm:p-5">
-        <DocHead title={t("title")} jurisdiction={ti("jurisdiction", { place: c.jurisdiction })} />
+        <DocHead title={t("title")} screenTitle={tr("title")} jurisdiction={ti("jurisdiction", { place: c.jurisdiction })} />
         {cancelled && (
           <div aria-hidden className="pointer-events-none absolute inset-0 z-20 grid place-items-center">
             <span className="-rotate-[24deg] rounded-control border-4 border-danger px-5 pb-1 pt-3 font-heading text-6xl font-bold tracking-[0.06em] text-danger opacity-35 sm:text-8xl">
@@ -132,10 +132,10 @@ export function CreditNoteView({ id, history, shareKey }: { id: string; history?
           </div>
         )}
 
-        <div className="border border-chestnut/40">
-          {/* our details, and the note's */}
-          <div className="grid sm:grid-cols-[1fr_1.5fr]">
-            <div className="flex min-w-0 flex-col border-b border-chestnut/40 sm:border-r">
+        <div className="flex flex-col border border-chestnut/40 print:block">
+          {/* our details (printed only), and the note's */}
+          <div className="grid print:grid-cols-[1fr_1.5fr]">
+            <div className="hidden min-w-0 flex-col border-b border-chestnut/40 print:flex print:border-r">
               <p className={band}>{c.name}</p>
               <div className={cn(cell, "flex flex-col gap-0.5 break-words")}>
                 <span>{c.address}</span>
@@ -169,8 +169,8 @@ export function CreditNoteView({ id, history, shareKey }: { id: string; history?
             </div>
           </div>
 
-          {/* who it's to */}
-          <div className="border-b border-chestnut/40">
+          {/* who it's to: on the screen, on top */}
+          <div className="order-first border-b border-chestnut/40 print:order-none">
             <p className={cn(band, "break-words")}>
               {t("to")}: {buyer}
             </p>
@@ -265,14 +265,14 @@ export function CreditNoteView({ id, history, shareKey }: { id: string; history?
             <span aria-hidden className="hidden sm:block" />
             <Breakup rows={breakup} label={t("amount")} amount={`₹${money(d.total)}`} />
           </div>
-          <div className="grid border-t border-chestnut/40 sm:grid-cols-[12rem_1fr]">
+          <div className="hidden border-t border-chestnut/40 print:grid print:grid-cols-[12rem_1fr]">
             <span className={cn(cell, "font-semibold sm:border-r")}>{ti("inWords")}</span>
             <span className={cell}>{amountInWords(d.total)}</span>
           </div>
         </div>
 
-        <p className="pt-2 font-semibold">{ti("computerGenerated")}</p>
-        <div className="mt-12 flex items-end justify-between gap-6">
+        <p className="hidden pt-2 font-semibold print:block">{ti("computerGenerated")}</p>
+        <div className="mt-12 hidden items-end justify-between gap-6 print:flex">
           <p>{ti("receiver")}</p>
           <p className="font-semibold">{ti("signatory")}</p>
         </div>
