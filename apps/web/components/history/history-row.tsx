@@ -48,7 +48,7 @@ export function HistoryRow({ row }: { row: HistoryRowData }) {
               <span className="rounded-control bg-chestnut px-2 py-1 text-[0.75rem] font-semibold leading-none text-ivory">{t("edited")}</span>
             )}
           </span>
-          <span className="tabular flex flex-wrap gap-x-3.5 gap-y-1 text-xs text-chestnut/60">
+          <span className="tabular flex flex-col flex-wrap gap-x-3.5 gap-y-1 text-xs text-chestnut/60 sm:flex-row">
             <span className="flex items-center gap-1">
               <Hash className="size-3.5" aria-hidden />
               {row.assignedId}
