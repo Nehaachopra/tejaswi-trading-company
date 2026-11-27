@@ -179,7 +179,7 @@ export function AmountCard() {
       skipped && most === LABOUR_SKIP_MAX
         ? { key: "labour", text: "" }
         : // a tax cut at what it owes: says so, as a loan's does
-          kind === "taxPaid" && taxOwed !== null && most === taxOwed
+          kind === "taxPaid" && taxOwed !== null && most === Math.round(taxOwed)
           ? { key: "amount", text: t("taxLeft", { amount: rupees(most) }) }
           : { key: "amount", text: t("capOnly", { amount: rupees(most) }) },
     );
