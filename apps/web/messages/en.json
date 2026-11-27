@@ -2030,6 +2030,7 @@
         "loadError": "Couldn't load the purchase. Check your connection and try again."
       },
       "record": {
+        "download": "Download reference",
         "title": "Purchase",
         "number": "Purchase no.",
         "dated": "Dated",

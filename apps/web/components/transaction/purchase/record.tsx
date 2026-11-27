@@ -117,7 +117,7 @@ export function PurchaseRecord({ id, history }: { id: string; history: { record:
             </a>
           )}
           <button type="button" onClick={() => window.print()} className={pill}>
-            <Download className="size-4" aria-hidden /> {ti("download")}
+            <Download className="size-4" aria-hidden /> {t("download")}
           </button>
           {/* Edit purchase: greyed once its GSTR-3B month is filed, goods went back on it, or it's a return's replacement */}
           {canAsk &&
