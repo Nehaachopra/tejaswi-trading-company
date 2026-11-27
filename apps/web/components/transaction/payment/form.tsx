@@ -10,6 +10,7 @@ import {
   emptyDraft as emptyParty,
 } from "../../account/party/party-fields";
 import { LoanTerms } from "../loans/loan-terms";
+import { OldLoanTerms } from "../loans/old-loan-form";
 import {
   EntryNote,
   EntryPage,
@@ -93,6 +94,7 @@ function PaymentEntryView() {
     canBank,
     loanOf,
     addingOldLoan,
+    oldLoan,
     setAddingOldLoan,
     setLoanSearch,
     total,
@@ -220,7 +222,7 @@ function PaymentEntryView() {
         end={
           current === "details" ? (
             <SaveBlock />
-          ) : current === "kind" || (current === "to" && addingOldLoan) ? null : (
+          ) : current === "kind" ? null : (
             <NextButton onClick={() => void next()} />
           )
         }
@@ -307,6 +309,8 @@ function PaymentEntryView() {
 
       // a loan given: its interest, how often it's paid, and when it's due back (if ever)
       case "terms":
+        // an old loan being added: its amount, date and terms
+        if (loanOf && addingOldLoan) return <OldLoanTerms loan={oldLoan} tried={tried} />;
         return (
           <>
             <LoanTerms

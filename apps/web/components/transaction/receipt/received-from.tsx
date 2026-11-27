@@ -28,7 +28,7 @@ import {
 } from "../../account/party/party-fields";
 import { PartyEdit } from "../../account/party/party-sheet";
 import { emptyLender, LenderEdit, LenderFields } from "../loans/lender-fields";
-import { OldLoanForm } from "../loans/old-loan-form";
+import { OldLoanWho } from "../loans/old-loan-form";
 import { HeadEdit, LedgerSearch, type Pickable } from "../pickers/ledger-picker";
 import { PartyPick } from "../pickers/party-finder";
 import { FailNote } from "../shared/bank-mode";
@@ -53,26 +53,24 @@ export function LoanCards() {
     retryLoans,
     addingOldLoan,
     setAddingOldLoan,
-    setAddedLoanId,
     editingFrom,
     setEditingFrom,
     loanSearch,
     setLoanSearch,
     loanOver,
     movesOn,
+    oldLoan,
+    tried,
   } = useReceiptEntry();
+  // an old loan: who on this stage; its amount and terms on Loan terms, whose Next adds it
   if (addingOldLoan) {
     return (
-      <OldLoanForm
-        given
+      <OldLoanWho
+        loan={oldLoan}
+        tried={tried}
         newPartyDetails={(draft, setDraft, match, pickMatch) => (
           <NewPartyDetails draft={draft} setDraft={setDraft} match={match} pickMatch={pickMatch} />
         )}
-        onAdded={(id) => {
-          setAddedLoanId(id);
-          setAddingOldLoan(false);
-        }}
-        onCancel={() => setAddingOldLoan(false)}
       />
     );
   }
@@ -119,6 +117,7 @@ export function LoanCards() {
             <PartyEdit
               asksTypes={false}
               rows
+              newPartyLook
               partyId={loan.partyId}
               onCancel={() => setEditingFrom(false)}
               onSaved={(saved) => {
@@ -192,7 +191,14 @@ export function LoanCards() {
         {/* a loan from before the app, added right here */}
         {isAdmin && (
           <div className={PICK_NEW}>
-            <button type="button" onClick={() => setAddingOldLoan(true)} className={ADD_ON_IVORY}>
+            <button
+              type="button"
+              onClick={() => {
+                oldLoan.reset();
+                setAddingOldLoan(true);
+              }}
+              className={ADD_ON_IVORY}
+            >
               <Plus className="size-4" aria-hidden /> {tc("oldLoan")}
             </button>
           </div>
@@ -388,6 +394,10 @@ function NewPartyDetails({
         asksRemarks={false}
         onAddressesOpen={() => setTried(false)}
         onlyPhone={!!match}
+        // as a new supplier's: label left, box right, the phone on top, the name and short name side by side, no email
+        rows
+        phoneFirst
+        asksEmail={false}
       />
       {match?.party && (
         <div className="flex flex-col gap-3 rounded-control border border-chestnut/40 bg-chestnut/4 p-3">

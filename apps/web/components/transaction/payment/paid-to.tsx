@@ -29,7 +29,7 @@ import { LenderEdit } from "../loans/lender-fields";
 import { PartySearchView } from "../shared/customer-stage";
 import { PartyEditor } from "../shared/party-editor";
 import { PickedCard } from "../shared/picked-card";
-import { OldLoanForm } from "../loans/old-loan-form";
+import { OldLoanWho } from "../loans/old-loan-form";
 import { PartyPick } from "../pickers/party-finder";
 import { TdsTypePicker } from "../pickers/tds-type-picker";
 import { Loan, chip } from "./shared";
@@ -56,22 +56,21 @@ export function LoanCards() {
     setEditingLoan,
     loanSearch,
     setLoanSearch,
-    setAddedLoanId,
     setTotalGoal,
     loanOver,
     movesOn,
+    oldLoan,
+    tried,
   } = usePaymentEntry();
+  // an old loan: who on this stage; its amount and terms on Loan terms, whose Next adds it
   if (addingOldLoan) {
     return (
-      <OldLoanForm
+      <OldLoanWho
+        loan={oldLoan}
+        tried={tried}
         newPartyDetails={(draft, setDraft, match, pickMatch) => (
           <NewPartyDetails draft={draft} setDraft={setDraft} match={match} pickMatch={pickMatch} />
         )}
-        onAdded={(id) => {
-          setAddedLoanId(id);
-          setAddingOldLoan(false);
-        }}
-        onCancel={() => setAddingOldLoan(false)}
       />
     );
   }
@@ -128,6 +127,7 @@ export function LoanCards() {
             <PartyEdit
               asksTypes={false}
               rows
+              newPartyLook
               partyId={loan.partyId}
               onCancel={() => setEditingLoan(false)}
               onSaved={(saved) => {
@@ -194,7 +194,14 @@ export function LoanCards() {
         )}
         {isAdmin && (
           <div className={PICK_NEW}>
-            <button type="button" onClick={() => setAddingOldLoan(true)} className={ADD_ON_IVORY}>
+            <button
+              type="button"
+              onClick={() => {
+                oldLoan.reset();
+                setAddingOldLoan(true);
+              }}
+              className={ADD_ON_IVORY}
+            >
               <Plus className="size-4" aria-hidden /> {tc("oldLoan")}
             </button>
           </div>
@@ -514,6 +521,9 @@ export function NewPartyDetails({
         onlyPhone={!!match}
         transporter={transporter}
         rows
+        // as a new supplier's: the phone on top, the name and short name side by side, no email
+        phoneFirst
+        asksEmail={false}
       />
       {match?.party && (
         <div className="flex flex-col gap-3 rounded-control border border-chestnut/40 bg-chestnut/4 p-3">

@@ -5,9 +5,11 @@ import { useTranslations } from "next-intl";
 import { fieldClass } from "~/components/ui/card-form";
 import { NumberInput } from "~/components/ui/number-input";
 import { wordsToNumber } from "~/lib/number-words";
-import { MicField } from "~/components/ui/mic-button";
+import { MicButton } from "~/components/ui/mic-button";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { cn } from "~/lib/utils";
+import { fieldRow, pickRow } from "../shared/form-basics";
+import { PlacePicker } from "../shared/place-picker";
 
 type Frequency = "monthly" | "quarterly" | "half_yearly" | "yearly";
 
@@ -31,11 +33,6 @@ export const loanInput = (d: LoanDraft) => ({
 
 const input = (bad: boolean) =>
   `min-h-11 w-full min-w-0 px-3 text-base placeholder:text-chestnut/60 ${fieldClass(bad)}`;
-const chip = (on: boolean) =>
-  cn(
-    "min-h-11 rounded-control border px-3.5 text-sm font-semibold transition-colors",
-    on ? "border-chestnut bg-chestnut text-ivory" : "border-chestnut/50 hover:bg-chestnut/[0.06]",
-  );
 
 // a loan's interest: the rate a year (0 = interest-free) and how often it's paid
 export function LoanTerms({
@@ -52,58 +49,57 @@ export function LoanTerms({
   const show = (k: keyof typeof bad) => tried && bad[k];
 
   return (
-    <div className="flex flex-col gap-4">
+    // the rate, and how often it's paid beside it (under it on a phone)
+    <div className="grid items-start gap-x-6 gap-y-3 sm:grid-cols-2">
       {/* the rate */}
-      <label className="flex w-40 flex-col gap-2.5 text-xs font-semibold">
+      <label className={fieldRow}>
         <span>
           {t("rate")}
           <RequiredMark />
         </span>
-        <MicField
-          throughPauses
-          onText={(said) => {
-            const n = wordsToNumber(said);
-            if (n !== null && n <= 100) onChange({ rate: String(n) });
-          }}
-        >
-          <NumberInput
-            value={draft.rate}
-            onChange={(rate) => onChange({ rate })}
-            decimals={2}
-            maxDigits={3}
-            max={100}
-            placeholder="0"
-            aria-invalid={show("rate") || undefined}
-            className={cn(input(show("rate")), "pr-11")}
+        {/* the box with % at its right end, the mic outside it, beside the % */}
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="relative block min-w-0 flex-1">
+            <NumberInput
+              value={draft.rate}
+              onChange={(rate) => onChange({ rate })}
+              decimals={2}
+              maxDigits={3}
+              max={100}
+              placeholder="0"
+              aria-invalid={show("rate") || undefined}
+              className={cn(input(show("rate")), "tabular pr-8 text-right")}
+            />
+            <span
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-base font-semibold"
+              aria-hidden
+            >
+              %
+            </span>
+          </span>
+          <MicButton
+            throughPauses
+            onText={(said) => {
+              const n = wordsToNumber(said);
+              if (n !== null && n <= 100) onChange({ rate: String(n) });
+            }}
           />
-        </MicField>
+        </span>
       </label>
 
-      {/* how often it's paid */}
-      <div role="radiogroup" aria-label={t("frequency")} className="flex flex-col gap-2">
-        <span className="text-xs font-semibold">
+      {/* how often it's paid: an accordion, all four open until one is picked, then closed to the pick */}
+      <div className={pickRow}>
+        <span>
           {t("frequency")}
           <RequiredMark />
         </span>
-        <div
-          className={cn(
-            "flex flex-wrap gap-2 rounded-control",
-            show("frequency") && "outline-2 outline-offset-2 outline-danger",
-          )}
-        >
-          {FREQUENCIES.map((f) => (
-            <button
-              key={f}
-              type="button"
-              role="radio"
-              aria-checked={draft.frequency === f}
-              onClick={() => onChange({ frequency: f })}
-              className={chip(draft.frequency === f)}
-            >
-              {t(`frequencies.${f}`)}
-            </button>
-          ))}
-        </div>
+        <PlacePicker
+          label={t("frequency")}
+          places={FREQUENCIES.map((f) => ({ id: f, name: t(`frequencies.${f}`), disabled: false }))}
+          value={draft.frequency}
+          onPick={(frequency) => onChange({ frequency })}
+          invalid={show("frequency")}
+        />
       </div>
     </div>
   );

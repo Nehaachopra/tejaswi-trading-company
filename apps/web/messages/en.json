@@ -1352,7 +1352,7 @@
       "amountIn": "Amount received"
     },
     "loan": {
-      "rate": "Interest % a year",
+      "rate": "Interest % / year",
       "lender": "Who gave the loan",
       "lenders": {
         "bank": "Bank",

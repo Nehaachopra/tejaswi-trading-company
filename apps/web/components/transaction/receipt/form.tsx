@@ -13,6 +13,7 @@ import {
 } from "../../account/party/party-fields";
 import { emptyLender } from "../loans/lender-fields";
 import { LoanTerms } from "../loans/loan-terms";
+import { OldLoanTerms } from "../loans/old-loan-form";
 import {
   EntryNote,
   EntryPage,
@@ -80,7 +81,6 @@ function ReceiptEntryView() {
     leaveDialog,
     show,
     next,
-    addingOldLoan,
     advance,
     askingAdvance,
   } = useReceiptEntry();
@@ -159,7 +159,7 @@ function ReceiptEntryView() {
         end={
           current === "details" ? (
             <SaveBlock />
-          ) : current === "kind" || (current === "from" && addingOldLoan) ? null : (
+          ) : current === "kind" ? null : (
             <NextButton onClick={() => void next()} />
           )
         }
@@ -262,7 +262,9 @@ function KindChips() {
 
 // a loan we took: its interest, how often it's paid, and when it's due back (if ever)
 function TermsCard() {
-  const { tc, terms, setTerms, dueOn, setDueOn, day, tried } = useReceiptEntry();
+  const { tc, terms, setTerms, dueOn, setDueOn, day, tried, loanOf, addingOldLoan, oldLoan } = useReceiptEntry();
+  // an old loan being added: its amount, date and terms
+  if (loanOf && addingOldLoan) return <OldLoanTerms loan={oldLoan} tried={tried} />;
   return (
     <>
       <LoanTerms

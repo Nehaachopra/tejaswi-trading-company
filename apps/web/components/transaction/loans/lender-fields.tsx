@@ -17,6 +17,7 @@ import {
   PICK_TWO_COLUMNS,
 } from "~/components/ui/page-styles";
 import { PickedCard } from "../shared/picked-card";
+import { fieldRow } from "../shared/form-basics";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
@@ -155,7 +156,7 @@ export function LenderEdit({
   return (
     <div className="flex flex-col gap-3">
       <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-2.5 text-xs font-semibold">
+        <label className={fieldRow}>
           <span>
             {t("name")}
             <RequiredMark />
@@ -176,8 +177,8 @@ export function LenderEdit({
             />
           )}
         </label>
-        <label className="flex flex-col gap-2.5 text-xs font-semibold">
-          {t("branch")}
+        <label className={fieldRow}>
+          <span>{t("branch")}</span>
           <input
             value={branch}
             maxLength={BRANCH_MAX}
@@ -187,22 +188,24 @@ export function LenderEdit({
         </label>
       </div>
       {lender.type === "nbfc" && (
-        <label className="flex flex-col gap-2.5 text-xs font-semibold sm:w-56">
-          {t("pan")}
-          <input
-            value={pan}
-            maxLength={10}
-            placeholder="ABCDE1234F"
-            onChange={(e) =>
-              setEdits((all) => ({
-                ...all,
-                pan: e.target.value.replace(/[^0-9a-z]/gi, "").toUpperCase(),
-              }))
-            }
-            aria-invalid={panWrong || undefined}
-            className={cn(input(panWrong && pan.length === 10), "tabular uppercase")}
-          />
-        </label>
+        <div className="grid gap-x-6 sm:grid-cols-2">
+          <label className={fieldRow}>
+            <span>{t("pan")}</span>
+            <input
+              value={pan}
+              maxLength={10}
+              placeholder="ABCDE1234F"
+              onChange={(e) =>
+                setEdits((all) => ({
+                  ...all,
+                  pan: e.target.value.replace(/[^0-9a-z]/gi, "").toUpperCase(),
+                }))
+              }
+              aria-invalid={panWrong || undefined}
+              className={cn(input(panWrong && pan.length === 10), "tabular uppercase")}
+            />
+          </label>
+        </div>
       )}
       {failed && <FieldMessage className="mt-0">{t("saveFailed")}</FieldMessage>}
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -242,7 +245,6 @@ export function LenderFields({
   tried: boolean;
 }) {
   const t = useTranslations("transactions.lender");
-  const tp = useTranslations("transactions.picker");
   const lenders = useLenders(false);
   const [search, setSearch] = useState("");
   const needle = search.trim().toLowerCase();
@@ -261,8 +263,12 @@ export function LenderFields({
         </PickedCard>
       ) : draft.adding ? (
         <div className="flex flex-col gap-3">
+          {/* as a new party: "New lender" on top with Change (back to the search), then its details */}
+          <PickedCard oneLine onChange={() => onChange({ adding: false, name: "", branch: "", pan: "" })}>
+            <span className="min-w-0 flex-1 truncate font-semibold">{t("new")}</span>
+          </PickedCard>
           <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-            <label className="flex flex-col gap-2.5 text-xs font-semibold">
+            <label className={fieldRow}>
               <span>
                 {t("name")}
                 <RequiredMark />
@@ -285,8 +291,8 @@ export function LenderFields({
                 />
               )}
             </label>
-            <label className="flex flex-col gap-2.5 text-xs font-semibold">
-              {t("branch")}
+            <label className={fieldRow}>
+              <span>{t("branch")}</span>
               <input
                 value={draft.branch}
                 maxLength={BRANCH_MAX}
@@ -296,30 +302,25 @@ export function LenderFields({
             </label>
           </div>
           {type === "nbfc" && (
-            <label className="flex flex-col gap-2.5 text-xs font-semibold sm:w-56">
-              {t("pan")}
-              <input
-                value={draft.pan}
-                maxLength={10}
-                placeholder="ABCDE1234F"
-                onChange={(e) =>
-                  onChange({ pan: e.target.value.replace(/[^0-9a-z]/gi, "").toUpperCase() })
-                }
-                aria-invalid={panBad(draft) || undefined}
-                className={cn(
-                  input(panBad(draft) && (tried || draft.pan.length === 10)),
-                  "tabular uppercase",
-                )}
-              />
-            </label>
+            <div className="grid gap-x-6 sm:grid-cols-2">
+              <label className={fieldRow}>
+                <span>{t("pan")}</span>
+                <input
+                  value={draft.pan}
+                  maxLength={10}
+                  placeholder="ABCDE1234F"
+                  onChange={(e) =>
+                    onChange({ pan: e.target.value.replace(/[^0-9a-z]/gi, "").toUpperCase() })
+                  }
+                  aria-invalid={panBad(draft) || undefined}
+                  className={cn(
+                    input(panBad(draft) && (tried || draft.pan.length === 10)),
+                    "tabular uppercase",
+                  )}
+                />
+              </label>
+            </div>
           )}
-          <button
-            type="button"
-            onClick={() => onChange({ adding: false, name: "", branch: "", pan: "" })}
-            className="self-start text-sm font-semibold underline underline-offset-2"
-          >
-            {tp("change")}
-          </button>
         </div>
       ) : (
         <div className="flex flex-col gap-2">
@@ -366,7 +367,7 @@ export function LenderFields({
       {/* the loan's account there, once it's known who */}
       {(draft.picked || draft.adding) && (
         <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-2.5 text-xs font-semibold">
+          <label className={fieldRow}>
             <span>
               {t("account")}
               <RequiredMark />
@@ -382,8 +383,8 @@ export function LenderFields({
               className={cn(input(noAccount), "tabular uppercase")}
             />
           </label>
-          <label className="flex flex-col gap-2.5 text-xs font-semibold">
-            {t("emi")}
+          <label className={fieldRow}>
+            <span>{t("emi")}</span>
             <NumberInput
               value={draft.emi}
               onChange={(emi) => onChange({ emi })}

@@ -36,6 +36,7 @@ import { moveCard, useCardHistory } from "../shared/card-steps";
 import { appOfUpi, type BankMode, upiFormatOk } from "@repo/trpc/client";
 import { refOkFor } from "../shared/bank-mode";
 import { emptyLoan, type LoanDraft, loanProblems } from "../loans/loan-terms";
+import { useOldLoan } from "../loans/old-loan-form";
 import { usePhoneMatches } from "../pickers/party-finder";
 import { type TdsType } from "../pickers/tds-type-picker";
 import { createContext, useContext } from "react";
@@ -204,6 +205,9 @@ export function usePaymentEntryState({
   const { loans, loansLoading, loansFailed, retryLoans } = useOpenLoans(loanOf);
   // an old loan being added in the Paid to card, and the one just added, picked once the list has it
   const [addingOldLoan, setAddingOldLoan] = useState(false);
+  // its form: who on Paid to, the rest on Loan terms, whose Next adds it
+  const oldLoan = useOldLoan(false);
+  const oldLoanOn = loanOf && addingOldLoan;
   // the picked supplier's details being changed
   const [editingTo, setEditingTo] = useState(false);
   useEffect(() => setEditingTo(false), [kind, to?.kind === "ledger" ? to.ledger.id : null]);
@@ -840,6 +844,9 @@ export function usePaymentEntryState({
   }, [pickKey]);
   useEffect(() => {
     if (
+      // a supplier's and a loan's Repay is always typed, never filled in
+      kind === "supplier" ||
+      kind === "loanRepaid" ||
       unpaidOf === null ||
       unpaid === null ||
       sources === undefined ||
@@ -882,7 +889,9 @@ export function usePaymentEntryState({
   const filled = value > 0 && !amountOver;
   // what an expense or a tax is paid under is picked in the Paid for card itself
   const toDone = loanOf
-    ? loan !== null && !loanOver
+    ? oldLoanOn
+      ? oldLoan.whoDone
+      : loan !== null && !loanOver
     : to !== null && (to.kind !== "party" || (!matched && partyOk(newParty, true)));
   const sourceDone =
     gridOk &&
@@ -955,7 +964,10 @@ export function usePaymentEntryState({
           (payee.kind !== "party" ||
             (!payeeMatched && partyOk(newPayee, true, payeePhoneOptional)))),
     gst: gstMode === "none" || gstInput !== null,
-    terms: !Object.values(loanProblems(terms)).some(Boolean) && !(dueOn !== "" && dueOn < day),
+    // an old loan being added: its amount, date and terms; a loan given: its terms
+    terms: oldLoanOn
+      ? oldLoan.termsDone
+      : !Object.values(loanProblems(terms)).some(Boolean) && !(dueOn !== "" && dueOn < day),
     // a PAN typed and not Saved holds it up, only while its box is there
     details:
       day !== "" && !(panBad && showPan) && (into === "cash" || into === null || bankMode !== null),
@@ -966,7 +978,7 @@ export function usePaymentEntryState({
     "to",
     ...(headTds ? (["payee"] as Step[]) : []),
     ...(asksGst ? (["gst"] as Step[]) : []),
-    ...(kind === "loanGiven" ? (["terms"] as Step[]) : []),
+    ...(kind === "loanGiven" || oldLoanOn ? (["terms"] as Step[]) : []),
     "amount",
     "details",
   ];
@@ -1009,7 +1021,8 @@ export function usePaymentEntryState({
 
   // someone new being filled in: Change, beside the card's name, goes back to searching
   const changeOf = (s: Step) => {
-    if (s === "to" && to?.kind === "party") {
+    // (a supplier's: Change sits on the "New party" card instead, as a sale's)
+    if (s === "to" && to?.kind === "party" && kind !== "supplier") {
       return () => {
         setTo(null);
         setGstMode("none");
@@ -1063,7 +1076,13 @@ export function usePaymentEntryState({
     {
       step: "terms",
       value:
-        kind === "loanGiven" && terms.rate !== ""
+        oldLoanOn && oldLoan.value > 0
+          ? [
+              rupees(oldLoan.value),
+              oldLoan.terms.rate !== "" ? `${oldLoan.terms.rate}% ${tc("aYear")}` : "",
+              oldLoan.terms.frequency ? tl(`frequencies.${oldLoan.terms.frequency}`) : "",
+            ].filter((v) => v !== "")
+          : kind === "loanGiven" && terms.rate !== ""
           ? [
               `${terms.rate}% ${tc("aYear")}`,
               terms.frequency ? tl(`frequencies.${terms.frequency}`) : "",
@@ -1177,6 +1196,14 @@ export function usePaymentEntryState({
       }
     }
     if (!complete[current]) return guide();
+    // an old loan's terms: Next adds it, picks it once the list has it, and goes on to the amount
+    if (current === "terms" && oldLoanOn) {
+      const id = await oldLoan.save();
+      if (!id) return;
+      setAddedLoanId(id);
+      setAddingOldLoan(false);
+      return show("amount");
+    }
     // the amount leaves an advance: they say it's one before going on
     if (current === "amount" && !(await confirmAdvance())) return;
     show(steps[index + 1]!);
@@ -1447,6 +1474,7 @@ export function usePaymentEntryState({
     loansFailed,
     retryLoans,
     addingOldLoan,
+    oldLoan,
     setAddingOldLoan,
     editingTo,
     setEditingTo,

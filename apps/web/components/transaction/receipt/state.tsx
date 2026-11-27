@@ -39,6 +39,7 @@ import {
   lenderOk,
 } from "../loans/lender-fields";
 import { emptyLoan, type LoanDraft, loanInput, loanProblems } from "../loans/loan-terms";
+import { useOldLoan } from "../loans/old-loan-form";
 import { type LedgerChoice, type ReceiptKind } from "../pickers/ledger-picker";
 import { usePhoneMatches } from "../pickers/party-finder";
 import { refOkFor } from "../shared/bank-mode";
@@ -195,6 +196,9 @@ export function useReceiptEntryState({
       ? allBanks.reduce((sum, b) => sum + (b.available ?? 0), 0)
       : null;
   const loanOf = kind !== null && LOAN_KINDS.includes(kind);
+  // an old loan we gave, being added: who on Received from, the rest on Loan terms, whose Next adds it
+  const oldLoan = useOldLoan(true);
+  const oldLoanOn = loanOf && addingOldLoan;
   const fromParty = kind !== null && PARTY_KINDS.includes(kind);
   const { loans, loansLoading, loansFailed, retryLoans } = useLoansGiven(loanOf);
   useEffect(() => {
@@ -402,7 +406,9 @@ export function useReceiptEntryState({
   // when each card is filled in
   const filled = value > 0 && !loanOver;
   const fromDone = loanOf
-    ? loan !== null
+    ? oldLoanOn
+      ? oldLoan.whoDone
+      : loan !== null
     : kind === "loanTaken" && lender === null
       ? false
       : bankLoan
@@ -490,7 +496,10 @@ export function useReceiptEntryState({
     kind: kind !== null,
     from: fromDone,
     buyer: buyerDone,
-    terms: !Object.values(loanProblems(terms)).some(Boolean) && !(dueOn !== "" && dueOn < day),
+    // an old loan being added: its amount, date and terms; a loan taken: its terms
+    terms: oldLoanOn
+      ? oldLoan.termsDone
+      : !Object.values(loanProblems(terms)).some(Boolean) && !(dueOn !== "" && dueOn < day),
     amount: value > 0 && !loanOver && !tdsBad && intoDone && gridOk && refAccounts.every(refOk),
     into: intoDone && gridOk,
     details: day !== "",
@@ -502,7 +511,7 @@ export function useReceiptEntryState({
     ...(kind === "capital" ? [] : (["from"] as Step[])),
     // a scrap sale: who bought it, on a card of its own after the ledger
     ...(scrap ? (["buyer"] as Step[]) : []),
-    ...(kind === "loanTaken" ? (["terms"] as Step[]) : []),
+    ...(kind === "loanTaken" || oldLoanOn ? (["terms"] as Step[]) : []),
     "amount",
     "details",
   ];
@@ -620,7 +629,13 @@ export function useReceiptEntryState({
       step: "terms",
       heading: stepName("terms"),
       value:
-        kind === "loanTaken" && terms.rate !== ""
+        oldLoanOn && oldLoan.value > 0
+          ? [
+              rupees(oldLoan.value),
+              oldLoan.terms.rate !== "" ? `${oldLoan.terms.rate}% ${tc("aYear")}` : "",
+              oldLoan.terms.frequency ? tl(`frequencies.${oldLoan.terms.frequency}`) : "",
+            ].filter((v) => v !== "")
+          : kind === "loanTaken" && terms.rate !== ""
           ? [
               `${terms.rate}% ${tc("aYear")}`,
               terms.frequency ? tl(`frequencies.${terms.frequency}`) : "",
@@ -728,6 +743,14 @@ export function useReceiptEntryState({
       }
     }
     if (!complete[current]) return guide();
+    // an old loan's terms: Next adds it, picks it once the list has it, and goes on to the amount
+    if (current === "terms" && oldLoanOn) {
+      const id = await oldLoan.save();
+      if (!id) return;
+      setAddedLoanId(id);
+      setAddingOldLoan(false);
+      return show("amount");
+    }
     // the amount leaves an advance: they say it's one before going on
     if (current === "amount" && !(await confirmAdvance())) return;
     show(steps[index + 1]!);
@@ -994,6 +1017,7 @@ export function useReceiptEntryState({
     loanSearch,
     setLoanSearch,
     addingOldLoan,
+    oldLoan,
     setAddingOldLoan,
     setAddedLoanId,
     // worked out
