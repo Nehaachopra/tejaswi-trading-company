@@ -9,8 +9,9 @@ import { FILTER_BAR, SEARCH_BOX, SEARCH_INPUT } from "~/components/ui/page-style
 import { cn } from "~/lib/utils";
 import { useHistoryMonths } from "~/providers/history";
 
-// the kinds of transaction History lists (opening balances stay on their own page; returns join once they're built)
-export const HISTORY_TYPES = ["sale", "purchase", "receipt", "payment", "deposit", "withdrawal", "transfer", "drawing", "salary", "other"] as const;
+// the kinds of transaction History lists (opening balances stay on their own page; returns join once they're built).
+// Salary isn't one of its own: it's paid from Payment, so Payment lists it too
+export const HISTORY_TYPES = ["sale", "purchase", "receipt", "payment", "deposit", "withdrawal", "transfer", "drawing", "other"] as const;
 export type HistoryType = (typeof HISTORY_TYPES)[number];
 
 // the amount ranges, each from just over the last one's top

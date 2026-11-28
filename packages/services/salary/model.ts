@@ -4,6 +4,7 @@ import { amountModel } from "../accounts/model";
 import { remarksModel } from "../transaction/model";
 import { contraReferenceModel } from "../contra/model";
 import { BANK_MODE_REFERENCE, bankModeModel } from "../payment/model";
+import { companyModel } from "../setting/model";
 
 const idModel = z.string().uuid();
 
@@ -122,3 +123,31 @@ export const salaryPaymentModel = z.object({
 });
 
 export type SalaryPaymentModel = z.infer<typeof salaryPaymentModel>;
+
+// a salary or advance as History shows it, as a payment's voucher: who was paid, the
+// months a salary paid (oldest first, what of each), the advance taken back, where it was paid from, and our details
+export const salaryVoucherModel = z.object({
+  transactionId: idModel,
+  assignedId: z.string(),
+  dateTime: z.date(),
+  status: z.enum(["active", "cancelled"]),
+  kind: z.enum(["salary", "advance"]),
+  // the employee: their name, phone and default address, as they are now
+  employee: z.object({
+    name: z.string(),
+    phone: z.string().nullable(),
+    address: z.object({ line1: z.string(), line2: z.string().nullable(), city: z.string(), postalCode: z.string() }).nullable(),
+  }),
+  months: z.array(z.object({ year: z.number().int(), month: z.number().int(), amount: z.number() })),
+  advanceTaken: z.number(),
+  amount: z.number(),
+  cashAmount: z.number(),
+  banks: z.array(z.object({ name: z.string(), last4: z.string(), mode: z.enum(["upi", "imps", "neftRtgs", "cheque"]).nullable(), amount: z.number() })),
+  remarks: z.string().nullable(),
+  // who saved it, for Paid by
+  createdByName: z.string(),
+  company: companyModel,
+});
+
+export type SalaryVoucherModel = z.infer<typeof salaryVoucherModel>;
+

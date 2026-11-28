@@ -4,6 +4,7 @@ import {
   bankDetailsTable,
   employeesTable,
   partiesTable,
+  partyAddressesTable,
   salariesTable,
   salaryAdvanceDeductionsTable,
   salaryPostingsTable,
@@ -15,6 +16,7 @@ import {
 import AccountsService from "../accounts";
 import type { ActorModel } from "../accounts/model";
 import { BANK_MODE_DB, type BankMode } from "../payment/model";
+import SettingService from "../setting";
 import { fromPaise, toPaise } from "../accounts/money";
 import type { Tx } from "../stock/engine";
 import TransactionService from "../transaction";
@@ -27,6 +29,7 @@ import {
   type SalaryEmployeeModel,
   type SalaryIdInputModel,
   type SalaryPaymentModel,
+  type SalaryVoucherModel,
 } from "./model";
 
 // what a ledger holds today, debit as plus (cash and bank accounts hold a debit balance)
@@ -53,6 +56,7 @@ export default class SalaryService {
   constructor(
     private readonly accounts = new AccountsService(),
     private readonly transactions = new TransactionService(),
+    private readonly settings = new SettingService(),
   ) {}
 
   // every month due by now and not yet posted, for every active employee (from the month they joined, or were added to
@@ -432,6 +436,102 @@ export default class SalaryService {
       bankDetailsId: bank?.bankDetailsId ?? null,
       referenceNumber: s.referenceNumber ?? bank?.referenceNumber ?? null,
       remarks: s.remarks,
+    };
+  }
+
+  // a salary or advance as History shows it (see salaryVoucherModel). A salary's months: an employee's salaries settle
+  // the oldest month first, in the order they were paid, so this one's share (what was handed over and the advance
+  // taken back in it) falls on the months after what the payments before it settled
+  async voucher(input: SalaryIdInputModel): Promise<SalaryVoucherModel> {
+    const [row] = await db
+      .select({ s: salariesTable, t: transactionsTable, party: partiesTable })
+      .from(salariesTable)
+      .innerJoin(transactionsTable, eq(transactionsTable.id, salariesTable.transactionId))
+      .innerJoin(employeesTable, eq(employeesTable.id, salariesTable.employeeId))
+      .innerJoin(partiesTable, eq(partiesTable.id, employeesTable.partyId))
+      .where(eq(salariesTable.transactionId, input.transactionId));
+    if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Payment not found." });
+    const { s, t, party } = row;
+
+    // the advance taken back in it
+    const [taken] = await db
+      .select({ total: sql<string>`coalesce(sum(${salaryAdvanceDeductionsTable.amount}), 0)` })
+      .from(salaryAdvanceDeductionsTable)
+      .where(eq(salaryAdvanceDeductionsTable.paymentSalaryId, s.id));
+    const takenPaise = toPaise(taken?.total ?? 0);
+
+    // a salary: what the payments before it settled, then the months its own share falls on
+    const months: { year: number; month: number; amount: number }[] = [];
+    if (s.kind === "salary") {
+      const all = await db
+        .select({ id: salariesTable.id, amount: salariesTable.amount })
+        .from(salariesTable)
+        .innerJoin(transactionsTable, eq(transactionsTable.id, salariesTable.transactionId))
+        .where(and(eq(salariesTable.employeeId, s.employeeId), eq(salariesTable.kind, "salary"), eq(transactionsTable.status, "active")))
+        .orderBy(asc(transactionsTable.dateTime), asc(transactionsTable.createdAt), asc(salariesTable.id));
+      const before = all.slice(0, Math.max(0, all.findIndex((e) => e.id === s.id)));
+      const deductions = before.length
+        ? await db
+            .select({ amount: salaryAdvanceDeductionsTable.amount })
+            .from(salaryAdvanceDeductionsTable)
+            .where(inArray(salaryAdvanceDeductionsTable.paymentSalaryId, before.map((b) => b.id)))
+        : [];
+      let earlier = before.reduce((sum, b) => sum + toPaise(b.amount), 0) + deductions.reduce((sum, d) => sum + toPaise(d.amount), 0);
+      let share = toPaise(s.amount) + takenPaise;
+      const postings = await db
+        .select({ p: salaryPostingsTable })
+        .from(salaryPostingsTable)
+        .innerJoin(transactionsTable, eq(transactionsTable.id, salaryPostingsTable.transactionId))
+        .where(and(eq(salaryPostingsTable.employeeId, s.employeeId), eq(transactionsTable.status, "active")))
+        .orderBy(asc(salaryPostingsTable.year), asc(salaryPostingsTable.month));
+      for (const { p } of postings) {
+        if (share <= 0) break;
+        const net = toPaise(p.netAmount);
+        // what of this month the payments before it already settled
+        const settled = Math.min(earlier, net);
+        earlier -= settled;
+        const part = Math.min(net - settled, share);
+        if (part <= 0) continue;
+        share -= part;
+        months.push({ year: p.year, month: p.month, amount: part / 100 });
+      }
+    }
+
+    // where it was paid from: each bank account's part, and cash the rest
+    const banks = await db
+      .select()
+      .from(transactionBankDetailsTable)
+      .where(eq(transactionBankDetailsTable.transactionId, t.id))
+      .orderBy(asc(transactionBankDetailsTable.createdAt));
+    const bankPaise = banks.reduce((sum, b) => sum + toPaise(b.amount), 0);
+    const modeOf = Object.fromEntries(Object.entries(BANK_MODE_DB).map(([k, v]) => [v, k])) as Record<string, BankMode>;
+
+    // their address (the default one), as it is now
+    const [address] = await db
+      .select()
+      .from(partyAddressesTable)
+      .where(and(eq(partyAddressesTable.partyId, party.id), eq(partyAddressesTable.isActive, true)))
+      .orderBy(sql`${partyAddressesTable.isDefault} desc`)
+      .limit(1);
+    return {
+      transactionId: t.id,
+      assignedId: t.assignedId,
+      dateTime: t.dateTime,
+      status: t.status,
+      kind: s.kind,
+      employee: {
+        name: party.name,
+        phone: party.phone,
+        address: address ? { line1: address.addressLine1, line2: address.addressLine2, city: address.city, postalCode: address.postalCode } : null,
+      },
+      months,
+      advanceTaken: takenPaise / 100,
+      amount: Number(s.amount),
+      cashAmount: Math.max(0, toPaise(s.amount) - bankPaise) / 100,
+      banks: banks.map((b) => ({ name: b.bankNameSnapshot, last4: b.bankAccountLast4Snapshot, mode: modeOf[b.mode] ?? null, amount: Number(b.amount) })),
+      remarks: s.remarks,
+      createdByName: t.createdByName,
+      company: t.companySnapshot ?? (await this.settings.get("company")),
     };
   }
 }

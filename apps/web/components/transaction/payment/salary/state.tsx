@@ -331,7 +331,8 @@ export function useSalaryEntryState({
 
   // what's answered so far, a line each, for the summary
   const summary: SummaryItem<SalaryStep>[] = [
-    { key: "for", step: "for", heading: t("for"), value: kind ? t(`kinds.${kind}`) : null },
+    // as a payment's: Paid for, and the head picked there (Salary, Advance to employee)
+    { key: "for", step: "for", heading: tpf("steps.kind"), value: kind ? t(`heads.${kind}`) : null },
     {
       key: "employee",
       step: "pay",
@@ -416,7 +417,7 @@ export function useSalaryEntryState({
         });
         const [first, ...rest] = list.map((x) => x.transactionId);
         router.replace(
-          `/transaction/salary/${first}${rest.length ? `?also=${rest.join(",")}` : ""}`,
+          `/transaction/payment/salary/${first}${rest.length ? `?also=${rest.join(",")}` : ""}`,
         );
         return;
       }
@@ -436,7 +437,7 @@ export function useSalaryEntryState({
         remarks,
       });
       // on to its own page; replace, so going back doesn't land on the filled form
-      router.replace(`/transaction/salary/${s.transactionId}`);
+      router.replace(`/transaction/payment/salary/${s.transactionId}`);
     } catch (err) {
       setSaving(false);
       const code = (err as { data?: { code?: string } })?.data?.code;

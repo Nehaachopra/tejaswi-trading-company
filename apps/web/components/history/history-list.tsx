@@ -54,7 +54,8 @@ export function HistoryList() {
   const range = filters.amount ? AMOUNT_RANGES[filters.amount] : null;
   const span = filters.month ? monthSpan(filters.month) : null;
   const list = useHistory({
-    types: filters.type ? [filters.type] : [],
+    // (Payment takes salaries and advances in too)
+    types: filters.type === "payment" ? ["payment", "salary"] : filters.type ? [filters.type] : [],
     from: span?.from ?? null,
     to: span?.to ?? null,
     minAmount: range?.min ?? null,

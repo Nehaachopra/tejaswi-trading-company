@@ -15,6 +15,8 @@ import { useSavedPayment } from "~/providers/saved";
 export function PaymentEditSuccess({ id }: { id: string }) {
   const te = useTranslations("history.payment.edit");
   const own = useTranslations("transactions.payment.success");
+  // a loan given, an expense and a tax: named as on the payment's voucher
+  const particulars = useTranslations("transactions.payment.voucher.particulars");
   const read = useSavedPayment(id, true);
   // the amount's row named as on a new payment's success card (a supplier: Paid, a loan repaid, its interest, a loan
   // given, an expense's head, which tax), its figure always what was handed over
@@ -26,11 +28,11 @@ export function PaymentEditSuccess({ id }: { id: string }) {
       : paid.paidFor === "loanRepaid" || paid.paidFor === "interestPaid"
         ? own(paid.paidFor)
         : paid.paidFor === "loanGiven"
-          ? own("loanAmount")
+          ? particulars("loanPlain")
           : paid.paidFor === "expense"
-            ? titleCase(paid.paidToName)
+            ? particulars("expensePaid", { head: titleCase(paid.paidToName) })
             : paid.paidFor === "taxPaid"
-              ? own("taxPaid", { tax: (/[csi]?gst|tds|tcs/i.exec(paid.paidToName)?.[0] ?? paid.paidToName).toUpperCase() })
+              ? particulars("taxPaid", { head: /[csi]?gst|tds|tcs/i.exec(paid.paidToName)?.[0]?.toUpperCase() ?? titleCase(paid.paidToName) })
               : te("amount");
 
   return (

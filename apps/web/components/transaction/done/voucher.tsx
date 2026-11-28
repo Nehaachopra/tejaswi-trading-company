@@ -115,6 +115,7 @@ function Sources({ r, label }: { r: Voucher; label: string }) {
   // bank names in the language picked
   const bankName = useBankName();
   const t = useTranslations("transactions.voucher");
+  const payment = r.flow === "payment";
   const more = r.moreBankParts ?? [];
   const moreSum = more.reduce((sum, m) => sum + m.amount, 0);
   const cashPart =
@@ -158,8 +159,18 @@ function Sources({ r, label }: { r: Voucher; label: string }) {
           <thead>
             <tr>
               <th className={thCell}>{t("source")}</th>
-              <th className={thCell}>{t("mode")}</th>
-              <th className={thCell}>{t("account")}</th>
+              {/* a payment: the account first, then how it was paid */}
+              {payment ? (
+                <>
+                  <th className={thCell}>{t("account")}</th>
+                  <th className={thCell}>{t("mode")}</th>
+                </>
+              ) : (
+                <>
+                  <th className={thCell}>{t("mode")}</th>
+                  <th className={thCell}>{t("account")}</th>
+                </>
+              )}
               <th className={cn(thCell, "text-right")}>{t("amount")}</th>
             </tr>
           </thead>
@@ -167,8 +178,17 @@ function Sources({ r, label }: { r: Voucher; label: string }) {
             {rows.map((row, i) => (
               <tr key={row.key} className={cn(i < rows.length - 1 && "border-b border-chestnut/40")}>
                 <td className={td}>{row.name}</td>
-                <td className={td}>{row.mode}</td>
-                <td className={cn(td, "whitespace-nowrap")}>{row.account}</td>
+                {payment ? (
+                  <>
+                    <td className={cn(td, "whitespace-nowrap")}>{row.account}</td>
+                    <td className={td}>{row.mode}</td>
+                  </>
+                ) : (
+                  <>
+                    <td className={td}>{row.mode}</td>
+                    <td className={cn(td, "whitespace-nowrap")}>{row.account}</td>
+                  </>
+                )}
                 <td className={cn(td, "text-right")}>{money(row.amount)}</td>
               </tr>
             ))}
@@ -236,11 +256,11 @@ function useParticulars() {
         return [[tp("loanRepaid"), r.amount]];
       case "interestPaid":
         return [[tp("interest"), r.amount]];
-      // an expense or a tax: the head it was paid to
+      // an expense: its head ("Expense: Electricity paid"); a tax: which one ("Tax: CGST paid")
       case "expense":
-        return [[titleCase(r.counterName), r.amount]];
+        return [[tp("expensePaid", { head: titleCase(r.counterName) }), r.amount]];
       case "taxPaid":
-        return [[`${tp("taxPaid")}: ${titleCase(r.counterName)}`, r.amount]];
+        return [[tp("taxPaid", { head: /[csi]?gst|tds|tcs/i.exec(r.counterName)?.[0]?.toUpperCase() ?? titleCase(r.counterName) }), r.amount]];
       default:
         return [[tp(r.kind as never), r.amount]];
     }
@@ -268,7 +288,7 @@ function whatsAppLink(
 }
 
 // a button's look on the chestnut page, as on the invoice
-const pill =
+export const pill =
   "on-ivory flex min-h-11 items-center justify-center gap-2 rounded-control bg-ivory px-3 text-sm font-semibold text-chestnut disabled:opacity-50 sm:px-4";
 
 // a receipt's voucher, laid out like our tax invoice: our details and the voucher's, who it came from with the
@@ -531,14 +551,18 @@ export function ReceiptVoucher({
           {/* on the screen (History): who it was with (only when there was a party), beside what it was for, its ID, day
               and remarks (when typed), with where it was paid from or received in under them */}
           {h && (
-            <div className={cn("grid border-b border-chestnut/40 print:hidden", p && "sm:grid-cols-2")}>
-              {p && (
+            <div className={cn("grid border-b border-chestnut/40 print:hidden", (p || isPayment) && "sm:grid-cols-2")}>
+              {p ? (
                 <div className="flex min-w-0 flex-col border-b border-chestnut/40 sm:border-b-0 sm:border-r">
                   <p className={cn(band, "break-words")}>
                     {t("from")}: {fromName}
                   </p>
                   {partyLines}
                 </div>
+              ) : (
+                // a payment with no party (an expense to a head, a tax): Paid to's half left blank, so every payment
+                // keeps the same two halves
+                isPayment && <div aria-hidden className="hidden sm:block sm:border-r sm:border-chestnut/40" />
               )}
               <div className="flex min-w-0 flex-col">
                 <div className={cn("grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 [&>*:nth-last-child(-n+2)]:border-b-0", isPayment && "border-b border-chestnut/40")}>
@@ -635,13 +659,16 @@ export function ReceiptVoucher({
             </div>
           </div>
 
-          {/* who it was paid to or received from, the full width (from History: printed only) */}
-          <div className={cn("flex min-w-0 flex-col border-b border-chestnut/40", h && "hidden print:flex")}>
-            <p className={cn(band, "break-words")}>
-              {t("from")}: {fromName}
-            </p>
-            {partyLines}
-          </div>
+          {/* who it was paid to or received from, the full width (from History: printed only); a payment with no party
+              (an expense to a head, a tax) has none */}
+          {(p || !isPayment) && (
+            <div className={cn("flex min-w-0 flex-col border-b border-chestnut/40", h && "hidden print:flex")}>
+              <p className={cn(band, "break-words")}>
+                {t("from")}: {fromName}
+              </p>
+              {partyLines}
+            </div>
+          )}
 
           {/* the particulars: with GST, its code, taxable value, rate and each tax get columns; the last column is the
               whole, and the breakup's figures sit under it */}
@@ -709,7 +736,8 @@ export function ReceiptVoucher({
             )}
             <Breakup
               rows={breakup}
-              label={h ? ti("amount") : isPayment ? ownWords("amountPaid") : base("amountIn")}
+              // every payment: Amount paid, on the screen and printed
+              label={isPayment ? ownWords("amountPaid") : h ? ti("amount") : base("amountIn")}
               amount={`₹${money(r.amount)}`}
             />
           </div>

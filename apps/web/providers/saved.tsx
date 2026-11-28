@@ -48,6 +48,12 @@ export function useSavedSalary(transactionId: string, enabled: boolean) {
   return { saved: q.data, loading: q.isPending, loadFailed: q.isError };
 }
 
+// a salary or advance as History shows it: who, the months it paid, where from
+export function useSalaryVoucher(transactionId: string) {
+  const q = trpc.transactions.salary.voucher.useQuery({ transactionId });
+  return { voucher: q.data, loading: q.isPending, loadFailed: q.isError };
+}
+
 // salary paid to many: every other payment made with it
 // (null until every one is in hand)
 export function useSavedSalaries(transactionIds: string[]) {

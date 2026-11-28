@@ -55,7 +55,7 @@ import {
 import { contraIdInputModel, contraModel, type ContraKind, createContraInputModel, createTransferInputModel, savedContraModel } from "@repo/services/contra/model";
 import { createOtherInputModel, otherIdInputModel, otherModel, savedOtherModel } from "@repo/services/other/model";
 import { createDrawingInputModel, drawingIdInputModel, drawingModel, savedDrawingModel } from "@repo/services/drawing/model";
-import { paySalariesInputModel, paySalaryInputModel, salaryEmployeeModel, salaryIdInputModel, salaryPaymentModel } from "@repo/services/salary/model";
+import { paySalariesInputModel, paySalaryInputModel, salaryEmployeeModel, salaryIdInputModel, salaryPaymentModel, salaryVoucherModel } from "@repo/services/salary/model";
 import { noteKey, opensNote, opensSale, opensVoucher, saleKey, voucherKey } from "@repo/services/transaction/share-link";
 
 import { accountsService, contraService, documentService, drawingService, dueService, otherService, paymentEditService, paymentService, purchaseEditService, purchaseReturnService, purchaseService, receiptEditService, receiptService, salaryService, saleEditService, saleReturnService, saleService, settingService, transactionService } from "../../services";
@@ -621,6 +621,13 @@ const salaryRouter = router({
     .input(salaryIdInputModel)
     .output(salaryPaymentModel)
     .query(({ input }) => salaryService.get(input)),
+
+  // a salary or advance as History shows it: who, the months it paid, where from
+  voucher: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/salaries/{transactionId}/voucher", tags: ["transactions"] } })
+    .input(salaryIdInputModel)
+    .output(salaryVoucherModel)
+    .query(({ input }) => salaryService.voucher(input)),
 });
 
 // sale returns: goods back against a saved sale, refunded or exchanged for a new sale (the admin's)

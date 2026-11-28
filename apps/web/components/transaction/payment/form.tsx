@@ -5,6 +5,7 @@ import { ConfirmDialog } from "~/components/ui/confirm-dialog";
 import { DateInput } from "~/components/ui/date-input";
 import { rupees } from "~/lib/format";
 import { PaymentProvider } from "~/providers/payment";
+import { usePrefetchSalaryEmployees } from "~/providers/salary";
 import {
   draftUntouched as untouched,
   emptyDraft as emptyParty,
@@ -31,6 +32,7 @@ import { SalaryHandOff, SalaryHeads } from "./salary/heads";
 import { SaveBlock, DetailsCard } from "./details-card";
 import { GstCard } from "./gst-card";
 import { LoanCards, ToPicker, PayeePicker } from "./paid-to";
+import { moveCard } from "../shared/card-steps";
 
 // /transaction/payment: money paid out, as cards that appear one by one: each shows once the one above it is filled
 // in, and every card stays open to change. 1 Paid from: cash or a bank account (only those holding money, for the
@@ -42,10 +44,14 @@ import { LoanCards, ToPicker, PayeePicker } from "./paid-to";
 export function PaymentForm({ isAdmin }: { isAdmin: boolean }) {
   const [round, setRound] = useState(0);
   const [salaryKind, setSalaryKind] = useState<"salary" | "advance" | null>(null);
-  const backToPayment = () => {
-    setSalaryKind(null);
-    setRound((r) => r + 1);
-  };
+  // the employees asked ahead, so the salary stages need no loading of their own
+  usePrefetchSalaryEmployees(isAdmin);
+  // back to Paid for: sliding back, as any stage's Back
+  const backToPayment = () =>
+    moveCard(() => {
+      setSalaryKind(null);
+      setRound((r) => r + 1);
+    }, true);
   if (salaryKind)
     return <SalaryForm key={salaryKind} start={{ kind: salaryKind, amount: "", from: null, bankId: null }} onBackToPayment={backToPayment} />;
   return (
@@ -54,7 +60,9 @@ export function PaymentForm({ isAdmin }: { isAdmin: boolean }) {
         value={(kind) => {
           // a step of its own in the phone's history, so its Back comes back to Paid for
           window.history.pushState({ ...window.history.state, card: "pay" }, "");
-          setSalaryKind(kind);
+          // on to the employees stage, sliding in as any next stage
+          moveCard(() => setSalaryKind(kind));
+          window.scrollTo({ top: 0, behavior: "smooth" });
         }}
       >
         <PaymentEntry key={round} isAdmin={isAdmin} onDiscard={() => setRound((r) => r + 1)} />

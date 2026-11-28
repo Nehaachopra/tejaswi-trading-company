@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { SalaryProvider } from "~/providers/salary";
@@ -80,31 +81,34 @@ function SalaryEntryView() {
     next,
     saved,
   } = useSalaryEntry();
+  // a salary is paid from Payment: its title and type are Payment's
+  const tpay = useTranslations("transactions.payment.chat");
 
   // saved: only Saving… while its page opens (the employees asked again would otherwise redraw the form under it)
   if (saved)
     return (
-      <EntryNote title={t("title")} loading>
+      <EntryNote title={tpay("title")} loading>
         {t("saving")}
       </EntryNote>
     );
 
   if (loading)
     return (
-      <EntryNote title={t("title")} loading>
+      <EntryNote title={tpay("title")} loading>
         {tc("looking")}
       </EntryNote>
     );
   if (loadFailed)
     return (
-      <EntryNote title={t("title")} failed onRetry={retryLoad}>
+      <EntryNote title={tpay("title")} failed onRetry={retryLoad}>
         {t("loadFailed")}
       </EntryNote>
     );
 
   const lines = (
     <SummaryLines<SalaryStep>
-      type={t("title")}
+      // it's a payment: Payment, as the payment form's (its Paid for line says Salary or Advance to employee)
+      type={tpay("title")}
       items={summary}
       current={current}
       reachable={reachable}
@@ -116,7 +120,7 @@ function SalaryEntryView() {
   );
   return (
     <EntryPage
-      title={t("title")}
+      title={tpay("title")}
       summaryLabel={tpf("summary")}
       showBar={value > 0}
       bar={

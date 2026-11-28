@@ -34,7 +34,12 @@ export function HistoryRow({ row }: { row: HistoryRowData }) {
         {/* the type, then the ID and when */}
         <span className="flex min-w-0 flex-col gap-1">
           <span className="flex items-baseline gap-2 text-[0.9375rem] font-semibold">
-            {tt(row.type)}
+            {/* a salary or advance reads as the payment it is */}
+            {tt(row.type === "salary" ? "payment" : row.type)}
+            {/* a salary paid: a Salary tag beside Payment, on green */}
+            {row.salaryPaid && (
+              <span className="rounded-control bg-success px-2 py-1 text-[0.75rem] font-semibold leading-none text-ivory">{tt("salary")}</span>
+            )}
             {cancelled && <span className="rounded-control bg-chestnut/60 px-2 py-1 text-[0.75rem] font-semibold leading-none text-ivory">{t("cancelled")}</span>}
             {/* goods back on it, as the Edited badge: Returned on green; Pending return (replacements still to come) on
                 red, the only red badge */}

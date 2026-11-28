@@ -11,10 +11,11 @@ import { DebitNoteView } from "../transaction/purchase-return/debit-note";
 import { SaleInvoice } from "../transaction/sale/invoice";
 import { CreditNoteView } from "../transaction/sale-return/credit-note";
 import { ReceiptVoucher } from "../transaction/done/voucher";
+import { SalaryVoucher } from "../transaction/payment/salary/voucher";
 
 // /history/[id]: one transaction, shown its own way: a sale as its tax invoice, a sale return as its credit note, a
-// purchase laid out as the invoice, a purchase return as its debit note and a receipt or a payment as its
-// voucher. The other types come one at a time
+// purchase laid out as the invoice, a purchase return as its debit note, a receipt or a payment as its voucher and
+// a salary as a payment's. The other types come one at a time
 export function HistoryDetail({ id, isAdmin }: { id: string; isAdmin: boolean }) {
   const t = useTranslations("history");
   const { transaction, loading, notFound } = useHistoryTransaction(id);
@@ -38,5 +39,7 @@ export function HistoryDetail({ id, isAdmin }: { id: string; isAdmin: boolean })
   if (transaction.type === "purchase_return") return <DebitNoteView id={id} history={{ record: transaction, isAdmin }} />;
   if (transaction.type === "receipt") return <ReceiptVoucher id={id} history={{ record: transaction, isAdmin }} />;
   if (transaction.type === "payment") return <ReceiptVoucher id={id} flow="payment" history={{ record: transaction, isAdmin }} />;
+  // a salary or advance: as a payment's voucher (it's paid from Payment)
+  if (transaction.type === "salary") return <SalaryVoucher id={id} record={transaction} />;
   return <p className="mt-16 text-center text-ivory/70">{t("comingSoon")}</p>;
 }

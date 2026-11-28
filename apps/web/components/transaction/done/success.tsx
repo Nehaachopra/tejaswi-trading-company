@@ -45,6 +45,9 @@ export function ReceiptSuccess({
   const ownSalary = useTranslations("transactions.salary.success");
   // a salary's last row under its employees: Total, as a voucher's
   const tVoucher = useTranslations("transactions.voucher");
+  // a loan given, an expense and a tax: named as on the payment's voucher (Loan given, Expense: Electricity paid, Tax:
+  // CGST paid)
+  const particulars = useTranslations("transactions.payment.voucher.particulars");
   const ownDrawing = useTranslations("transactions.drawing.success");
   const tdr = useTranslations("transactions.drawing");
   const own =
@@ -154,7 +157,7 @@ export function ReceiptSuccess({
   const paid = paymentGet.saved;
   const taxPaid =
     isPayment && paid?.paidFor === "taxPaid"
-      ? { tax: (/[csi]?gst|tds|tcs/i.exec(paid.paidToName)?.[0] ?? paid.paidToName).toUpperCase(), amount: paid.amount }
+      ? { tax: /[csi]?gst|tds|tcs/i.exec(paid.paidToName)?.[0]?.toUpperCase() ?? titleCase(paid.paidToName), amount: paid.amount }
       : null;
   // a supplier, a loan repaid or its interest: what was handed over
   const handedKey =
@@ -211,10 +214,18 @@ export function ReceiptSuccess({
                   key={m.transactionId}
                   className="flex min-w-0 items-center justify-between gap-4 rounded-control border border-chestnut/25 py-1.5 pl-4 pr-2 text-left"
                 >
-                  <span className="truncate text-sm font-semibold">{m.employee.name}</span>
+                  <span className="truncate text-sm font-semibold">{titleCase(m.employee.name.toLowerCase())}</span>
                   <span className="flex shrink-0 items-center gap-1">
                     <span className="font-heading text-lg font-bold">{m.assignedId}</span>
                     <CopyButton value={m.assignedId} />
+                    {/* this employee's voucher */}
+                    <Link
+                      href={`/transaction/payment/salary/${m.transactionId}/voucher`}
+                      aria-label={t("voucher")}
+                      className="grid size-9 place-items-center rounded-control hover:bg-chestnut/8"
+                    >
+                      <FileText className="size-4" aria-hidden />
+                    </Link>
                   </span>
                 </p>
               ))}
@@ -228,9 +239,10 @@ export function ReceiptSuccess({
                   <CopyButton value={receipt.data.assignedId} />
                 </span>
               </p>
-              {!isDeposit && !isOther && !isSalary && !isDrawing && (
+              {!isDeposit && !isOther && !isDrawing && (
                 <Link
-                  href={`/transaction/${flow}/${id}/voucher`}
+                  // a salary's voucher is a payment's, under Payment
+                  href={isSalary ? `/transaction/payment/salary/${id}/voucher` : `/transaction/${flow}/${id}/voucher`}
                   className="flex min-h-11 w-full items-center justify-center gap-2 rounded-control border border-chestnut/50 px-4 text-sm font-semibold sm:w-auto"
                 >
                   <FileText className="size-4" aria-hidden /> {t("voucher")}
@@ -288,7 +300,7 @@ export function ReceiptSuccess({
           {loanGiven !== null && (
             <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
               <p className="flex items-baseline justify-between gap-4 py-3">
-                <span className="text-sm font-semibold">{ownPayment("loanAmount")}</span>
+                <span className="text-sm font-semibold">{particulars("loanPlain")}</span>
                 <span className="font-heading text-xl font-bold">{rupees(loanGiven)}</span>
               </p>
             </div>
@@ -298,7 +310,7 @@ export function ReceiptSuccess({
           {expense && (
             <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
               <p className="flex items-baseline justify-between gap-4 py-3">
-                <span className="min-w-0 truncate text-sm font-semibold">{titleCase(expense.head)}</span>
+                <span className="min-w-0 truncate text-sm font-semibold">{particulars("expensePaid", { head: titleCase(expense.head) })}</span>
                 <span className="shrink-0 font-heading text-xl font-bold">{rupees(expense.booked)}</span>
               </p>
             </div>
@@ -327,7 +339,7 @@ export function ReceiptSuccess({
           {taxPaid && (
             <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
               <p className="flex items-baseline justify-between gap-4 py-3">
-                <span className="min-w-0 truncate text-sm font-semibold">{ownPayment("taxPaid", { tax: taxPaid.tax })}</span>
+                <span className="min-w-0 truncate text-sm font-semibold">{particulars("taxPaid", { head: taxPaid.tax })}</span>
                 <span className="shrink-0 font-heading text-xl font-bold">{rupees(taxPaid.amount)}</span>
               </p>
             </div>

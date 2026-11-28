@@ -8,6 +8,12 @@ import { trpc } from "~/trpc/client";
 type PayIn = RouterInputs["transactions"]["salary"]["pay"];
 type PayAllIn = RouterInputs["transactions"]["salary"]["payAll"];
 
+// the employees asked ahead (the admin's payment form, before Salary or Advance to employee is picked), so the salary
+// stages open on them at once, as any other payment's next stage
+export function usePrefetchSalaryEmployees(enabled: boolean) {
+  trpc.transactions.salary.employees.useQuery(undefined, { enabled });
+}
+
 // what the salary form needs from the server before anything is typed: the employees (with their pay, the advance they
 // owe and the months still owed), the bank accounts, what cash and each account hold, and the save. Made once for the
 // page; the form reads it with useSalary(). Every read is tried again 3 times by itself before it counts as failed; the

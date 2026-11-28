@@ -57,6 +57,8 @@ export const transactionSummaryModel = z.object({
   returned: z.enum(["returned", "pending"]).nullable(),
   // a sale or purchase: Cash or Credit, as saved; other types: null
   transactedIn: z.enum(["cash", "credit"]).nullable(),
+  // a salary paid (not an advance): History tags its Payment row Salary
+  salaryPaid: z.boolean(),
 });
 
 export type TransactionSummaryModel = z.infer<typeof transactionSummaryModel>;

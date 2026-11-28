@@ -38,7 +38,8 @@ const PREFIX: Record<TransactionType, Prefix> = {
   transfer: "TR",
   drawing: "DR",
   other: "OT",
-  salary: "SL",
+  // a salary or advance is paid from Payment, so it takes the payments' numbering
+  salary: "PA",
   opening_balance: "OB",
 };
 
@@ -350,6 +351,7 @@ export default class TransactionService {
       lastEditedByName: edits.get(t.id)?.by ?? null,
       returned: returned.get(t.id) ?? null,
       transactedIn: paidIn.get(t.id) ?? null,
+      salaryPaid: t.type === "salary" && t.subType === "salary",
     }));
   }
 
@@ -794,6 +796,7 @@ export default class TransactionService {
             ? ((await this.purchaseReturnedOf([t.id])).get(t.id) ?? null)
             : null,
       transactedIn: (await this.paidInOf([t])).get(t.id) ?? null,
+      salaryPaid: t.type === "salary" && t.subType === "salary",
       returns: t.type === "sale" ? await this.returnsOf(t.id) : t.type === "purchase" ? await this.purchaseReturnsOf(t.id) : [],
       replacementFor: await this.replacementFor(t.id, t.type),
       returnedShare: await this.returnedShare(t.id, t.type),

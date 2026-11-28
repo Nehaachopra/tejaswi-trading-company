@@ -1574,13 +1574,14 @@
         "total": "Total",
         "billGst": "GST on bill {number}, GSTIN {gstin}: {gst} at {rate}%.",
         "particulars": {
-          "supplier": "Paid towards account",
+          "supplier": "Due repayment",
           "loan": "Loan given @ {rate}% a year, interest paid {frequency}",
           "loanPlain": "Loan given",
           "loanRepaid": "Loan repaid",
           "interest": "Interest paid",
           "refund": "Refund paid",
-          "taxPaid": "Tax paid",
+          "expensePaid": "Expense: {head} paid",
+          "taxPaid": "Tax: {head} paid",
           "advance": "Advance paid"
         },
         "lessRcm": "Less RCM GST {rate}% (paid by us)"
@@ -1902,6 +1903,11 @@
       "ledgerName": "Ledger name"
     },
     "salary": {
+      "voucher": {
+        "employee": "Employee",
+        "advanceLine": "Advance to employee",
+        "lessAdvance": "Less: Set off from advance"
+      },
       "title": "Salary",
       "loadFailed": "Couldn't load the employees. Check your connection and try again.",
       "steps": {
@@ -1942,7 +1948,7 @@
         "failed": "Couldn't save the payment. Try again."
       },
       "success": {
-        "title": "Salary paid successfully",
+        "title": "Payment successfully created",
         "loading": "Loading the payment…",
         "loadError": "Couldn't load the payment. Check your connection and try again.",
         "salaryPaid": "Salary paid",
