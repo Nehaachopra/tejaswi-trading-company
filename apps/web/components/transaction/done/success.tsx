@@ -43,6 +43,8 @@ export function ReceiptSuccess({
   const ownTransfer = useTranslations("transactions.transfer.success");
   const ownOther = useTranslations("transactions.other.success");
   const ownSalary = useTranslations("transactions.salary.success");
+  // a salary's last row under its employees: Total, as a voucher's
+  const tVoucher = useTranslations("transactions.voucher");
   const ownDrawing = useTranslations("transactions.drawing.success");
   const tdr = useTranslations("transactions.drawing");
   const own =
@@ -302,8 +304,8 @@ export function ReceiptSuccess({
             </div>
           )}
 
-          {/* a salary or an advance: each employee paid in this save with what they were paid, then what was paid in all
-              (one employee: just them and Salary paid) */}
+          {/* a salary or an advance: each employee paid in this save with what they were paid, then Total
+              (an advance: the employee, then Advance paid) */}
           {salaryPaid && (
             <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
               {(many ?? (salaryGet.saved ? [salaryGet.saved] : [])).map((m) => (
@@ -314,7 +316,7 @@ export function ReceiptSuccess({
               ))}
               <p className="flex items-baseline justify-between gap-4 py-3">
                 <span className="text-sm font-semibold">
-                  {ownSalary(salaryPaid.kind === "advance" ? "advancePaid" : "salaryPaid")}
+                  {salaryPaid.kind === "advance" ? ownSalary("advancePaid") : tVoucher("total")}
                 </span>
                 <span className="font-heading text-xl font-bold">{rupees(salaryPaid.amount)}</span>
               </p>
