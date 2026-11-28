@@ -8,12 +8,12 @@ import { RequiredMark } from "~/components/ui/required-mark";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
-import { LedgerSearch } from "../pickers/ledger-picker";
-import { chip, input } from "../shared/form-basics";
-import { PartyEditor } from "../shared/party-editor";
-import { FixedBanner } from "../shared/amount-banner";
-import { PaymentStage } from "../shared/payment-stage";
-import { AutoSwitch } from "../shared/split-grid";
+import { LedgerSearch } from "../../pickers/ledger-picker";
+import { chip, input } from "../../shared/form-basics";
+import { PartyEditor } from "../../shared/party-editor";
+import { FixedBanner } from "../../shared/amount-banner";
+import { PaymentStage } from "../../shared/payment-stage";
+import { AutoSwitch } from "../../shared/split-grid";
 import { SalaryCards, useSalaryCards } from "./salary-cards";
 import { SalaryTable } from "./salary-table";
 import { useSalaryEntry } from "./state";

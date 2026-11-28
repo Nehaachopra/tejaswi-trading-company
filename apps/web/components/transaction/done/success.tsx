@@ -302,9 +302,16 @@ export function ReceiptSuccess({
             </div>
           )}
 
-          {/* a salary or an advance: what was paid */}
+          {/* a salary or an advance: each employee paid in this save with what they were paid, then what was paid in all
+              (one employee: just them and Salary paid) */}
           {salaryPaid && (
             <div className="tabular flex w-full max-w-lg flex-col rounded-control border border-chestnut/25 px-4 text-left">
+              {(many ?? (salaryGet.saved ? [salaryGet.saved] : [])).map((m) => (
+                <p key={m.transactionId} className="flex items-baseline justify-between gap-4 border-b border-chestnut/15 py-2.5">
+                  <span className="min-w-0 truncate text-sm">{titleCase(m.employee.name.toLowerCase())}</span>
+                  <span className="shrink-0 font-semibold">{rupees(m.amount)}</span>
+                </p>
+              ))}
               <p className="flex items-baseline justify-between gap-4 py-3">
                 <span className="text-sm font-semibold">
                   {ownSalary(salaryPaid.kind === "advance" ? "advancePaid" : "salaryPaid")}

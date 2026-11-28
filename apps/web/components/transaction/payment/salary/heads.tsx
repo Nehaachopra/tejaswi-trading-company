@@ -4,8 +4,8 @@ import { createContext, useContext } from "react";
 
 import { useTranslations } from "next-intl";
 
-import { chip } from "./shared";
-import { usePaymentEntry } from "./state";
+import { chip } from "../shared";
+import { usePaymentEntry } from "../state";
 
 // what Salary and Advance to employee do: the payment page turns into the salary flow, on its employees stage
 export const SalaryHandOff = createContext<((kind: "salary" | "advance") => void) | null>(null);

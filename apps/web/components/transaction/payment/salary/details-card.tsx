@@ -8,8 +8,8 @@ import { Spinner } from "~/components/ui/icons/spinner";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
-import { indiaDay } from "../../account/balance";
-import { input, REFERENCE_MAX, REMARKS_MAX } from "../shared/form-basics";
+import { indiaDay } from "../../../account/balance";
+import { input, REFERENCE_MAX, REMARKS_MAX } from "../../shared/form-basics";
 import { useSalaryEntry } from "./state";
 
 // the reference (a bank payment's UTR or cheque no., a cash voucher no.) beside the remarks, as a receipt has them

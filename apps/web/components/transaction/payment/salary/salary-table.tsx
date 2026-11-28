@@ -8,7 +8,7 @@ import { Switch } from "~/components/ui/switch";
 import { rupees, titleCase } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
-import { input } from "../shared/form-basics";
+import { input } from "../../shared/form-basics";
 import { useSalaryEntry, type SalaryEntryState } from "./state";
 
 type Row = SalaryEntryState["table"][number];

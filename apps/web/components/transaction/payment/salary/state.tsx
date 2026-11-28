@@ -10,12 +10,12 @@ import { rupees, titleCase } from "~/lib/format";
 import { useLeaveGuard } from "~/lib/use-leave-guard";
 import { useSalary } from "~/providers/salary";
 
-import { indiaDay } from "../../account/balance";
-import { type LedgerChoice } from "../pickers/ledger-picker";
-import { moveCard, useCardHistory } from "../shared/card-steps";
-import { type SummaryItem } from "../shared/entry-frame";
-import { refOkFor } from "../shared/bank-mode";
-import { momentOf } from "../shared/form-basics";
+import { indiaDay } from "../../../account/balance";
+import { type LedgerChoice } from "../../pickers/ledger-picker";
+import { moveCard, useCardHistory } from "../../shared/card-steps";
+import { type SummaryItem } from "../../shared/entry-frame";
+import { refOkFor } from "../../shared/bank-mode";
+import { momentOf } from "../../shared/form-basics";
 
 // the cards, in order: what for and who (a salary: the table); how much and where it's paid from; then the
 // reference, the remarks, the day and Save
@@ -460,6 +460,7 @@ export function useSalaryEntryState({
     employees,
     banks,
     creating,
+    saved,
     kind,
     setKind,
     table,

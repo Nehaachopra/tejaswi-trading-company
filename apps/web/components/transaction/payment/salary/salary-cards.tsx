@@ -1,7 +1,7 @@
 "use client";
 
-import { AccountCards } from "../shared/account-cards/account-cards";
-import { type AccountCardsApi, type Refs } from "../shared/account-cards/types";
+import { AccountCards } from "../../shared/account-cards/account-cards";
+import { type AccountCardsApi, type Refs } from "../../shared/account-cards/types";
 import { useSalaryEntry } from "./state";
 
 // a salary's Paid from as a payment's: a card per place (cash or a bank account), picked one by one or filled by Auto

@@ -12,7 +12,7 @@ import {
   SummaryBar,
   SummaryCard,
   SummaryLines,
-} from "../shared/entry-frame";
+} from "../../shared/entry-frame";
 import { DetailsCard, SaveBlock } from "./details-card";
 import { AmountCard, ForCard, PayCard } from "./pay-card";
 import {
@@ -78,7 +78,16 @@ function SalaryEntryView() {
     leaveDialog,
     show,
     next,
+    saved,
   } = useSalaryEntry();
+
+  // saved: only Saving… while its page opens (the employees asked again would otherwise redraw the form under it)
+  if (saved)
+    return (
+      <EntryNote title={t("title")} loading>
+        {t("saving")}
+      </EntryNote>
+    );
 
   if (loading)
     return (
