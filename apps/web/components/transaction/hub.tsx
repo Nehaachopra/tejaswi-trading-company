@@ -12,7 +12,6 @@ import {
   type LucideIcon,
   ShoppingCart,
   Truck,
-  Users,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
@@ -24,7 +23,8 @@ import { toast } from "~/components/ui/toast";
 type Kind = { key: string; icon: LucideIcon; href?: string; adminOnly?: boolean };
 
 // every kind of transaction, under what it's about: goods moving, orders, money, then the admin's own; the ones built
-// so far open their page. Returns aren't here: they start from a sale's or purchase's row in History
+// so far open their page. Returns aren't here: they start from a sale's or purchase's row in History; salary isn't
+// either: it starts from Payment's Paid for (Salary, Advance to employee)
 const GROUPS: { key: string; kinds: Kind[] }[] = [
   {
     key: "goods",
@@ -48,7 +48,6 @@ const GROUPS: { key: string; kinds: Kind[] }[] = [
       { key: "deposit", icon: Landmark, href: "/transaction/deposit" },
       { key: "withdrawal", icon: Wallet, href: "/transaction/withdrawal" },
       { key: "transfer", icon: ArrowLeftRight, href: "/transaction/transfer" },
-      { key: "salary", icon: Users, adminOnly: true, href: "/transaction/salary" },
     ],
   },
   {
@@ -64,7 +63,7 @@ const tile =
   "flex min-h-24 flex-col items-center justify-center gap-2 rounded-control bg-ivory p-3 text-center font-heading text-base font-bold text-chestnut";
 
 // /transaction: a tile for every kind of transaction the person may make, group by group under its heading (purchase
-// orders, salary, drawings and others are the admin's; a group with nothing for the person isn't shown); a kind not
+// orders, drawings and others are the admin's; a group with nothing for the person isn't shown); a kind not
 // built yet says so
 export function TransactionHub({ isAdmin }: { isAdmin: boolean }) {
   const t = useTranslations("transactions.hub");
