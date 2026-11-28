@@ -72,14 +72,14 @@ export type PaymentEdit = {
 };
 
 // an effect for a change only: it skips the first render, so what an edit starts from isn't wiped as the form opens
-// (for a new payment nothing is there yet, so skipping it changes nothing)
+// (for a new payment nothing is there yet, so skipping it changes nothing). It runs only when a dep's value really
+// differs from the last seen, so React running effects twice as the form opens never counts as a change
 function useOnChange(effect: () => void, deps: unknown[]) {
-  const first = useRef(true);
+  const last = useRef(deps);
   useEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return;
-    }
+    const changed = deps.some((d, i) => !Object.is(d, last.current[i]));
+    last.current = deps;
+    if (!changed) return;
     effect();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the caller's own deps
   }, deps);
