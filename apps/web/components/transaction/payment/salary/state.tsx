@@ -337,12 +337,15 @@ export function useSalaryEntryState({
       step: "pay",
       heading: t("employee"),
       value:
+        // each employee paid, their name on the left and what they're paid on the right (an advance: once typed)
         kind === "salary"
           ? lines.length
-            ? t("employeesCount", { count: lines.length })
+            ? lines.map((r) => ({ name: r.employee.shortName ?? titleCase(r.employee.name.toLowerCase()), amount: rupees(r.total) }))
             : null
           : employee
-            ? (employee.shortName ?? titleCase(employee.name.toLowerCase()))
+            ? value > 0
+              ? { name: employee.shortName ?? titleCase(employee.name.toLowerCase()), amount: rupees(value) }
+              : (employee.shortName ?? titleCase(employee.name.toLowerCase()))
             : null,
     },
     {
