@@ -97,7 +97,8 @@ export default class PaymentService {
 
   // the save itself, inside a database transaction: a new payment, or (`over`, an edit) the same payment written again
   // under its own number, its old ledger effect, dues and rows already taken away by the edit
-  async saveIn(tx: Tx, input: CreatePaymentInputModel, actor: ActorModel, over: { id: string; assignedId: string } | null) {
+  // (`over`: an edit, saved under the payment's own id and number; `loanDueId`: the loan given's due it made, kept)
+  async saveIn(tx: Tx, input: CreatePaymentInputModel, actor: ActorModel, over: { id: string; assignedId: string; loanDueId?: string | null } | null) {
     {
       // a loan repaid or its interest: the loan we took, which says who it goes to
       const loan = input.dueId ? await this.dues.loanIn(tx, input.dueId, "loanTaken") : null;
@@ -373,7 +374,9 @@ export default class PaymentService {
       if (input.loan) {
         if (!party) throw new TRPCError({ code: "BAD_REQUEST", message: "A loan goes to a party." });
         const { dueOn, ...terms } = input.loan;
-        await this.dues.createIn(tx, { kind: "loanGiven", party, transactionId: t.id, amount: input.amount, dueOn, terms });
+        // (an edit writes its own due again, so what came back on it stays with it)
+        if (over?.loanDueId) await this.dues.rewriteGivenIn(tx, over.loanDueId, { party, amount: input.amount, dueOn, terms });
+        else await this.dues.createIn(tx, { kind: "loanGiven", party, transactionId: t.id, amount: input.amount, dueOn, terms });
       }
       return { t };
     }

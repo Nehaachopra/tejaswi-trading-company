@@ -6,7 +6,6 @@ import {
   ledgerEntriesTable,
   ledgersTable,
   paymentsTable,
-  receiptsTable,
   transactionBankDetailsTable,
   transactionEditLogsTable,
   transactionsTable,
@@ -37,7 +36,7 @@ const rupeesOf = (paise: number) => `₹${(paise / 100).toLocaleString("en-IN", 
 
 // Editing a payment (the admin's): the payment form again, over the saved payment, what it was paid for fixed. Its old
 // ledger effect is reversed (on its own day), what it settled and its rows taken away, and the payment form's own save
-// writes it again under its own number, on its own month's day. A loan given keeps what came back on it. Each edit is
+// writes it again under its own number, on its own month's day. A loan given keeps its due, and what came back on it. Each edit is
 // kept in the edit log
 export default class PaymentEditService {
   constructor(
@@ -194,18 +193,8 @@ export default class PaymentEditService {
       await tx.delete(paymentsTable).where(eq(paymentsTable.id, p.id));
 
       // written again by the payment form's own save, under its own number
-      await this.payments.saveIn(tx, payment, actor, { id: t.id, assignedId: t.assignedId });
-
-      // a loan given: what came back on the old due (and interest named on it) moves to the new one, and the old goes
-      if (given) {
-        const [made] = await tx.select({ id: duesTable.id }).from(duesTable).where(and(eq(duesTable.transactionId, t.id), ne(duesTable.id, given.due.id)));
-        if (made) {
-          await tx.update(dueSettlementsTable).set({ dueId: made.id, updatedAt: new Date() }).where(eq(dueSettlementsTable.dueId, given.due.id));
-          await tx.update(paymentsTable).set({ interestOnDueId: made.id }).where(eq(paymentsTable.interestOnDueId, given.due.id));
-          await tx.update(receiptsTable).set({ interestOnDueId: made.id }).where(eq(receiptsTable.interestOnDueId, given.due.id));
-          await tx.delete(duesTable).where(eq(duesTable.id, given.due.id));
-        }
-      }
+      // (a loan given: its own due is written again in place, so what came back on it, and interest named on it, stay)
+      await this.payments.saveIn(tx, payment, actor, { id: t.id, assignedId: t.assignedId, loanDueId: given?.due.id ?? null });
 
       // the edit log: what changed, from what to what
       const [now] = await tx.select().from(paymentsTable).where(eq(paymentsTable.transactionId, t.id));

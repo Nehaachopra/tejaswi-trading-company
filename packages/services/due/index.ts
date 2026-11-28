@@ -99,6 +99,24 @@ export default class DueService {
     return due!.id;
   }
 
+  // a loan given's due written again by an edit of the payment that made it: the same row (what came back on it, and
+  // interest named on it, stay with it), with who it's with, the amount and the terms as now saved
+  async rewriteGivenIn(tx: Tx, dueId: string, input: { party: Party; amount: number; dueOn: string | null; terms: Omit<LoanTermsInputModel, "dueOn"> }) {
+    await tx
+      .update(duesTable)
+      .set({
+        partyId: input.party.id,
+        partyName: input.party.name.slice(0, 150),
+        partyPhone: input.party.phone ?? null,
+        amount: fromPaise(toPaise(input.amount)),
+        dueOn: input.dueOn,
+        interestRate: input.terms.interestRate.toFixed(2),
+        frequency: input.terms.frequency,
+        updatedAt: new Date(),
+      })
+      .where(eq(duesTable.id, dueId));
+  }
+
   // the dues still open, oldest first, with what's left of each; locked when inside a save, so two payments can't
   // settle the same rupee
   private async open(q: Tx | typeof db, where: SQL | undefined, lock = false) {
