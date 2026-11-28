@@ -9,6 +9,7 @@ import { type AmountRow } from "../shared/amount-table";
 import { Figure, LeftRow, PaymentStage as SharedStage } from "../shared/payment-stage";
 import { AutoSwitch } from "../shared/split-grid";
 import { usePaymentCards } from "./paid-from";
+import { useOriginalPayment } from "./original-payment";
 import { usePaymentEntry } from "./state";
 
 // the Amount stage of a payment against a due (a supplier, a loan repaid), on the shared one. On the left: Due left (or Advance left) with its arrow, Repay typed (the
@@ -48,9 +49,11 @@ export function DueAmount({
   const repaid = Math.round((total - (tax?.rcm?.gst ?? 0)) * 100) / 100;
 
   // Repay: typed, in sale's To receive box (the mic in the icon column), its problems under it
-  const repayRow = (
+  const original = useOriginalPayment();
+  const repayRow = (arrow: ReactNode) => (
     <>
       <TypedBanner
+        slot={arrow}
         id="amount-field"
         label={names?.box ?? t("repay")}
         value={repay.value}
@@ -98,6 +101,7 @@ export function DueAmount({
       breakupLabel={t("duePart")}
       leftSide={[{ key: "left", label: left.label, amount: left.amount }]}
       amountBox={repayRow}
+      original={original}
       second={{
         label: <span className="font-semibold">{t("toPay")}</span>,
         value: (

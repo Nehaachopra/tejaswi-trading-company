@@ -1821,6 +1821,8 @@ export function usePaymentEntryState({
     isAdmin,
     onDiscard,
     editing,
+    // an edit: what was handed over as first saved (its Amount stage's Original payment)
+    originalPaid: ed ? ed.amount : null,
     dayMin,
     dayMax,
   };

@@ -4,13 +4,12 @@ import { IndianRupee } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { PickMenu } from "~/components/stock/pick-menu";
-import { MicField } from "~/components/ui/mic-button";
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { cn } from "~/lib/utils";
 
 import { signed } from "../../account/balance";
-import { chip, input, saidAmount } from "../shared/form-basics";
+import { chip, input } from "../shared/form-basics";
 import { type NewLedger, useOtherEntry } from "./state";
 
 // the Entry card, laid out like a receipt's Amount card: on a phone one column; on a wider screen the amount on the
@@ -28,7 +27,7 @@ export function EntryCard() {
         </span>
         {/* a chestnut fill once there's an amount */}
         <div className={filled ? "text-ivory [&_button]:text-ivory" : undefined}>
-          <MicField onText={(said) => saidAmount(said, setAmount)}>
+          <div className="relative">
             <IndianRupee className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2" aria-hidden />
             <NumberInput
               id="amount-field"
@@ -38,9 +37,9 @@ export function EntryCard() {
               maxDigits={13}
               placeholder="0"
               aria-invalid={(tried && value === 0) || undefined}
-              className={cn(input(tried && value === 0), "min-h-14 pl-10 pr-11 font-heading text-2xl font-bold", filled && "bg-chestnut text-ivory caret-ivory")}
+              className={cn(input(tried && value === 0), "min-h-14 pl-10 pr-3.5 font-heading text-2xl font-bold", filled && "bg-chestnut text-ivory caret-ivory")}
             />
-          </MicField>
+          </div>
         </div>
       </label>
 

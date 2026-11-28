@@ -4,7 +4,6 @@ import { IndianRupee } from "lucide-react";
 import { useState } from "react";
 
 import { FieldMessage } from "~/components/ui/field-message";
-import { MicField } from "~/components/ui/mic-button";
 import { Note } from "~/components/ui/note";
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
@@ -17,7 +16,7 @@ import { cn } from "~/lib/utils";
 import { type AmountRow, PlainRows } from "../shared/amount-table";
 import { DueFlow, FoldGroup } from "../shared/fold-group";
 import { ReceivedInto } from "./received-into";
-import { input, saidAmount } from "./shared";
+import { input } from "./shared";
 import { useReceiptEntry } from "./state";
 
 // the Amount card, laid out as a payment's: the supporting details on top (the due, an advance of theirs with us, the
@@ -192,7 +191,7 @@ export function AmountCard() {
                   {tc("q.amount")}
                   <RequiredMark />
                 </>,
-                <MicField onText={(said) => saidAmount(said, typeAmount)}>
+                <div className="relative">
                   {rupeeMark(filled)}
                   <NumberInput
                     id="amount-field"
@@ -206,11 +205,10 @@ export function AmountCard() {
                     className={cn(
                       input(loanOver || (tried && value === 0)),
                       amountBox,
-                      "pr-12",
                       filled && filledBox,
                     )}
                   />
-                </MicField>,
+                </div>,
                 "amount-field",
               )
             )}

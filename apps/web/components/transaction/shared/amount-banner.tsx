@@ -1,21 +1,19 @@
 "use client";
 
 import { IndianRupee } from "lucide-react";
+import { type ReactNode } from "react";
 
-import { MicButton } from "~/components/ui/mic-button";
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
-import { saidAmount } from "./form-basics";
-
 // To receive (a sale's Received card, new and edit) and To pay (a purchase's Paid card): its name on the left, the amount in a chestnut box as wide as the
-// rows' figures, the mic/arrow column at the right end (the mic for a typed one, empty for a fixed one). Fixed (a
+// rows' figures, the arrow column at the right end (empty unless an arrow is given). Fixed (a
 // walk-in's, a refund): the amount itself on chestnut, nothing to tap. Typed (a customer's): an ivory box to type in
 // inside the chestnut, so what's typed reads apart from what's given at a glance; both the same size
 // the mic/arrow column at the right end, as Line's
-const slot = "grid size-10 shrink-0 place-items-center";
+const slotClass = "grid size-10 shrink-0 place-items-center";
 
 export function FixedBanner({ label, amount }: { label: string; amount: number }) {
   return (
@@ -26,7 +24,7 @@ export function FixedBanner({ label, amount }: { label: string; amount: number }
       <span className="tabular flex min-h-14 w-[55%] shrink-0 items-center justify-end rounded-control bg-chestnut px-4 pt-1 font-heading text-2xl font-bold leading-none text-ivory">
         {rupees(amount)}
       </span>
-      <span className={slot} aria-hidden />
+      <span className={slotClass} aria-hidden />
     </div>
   );
 }
@@ -44,6 +42,7 @@ export function TypedBanner({
   decimals = 2,
   maxDigits = 13,
   placeholder = "0",
+  slot,
 }: {
   id: string;
   label: string;
@@ -60,10 +59,12 @@ export function TypedBanner({
   decimals?: number;
   maxDigits?: number;
   placeholder?: string;
+  // in the column beside: an arrow (an edited payment's Original payment), else empty
+  slot?: ReactNode;
 }) {
   return (
     // its name on the left, as any row's; the chestnut frame around the box only, as wide as the rows' figures (a tap
-    // on the frame focuses the box); the mic in the column beside
+    // on the frame focuses the box); the column beside for an arrow
     <div className="flex min-w-0 items-center gap-2">
       <label
         htmlFor={id}
@@ -102,12 +103,7 @@ export function TypedBanner({
           />
         </span>
       </label>
-      <span className={slot}>
-        <MicButton
-          onText={(said) => saidAmount(said, onChange)}
-          className="rounded-[var(--radius-control)]"
-        />
-      </span>
+      <span className={slotClass}>{slot}</span>
     </div>
   );
 }

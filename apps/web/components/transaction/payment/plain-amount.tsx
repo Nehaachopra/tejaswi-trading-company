@@ -11,6 +11,7 @@ import { TypedBanner } from "../shared/amount-banner";
 import { Figure, LeftRow, PaymentStage as SharedStage } from "../shared/payment-stage";
 import { AutoSwitch } from "../shared/split-grid";
 import { usePaymentCards } from "./paid-from";
+import { useOriginalPayment } from "./original-payment";
 import { usePaymentEntry } from "./state";
 
 // a loan given's Amount stage, on the shared one, as a supplier's: Loan due with its arrow (what they'll owe on their
@@ -39,6 +40,7 @@ export function PlainAmount({
     Math.round((loans ?? []).filter((d) => d.partyId === partyId).reduce((sum, d) => sum + d.left, 0) * 100) / 100;
   const after = Math.round((before + value) * 100) / 100;
   const cards = { ...usePaymentCards(), meterOutside: true };
+  const original = useOriginalPayment();
   const placed = Math.round(gridPlaces.reduce((sum, p) => sum + p.amount, 0) * 100) / 100;
   return (
     <SharedStage
@@ -64,9 +66,10 @@ export function PlainAmount({
         ),
         title: t("toPay"),
       }}
-      amountBox={
+      amountBox={(arrow) => (
         <>
           <TypedBanner
+            slot={arrow}
             id="amount-field"
             label={label}
             value={amount.value}
@@ -77,7 +80,8 @@ export function PlainAmount({
           />
           {problems}
         </>
-      }
+      )}
+      original={original}
       amount={value}
       placed={placed}
       leftLabel={t("leftToPay")}

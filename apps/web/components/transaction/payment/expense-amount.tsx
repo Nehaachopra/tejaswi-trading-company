@@ -8,6 +8,7 @@ import { TypedBanner } from "../shared/amount-banner";
 import { Figure, type LeftItem, LeftRow, PaymentStage as SharedStage } from "../shared/payment-stage";
 import { AutoSwitch } from "../shared/split-grid";
 import { usePaymentCards } from "./paid-from";
+import { useOriginalPayment } from "./original-payment";
 import { usePaymentEntry } from "./state";
 
 // a row of To pay's breakup: its name, the figure (null: still being worked out), added (+), taken off (−) or neither,
@@ -41,6 +42,7 @@ export function ExpenseAmount({
 }) {
   const { t, value, gridPlaces, gridAuto, setGridAuto } = usePaymentEntry();
   const cards = { ...usePaymentCards(), meterOutside: true };
+  const original = useOriginalPayment();
   const placed = Math.round(gridPlaces.reduce((sum, p) => sum + p.amount, 0) * 100) / 100;
   const figureOf = (r: PayRow) =>
     r.amount === null ? "—" : r.sign === "×" ? `× ${r.amount}` : `${r.sign ? `${r.sign} ` : ""}${rupees(r.amount)}`;
@@ -52,12 +54,13 @@ export function ExpenseAmount({
       ownBreakup={first?.box}
       breakupLabel={first?.label ?? ""}
       leftSide={first ? [first.item] : []}
-      amountBox={
+      amountBox={(arrow) => (
         <>
-          <TypedBanner {...input} />
+          <TypedBanner {...input} slot={arrow} />
           {problems}
         </>
-      }
+      )}
+      original={original}
       second={{
         label: <span className="font-semibold">{t("toPay")}</span>,
         value: (

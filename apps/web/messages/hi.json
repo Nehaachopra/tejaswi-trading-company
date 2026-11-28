@@ -1726,6 +1726,7 @@
         "barTotal": "भुगतान",
         "barPaidLabel": "दिया",
         "leftToPay": "देना बाकी",
+        "originalPayment": "मूल भुगतान",
         "nothingLeft": "कुछ नहीं",
         "anotherAccount": "दूसरा खाता",
         "capOnly": "केवल {amount} ही दिया जा सकता है।",

@@ -1726,6 +1726,7 @@
         "barTotal": "Payment",
         "barPaidLabel": "Paid",
         "leftToPay": "Left to pay",
+        "originalPayment": "Original payment",
         "nothingLeft": "Nothing",
         "anotherAccount": "Another account",
         "capOnly": "Only {amount} can be paid.",

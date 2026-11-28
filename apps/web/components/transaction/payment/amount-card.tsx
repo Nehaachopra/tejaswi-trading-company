@@ -6,13 +6,12 @@ import { Note } from "~/components/ui/note";
 import { Reveal } from "~/components/ui/reveal";
 import { ADD_ON_IVORY } from "~/components/ui/page-styles";
 import { FieldMessage } from "~/components/ui/field-message";
-import { MicField } from "~/components/ui/mic-button";
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 import { type AmountRow, PlainRows } from "../shared/amount-table";
-import { LABOUR_SKIP_MAX, input, saidAmount } from "./shared";
+import { LABOUR_SKIP_MAX, input } from "./shared";
 import { usePaymentEntry } from "./state";
 import { FailNote, CapWarning } from "./notes";
 import { PaidFrom } from "./paid-from";
@@ -183,12 +182,12 @@ export function AmountCard() {
           ? { key: "amount", text: t("taxLeft", { amount: rupees(most) }) }
           : { key: "amount", text: t("capOnly", { amount: rupees(most) }) },
     );
-  // the amount's box, typed or spoken: a bill (a supplier's Repay, any other payment's amount) or, on a GST bill,
+  // the amount's box, typed: a bill (a supplier's Repay, any other payment's amount) or, on a GST bill,
   // To pay
   const amountInput = (onType: (raw: string) => void, paid = false) => (
-    <MicField onText={(said) => saidAmount(said, onType)}>{amountField(onType, paid)}</MicField>
+    <div className="relative">{amountField(onType, paid)}</div>
   );
-  // the box itself, ₹ and what's typed (a supplier's Repay has its mic in the row's icon column instead)
+  // the box itself, ₹ and what's typed
   const amountField = (onType: (raw: string) => void, paid = false) => (
     <>
       {rupeeMark}
@@ -209,7 +208,6 @@ export function AmountCard() {
         className={cn(
           input(amountOver || tooMuch || (tried && value === 0)),
           amountBox,
-          "pr-12",
           // To pay typed: chestnut once filled, as what leaves cash or the bank
           paid && value > 0 && !amountOver && !tooMuch && "bg-chestnut text-ivory caret-ivory shadow-none",
         )}

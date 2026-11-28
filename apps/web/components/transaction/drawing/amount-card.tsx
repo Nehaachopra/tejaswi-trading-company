@@ -3,14 +3,13 @@
 import { IndianRupee } from "lucide-react";
 
 import { FieldMessage } from "~/components/ui/field-message";
-import { MicField } from "~/components/ui/mic-button";
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { bankNameIn } from "~/lib/bank-names";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
-import { input, saidAmount } from "../shared/form-basics";
+import { input } from "../shared/form-basics";
 import { PlacePicker } from "../shared/place-picker";
 import { useDrawingEntry } from "./state";
 
@@ -29,7 +28,7 @@ export function AmountCard() {
         </label>
         {/* always chestnut: the money that moves, filled or not */}
         <div className="w-[60%] shrink-0 [&_button]:text-ivory [&_input]:text-right">
-          <MicField onText={(said) => saidAmount(said, setAmount)}>
+          <div className="relative">
             <IndianRupee
               className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2 text-ivory"
               aria-hidden
@@ -49,11 +48,11 @@ export function AmountCard() {
               aria-invalid={(tried && value === 0) || undefined}
               className={cn(
                 input(tried && value === 0),
-                "min-h-12 pl-11 pr-12 font-heading text-xl font-bold tabular",
+                "min-h-12 pl-11 pr-3.5 font-heading text-xl font-bold tabular",
                 "bg-chestnut text-ivory caret-ivory shadow-none placeholder:text-ivory/60",
               )}
             />
-          </MicField>
+          </div>
         </div>
       </div>
       {capText && (

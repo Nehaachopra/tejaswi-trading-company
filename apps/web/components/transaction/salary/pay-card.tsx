@@ -3,14 +3,13 @@
 import { IndianRupee } from "lucide-react";
 
 import { FieldMessage } from "~/components/ui/field-message";
-import { MicField } from "~/components/ui/mic-button";
 import { NumberInput } from "~/components/ui/number-input";
 import { RequiredMark } from "~/components/ui/required-mark";
 import { rupees } from "~/lib/format";
 import { cn } from "~/lib/utils";
 
 import { LedgerSearch } from "../pickers/ledger-picker";
-import { chip, input, saidAmount } from "../shared/form-basics";
+import { chip, input } from "../shared/form-basics";
 import { PartyEditor } from "../shared/party-editor";
 import { FixedBanner } from "../shared/amount-banner";
 import { PaymentStage } from "../shared/payment-stage";
@@ -122,7 +121,7 @@ function AdvanceAmount() {
           <RequiredMark />
         </label>
         <div className="w-[60%] shrink-0 [&_input]:text-right">
-          <MicField onText={(said) => saidAmount(said, setAmount)}>
+          <div className="relative">
             <IndianRupee
               className="pointer-events-none absolute left-3.5 top-1/2 z-10 size-5 -translate-y-1/2"
               aria-hidden
@@ -142,10 +141,10 @@ function AdvanceAmount() {
               aria-invalid={(tried && value === 0) || undefined}
               className={cn(
                 input(tried && value === 0),
-                "min-h-12 pl-11 pr-12 font-heading text-xl font-bold tabular",
+                "min-h-12 pl-11 pr-3.5 font-heading text-xl font-bold tabular",
               )}
             />
-          </MicField>
+          </div>
         </div>
       </div>
       {capText && (

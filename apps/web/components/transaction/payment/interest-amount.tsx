@@ -10,6 +10,7 @@ import { type AmountRow } from "../shared/amount-table";
 import { Figure, LeftRow, PaymentStage as SharedStage } from "../shared/payment-stage";
 import { AutoSwitch } from "../shared/split-grid";
 import { usePaymentCards } from "./paid-from";
+import { useOriginalPayment } from "./original-payment";
 import { usePaymentEntry } from "./state";
 
 // interest paid's Amount stage, on the shared one (as a supplier's). On the left: Interest / month with its arrow (how
@@ -49,15 +50,17 @@ export function InterestAmount({
   } = usePaymentEntry();
   const tl = useTranslations("transactions.loan");
   const cards = { ...usePaymentCards(), meterOutside: true };
+  const original = useOriginalPayment();
   const placed = Math.round(gridPlaces.reduce((sum, p) => sum + p.amount, 0) * 100) / 100;
   const interest = Math.round((total - (tax?.rcm?.gst ?? 0)) * 100) / 100;
   const monthsBad = tried && value === 0 && interestTyped === null;
 
   // Months, then what stops it
-  const rows = (
+  const rows = (arrow: ReactNode) => (
     <>
-      {/* in the Repay box's look: the chestnut frame, what's typed in ivory, the mic beside */}
+      {/* in the Repay box's look: the chestnut frame, what's typed in ivory, an edit's arrow beside */}
       <TypedBanner
+        slot={arrow}
         id="months-field"
         label={t("months")}
         value={interestTyped !== null ? "" : interestMonths}
@@ -113,6 +116,7 @@ export function InterestAmount({
       leftSide={[{ key: "monthly", label: t("interestMonthly"), amount: monthly }]}
       // then Months
       amountBox={rows}
+      original={original}
       second={{
         label: <span className="font-semibold">{t("toPay")}</span>,
         value: (

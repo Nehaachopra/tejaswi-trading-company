@@ -1726,6 +1726,7 @@
         "barTotal": "ಪಾವತಿ",
         "barPaidLabel": "ಪಾವತಿಸಿದ್ದು",
         "leftToPay": "ಪಾವತಿಸಲು ಉಳಿದಿದೆ",
+        "originalPayment": "ಮೂಲ ಪಾವತಿ",
         "nothingLeft": "ಏನೂ ಇಲ್ಲ",
         "anotherAccount": "ಇನ್ನೊಂದು ಖಾತೆ",
         "capOnly": "{amount} ಮಾತ್ರ ಪಾವತಿಸಬಹುದು.",
