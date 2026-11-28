@@ -7,14 +7,31 @@ import { useTranslations } from "next-intl";
 import { CopyButton } from "~/components/ui/copy-button";
 import { Spinner } from "~/components/ui/icons/spinner";
 import { PAGE } from "~/components/ui/page-styles";
-import { rupees } from "~/lib/format";
+import { rupees, titleCase } from "~/lib/format";
 import { useSavedPayment } from "~/providers/saved";
 
 // /history/[id]/edit/done for a payment, as an edited receipt's: Edit successful, its transaction ID with its copy
-// button, the new amount in a box, and back to the payment in History
+// button, what was paid in a box (named as on a new payment's success card), and back to the payment in History
 export function PaymentEditSuccess({ id }: { id: string }) {
   const te = useTranslations("history.payment.edit");
+  const own = useTranslations("transactions.payment.success");
   const read = useSavedPayment(id, true);
+  // the amount's row named as on a new payment's success card (a supplier: Paid, a loan repaid, its interest, a loan
+  // given, an expense's head, which tax), its figure always what was handed over
+  const paid = read.saved;
+  const amountLabel = !paid
+    ? ""
+    : paid.paidFor === "supplier"
+      ? own("supplierPaid")
+      : paid.paidFor === "loanRepaid" || paid.paidFor === "interestPaid"
+        ? own(paid.paidFor)
+        : paid.paidFor === "loanGiven"
+          ? own("loanAmount")
+          : paid.paidFor === "expense"
+            ? titleCase(paid.paidToName)
+            : paid.paidFor === "taxPaid"
+              ? own("taxPaid", { tax: (/[csi]?gst|tds|tcs/i.exec(paid.paidToName)?.[0] ?? paid.paidToName).toUpperCase() })
+              : te("amount");
 
   return (
     <main className={`${PAGE} pb-28`}>
@@ -48,8 +65,8 @@ export function PaymentEditSuccess({ id }: { id: string }) {
               </span>
             </p>
             <p className="flex items-baseline justify-between gap-4 border-t border-chestnut/15 py-3">
-              <span className="text-sm font-semibold">{te("amount")}</span>
-              <span className="min-w-0 truncate font-heading text-xl font-bold">{rupees(read.saved.amount)}</span>
+              <span className="min-w-0 truncate text-sm font-semibold">{amountLabel}</span>
+              <span className="shrink-0 font-heading text-xl font-bold">{rupees(read.saved.amount)}</span>
             </p>
           </div>
 

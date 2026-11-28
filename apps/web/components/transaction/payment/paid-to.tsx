@@ -65,6 +65,7 @@ export function LoanCards() {
     movesOn,
     oldLoan,
     tried,
+    editing,
   } = usePaymentEntry();
   // the picked loan's terms being changed right here, from now on (the admin only)
   const tl = useTranslations("transactions.loan");
@@ -129,10 +130,15 @@ export function LoanCards() {
                 }
               : undefined
           }
-          onChange={() => {
-            setLoan(null);
-            setTotalGoal(null);
-          }}
+          // an edit (History): the loan stays, only its details and terms change
+          onChange={
+            editing
+              ? undefined
+              : () => {
+                  setLoan(null);
+                  setTotalGoal(null);
+                }
+          }
         >
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="truncate font-semibold">{titleCase(loan.partyName)}</span>
@@ -274,6 +280,7 @@ export function ToPicker() {
     tried,
     setTried,
     complete,
+    editing,
   } = usePaymentEntry();
   // a loan given: what's left on each party's open loans, beside them in the list and once picked
   const tpick = useTranslations("transactions.picker");
@@ -312,6 +319,8 @@ export function ToPicker() {
             if (c?.kind === "ledger") movesOn("next");
           },
           canAdd: isAdmin,
+          // an edit (History): who was paid stays, only their details change
+          locked: editing,
           onEdit: isAdmin && picked?.party ? () => setEditingTo((on) => !on) : undefined,
           placeholder: tc("hints.from"),
           asideOf: kind === "loanGiven" ? loanDueOf : undefined,
@@ -395,6 +404,8 @@ export function ToPicker() {
             : undefined
         }
         addParty={toParty}
+        // an edit (History): what was paid to stays, only its details change
+        locked={editing}
         placeholder={toParty ? tc("hints.from") : t("searchLedger")}
       />
 

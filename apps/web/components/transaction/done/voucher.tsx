@@ -528,20 +528,27 @@ export function ReceiptVoucher({
         />
 
         <div className="border border-chestnut/40">
-          {/* on the screen (History): who it was with, beside what it was for, its ID, day and remarks (when typed) */}
+          {/* on the screen (History): who it was with (only when there was a party), beside what it was for, its ID, day
+              and remarks (when typed), with where it was paid from or received in under them */}
           {h && (
-            <div className="grid border-b border-chestnut/40 sm:grid-cols-2 print:hidden">
-              <div className="flex min-w-0 flex-col border-b border-chestnut/40 sm:border-b-0 sm:border-r">
-                <p className={cn(band, "break-words")}>
-                  {t("from")}: {fromName}
-                </p>
-                {partyLines}
-              </div>
-              <div className="grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 [&>*:nth-last-child(-n+2)]:border-b-0">
-                <Detail label={t("for")} value={<span className="font-bold">{tk(r.kind as never)}</span>} />
-                <Detail label={th("receipt.transactionId")} value={<span className="font-bold">{r.assignedId}</span>} />
-                <Detail label={t("dated")} value={dated(r.dateTime)} />
-                {r.remarks && <Detail label={t("remarks")} value={r.remarks} />}
+            <div className={cn("grid border-b border-chestnut/40 print:hidden", p && "sm:grid-cols-2")}>
+              {p && (
+                <div className="flex min-w-0 flex-col border-b border-chestnut/40 sm:border-b-0 sm:border-r">
+                  <p className={cn(band, "break-words")}>
+                    {t("from")}: {fromName}
+                  </p>
+                  {partyLines}
+                </div>
+              )}
+              <div className="flex min-w-0 flex-col">
+                <div className={cn("grid grid-cols-[auto_1fr] content-start [&>*:nth-child(2n)]:border-r-0 [&>*:nth-last-child(-n+2)]:border-b-0", isPayment && "border-b border-chestnut/40")}>
+                  <Detail label={t("for")} value={<span className="font-bold">{tk(r.kind as never)}</span>} />
+                  <Detail label={th("receipt.transactionId")} value={<span className="font-bold">{r.assignedId}</span>} />
+                  <Detail label={t("dated")} value={dated(r.dateTime)} />
+                  {r.remarks && <Detail label={t("remarks")} value={r.remarks} />}
+                </div>
+                {/* a payment: where it was paid from, under its details */}
+                {isPayment && <Sources r={r} label={t("receivedIn")} />}
               </div>
             </div>
           )}
@@ -619,6 +626,12 @@ export function ReceiptVoucher({
                 )}
               </div>
               <Remarks label={t("remarks")} text={r.remarks} />
+              {/* a payment: where it was paid from, under the remarks */}
+              {isPayment && (
+                <div className="border-t border-chestnut/40">
+                  <Sources r={r} label={t("receivedIn")} />
+                </div>
+              )}
             </div>
           </div>
 
@@ -686,11 +699,14 @@ export function ReceiptVoucher({
             </table>
           </div>
 
-          {/* where it was paid from or received in, beside the breakup (above it on a phone) */}
-          <div className="grid border-t border-chestnut/40 sm:grid-cols-[1fr_auto]">
-            <div className="min-w-0 border-b border-chestnut/40 sm:border-b-0 sm:border-r">
-              <Sources r={r} label={t("receivedIn")} />
-            </div>
+          {/* where it was received in, beside the breakup (above it on a phone); a payment shows where it was paid from
+              under its details instead, so its breakup sits alone on the right */}
+          <div className={cn("border-t border-chestnut/40", isPayment ? "grid sm:flex sm:justify-end" : "grid sm:grid-cols-[1fr_auto]")}>
+            {!isPayment && (
+              <div className="min-w-0 border-b border-chestnut/40 sm:border-b-0 sm:border-r">
+                <Sources r={r} label={t("receivedIn")} />
+              </div>
+            )}
             <Breakup
               rows={breakup}
               label={h ? ti("amount") : isPayment ? ownWords("amountPaid") : base("amountIn")}
