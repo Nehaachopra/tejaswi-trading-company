@@ -26,7 +26,8 @@ import { fieldRow } from "../shared/form-basics";
 import { cn } from "~/lib/utils";
 import { PaymentEntryProvider, usePaymentEntry, usePaymentEntryState } from "./state";
 import { AmountCard } from "./amount-card";
-import { SalaryHeads } from "./salary-heads";
+import { SalaryForm } from "../salary/form";
+import { SalaryHandOff, SalaryHeads } from "./salary-heads";
 import { SaveBlock, DetailsCard } from "./details-card";
 import { GstCard } from "./gst-card";
 import { LoanCards, ToPicker, PayeePicker } from "./paid-to";
@@ -36,11 +37,28 @@ import { LoanCards, ToPicker, PayeePicker } from "./paid-to";
 // admin who sees balances) and the amount, never more than it holds; 2 Paid for; 3 Paid to (a party found or added,
 // the open loan, an expense head or tax, on its own card); 4 TDS (a supplier); 5 a loan given's terms; 6 each bank
 // account's reference and the remarks, then the day and Save last. A save goes to the payment's own page. Discarding to open a menu starts the form again
+// Salary or Advance to employee on Paid for: the salary flow takes over the page from its employees stage, and Back
+// from there (or its summary's For) comes back to a fresh Paid for
 export function PaymentForm({ isAdmin }: { isAdmin: boolean }) {
   const [round, setRound] = useState(0);
+  const [salaryKind, setSalaryKind] = useState<"salary" | "advance" | null>(null);
+  const backToPayment = () => {
+    setSalaryKind(null);
+    setRound((r) => r + 1);
+  };
+  if (salaryKind)
+    return <SalaryForm key={salaryKind} start={{ kind: salaryKind, amount: "", from: null, bankId: null }} onBackToPayment={backToPayment} />;
   return (
     <PaymentProvider>
-      <PaymentEntry key={round} isAdmin={isAdmin} onDiscard={() => setRound((r) => r + 1)} />
+      <SalaryHandOff.Provider
+        value={(kind) => {
+          // a step of its own in the phone's history, so its Back comes back to Paid for
+          window.history.pushState({ ...window.history.state, card: "pay" }, "");
+          setSalaryKind(kind);
+        }}
+      >
+        <PaymentEntry key={round} isAdmin={isAdmin} onDiscard={() => setRound((r) => r + 1)} />
+      </SalaryHandOff.Provider>
     </PaymentProvider>
   );
 }

@@ -42,9 +42,12 @@ type Row = { on: boolean; months: string; take: boolean };
 export function useSalaryEntryState({
   start,
   onDiscard,
+  onBackToPayment,
 }: {
   start?: SalaryStart;
   onDiscard: () => void;
+  // opened from a payment's Paid for: its For card is that Paid for, so going to it goes back there
+  onBackToPayment?: () => void;
 }) {
   const t = useTranslations("transactions.salary");
   const tc = useTranslations("transactions.chat");
@@ -268,6 +271,8 @@ export function useSalaryEntryState({
 
   // the phone's Back goes to the card before
   const remember = useCardHistory<SalaryStep>(firstStep, (card) => {
+    // (back past the employees stage, onto the payment's Paid for: the payment again)
+    if (onBackToPayment && (card === "for" || !STEPS.includes(card))) return onBackToPayment();
     moveCard(() => {
       setTried(false);
       setAt(card);
@@ -275,6 +280,7 @@ export function useSalaryEntryState({
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
   function show(step: SalaryStep) {
+    if (step === "for" && onBackToPayment) return onBackToPayment();
     moveCard(
       () => {
         setTried(false);

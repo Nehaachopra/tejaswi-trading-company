@@ -23,11 +23,13 @@ import {
   useSalaryEntryState,
 } from "./state";
 
-// /transaction/salary, the admin's: paying an employee, laid out like a receipt: one card at a time with Back and Next,
+// the salary flow, the admin's, opened from Payment's Paid for on the payment page: paying an employee, laid out like a receipt: one card at a time with Back and Next,
 // and a summary that goes back to any card. 1 the employee, a month's salary (one still owed) or an advance, the amount
 // and where it's paid from (cash or one bank account); 2 the reference and the remarks, the day and Save. A save goes to
 // its own page. Months are posted by the app on each pay day. Discarding to open a menu starts the form again
-export function SalaryForm({ start }: { start?: SalaryStart }) {
+// (opened from a payment's Paid for: `onBackToPayment` takes it back there, in place of its own For card; discarding
+// goes back there too)
+export function SalaryForm({ start, onBackToPayment }: { start?: SalaryStart; onBackToPayment?: () => void }) {
   const [round, setRound] = useState(0);
   return (
     <SalaryProvider>
@@ -35,14 +37,15 @@ export function SalaryForm({ start }: { start?: SalaryStart }) {
       <SalaryEntry
         key={round}
         start={round === 0 ? start : undefined}
-        onDiscard={() => setRound((r) => r + 1)}
+        onDiscard={onBackToPayment ?? (() => setRound((r) => r + 1))}
+        onBackToPayment={onBackToPayment}
       />
     </SalaryProvider>
   );
 }
 
-function SalaryEntry({ start, onDiscard }: { start?: SalaryStart; onDiscard: () => void }) {
-  const state = useSalaryEntryState({ start, onDiscard });
+function SalaryEntry({ start, onDiscard, onBackToPayment }: { start?: SalaryStart; onDiscard: () => void; onBackToPayment?: () => void }) {
+  const state = useSalaryEntryState({ start, onDiscard, onBackToPayment });
   return (
     <SalaryEntryProvider value={state}>
       <SalaryEntryView />
