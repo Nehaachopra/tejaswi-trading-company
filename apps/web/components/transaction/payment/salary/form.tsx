@@ -54,8 +54,9 @@ function SalaryEntry({ start, onDiscard, onBackToPayment }: { start?: SalaryStar
   );
 }
 
-// the page: what shows while it loads or can't, then the card on its own with the summary
-function SalaryEntryView() {
+// the page: what shows while it loads or can't, then the card on its own with the summary (an edit, from History, under
+// its own title)
+export function SalaryEntryView({ title }: { title?: string }) {
   const {
     t,
     tc,
@@ -83,24 +84,25 @@ function SalaryEntryView() {
   } = useSalaryEntry();
   // a salary is paid from Payment: its title and type are Payment's
   const tpay = useTranslations("transactions.payment.chat");
+  const heading = title ?? tpay("title");
 
   // saved: only Saving… while its page opens (the employees asked again would otherwise redraw the form under it)
   if (saved)
     return (
-      <EntryNote title={tpay("title")} loading>
+      <EntryNote title={heading} loading>
         {t("saving")}
       </EntryNote>
     );
 
   if (loading)
     return (
-      <EntryNote title={tpay("title")} loading>
+      <EntryNote title={heading} loading>
         {tc("looking")}
       </EntryNote>
     );
   if (loadFailed)
     return (
-      <EntryNote title={tpay("title")} failed onRetry={retryLoad}>
+      <EntryNote title={heading} failed onRetry={retryLoad}>
         {t("loadFailed")}
       </EntryNote>
     );
@@ -120,7 +122,7 @@ function SalaryEntryView() {
   );
   return (
     <EntryPage
-      title={tpay("title")}
+      title={heading}
       summaryLabel={tpf("summary")}
       showBar={value > 0}
       bar={

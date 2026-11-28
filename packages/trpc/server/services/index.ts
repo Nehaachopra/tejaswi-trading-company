@@ -21,6 +21,7 @@ import PurchaseReturnService from "@repo/services/purchase-return";
 import ReceiptService from "@repo/services/receipt";
 import ReceiptEditService from "@repo/services/receipt/edit";
 import SalaryService from "@repo/services/salary";
+import SalaryEditService from "@repo/services/salary/edit";
 import TransactionService from "@repo/services/transaction";
 import CategoryService from "@repo/services/category";
 import GodownService from "@repo/services/godown";
@@ -76,6 +77,7 @@ export const drawingService = new DrawingService(accountsService, transactionSer
 export const otherService = new OtherService(accountsService, transactionService);
 
 export const salaryService = new SalaryService(accountsService, transactionService);
+export const salaryEditService = new SalaryEditService(accountsService, salaryService);
 
 export const documentService = new DocumentService(paymentService);
 

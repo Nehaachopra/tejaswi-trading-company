@@ -40,6 +40,6 @@ export function HistoryDetail({ id, isAdmin }: { id: string; isAdmin: boolean })
   if (transaction.type === "receipt") return <ReceiptVoucher id={id} history={{ record: transaction, isAdmin }} />;
   if (transaction.type === "payment") return <ReceiptVoucher id={id} flow="payment" history={{ record: transaction, isAdmin }} />;
   // a salary or advance: as a payment's voucher (it's paid from Payment)
-  if (transaction.type === "salary") return <SalaryVoucher id={id} record={transaction} />;
+  if (transaction.type === "salary") return <SalaryVoucher id={id} record={transaction} isAdmin={isAdmin} />;
   return <p className="mt-16 text-center text-ivory/70">{t("comingSoon")}</p>;
 }

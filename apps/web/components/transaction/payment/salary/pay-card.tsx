@@ -45,7 +45,7 @@ export function ForCard() {
 // the Employees card, on its own after Paid for. A salary: the table of every employee owed. An advance: the
 // employee, found and picked as a payment's supplier is (Edit and Change on the pick)
 export function PayCard() {
-  const { tc, kind, choice, setChoice, editing, setEditing } = useSalaryEntry();
+  const { tc, kind, choice, setChoice, editing, setEditing, isEdit } = useSalaryEntry();
   return (
     <div className="flex flex-col gap-4">
       {kind === "salary" && <SalaryTable />}
@@ -59,6 +59,8 @@ export function PayCard() {
             value={choice}
             onChange={setChoice}
             canAdd={false}
+            // an edit: who was paid stays, only their details change
+            locked={isEdit}
             onEdit={
               choice?.kind === "ledger" && choice.ledger.party
                 ? () => setEditing((on) => !on)

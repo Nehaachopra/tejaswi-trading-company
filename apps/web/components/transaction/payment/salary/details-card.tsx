@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { DateInput } from "~/components/ui/date-input";
 import { FieldMessage } from "~/components/ui/field-message";
 import { MicField } from "~/components/ui/mic-button";
@@ -60,12 +62,16 @@ export function DetailsCard() {
   );
 }
 
-// the day (today to start with; never after it), then Save with the amount on it, and why a save failed
+// the day (today to start with; never after it), then Save with the amount on it, and why a save failed. An edit
+// (History) keeps the day in its own month, picked on the app's calendar, and saves its changes
 export function SaveBlock() {
-  const { t, tc, kind, day, setDay, tried, value, saving, creating, save, saveError } =
+  const { t, tc, kind, day, setDay, tried, value, saving, creating, save, saveError, isEdit: editing, dayMin, dayMax } =
     useSalaryEntry();
+  const te = useTranslations("history.payment.edit");
   const busy = saving || creating;
   const today = indiaDay(new Date());
+  const last = dayMax ?? today;
+  const first = dayMin ?? "";
   return (
     <>
       <label className="mb-3 flex flex-col gap-2.5 text-xs font-semibold sm:max-w-72">
@@ -75,8 +81,11 @@ export function SaveBlock() {
         </span>
         <DateInput
           value={day}
-          max={today}
-          onChange={(d) => setDay(d !== "" && d > today ? day : d)}
+          min={first || undefined}
+          max={last}
+          calendar={editing}
+          // a day typed outside what it can be is left as it was
+          onChange={(d) => setDay(d !== "" && (d > last || (first !== "" && d < first)) ? day : d)}
           calendarLabel={tc("q.date")}
           aria-invalid={(tried && day === "") || undefined}
           className={input(day === "")}
@@ -94,11 +103,11 @@ export function SaveBlock() {
         {busy ? (
           <>
             <Spinner className="size-5" />
-            <span>{t("saving")}</span>
+            <span>{editing ? te("saving") : t("saving")}</span>
           </>
         ) : (
           <>
-            <span>{t(kind === "advance" ? "save.advance" : "save.salary")}</span>
+            <span>{editing ? te("save") : t(kind === "advance" ? "save.advance" : "save.salary")}</span>
             <span className="tabular">{rupees(value)}</span>
           </>
         )}

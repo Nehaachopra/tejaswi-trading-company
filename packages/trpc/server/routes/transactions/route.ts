@@ -56,9 +56,10 @@ import { contraIdInputModel, contraModel, type ContraKind, createContraInputMode
 import { createOtherInputModel, otherIdInputModel, otherModel, savedOtherModel } from "@repo/services/other/model";
 import { createDrawingInputModel, drawingIdInputModel, drawingModel, savedDrawingModel } from "@repo/services/drawing/model";
 import { paySalariesInputModel, paySalaryInputModel, salaryEmployeeModel, salaryIdInputModel, salaryPaymentModel, salaryVoucherModel } from "@repo/services/salary/model";
+import { editSalaryInputModel, salaryForEditModel } from "@repo/services/salary/edit-model";
 import { noteKey, opensNote, opensSale, opensVoucher, saleKey, voucherKey } from "@repo/services/transaction/share-link";
 
-import { accountsService, contraService, documentService, drawingService, dueService, otherService, paymentEditService, paymentService, purchaseEditService, purchaseReturnService, purchaseService, receiptEditService, receiptService, salaryService, saleEditService, saleReturnService, saleService, settingService, transactionService } from "../../services";
+import { accountsService, contraService, documentService, drawingService, dueService, otherService, paymentEditService, paymentService, purchaseEditService, purchaseReturnService, purchaseService, receiptEditService, receiptService, salaryEditService, salaryService, saleEditService, saleReturnService, saleService, settingService, transactionService } from "../../services";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "../../trpc";
 import { checkDate, limitSaves, onceFor } from "../../guards";
 
@@ -621,6 +622,23 @@ const salaryRouter = router({
     .input(salaryIdInputModel)
     .output(salaryPaymentModel)
     .query(({ input }) => salaryService.get(input)),
+
+  // a salary or advance as its edit form opens it (the admin's)
+  forEdit: adminProcedure
+    .meta({ openapi: { method: "GET", path: "/transactions/salaries/{transactionId}/edit", tags: ["transactions"] } })
+    .input(salaryIdInputModel)
+    .output(salaryForEditModel)
+    .query(({ input }) => salaryEditService.forEdit(input)),
+
+  // editing it: the amount (and a salary's advance set off), where it's paid from, the day within its month, the remarks
+  edit: adminProcedure
+    .meta({ openapi: { method: "PUT", path: "/transactions/salaries/{transactionId}", tags: ["transactions"] } })
+    .input(editSalaryInputModel)
+    .output(z.object({ transactionId: z.string().uuid() }))
+    .mutation(({ ctx, input }) => {
+      limitSaves(ctx.session.user.id);
+      return salaryEditService.edit(input, ctx.session.user);
+    }),
 
   // a salary or advance as History shows it: who, the months it paid, where from
   voucher: adminProcedure

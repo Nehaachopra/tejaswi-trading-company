@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CircleAlert, Download, Mail, Phone } from "lucide-react";
+import { ArrowLeft, CircleAlert, Download, Mail, Pencil, Phone } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
@@ -22,7 +22,7 @@ import { band, cell, dated, Detail, money, pill } from "../../done/voucher";
 // day and the remarks, with Paid from under them; then the table (Sl, the employee, their transaction ID, the amount), and the amount with any advance taken back off it. Back to History and the download at the
 // top; no edit
 // (`record`: opened from History, its screen look; none: the voucher page from the success card, shown as printed)
-export function SalaryVoucher({ id, record }: { id: string; record?: HistoryTransaction }) {
+export function SalaryVoucher({ id, record, isAdmin = false }: { id: string; record?: HistoryTransaction; isAdmin?: boolean }) {
   const t = useTranslations("transactions.voucher");
   const tp = useTranslations("transactions.payment.voucher");
   const ts = useTranslations("transactions.salary.voucher");
@@ -120,9 +120,17 @@ export function SalaryVoucher({ id, record }: { id: string; record?: HistoryTran
         <Link href={h ? "/history" : `/transaction/payment/salary/${id}`} className="flex min-h-11 items-center gap-1.5 text-sm font-medium">
           <ArrowLeft className="size-4" aria-hidden /> {h ? th("title") : t("back")}
         </Link>
-        <button type="button" onClick={() => window.print()} className={pill}>
-          <Download className="size-4" aria-hidden /> {t("download")}
-        </button>
+        {/* the download, then Edit payment (the admin's, from History; not once cancelled) */}
+        <div className={cn(h && isAdmin && !cancelled ? "grid grid-cols-2" : "flex flex-col", "gap-2 sm:flex sm:flex-row sm:items-center")}>
+          <button type="button" onClick={() => window.print()} className={pill}>
+            <Download className="size-4" aria-hidden /> {t("download")}
+          </button>
+          {h && isAdmin && !cancelled && (
+            <Link href={`/history/${id}/edit`} className={pill}>
+              <Pencil className="size-4" aria-hidden /> {th("editPayment")}
+            </Link>
+          )}
+        </div>
       </div>
       {/* a cancelled one: when, by whom and why; an edited one: when it was last edited, and by whom */}
       {record && cancelled && <CancelledNote at={record.cancelledAt} by={record.cancelledByName} reason={record.cancelReason} />}

@@ -143,7 +143,8 @@ export default class SalaryService {
   }
 
   // an employee's advances still owed, oldest first: each one less what's been taken off it
-  private async advancesLeft(q: Pick<Tx, "select">, employeeId: string) {
+  // (also read by an edit, salary/edit.ts)
+  async advancesLeft(q: Pick<Tx, "select">, employeeId: string) {
     const rows = await q
       .select({
         salaryId: salariesTable.id,
@@ -162,7 +163,8 @@ export default class SalaryService {
 
   // an employee's posted months (active ones, oldest first), each with what's been paid on it: their salary payments
   // settle the months oldest first
-  private async monthsOf(q: Pick<Tx, "select">, employeeId: string) {
+  // (also read by an edit, salary/edit.ts)
+  async monthsOf(q: Pick<Tx, "select">, employeeId: string) {
     const postings = await q
       .select({ p: salaryPostingsTable })
       .from(salaryPostingsTable)
@@ -310,10 +312,10 @@ export default class SalaryService {
   }
 
   // where it's paid from (cash, or a bank account), never more than it holds today: its ledger, and the account as it
-  // is now (for the snapshot)
-  private async placeFor(tx: Tx, bankDetailsId: string | null, paise: number) {
+  // is now (for the snapshot). `own`: what an edited payment took from it before, back in it for the check
+  async placeFor(tx: Tx, bankDetailsId: string | null, paise: number, own = 0) {
     const ledgerId = await settleLedger(tx, this.accounts, bankDetailsId ? "bank" : "cash", bankDetailsId);
-    const has = toPaise(held((await this.accounts.balances([ledgerId])).get(ledgerId)?.today));
+    const has = toPaise(held((await this.accounts.balances([ledgerId])).get(ledgerId)?.today)) + own;
     if (paise > has) {
       throw new TRPCError({ code: "PRECONDITION_FAILED", message: `Only ₹${(has / 100).toLocaleString("en-IN")} is ${bankDetailsId ? "in that account" : "in cash"}.` });
     }

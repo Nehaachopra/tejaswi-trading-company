@@ -9,6 +9,7 @@ import { bankNameIn } from "~/lib/bank-names";
 import { rupees, titleCase } from "~/lib/format";
 import { useLeaveGuard } from "~/lib/use-leave-guard";
 import { useSalary } from "~/providers/salary";
+import { type EditSalaryIn, type SalaryForEdit } from "~/providers/salary-edit";
 
 import { indiaDay } from "../../../account/balance";
 import { type LedgerChoice } from "../../pickers/ledger-picker";
@@ -37,17 +38,31 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
 // a salary row as changed: ticked, the months it pays, the advance taken back (toggled on)
 type Row = { on: boolean; months: string; take: boolean };
 
+// a salary or advance being edited (History, the admin's): the saved one, and the edit's own save in place of a new one's
+export type SalaryEdit = {
+  saved: SalaryForEdit;
+  saving: boolean;
+  done: boolean;
+  save: (input: Omit<EditSalaryIn, "transactionId">) => Promise<void>;
+};
+
+// an edit's stages: who's paid (locked), the amount and where from, the details; what it was paid for stays
+const EDIT_STEPS: SalaryStep[] = ["pay", "amount", "details"];
+
 // everything the salary form holds and works out: what's typed, what the server says, and the moves between cards.
 // Made once in SalaryEntry; every card reads it with useSalaryEntry()
 export function useSalaryEntryState({
   start,
   onDiscard,
   onBackToPayment,
+  edit,
 }: {
   start?: SalaryStart;
   onDiscard: () => void;
   // opened from a payment's Paid for: its For card is that Paid for, so going to it goes back there
   onBackToPayment?: () => void;
+  // editing a saved one: the form opens on it, its employee locked
+  edit?: SalaryEdit;
 }) {
   const t = useTranslations("transactions.salary");
   const tc = useTranslations("transactions.chat");
@@ -55,39 +70,64 @@ export function useSalaryEntryState({
   const locale = useLocale();
   const router = useRouter();
   const {
-    employees,
+    employees: employeesNow,
     banks,
-    sources,
+    sources: sourcesNow,
     loading,
     loadFailed,
     retryLoad,
     savePay,
     savePayAll,
     refreshEmployees,
-    saving: creating,
-    saved,
+    saving: newSaving,
+    saved: newSaved,
   } = useSalary();
+  // editing: the saved one; its employee alone, as they were before it; cash and each account with what it took out of
+  // them back in; the edit's own save
+  const ed = edit?.saved;
+  const isEdit = !!edit;
+  const employees = ed ? [ed.row] : employeesNow;
+  const sources =
+    ed && sourcesNow
+      ? {
+          ...sourcesNow,
+          cash: sourcesNow.cash === null ? null : round2(sourcesNow.cash + ed.cashAmount),
+          banks: sourcesNow.banks.map((b) => {
+            const own = ed.banks.filter((x) => x.bankDetailsId === b.id).reduce((sum, x) => sum + x.amount, 0);
+            return { ...b, available: b.available === null ? null : round2(b.available + own) };
+          }),
+        }
+      : sourcesNow;
+  const creating = edit ? edit.saving : newSaving;
+  const saved = edit ? edit.done : newSaved;
 
   // the answers: what for (on top); a salary: the table of employees owed (each ticked, with its months); an advance:
   // who (their ledger, found as a payment finds a party) and how much; then where from
-  const [kind, setKind] = useState<"salary" | "advance" | null>(start?.kind ?? null);
-  // a salary: each row changed from how it starts (ticked, all the months owed, no advance taken back)
-  const [rows, setRows] = useState<Record<string, Row>>({});
+  const [kind, setKind] = useState<"salary" | "advance" | null>(ed?.kind ?? start?.kind ?? null);
+  // a salary: each row changed from how it starts (ticked, all the months owed, no advance taken back); an edit's own
+  // row as saved
+  const [rows, setRows] = useState<Record<string, Row>>(() =>
+    ed?.kind === "salary" ? { [ed.row.employeeId]: { on: true, months: String(ed.months), take: ed.takesAdvance } } : {},
+  );
   // a salary: the employee whose details are being changed right here
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [choice, setChoice] = useState<LedgerChoice>(null);
+  const [choice, setChoice] = useState<LedgerChoice>(ed ? { kind: "ledger", ledger: ed.ledger } : null);
   // an advance: the picked employee's details being changed right here
   const [editing, setEditing] = useState(false);
   // an advance: the amount
-  const [amount, setAmount] = useState(start?.kind === "advance" ? start.amount : "");
+  const [amount, setAmount] = useState(ed?.kind === "advance" ? String(ed.amount) : start?.kind === "advance" ? start.amount : "");
   const [from, setFrom] = useState<"cash" | "bank" | null>(start?.from ?? null);
   const [bankId, setBankId] = useState<string | null>(start?.bankId ?? null);
-  const [reference, setReference] = useState("");
+  const [reference, setReference] = useState(ed?.referenceNumber ?? "");
   // from a bank: how each account paid and its UTR or cheque no. (a salary: per account used; an advance: its one)
-  const [bankModes, setBankModes] = useState<Record<string, BankMode | null>>({});
-  const [bankRefs, setBankRefs] = useState<Record<string, string>>({});
-  const [remarks, setRemarks] = useState("");
-  const [day, setDay] = useState(() => indiaDay(new Date()));
+  const [bankModes, setBankModes] = useState<Record<string, BankMode | null>>(() =>
+    Object.fromEntries((ed?.banks ?? []).map((b) => [b.bankDetailsId, b.mode])),
+  );
+  const [bankRefs, setBankRefs] = useState<Record<string, string>>(() =>
+    Object.fromEntries((ed?.banks ?? []).filter((b) => b.referenceNumber).map((b) => [b.bankDetailsId, b.referenceNumber!])),
+  );
+  const [remarks, setRemarks] = useState(ed?.remarks ?? "");
+  const [day, setDay] = useState(() => indiaDay(ed ? new Date(ed.dateTime) : new Date()));
   // made when the form opens: a second save with it (a retry after the connection dropped) gets the first one's result
   const [saveKey] = useState(() => crypto.randomUUID());
   // an advance was cut at the most it can be: the warning under it
@@ -160,7 +200,14 @@ export function useSalaryEntryState({
   // as a payment's (an advance: one card, one place). Auto (off to start with) fills them from what each holds, cash first, until the
   // total's covered; typing an amount turns Auto off, the others keeping what they had. The app then shares them over
   // the employees, in order
-  const [typedSplit, setTypedSplit] = useState<Record<string, string> | null>({});
+  const [typedSplit, setTypedSplit] = useState<Record<string, string> | null>(() =>
+    ed
+      ? {
+          ...(ed.cashAmount > 0 ? { cash: String(ed.cashAmount) } : {}),
+          ...Object.fromEntries(ed.banks.map((b) => [b.bankDetailsId, String(b.amount)])),
+        }
+      : {},
+  );
   // the bank cards' reference boxes left (their mistakes show then)
   const [refLeft, setRefLeft] = useState<string[]>([]);
   const placeName = (id: string) => {
@@ -227,14 +274,17 @@ export function useSalaryEntryState({
   // a cash voucher no. is asked only when cash is used
   const cashUsed = (places.find((p) => p.id === "cash")?.amount ?? 0) > 0;
 
-  // another employee or kind starts the advance's amount again (not what a payment handed over, the first time)
-  const handed = useRef(!!start?.amount);
+  // another employee or kind starts the advance's amount again: only when one of them really changes, so the form
+  // opening (an edit's amount, React running effects twice) never empties it
+  const lastWho = useRef(`${employee?.employeeId ?? ""}|${kind ?? ""}`);
   useEffect(() => {
+    const who = `${employee?.employeeId ?? ""}|${kind ?? ""}`;
+    if (lastWho.current === who) return;
+    // (the employee only now found, as the list arrives: nothing was typed for anyone else)
+    const found = lastWho.current.startsWith("|");
+    lastWho.current = who;
     setEditing(false);
-    if (handed.current) {
-      handed.current = false;
-      return;
-    }
+    if (found) return;
     setAmount("");
     setCapped(null);
   }, [employee?.employeeId, kind]);
@@ -258,14 +308,16 @@ export function useSalaryEntryState({
       value > 0 && banksOk && splitOk && (kind !== "advance" || most === null || value <= most),
     details: day !== "",
   };
-  // opened for Salary or Advance (from a payment's Paid for): straight to who's paid
-  const firstStep: SalaryStep = start?.kind ? "pay" : "for";
+  // opened for Salary or Advance (from a payment's Paid for), or an edit: straight to who's paid
+  const steps = isEdit ? EDIT_STEPS : STEPS;
+  const firstStep: SalaryStep = isEdit || start?.kind ? "pay" : "for";
   const [at, setAt] = useState<SalaryStep>(firstStep);
   const current = at;
-  const index = STEPS.indexOf(current);
-  const firstOpen = STEPS.findIndex((s) => !complete[s]);
+  const index = steps.indexOf(current);
+  const firstOpen = steps.findIndex((s) => !complete[s]);
   const ready = firstOpen === -1;
-  const reachable = (s: SalaryStep) => STEPS.indexOf(s) <= (ready ? STEPS.length - 1 : firstOpen);
+  // (a card not in this form, as an edit's Paid for, can't be gone back to)
+  const reachable = (s: SalaryStep) => steps.includes(s) && steps.indexOf(s) <= (ready ? steps.length - 1 : firstOpen);
   // phones: the summary folded into a bar above the card
   const [summaryOpen, setSummaryOpen] = useState(false);
 
@@ -273,6 +325,7 @@ export function useSalaryEntryState({
   const remember = useCardHistory<SalaryStep>(firstStep, (card) => {
     // (back past the employees stage, onto the payment's Paid for: the payment again)
     if (onBackToPayment && (card === "for" || !STEPS.includes(card))) return onBackToPayment();
+    if (!steps.includes(card)) return;
     moveCard(() => {
       setTried(false);
       setAt(card);
@@ -286,7 +339,7 @@ export function useSalaryEntryState({
         setTried(false);
         setAt(step);
       },
-      STEPS.indexOf(step) < index,
+      steps.indexOf(step) < index,
     );
     remember(step);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -302,7 +355,7 @@ export function useSalaryEntryState({
   }
   function next() {
     if (!complete[current]) return guide();
-    show(STEPS[index + 1]!);
+    show(steps[index + 1]!);
   }
 
   // who's paid: Employees for a salary, Employee for an advance
@@ -370,13 +423,15 @@ export function useSalaryEntryState({
     },
   ];
 
-  // leaving with something entered asks first (not after a save, which goes on to its own page)
+  // leaving with something entered asks first (not after a save, which goes on to its own page); an edit asks only
+  // once something differs from how it opened
+  const editKey = JSON.stringify([rows, amount, typedSplit, bankModes, bankRefs, reference, remarks, day]);
+  const openedKey = useRef(editKey);
   const { dialog: leaveDialog } = useLeaveGuard(
     !saved &&
-      (choice !== null ||
-        Object.keys(rows).length > 0 ||
-        (kind === "advance" && value > 0) ||
-        remarks !== ""),
+      (isEdit
+        ? editKey !== openedKey.current
+        : choice !== null || Object.keys(rows).length > 0 || (kind === "advance" && value > 0) || remarks !== ""),
     onDiscard,
   );
 
@@ -384,12 +439,28 @@ export function useSalaryEntryState({
   const [saving, setSaving] = useState(false);
   async function save() {
     if (!ready) {
-      setAt(STEPS[firstOpen]!);
+      setAt(steps[firstOpen]!);
       return guide();
     }
     setSaving(true);
     setSaveError(null);
     try {
+      // an edit saves over the saved one (and goes on to its own done page)
+      if (edit) {
+        await edit.save({
+          dateTime: momentOf(day),
+          amount: value,
+          advance: kind === "salary" ? (lines[0]?.advance ?? 0) : 0,
+          sources: placesUsed.map((p) =>
+            p.id === "cash"
+              ? { bankDetailsId: null, amount: p.amount, mode: null, referenceNumber: null }
+              : { bankDetailsId: p.id, amount: p.amount, mode: bankModes[p.id]!, referenceNumber: bankRefs[p.id] || null },
+          ),
+          referenceNumber: cashUsed ? reference.trim() || null : null,
+          remarks,
+        });
+        return;
+      }
       if (kind === "salary") {
         // a transaction each; the first one's page, with the rest listed on it
         const list = await savePayAll({
@@ -516,7 +587,12 @@ export function useSalaryEntryState({
     bank,
     most,
     complete,
-    steps: STEPS,
+    steps,
+    // an edit (History): its employee locked, its day kept in its own month
+    isEdit,
+    // an edit: the days it can move to (its own month, never after today)
+    dayMin: ed?.dayMin ?? null,
+    dayMax: ed?.dayMax ?? null,
     current,
     index,
     reachable,
